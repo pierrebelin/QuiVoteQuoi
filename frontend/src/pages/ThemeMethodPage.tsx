@@ -87,6 +87,9 @@ export default function ThemeMethodPage() {
                   <code className="rounded bg-surface-soft px-1 py-0.5 text-[11px] text-ink-soft">
                     {rule.marker}
                   </code>
+                  {rule.whole_word && (
+                    <span className="text-xs text-ink-faint">(mot entier)</span>
+                  )}
                   <span className="text-xs text-ink-faint">
                     → {rule.families.map((f) => f.label).join(', ')}
                   </span>

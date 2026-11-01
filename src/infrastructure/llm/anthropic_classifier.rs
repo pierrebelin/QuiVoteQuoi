@@ -143,7 +143,15 @@ pub(crate) fn system_prompt() -> String {
          Aucun jugement, aucune évaluation, aucun chiffre, aucune estimation, aucun \
          qualificatif d'ampleur.\n\
          - Si aucune famille ne convient à un texte, rends pour lui une liste de familles vide \
-         plutôt qu'un rattachement approximatif.\n\
+         seulement si son libellé, pris littéralement, ne relève d'aucun périmètre du référentiel. \
+         Une liste vide est exceptionnelle : tu renseignes alors obligatoirement `motif_absence` \
+         avec `hors_referentiel` ou `libelle_insuffisant`.\n\
+         - Ne rends pas une liste vide parce que le texte est juridique, transversal ou porte sur \
+         plusieurs domaines : retiens alors la famille la plus centrale. Par exemple, une motion \
+         de censure relève des institutions ; une loi constitutionnelle relève des institutions \
+         et, s'il y en a un, du domaine qu'elle inscrit dans la Constitution ; un texte sur le \
+         chômage ou le dialogue social relève du travail ; un texte agricole relève de \
+         l'agriculture.\n\
          - N'invente aucune famille : seuls les codes listés ci-dessus sont acceptés."
     )
 }
@@ -171,6 +179,10 @@ pub(crate) fn response_schema(expected: usize) -> Value {
                                 "required": ["famille", "justification"],
                                 "additionalProperties": false
                             }
+                        },
+                        "motif_absence": {
+                            "type": "string",
+                            "enum": ["hors_referentiel", "libelle_insuffisant"]
                         }
                     },
                     "required": ["numero", "familles"],
@@ -192,6 +204,7 @@ struct Answer {
 struct AnsweredText {
     numero: usize,
     familles: Vec<AnsweredFamily>,
+    motif_absence: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -332,6 +345,26 @@ pub(crate) fn parse_text(
             continue;
         }
 
+        if entry.familles.is_empty() {
+            match entry.motif_absence.as_deref() {
+                Some("hors_referentiel" | "libelle_insuffisant") => {
+                    out[slot] = Some(vec![]);
+                }
+                Some(reason) => {
+                    tracing::warn!(%reason, "motif d'absence de famille invalide");
+                }
+                None => {
+                    tracing::warn!("liste de familles vide sans motif, réponse à reprendre");
+                }
+            }
+            continue;
+        }
+
+        if entry.motif_absence.is_some() {
+            tracing::warn!("motif d'absence présent avec des familles, réponse à reprendre");
+            continue;
+        }
+
         let mut proposed = Vec::with_capacity(entry.familles.len());
         let mut invalid = false;
         for family in entry.familles {
@@ -380,6 +413,14 @@ mod tests {
     }
 
     #[test]
+    fn the_prompt_makes_an_unassigned_answer_exceptional() {
+        let prompt = system_prompt();
+        assert!(prompt.contains("Une liste vide est exceptionnelle"));
+        assert!(prompt.contains("motif_absence"));
+        assert!(prompt.contains("motion de censure"));
+    }
+
+    #[test]
     fn the_schema_only_accepts_referential_codes() {
         let schema = response_schema(2);
         let codes = schema["properties"]["textes"]["items"]["properties"]["familles"]["items"]
@@ -400,6 +441,10 @@ mod tests {
         assert_eq!(
             texts["items"]["properties"]["numero"]["enum"],
             json!([1, 2, 3])
+        );
+        assert_eq!(
+            texts["items"]["properties"]["motif_absence"]["enum"],
+            json!(["hors_referentiel", "libelle_insuffisant"])
         );
     }
 
@@ -542,10 +587,22 @@ mod tests {
     }
 
     #[test]
-    fn an_empty_family_list_is_an_answer_not_a_failure() {
+    fn an_empty_family_list_with_an_explicit_reason_is_an_answer() {
+        let parsed = parse_answer(
+            &payload(
+                r#"{"textes":[{"numero":1,"familles":[],"motif_absence":"hors_referentiel"}]}"#,
+            ),
+            1,
+        )
+        .unwrap();
+        assert_eq!(parsed[0].as_ref().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn an_empty_family_list_without_a_reason_is_retriable() {
         let parsed =
             parse_answer(&payload(r#"{"textes":[{"numero":1,"familles":[]}]}"#), 1).unwrap();
-        assert_eq!(parsed[0].as_ref().unwrap().len(), 0);
+        assert!(parsed[0].is_none());
     }
 
     #[test]
