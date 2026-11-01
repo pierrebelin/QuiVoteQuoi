@@ -287,6 +287,8 @@ pub struct ThemeRuleDto {
     pub id: &'static str,
     /// Fragment cherché dans le libellé normalisé du texte.
     pub marker: &'static str,
+    /// Le fragment doit former un mot entier dans le libellé.
+    pub whole_word: bool,
     pub families: Vec<FamilyDto>,
     /// Énoncé publié, conservé comme justification du rattachement.
     pub statement: &'static str,
@@ -297,6 +299,7 @@ impl From<&'static ThemeRule> for ThemeRuleDto {
         Self {
             id: rule.id(),
             marker: rule.marker(),
+            whole_word: rule.whole_word(),
             families: rule
                 .families()
                 .iter()

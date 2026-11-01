@@ -148,8 +148,10 @@ pub(crate) fn system_prompt() -> String {
          avec `hors_referentiel` ou `libelle_insuffisant`.\n\
          - Ne rends pas une liste vide parce que le texte est juridique, transversal ou porte sur \
          plusieurs domaines : retiens alors la famille la plus centrale. Par exemple, une motion \
-         de censure ou une loi constitutionnelle relève des institutions ; un texte sur le chômage \
-         ou le dialogue social relève du travail ; un texte agricole relève de l'agriculture.\n\
+         de censure relève des institutions ; une loi constitutionnelle relève des institutions \
+         et, s'il y en a un, du domaine qu'elle inscrit dans la Constitution ; un texte sur le \
+         chômage ou le dialogue social relève du travail ; un texte agricole relève de \
+         l'agriculture.\n\
          - N'invente aucune famille : seuls les codes listés ci-dessus sont acceptés."
     )
 }

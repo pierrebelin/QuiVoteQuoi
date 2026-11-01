@@ -88,6 +88,8 @@ export interface ThemeRuleDto {
   id: string
   /** Fragment cherché dans le libellé normalisé du texte. */
   marker: string
+  /** Le fragment doit former un mot entier dans le libellé. */
+  whole_word: boolean
   families: FamilyDto[]
   /** Énoncé publié, conservé comme justification du rattachement. */
   statement: string

@@ -31,6 +31,9 @@ pub struct ThemeRule {
     /// Fragment cherche dans la cle normalisee. La cle etant deja mise en
     /// minuscules et ses apostrophes unifiees (RM-02), le fragment l'est aussi.
     marker: &'static str,
+    /// Le marqueur doit former un mot entier: « enseignement » ne doit
+    /// capter ni « renseignement » ni « tirer les enseignements ».
+    whole_word: bool,
     families: &'static [FamilyCode],
     /// Enonce publie, conserve comme justification du rattachement (RM-05).
     statement: &'static str,
@@ -43,6 +46,26 @@ impl ThemeRule {
 
     pub fn marker(&self) -> &'static str {
         self.marker
+    }
+
+    pub fn whole_word(&self) -> bool {
+        self.whole_word
+    }
+
+    /// La regle s'applique-t-elle a cette cle normalisee ?
+    fn applies_to(&self, key: &str) -> bool {
+        if !self.whole_word {
+            return key.contains(self.marker);
+        }
+        key.match_indices(self.marker).any(|(start, _)| {
+            let end = start + self.marker.len();
+            let joined_before = key[..start]
+                .chars()
+                .next_back()
+                .is_some_and(char::is_alphanumeric);
+            let joined_after = key[end..].chars().next().is_some_and(char::is_alphanumeric);
+            !joined_before && !joined_after
+        })
     }
 
     pub fn families(&self) -> &'static [FamilyCode] {
@@ -96,10 +119,11 @@ impl ThemeRule {
 /// chevauchent pas — « financement » ne contient pas « finances » — mais
 /// l'ordre reste celui de la specificite pour que l'ajout d'une regle ne
 /// depende pas de cette coincidence.
-pub const RULES: [ThemeRule; 17] = [
+pub const RULES: [ThemeRule; 16] = [
     ThemeRule {
         id: "financement de la sécurité sociale",
         marker: "financement de la sécurité sociale",
+        whole_word: false,
         families: &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite],
         statement: "Un projet de loi de financement de la sécurité sociale fixe les recettes et \
                     les dépenses des régimes de sécurité sociale pour l'année.",
@@ -107,6 +131,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "comptes de la sécurité sociale",
         marker: "approbation des comptes de la sécurité sociale",
+        whole_word: false,
         families: &[FamilyCode::SanteSocial, FamilyCode::InstitutionsProcedure],
         statement: "Un projet de loi d'approbation des comptes de la sécurité sociale arrête les \
                     comptes de l'exercice écoulé des régimes de sécurité sociale.",
@@ -114,6 +139,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "loi de finances",
         marker: "projet de loi de finances",
+        whole_word: false,
         families: &[
             FamilyCode::PouvoirAchatFiscalite,
             FamilyCode::InstitutionsProcedure,
@@ -124,6 +150,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "règlement du budget",
         marker: "règlement du budget",
+        whole_word: false,
         families: &[
             FamilyCode::PouvoirAchatFiscalite,
             FamilyCode::InstitutionsProcedure,
@@ -134,6 +161,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "programmation des finances publiques",
         marker: "programmation des finances publiques",
+        whole_word: false,
         families: &[
             FamilyCode::PouvoirAchatFiscalite,
             FamilyCode::InstitutionsProcedure,
@@ -144,6 +172,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "ratification d'un engagement international",
         marker: "autorisant la ratification",
+        whole_word: false,
         families: &[FamilyCode::InternationalDefense],
         statement: "Un projet de loi autorisant la ratification porte sur un traité ou un accord \
                     conclu avec un État tiers ou une organisation internationale.",
@@ -151,6 +180,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "approbation d'un engagement international",
         marker: "autorisant l'approbation",
+        whole_word: false,
         families: &[FamilyCode::InternationalDefense],
         statement: "Un projet de loi autorisant l'approbation porte sur un accord ou une \
                     convention conclus avec un État tiers ou une organisation internationale.",
@@ -158,6 +188,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "programmation militaire",
         marker: "programmation militaire",
+        whole_word: false,
         families: &[FamilyCode::InternationalDefense],
         statement: "Une loi de programmation militaire fixe la trajectoire pluriannuelle des \
                     moyens des armées.",
@@ -165,6 +196,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "règlement de l'Assemblée",
         marker: "règlement de l'assemblée nationale",
+        whole_word: false,
         families: &[FamilyCode::InstitutionsProcedure],
         statement: "Une proposition de résolution modifiant le règlement de l'Assemblée nationale \
                     porte sur la procédure interne de l'Assemblée.",
@@ -172,20 +204,15 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "motion de censure",
         marker: "motion de censure",
+        whole_word: false,
         families: &[FamilyCode::InstitutionsProcedure],
         statement: "Une motion de censure met en jeu la responsabilité du Gouvernement devant \
                     l'Assemblée nationale, selon une procédure constitutionnelle.",
     },
     ThemeRule {
-        id: "loi constitutionnelle",
-        marker: "loi constitutionnelle",
-        families: &[FamilyCode::InstitutionsProcedure],
-        statement: "Une loi constitutionnelle porte sur les institutions de la République ou \
-                    leur organisation territoriale.",
-    },
-    ThemeRule {
         id: "assurance chômage",
         marker: "assurance chômage",
+        whole_word: false,
         families: &[FamilyCode::TravailEmploi],
         statement: "Un texte relatif à l'assurance chômage porte sur l'indemnisation et \
                     l'accompagnement des personnes privées d'emploi.",
@@ -193,6 +220,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "dialogue social",
         marker: "dialogue social",
+        whole_word: false,
         families: &[FamilyCode::TravailEmploi],
         statement: "Un texte relatif au dialogue social porte sur les relations collectives de \
                     travail entre salariés, employeurs et leurs représentants.",
@@ -200,6 +228,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "enseignement",
         marker: "enseignement",
+        whole_word: true,
         families: &[FamilyCode::EducationCulture],
         statement: "Un texte relatif à l'enseignement porte sur l'organisation ou les personnels \
                     du système éducatif.",
@@ -207,6 +236,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "jeux olympiques et paralympiques",
         marker: "jeux olympiques et paralympiques",
+        whole_word: false,
         families: &[FamilyCode::EducationCulture],
         statement: "Un texte relatif aux jeux Olympiques et Paralympiques porte sur le sport et \
                     son organisation.",
@@ -214,6 +244,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "souveraineté agricole",
         marker: "souveraineté agricole",
+        whole_word: false,
         families: &[FamilyCode::AgricultureAlimentation],
         statement: "Un texte relatif à la protection ou à la souveraineté agricoles porte sur \
                     l'agriculture et l'alimentation.",
@@ -221,6 +252,7 @@ pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "fraudes sociales et fiscales",
         marker: "fraudes sociales et fiscales",
+        whole_word: false,
         families: &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite],
         statement: "Un texte relatif aux fraudes sociales et fiscales porte à la fois sur les \
                     prestations sociales et sur les obligations fiscales.",
@@ -229,7 +261,7 @@ pub const RULES: [ThemeRule; 17] = [
 
 /// Regle applicable a une cle de texte, s'il y en a une.
 pub fn rule_for(key: &TextKey) -> Option<&'static ThemeRule> {
-    RULES.iter().find(|rule| key.as_str().contains(rule.marker))
+    RULES.iter().find(|rule| rule.applies_to(key.as_str()))
 }
 
 /// Regle applicable a un libelle libre — titre de dossier, notamment. Le
@@ -306,8 +338,8 @@ mod tests {
                 &[FamilyCode::InstitutionsProcedure][..],
             ),
             (
-                "projet de loi constitutionnelle relatif à la Nouvelle-Calédonie",
-                &[FamilyCode::InstitutionsProcedure][..],
+                "projet de loi relatif à l'enseignement supérieur et à la recherche",
+                &[FamilyCode::EducationCulture][..],
             ),
             (
                 "projet de loi d'urgence pour la protection et la souveraineté agricoles",
@@ -334,6 +366,27 @@ mod tests {
                 "{label}"
             );
         }
+    }
+
+    #[test]
+    fn a_whole_word_marker_ignores_longer_words() {
+        for label in [
+            "projet de loi relatif au renseignement",
+            "proposition de loi tirant les enseignements de la crise sanitaire",
+        ] {
+            assert!(rule_for_label(label).is_none(), "{label}");
+        }
+    }
+
+    #[test]
+    fn a_constitutional_bill_is_left_to_the_model() {
+        // Une revision constitutionnelle peut porter sur n'importe quel
+        // domaine: seule sa lecture dit lequel.
+        assert!(rule_for_label(
+            "projet de loi constitutionnelle relatif à la liberté de recourir à l'interruption \
+             volontaire de grossesse"
+        )
+        .is_none());
     }
 
     #[test]
