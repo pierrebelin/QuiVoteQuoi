@@ -1,7 +1,7 @@
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
 use axum::Json;
 
+use crate::api::error::ApiError;
 use crate::api::final_vote_dto::{FinalVoteListQuery, FinalVoteListResponse};
 use crate::application::use_cases::browse_final_votes::{
     BrowseFinalVotes, BrowseFinalVotesCommand, BrowseFinalVotesError,
@@ -12,7 +12,7 @@ use crate::AppState;
 pub async fn list_final_votes(
     State(state): State<AppState>,
     Query(params): Query<FinalVoteListQuery>,
-) -> Result<Json<FinalVoteListResponse>, (StatusCode, String)> {
+) -> Result<Json<FinalVoteListResponse>, ApiError> {
     let command: BrowseFinalVotesCommand = params.into();
     let offset = command.offset.unwrap_or(0).max(0);
 
@@ -26,10 +26,39 @@ pub async fn list_final_votes(
 
 /// Une demande mal formee est une erreur du visiteur, pas du serveur: le
 /// distinguer evite de faire passer un sigle inconnu pour une panne.
-fn status_of(error: BrowseFinalVotesError) -> (StatusCode, String) {
-    let status = match error {
-        BrowseFinalVotesError::Repository(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        _ => StatusCode::BAD_REQUEST,
-    };
-    (status, error.to_string())
+///
+/// Un vote que le domaine refuse vient de la base, pas de la demande: c'est une
+/// panne, pas une erreur du visiteur.
+fn status_of(error: BrowseFinalVotesError) -> ApiError {
+    match error {
+        BrowseFinalVotesError::Repository(_)
+        | BrowseFinalVotesError::Scrutin(_)
+        | BrowseFinalVotesError::Actor(_) => ApiError::internal(error),
+        BrowseFinalVotesError::TooManyGroups(_)
+        | BrowseFinalVotesError::UnknownGroup(_)
+        | BrowseFinalVotesError::UnknownFamily(_) => ApiError::bad_request(error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::domain::scrutin::ScrutinError;
+
+    use super::*;
+
+    #[test]
+    fn an_unknown_group_is_the_visitor_s_error() {
+        let error = status_of(BrowseFinalVotesError::UnknownGroup("PS".to_string()));
+
+        assert!(matches!(error, ApiError::BadRequest(message) if message.contains("PS")));
+    }
+
+    #[test]
+    fn a_vote_refused_by_the_domain_is_an_internal_failure() {
+        let error = status_of(BrowseFinalVotesError::Scrutin(
+            ScrutinError::EmptyOutcomeCode,
+        ));
+
+        assert!(matches!(error, ApiError::Internal(_)));
+    }
 }

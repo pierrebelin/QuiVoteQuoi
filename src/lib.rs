@@ -18,6 +18,7 @@ use application::ports::dossier_repository::DossierRepository;
 use application::ports::dossier_summary_generator::DossierSummaryGenerator;
 use application::ports::final_vote_repository::FinalVoteRepository;
 use application::ports::group_repository::GroupRepository;
+use application::ports::health_probe::HealthProbe;
 use application::ports::scrutin_repository::ScrutinRepository;
 use application::ports::scrutin_source::ScrutinSource;
 use application::ports::theme_classifier::ThemeClassifier;
@@ -25,7 +26,7 @@ use application::ports::theme_repository::ThemeRepository;
 
 #[derive(Clone)]
 pub struct AppState {
-    pub db: sqlx::PgPool,
+    pub health_probe: Arc<dyn HealthProbe>,
     pub assembly_source: Arc<dyn AssemblySource>,
     pub candidate_repository: Arc<dyn CandidateRepository>,
     pub dossier_repository: Arc<dyn DossierRepository>,

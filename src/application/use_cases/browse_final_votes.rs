@@ -3,10 +3,10 @@ use crate::application::ports::final_vote_repository::{
     RepositoryError,
 };
 use crate::application::ports::theme_repository::AssignedFamily;
-use crate::domain::actor::GroupUid;
+use crate::domain::actor::{ActorError, GroupUid};
 use crate::domain::final_vote::{reading_of, FinalVote, GroupIdentity, GroupStance};
 use crate::domain::group_lineage::{lineage_of_uid, GroupLineage};
-use crate::domain::scrutin::{Outcome, VotePosition};
+use crate::domain::scrutin::{Outcome, ScrutinError, VotePosition};
 use crate::domain::theme::FamilyCode;
 
 /// Quatre groupes au plus. La comparaison reste une lecture cote a cote, ou
@@ -34,6 +34,10 @@ pub enum BrowseFinalVotesError {
     UnknownGroup(String),
     #[error("unknown theme family: {0}")]
     UnknownFamily(String),
+    #[error(transparent)]
+    Scrutin(#[from] ScrutinError),
+    #[error(transparent)]
+    Actor(#[from] ActorError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }
@@ -115,7 +119,7 @@ impl<'a> BrowseFinalVotes<'a> {
             .items
             .into_iter()
             .map(|record| build_entry(record, &selected))
-            .collect();
+            .collect::<Result<_, _>>()?;
 
         Ok(FinalVoteView {
             items,
@@ -218,7 +222,10 @@ fn designates(group: &GroupOption, token: &str) -> bool {
         || lineage_of_uid(&group.uid).is_some_and(|lineage| lineage.matches(token))
 }
 
-fn build_entry(record: FinalVoteRecord, selected: &[GroupOption]) -> FinalVoteEntry {
+fn build_entry(
+    record: FinalVoteRecord,
+    selected: &[GroupOption],
+) -> Result<FinalVoteEntry, BrowseFinalVotesError> {
     // L'ordre des positions suit l'ordre demande, pas celui de la base: la
     // colonne de gauche doit rester le groupe choisi en premier.
     let stances = selected
@@ -234,10 +241,9 @@ fn build_entry(record: FinalVoteRecord, selected: &[GroupOption]) -> FinalVoteEn
                 })
                 .map(|tally| build_stance(tally, lineage))
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
 
-    let outcome = Outcome::new(record.outcome_code, record.outcome_label)
-        .expect("outcome codes come from the database, never empty");
+    let outcome = Outcome::new(record.outcome_code, record.outcome_label)?;
 
     let vote = FinalVote {
         reading: reading_of(&record.subject, &record.text_label),
@@ -255,10 +261,10 @@ fn build_entry(record: FinalVoteRecord, selected: &[GroupOption]) -> FinalVoteEn
         stances,
     };
 
-    FinalVoteEntry {
+    Ok(FinalVoteEntry {
         vote,
         families: record.families,
-    }
+    })
 }
 
 /// Position d'un groupe sur un vote.
@@ -266,25 +272,26 @@ fn build_entry(record: FinalVoteRecord, selected: &[GroupOption]) -> FinalVoteEn
 /// Sous une lignee, l'identite affichee est celle de la lignee et non celle que
 /// la ventilation porte: sinon la meme colonne changerait de sigle au milieu de
 /// la liste, au vote ou le groupe a ete renomme.
-fn build_stance(record: &GroupTallyRecord, lineage: Option<&GroupLineage>) -> GroupStance {
+fn build_stance(
+    record: &GroupTallyRecord,
+    lineage: Option<&GroupLineage>,
+) -> Result<GroupStance, ActorError> {
     let identity = match lineage {
         Some(lineage) => GroupIdentity {
-            uid: GroupUid::new(lineage.canonical_uid.to_string())
-                .expect("lineage uids are never empty"),
+            uid: GroupUid::new(lineage.canonical_uid.to_string())?,
             abbrev: lineage.abbrev.to_string(),
             label: lineage.label.to_string(),
             color: record.color.clone(),
         },
         None => GroupIdentity {
-            uid: GroupUid::new(record.group_uid.clone())
-                .expect("group uids come from the referential, never empty"),
+            uid: GroupUid::new(record.group_uid.clone())?,
             abbrev: record.abbrev.clone(),
             label: record.label.clone(),
             color: record.color.clone(),
         },
     };
 
-    GroupStance::new(
+    Ok(GroupStance::new(
         identity,
         record.member_count,
         record
@@ -292,7 +299,7 @@ fn build_stance(record: &GroupTallyRecord, lineage: Option<&GroupLineage>) -> Gr
             .as_deref()
             .and_then(VotePosition::parse),
         record.tally.clone(),
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -431,6 +438,22 @@ mod tests {
             ],
         )];
         repository
+    }
+
+    #[tokio::test]
+    async fn a_record_without_outcome_code_is_reported_not_panicked_on() {
+        let repository = repository();
+        repository.records.lock().unwrap()[0].outcome_code = String::new();
+
+        let error = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand::default())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            BrowseFinalVotesError::Scrutin(ScrutinError::EmptyOutcomeCode)
+        ));
     }
 
     #[tokio::test]

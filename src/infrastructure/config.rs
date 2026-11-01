@@ -59,6 +59,20 @@ pub fn dossier_summary_batch_per_refresh() -> usize {
         .clamp(DOSSIER_SUMMARY_BATCH_MIN, DOSSIER_SUMMARY_BATCH_MAX)
 }
 
+/// Origines tierces autorisees par CORS: `ALLOWED_ORIGINS`, liste separee par
+/// des virgules. Absente ou vide, aucune.
+pub fn allowed_origins() -> Vec<String> {
+    parse_origin_list(&std::env::var("ALLOWED_ORIGINS").unwrap_or_default())
+}
+
+fn parse_origin_list(raw: &str) -> Vec<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|origin| !origin.is_empty())
+        .map(String::from)
+        .collect()
+}
+
 pub async fn try_connect_database() -> Result<PgPool, String> {
     let database_url =
         std::env::var("DATABASE_URL").map_err(|_| "DATABASE_URL not set".to_string())?;
@@ -78,4 +92,21 @@ pub async fn try_connect_database() -> Result<PgPool, String> {
         .map_err(|e| e.to_string())?;
 
     Ok(pool)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn origins_are_trimmed_and_blanks_dropped() {
+        let origins = parse_origin_list(" https://a.example , ,https://b.example,");
+
+        assert_eq!(origins, vec!["https://a.example", "https://b.example"]);
+    }
+
+    #[test]
+    fn an_empty_list_allows_no_origin() {
+        assert!(parse_origin_list("").is_empty());
+    }
 }

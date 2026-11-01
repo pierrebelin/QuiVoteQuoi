@@ -33,13 +33,19 @@ Fichiers ignorés par Git (`.gitignore` : `.claude/`, `**/AGENTS.md`) : la corre
 - Infrastructure : un seul `persistence::db(e)` au lieu de 8 copies ; constantes nommées (timeouts 180 s ×6, `max_tokens` ×3, `clamp(1, 200)`, pool) et `llm/http_retry.rs` partagé (6 `backoff` dupliqués) ; `UnavailableClassifier` → `UnavailableThemeClassifier`.
 - Application : log français `propose_theme_families.rs:161`.
 
-### Lot 2 — Robustesse en production (S/M, change le comportement en cas d'erreur)
+### Lot 2 — Robustesse en production (S/M, change le comportement en cas d'erreur) — ✅ fait le 2026-11-01
 
-- `unwrap`/`expect` en code de prod : `archive_fetcher.rs` (construction du client, 5 `lock().unwrap()`), `pg_dossier_repository.rs:584-641` (panique sur une ligne DB), `browse_final_votes.rs:240-280`, `client.rs:127`.
-- Une entrée de zip malformée interrompt toute l'ingestion des dossiers (`client.rs:241-252`) → ignorer + `tracing::warn!`, comme les trois autres clients.
-- API : 16 `map_err(|e| (500, e.to_string()))` renvoient le texte d'erreur interne au client → `ApiError: IntoResponse` partagé, journalisé, message générique.
-- `routes.rs:159` `sqlx::query("SELECT 1")` dans l'API → port de santé ; `ALLOWED_ORIGINS` via `config`.
-- `archive_fetcher.rs:121` `danger_accept_invalid_certs(true)` → **décision** : vérifier la chaîne TLS de la source et retirer l'option si elle est saine.
+`cargo test --locked` vert : lib 416 passés (+12), 3 ignorés ; intégration 7 + 3 + 2.
+
+- `unwrap`/`expect` retirés du code de prod :
+  - `archive_fetcher.rs` : un client HTTP impossible à construire est journalisé au démarrage et rend `SourceError::Download` à chaque téléchargement, au lieu de paniquer ; les 5 `lock().unwrap()` passent par `cache()`, qui récupère un verrou empoisonné (`PoisonError::into_inner`).
+  - `pg_dossier_repository.rs` : `into_dossier` / `into_initiator` rendent `Result` ; une ligne refusée par le domaine devient `RepositoryError` via `persistence::invalid_row`, au lieu de faire tomber la requête.
+  - `browse_final_votes.rs` : `build_entry` / `build_stance` faillibles, variantes `Scrutin` et `Actor` (`#[from]`) ; l'API les traite en 500, pas en 400.
+  - `client.rs:127` : `Initiator::unresolved(..).into_iter().collect()`.
+- `client.rs` : une entrée de zip illisible (`by_index`, `read_to_string`) est ignorée avec `tracing::warn!` dans `parse_dossiers` et `find_dossier`, au lieu d'interrompre l'ingestion.
+- API : `api/error.rs` — `ApiError { BadRequest, NotFound, Internal }: IntoResponse` ; `Internal` est journalisé (`tracing::error!`) et répond `internal server error`. Tous les handlers et `status_of` y passent ; plus aucun `(StatusCode, String)`.
+- Santé : port `HealthProbe`, use case `CheckHealth`, adapter `PgHealthProbe`, DTO `HealthResponse` (réponse JSON inchangée) ; `AppState.db` remplacé par `health_probe`. `ALLOWED_ORIGINS` lu par `config::allowed_origins()`.
+- **TLS — option retirée.** Chaîne de `data.assemblee-nationale.fr` saine le 2026-11-01 : feuille `CN=www.assemblee-nationale.fr` (SAN couvre `data.assemblee-nationale.fr`, valide jusqu'au 2027-01-31) → intermédiaire GandiCert servi → racine DigiCert Global Root G2 (présente dans webpki-roots, utilisé par `rustls-tls`) ; `openssl s_client` : `Verify return code: 0 (ok)`, `curl -I` sans `-k` : 200. `danger_accept_invalid_certs(true)` retiré : la vérification du certificat est active.
 
 ### Lot 3 — Logique métier vers le domaine (M/L, plus forte valeur)
 
@@ -90,6 +96,6 @@ Fichiers ignorés par Git (`.gitignore` : `.claude/`, `**/AGENTS.md`) : la corre
 
 | # | Question | Recommandation |
 |---|---|---|
-| 1 | `danger_accept_invalid_certs` | Vérifier la chaîne TLS, retirer si saine |
+| 1 | `danger_accept_invalid_certs` | ✅ Tranché : chaîne saine, option retirée (lot 2) |
 | 2 | Curation / suggestions | Supprimer si le frontend actuel ne s'en sert plus |
 | 3 | Ordre des lots | 0 → 1 → 2 → 3, puis 4–6 selon le temps |

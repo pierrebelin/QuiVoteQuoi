@@ -9,6 +9,7 @@ use crate::api::dto::{
     RecentActivityQuery, RecentDossiersResponse, RefreshQuery, RefreshResponse, RegistryResponse,
     SuggestionsQuery, SuggestionsResponse,
 };
+use crate::api::error::ApiError;
 use crate::application::ports::dossier_repository::DossierCriteria;
 use crate::application::use_cases::browse_dossiers::{BrowseDossiers, DossierQuery};
 use crate::application::use_cases::curate_dossier::CurateDossier;
@@ -28,13 +29,10 @@ use crate::AppState;
 pub async fn get_recent_dossiers(
     State(state): State<AppState>,
     Query(params): Query<RecentActivityQuery>,
-) -> Result<Json<RecentDossiersResponse>, (StatusCode, String)> {
+) -> Result<Json<RecentDossiersResponse>, ApiError> {
     let uc = FetchRecentDossiers::new(state.dossier_repository.as_ref());
 
-    let dossiers = uc
-        .execute(params.days)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let dossiers = uc.execute(params.days).await.map_err(ApiError::internal)?;
 
     let dtos: Vec<DossierDto> = dossiers.into_iter().map(DossierDto::from).collect();
 
@@ -49,17 +47,14 @@ pub async fn get_recent_dossiers(
 pub async fn browse_dossiers(
     State(state): State<AppState>,
     Query(params): Query<DossierPageQuery>,
-) -> Result<Json<DossierPageResponse>, (StatusCode, String)> {
+) -> Result<Json<DossierPageResponse>, ApiError> {
     let query = DossierQuery::new(params.page, params.per_page, DossierCriteria::from(&params));
     let uc = BrowseDossiers::new(state.dossier_repository.as_ref());
 
     let per_page = query.per_page();
     let page_number = query.page();
 
-    let page = uc
-        .execute(query)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let page = uc.execute(query).await.map_err(ApiError::internal)?;
 
     Ok(Json(DossierPageResponse {
         page: page_number,
@@ -74,8 +69,8 @@ pub async fn browse_dossiers(
 pub async fn get_dossier_detail(
     State(state): State<AppState>,
     Path(uid): Path<String>,
-) -> Result<Json<DossierDetailDto>, (StatusCode, String)> {
-    let uid = DossierUid::new(uid).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+) -> Result<Json<DossierDetailDto>, ApiError> {
+    let uid = DossierUid::new(uid).map_err(ApiError::bad_request)?;
 
     let uc = GetDossierDetail::new(
         state.dossier_repository.as_ref(),
@@ -86,8 +81,8 @@ pub async fn get_dossier_detail(
     let result = uc
         .execute(&uid)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::NOT_FOUND, "Dossier not found".to_string()))?;
+        .map_err(ApiError::internal)?
+        .ok_or_else(|| ApiError::not_found("Dossier not found"))?;
 
     Ok(Json(DossierDetailDto::from_result(result)))
 }
@@ -95,15 +90,15 @@ pub async fn get_dossier_detail(
 pub async fn get_dossier_group_actions(
     State(state): State<AppState>,
     Path(uid): Path<String>,
-) -> Result<Json<DossierGroupActionsResponse>, (StatusCode, String)> {
+) -> Result<Json<DossierGroupActionsResponse>, ApiError> {
     let result = GetDossierGroupActions::new(
         state.dossier_group_actions_repository.as_ref(),
         state.dossier_summary_repository.as_ref(),
     )
     .execute(&uid)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-    .ok_or((StatusCode::NOT_FOUND, "Dossier not found".to_string()))?;
+    .map_err(ApiError::internal)?
+    .ok_or_else(|| ApiError::not_found("Dossier not found"))?;
 
     Ok(Json(DossierGroupActionsResponse::from(result)))
 }
@@ -111,8 +106,8 @@ pub async fn get_dossier_group_actions(
 pub async fn save_dossier(
     State(state): State<AppState>,
     Path(uid): Path<String>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let uid = DossierUid::new(uid).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+) -> Result<StatusCode, ApiError> {
+    let uid = DossierUid::new(uid).map_err(ApiError::bad_request)?;
 
     let uc = SaveDossier::new(
         state.assembly_source.as_ref(),
@@ -120,9 +115,7 @@ pub async fn save_dossier(
         state.actor_repository.as_ref(),
     );
 
-    uc.execute(&uid)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    uc.execute(&uid).await.map_err(ApiError::internal)?;
 
     Ok(StatusCode::NO_CONTENT)
 }
@@ -130,13 +123,10 @@ pub async fn save_dossier(
 pub async fn get_suggestions(
     State(state): State<AppState>,
     Query(params): Query<SuggestionsQuery>,
-) -> Result<Json<SuggestionsResponse>, (StatusCode, String)> {
+) -> Result<Json<SuggestionsResponse>, ApiError> {
     let uc = SuggestDossiers::new(state.dossier_repository.as_ref());
 
-    let dossiers = uc
-        .execute(params.count)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let dossiers = uc.execute(params.count).await.map_err(ApiError::internal)?;
 
     let dtos: Vec<DossierDto> = dossiers.into_iter().map(DossierDto::from).collect();
 
@@ -150,16 +140,16 @@ pub async fn curate_dossier(
     State(state): State<AppState>,
     Path(uid): Path<String>,
     Json(body): Json<CurateBody>,
-) -> Result<StatusCode, (StatusCode, String)> {
-    let uid = DossierUid::new(uid).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+) -> Result<StatusCode, ApiError> {
+    let uid = DossierUid::new(uid).map_err(ApiError::bad_request)?;
 
     let uc = CurateDossier::new(state.dossier_repository.as_ref());
 
     uc.execute(&uid, body.status).await.map_err(|e| match &e {
         crate::application::use_cases::curate_dossier::CurateError::NotFound(_) => {
-            (StatusCode::NOT_FOUND, e.to_string())
+            ApiError::not_found(e)
         }
-        _ => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        _ => ApiError::internal(e),
     })?;
 
     Ok(StatusCode::NO_CONTENT)
@@ -173,7 +163,7 @@ pub async fn curate_dossier(
 pub async fn refresh_dossiers(
     State(state): State<AppState>,
     Query(query): Query<RefreshQuery>,
-) -> Result<Json<RefreshResponse>, (StatusCode, String)> {
+) -> Result<Json<RefreshResponse>, ApiError> {
     let scope = if query.full {
         RefreshScope::Full
     } else {
@@ -198,7 +188,7 @@ pub async fn refresh_dossiers(
     let outcome = uc
         .execute_with(scope, Utc::now().date_naive())
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(ApiError::internal)?;
 
     let summary_report = RefreshDossierGroupSummaries::new(
         state.dossier_group_actions_repository.as_ref(),
@@ -207,21 +197,18 @@ pub async fn refresh_dossiers(
     )
     .execute(config::dossier_summary_batch_per_refresh())
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(ApiError::internal)?;
 
     Ok(Json(RefreshResponse::from((outcome, summary_report))))
 }
 
 pub async fn refresh_actor_registry(
     State(state): State<AppState>,
-) -> Result<Json<RegistryResponse>, (StatusCode, String)> {
+) -> Result<Json<RegistryResponse>, ApiError> {
     let uc =
         RefreshActorRegistry::new(state.actor_source.as_ref(), state.actor_repository.as_ref());
 
-    let summary = uc
-        .execute()
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let summary = uc.execute().await.map_err(ApiError::internal)?;
 
     Ok(Json(RegistryResponse::from(summary)))
 }

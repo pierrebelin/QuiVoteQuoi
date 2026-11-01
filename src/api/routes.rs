@@ -1,15 +1,14 @@
-use axum::extract::State;
 use axum::routing::{get, post};
-use axum::{middleware, Json, Router};
-use serde_json::{json, Value};
+use axum::{middleware, Router};
 use tower_http::cors::CorsLayer;
 
 use crate::api::security::{require_admin_token, AdminGuard};
+use crate::infrastructure::config;
 use crate::AppState;
 
 use super::handlers::{
     amendment_handlers, candidate_handlers, dossier_handlers, final_vote_handlers, group_handlers,
-    guide_handlers, scrutin_handlers, theme_handlers,
+    guide_handlers, health_handlers, scrutin_handlers, theme_handlers,
 };
 
 pub fn create_router(state: AppState, guard: AdminGuard) -> Router {
@@ -24,7 +23,7 @@ pub fn create_router(state: AppState, guard: AdminGuard) -> Router {
 /// protegerait rien (README.md §2).
 fn read_routes() -> Router<AppState> {
     Router::new()
-        .route("/api/health", get(health))
+        .route("/api/health", get(health_handlers::health))
         .route(
             "/api/candidats-2027",
             get(candidate_handlers::list_candidates),
@@ -130,11 +129,8 @@ fn write_routes(guard: AdminGuard) -> Router<AppState> {
 /// autorise. Remplace `CorsLayer::permissive()`, qui laissait n'importe quelle
 /// page du web lire les reponses de l'API avec les identifiants du visiteur.
 fn cors_layer() -> CorsLayer {
-    let raw = std::env::var("ALLOWED_ORIGINS").unwrap_or_default();
-    let origins: Vec<_> = raw
-        .split(',')
-        .map(str::trim)
-        .filter(|origin| !origin.is_empty())
+    let origins: Vec<_> = config::allowed_origins()
+        .into_iter()
         .filter_map(|origin| match origin.parse() {
             Ok(value) => Some(value),
             Err(_) => {
@@ -153,13 +149,4 @@ fn cors_layer() -> CorsLayer {
             .allow_methods([axum::http::Method::GET, axum::http::Method::HEAD])
             .allow_headers([axum::http::header::CONTENT_TYPE])
     }
-}
-
-async fn health(State(state): State<AppState>) -> Json<Value> {
-    let db_ok = sqlx::query("SELECT 1").execute(&state.db).await.is_ok();
-
-    Json(json!({
-        "status": "ok",
-        "database": if db_ok { "connected" } else { "disconnected" }
-    }))
 }

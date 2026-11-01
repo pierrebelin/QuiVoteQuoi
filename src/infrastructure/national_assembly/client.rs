@@ -124,7 +124,9 @@ impl NationalAssemblyClient {
             == Some(Initiative::Government);
 
         let initiators = if initiator_refs.is_empty() && is_government_bill {
-            vec![Initiator::unresolved("Gouvernement".to_string()).expect("non-empty")]
+            Initiator::unresolved("Gouvernement".to_string())
+                .into_iter()
+                .collect()
         } else {
             vec![]
         };
@@ -237,9 +239,13 @@ impl NationalAssemblyClient {
         let mut dossiers = Vec::new();
 
         for i in 0..archive.len() {
-            let mut file = archive
-                .by_index(i)
-                .map_err(|e| SourceError::Parse(e.to_string()))?;
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(error) => {
+                    tracing::warn!("Skipping unreadable zip entry #{i}: {error}");
+                    continue;
+                }
+            };
 
             let name = file.name().to_string();
             if !name.contains("dossierParlementaire/") || !name.ends_with(".json") {
@@ -247,8 +253,10 @@ impl NationalAssemblyClient {
             }
 
             let mut content = String::new();
-            file.read_to_string(&mut content)
-                .map_err(|e| SourceError::Parse(e.to_string()))?;
+            if let Err(error) = file.read_to_string(&mut content) {
+                tracing::warn!("Skipping undecodable dossier file {name}: {error}");
+                continue;
+            }
 
             let wrapper: RawDossierWrapper = match serde_json::from_str(&content) {
                 Ok(w) => w,
@@ -282,9 +290,13 @@ impl NationalAssemblyClient {
         let doc_index = Self::build_document_index(&mut archive);
 
         for i in 0..archive.len() {
-            let mut file = archive
-                .by_index(i)
-                .map_err(|e| SourceError::Parse(e.to_string()))?;
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(error) => {
+                    tracing::warn!("Skipping unreadable zip entry #{i}: {error}");
+                    continue;
+                }
+            };
 
             let name = file.name().to_string();
             if !name.contains("dossierParlementaire/") || !name.ends_with(".json") {
@@ -292,8 +304,10 @@ impl NationalAssemblyClient {
             }
 
             let mut content = String::new();
-            file.read_to_string(&mut content)
-                .map_err(|e| SourceError::Parse(e.to_string()))?;
+            if let Err(error) = file.read_to_string(&mut content) {
+                tracing::warn!("Skipping undecodable dossier file {name}: {error}");
+                continue;
+            }
 
             let wrapper: RawDossierWrapper = match serde_json::from_str(&content) {
                 Ok(w) => w,

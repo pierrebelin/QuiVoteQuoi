@@ -1,8 +1,8 @@
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
 use axum::Json;
 
 use crate::api::candidate_dto::{CandidateComparisonResponse, CandidateListQuery};
+use crate::api::error::ApiError;
 use crate::application::use_cases::browse_candidates::{
     BrowseCandidates, BrowseCandidatesCommand, BrowseCandidatesError,
 };
@@ -12,7 +12,7 @@ use crate::AppState;
 pub async fn list_candidates(
     State(state): State<AppState>,
     Query(params): Query<CandidateListQuery>,
-) -> Result<Json<CandidateComparisonResponse>, (StatusCode, String)> {
+) -> Result<Json<CandidateComparisonResponse>, ApiError> {
     let command: BrowseCandidatesCommand = params.into();
     let view = BrowseCandidates::new(state.candidate_repository.as_ref())
         .execute(command)
@@ -21,10 +21,9 @@ pub async fn list_candidates(
     Ok(Json(view.into()))
 }
 
-fn status_of(error: BrowseCandidatesError) -> (StatusCode, String) {
-    let status = match error {
-        BrowseCandidatesError::Repository(_) => StatusCode::INTERNAL_SERVER_ERROR,
-        _ => StatusCode::BAD_REQUEST,
-    };
-    (status, error.to_string())
+fn status_of(error: BrowseCandidatesError) -> ApiError {
+    match error {
+        BrowseCandidatesError::Repository(_) => ApiError::internal(error),
+        _ => ApiError::bad_request(error),
+    }
 }

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::application::ports::dossier_repository::DossierCriteria;
 use crate::application::use_cases::browse_dossiers::DEFAULT_PER_PAGE;
+use crate::application::use_cases::check_health::HealthReport;
 use crate::domain::dossier::{CurationStatus, DossierOutcome, Initiative, LegislativeDossier};
 
 #[derive(Deserialize)]
@@ -503,4 +504,49 @@ pub struct SuggestionsResponse {
 #[derive(Deserialize)]
 pub struct CurateBody {
     pub status: CurationStatus,
+}
+
+/// Reponse du health check. Le serveur repond, donc `status` vaut toujours
+/// `ok`; l'etat de la base est rendu a part, sans faire echouer la requete.
+#[derive(Serialize)]
+pub struct HealthResponse {
+    pub status: &'static str,
+    pub database: &'static str,
+}
+
+impl From<HealthReport> for HealthResponse {
+    fn from(report: HealthReport) -> Self {
+        Self {
+            status: "ok",
+            database: if report.database_reachable {
+                "connected"
+            } else {
+                "disconnected"
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_unreachable_database_still_answers_ok() {
+        let response = HealthResponse::from(HealthReport {
+            database_reachable: false,
+        });
+
+        assert_eq!(response.status, "ok");
+        assert_eq!(response.database, "disconnected");
+    }
+
+    #[test]
+    fn a_reachable_database_reads_connected() {
+        let response = HealthResponse::from(HealthReport {
+            database_reachable: true,
+        });
+
+        assert_eq!(response.database, "connected");
+    }
 }

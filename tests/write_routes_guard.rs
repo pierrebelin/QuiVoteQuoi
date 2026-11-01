@@ -65,7 +65,9 @@ fn state() -> AppState {
         .expect("chaîne de connexion valide, aucune connexion ouverte");
 
     AppState {
-        db: db.clone(),
+        health_probe: Arc::new(
+            quivotequoi::infrastructure::persistence::pg_health_probe::PgHealthProbe::new(db.clone()),
+        ),
         assembly_source: Arc::new(NationalAssemblyClient::new()),
         candidate_repository: Arc::new(PgCandidateRepository::new(db.clone())),
         dossier_repository: Arc::new(PgDossierRepository::new(db.clone())),

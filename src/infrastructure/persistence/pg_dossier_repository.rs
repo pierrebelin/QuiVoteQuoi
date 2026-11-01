@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
-use super::db;
+use super::{db, invalid_row};
 use crate::application::ports::dossier_repository::{
     DossierCriteria, DossierPage, DossierRepository, RepositoryError, StoredDossierState,
 };
@@ -247,7 +247,7 @@ impl PgDossierRepository {
         .await
         .map_err(db)?;
 
-        Ok(rows.into_iter().map(InitiatorRow::into_initiator).collect())
+        rows.into_iter().map(InitiatorRow::into_initiator).collect()
     }
 }
 
@@ -369,10 +369,9 @@ impl DossierRepository for PgDossierRepository {
         .await
         .map_err(db)?;
 
-        Ok(rows
-            .into_iter()
+        rows.into_iter()
             .map(|r| r.into_dossier(vec![], vec![], vec![]))
-            .collect())
+            .collect()
     }
 
     async fn find_page(
@@ -411,7 +410,7 @@ impl DossierRepository for PgDossierRepository {
             items: rows
                 .into_iter()
                 .map(|r| r.into_dossier(vec![], vec![], vec![]))
-                .collect(),
+                .collect::<Result<_, _>>()?,
             total,
         })
     }
@@ -442,7 +441,7 @@ impl DossierRepository for PgDossierRepository {
                 let acts = self.fetch_acts(&uid_str).await?;
                 let initiators = self.fetch_initiators(&uid_str).await?;
                 let documents = self.fetch_documents(&uid_str).await?;
-                Ok(Some(r.into_dossier(acts, initiators, documents)))
+                r.into_dossier(acts, initiators, documents).map(Some)
             }
             None => Ok(None),
         }
@@ -470,10 +469,9 @@ impl DossierRepository for PgDossierRepository {
         .await
         .map_err(db)?;
 
-        Ok(rows
-            .into_iter()
+        rows.into_iter()
             .map(|r| r.into_dossier(vec![], vec![], vec![]))
-            .collect())
+            .collect()
     }
 
     async fn update_curation_status(
@@ -573,10 +571,10 @@ impl DossierRow {
         acts: Vec<LegislativeAct>,
         initiators: Vec<Initiator>,
         documents: Vec<LegislativeDocument>,
-    ) -> LegislativeDossier {
+    ) -> Result<LegislativeDossier, RepositoryError> {
         let outcome = self.outcome();
-        LegislativeDossier {
-            uid: DossierUid::new(self.uid).expect("DB uid is non-empty"),
+        Ok(LegislativeDossier {
+            uid: DossierUid::new(self.uid).map_err(invalid_row)?,
             title: self.title,
             procedure: self.procedure_label,
             legislature: self.legislature as u16,
@@ -593,7 +591,7 @@ impl DossierRow {
                 self.score_momentum as u8,
                 self.score_total as u8,
             )
-            .expect("DB scores are in valid range"),
+            .map_err(invalid_row)?,
             current_stage: self
                 .current_stage_code
                 .as_deref()
@@ -601,11 +599,13 @@ impl DossierRow {
             initiators,
             committee: self
                 .committee
-                .map(|c| Committee::new(c).expect("DB committee is non-empty")),
+                .map(Committee::new)
+                .transpose()
+                .map_err(invalid_row)?,
             curation_status: CurationStatus::parse(&self.curation_status)
                 .unwrap_or(CurationStatus::New),
             outcome,
-        }
+        })
     }
 }
 
@@ -630,10 +630,9 @@ struct InitiatorRow {
 }
 
 impl InitiatorRow {
-    fn into_initiator(self) -> Initiator {
+    fn into_initiator(self) -> Result<Initiator, RepositoryError> {
         let name = self.full_name.clone();
-        let unresolved =
-            || Initiator::unresolved(name.clone()).expect("DB initiator name is non-empty");
+        let unresolved = || Initiator::unresolved(name.clone()).map_err(invalid_row);
 
         let Some(actor_uid) = self.actor_uid.and_then(|u| ActorUid::new(u).ok()) else {
             return unresolved();
@@ -668,7 +667,7 @@ impl InitiatorRow {
             self.reference_date,
             self.official_url,
         )
-        .unwrap_or_else(|_| unresolved())
+        .or_else(|_| unresolved())
     }
 }
 
