@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import {
-  FORMATS,
+  RESEAUX,
   chargerPolices,
   dessinerVote,
+  dimensions,
   texteDePartage,
-  type FormatImage,
+  type ReseauImage,
   type ThemeImage,
   type VisuelImage,
 } from '../lib/voteImage'
@@ -23,8 +24,8 @@ function enBlob(canvas: HTMLCanvasElement) {
 /**
  * Panneau d'export d'un scrutin en image pour les réseaux sociaux.
  *
- * Trois choix, pas davantage : le format que le réseau attend, le visuel
- * (l'hémicycle ou la répartition par groupe) et le thème. Le contenu, lui, ne
+ * Trois choix, pas davantage : le réseau, qui fixe les dimensions et les
+ * marges, le visuel (l'hémicycle ou la répartition par groupe) et le thème. Le contenu, lui, ne
  * se règle pas — retirer les non-votants ou un groupe ferait dire à l'image
  * autre chose que la page (README.md §2).
  *
@@ -43,7 +44,7 @@ export default function VoteImageExport({
     g.votes.some((v) => v.seat !== null),
   )
 
-  const [format, setFormat] = useState<FormatImage>('carre')
+  const [reseau, setReseau] = useState<ReseauImage>('instagram')
   const [visuel, setVisuel] = useState<VisuelImage>(
     avecSieges ? 'hemicycle' : 'groupes',
   )
@@ -54,19 +55,19 @@ export default function VoteImageExport({
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   const lien = `${window.location.origin}/scrutins/${scrutin.uid}`
-  const nomFichier = `quivotequoi-scrutin-${scrutin.number}-${format}.png`
+  const nomFichier = `quivotequoi-scrutin-${scrutin.number}-${reseau}.png`
 
   useEffect(() => {
     let annule = false
     chargerPolices().then(() => {
       if (!annule && canvasRef.current) {
-        dessinerVote(canvasRef.current, scrutin, { format, visuel, theme, lien })
+        dessinerVote(canvasRef.current, scrutin, { reseau, visuel, theme, lien })
       }
     })
     return () => {
       annule = true
     }
-  }, [scrutin, format, visuel, theme, lien])
+  }, [scrutin, reseau, visuel, theme, lien])
 
   async function telecharger() {
     if (!canvasRef.current) return
@@ -111,7 +112,7 @@ export default function VoteImageExport({
     }
   }
 
-  const { largeur, hauteur, usage } = FORMATS[format]
+  const { largeur, hauteur } = dimensions(reseau)
 
   return (
     <Card className="mb-5 px-5 py-4">
@@ -139,18 +140,34 @@ export default function VoteImageExport({
         </div>
 
         <div className="space-y-4">
-          <div className="space-y-1">
-            <SegmentedControl
-              label="Format"
-              options={Object.entries(FORMATS).map(([value, f]) => ({
-                value,
-                label: f.libelle,
-              }))}
-              value={format}
-              onChange={(v) => setFormat(v as FormatImage)}
-            />
+          {/* Dix réseaux ne tiennent pas dans un contrôle segmenté sur une
+              ligne : une grille, même apparence. */}
+          <div className="space-y-1.5">
+            <span className="text-xs font-medium text-ink-faint">Réseau</span>
+            <div
+              role="radiogroup"
+              aria-label="Réseau"
+              className="grid grid-cols-3 gap-0.5 rounded-lg bg-surface-soft p-0.5"
+            >
+              {Object.entries(RESEAUX).map(([valeur, r]) => (
+                <button
+                  key={valeur}
+                  type="button"
+                  role="radio"
+                  aria-checked={reseau === valeur}
+                  onClick={() => setReseau(valeur as ReseauImage)}
+                  className={`truncate rounded-md px-1.5 py-1 text-xs font-medium transition-colors ${
+                    reseau === valeur
+                      ? 'bg-surface text-ink shadow-card'
+                      : 'text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  {r.libelle}
+                </button>
+              ))}
+            </div>
             <p className="text-[11px] text-ink-faint">
-              {largeur} × {hauteur} px · {usage}
+              {largeur} × {hauteur} px · {RESEAUX[reseau].usage}
             </p>
           </div>
 

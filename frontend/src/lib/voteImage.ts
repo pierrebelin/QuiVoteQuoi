@@ -23,41 +23,109 @@ import { formatDate, tallySize } from '../types/scrutins'
  * qui doit le porter.
  */
 
-export type FormatImage = 'carre' | 'paysage' | 'story'
+export type ReseauImage =
+  | 'instagram'
+  | 'reel'
+  | 'tiktok'
+  | 'linkedin'
+  | 'facebook'
+  | 'threads'
+  | 'reddit'
+  | 'x'
+  | 'bluesky'
+  | 'mastodon'
 export type VisuelImage = 'hemicycle' | 'groupes'
 export type ThemeImage = 'clair' | 'sombre'
 
 export type OptionsImage = {
-  format: FormatImage
+  reseau: ReseauImage
   visuel: VisuelImage
   theme: ThemeImage
   /** Adresse de la page du scrutin, imprimée en pied d'image. */
   lien: string
 }
 
-/** Dimensions recommandées par les réseaux pour chaque usage. */
-export const FORMATS: Record<
-  FormatImage,
-  { largeur: number; hauteur: number; libelle: string; usage: string }
+type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical'
+
+/**
+ * Géométrie d'une image. `u` est l'échelle des tailles de texte ; les maxima
+ * de lignes tronquent un intitulé trop long plutôt que de pousser le visuel
+ * hors du cadre — l'intitulé entier reste sur la page dont l'adresse est
+ * imprimée.
+ *
+ * Le vertical réserve les zones que Reels, Stories et TikTok couvrent de leur
+ * interface : le nom du compte en haut, la légende et les boutons en bas, la
+ * colonne d'icônes à droite. Le fond les remplit, le contenu les évite.
+ */
+const GABARITS: Record<
+  Gabarit,
+  {
+    largeur: number
+    hauteur: number
+    u: number
+    marges: { haut: number; bas: number; gauche: number; droite: number }
+    lignesTitre: number
+    lignesSujet: number
+  }
 > = {
+  portrait: {
+    largeur: 1080,
+    hauteur: 1350,
+    u: 1,
+    marges: { haut: 72, bas: 72, gauche: 64, droite: 64 },
+    lignesTitre: 3,
+    lignesSujet: 3,
+  },
   carre: {
     largeur: 1080,
     hauteur: 1080,
-    libelle: 'Carré',
-    usage: 'Instagram, LinkedIn, Facebook',
+    u: 1,
+    marges: { haut: 64, bas: 64, gauche: 64, droite: 64 },
+    lignesTitre: 2,
+    lignesSujet: 2,
   },
   paysage: {
     largeur: 1200,
     hauteur: 675,
-    libelle: 'Paysage',
-    usage: 'X, Bluesky, Mastodon',
+    u: 0.8,
+    marges: { haut: 52, bas: 52, gauche: 52, droite: 52 },
+    lignesTitre: 3,
+    lignesSujet: 2,
   },
-  story: {
+  vertical: {
     largeur: 1080,
     hauteur: 1920,
-    libelle: 'Story',
-    usage: 'Stories Instagram, TikTok',
+    u: 1.05,
+    marges: { haut: 250, bas: 440, gauche: 72, droite: 140 },
+    lignesTitre: 4,
+    lignesSujet: 3,
   },
+}
+
+/**
+ * Un réseau, un gabarit : celui que le réseau affiche sans rogner dans son
+ * fil. L'ordre est celui du sélecteur.
+ */
+export const RESEAUX: Record<
+  ReseauImage,
+  { libelle: string; gabarit: Gabarit; usage: string }
+> = {
+  instagram: { libelle: 'Instagram', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
+  reel: { libelle: 'Reel / Story', gabarit: 'vertical', usage: 'Instagram et Facebook, 9:16, hors zones des boutons' },
+  tiktok: { libelle: 'TikTok', gabarit: 'vertical', usage: 'Mode photo, 9:16, hors zones des boutons' },
+  linkedin: { libelle: 'LinkedIn', gabarit: 'portrait', usage: 'Image du fil, 4:5' },
+  facebook: { libelle: 'Facebook', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
+  threads: { libelle: 'Threads', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
+  reddit: { libelle: 'Reddit', gabarit: 'carre', usage: 'Publication image, 1:1' },
+  x: { libelle: 'X', gabarit: 'paysage', usage: 'Image du fil, 16:9' },
+  bluesky: { libelle: 'Bluesky', gabarit: 'paysage', usage: 'Image du fil, 16:9' },
+  mastodon: { libelle: 'Mastodon', gabarit: 'paysage', usage: 'Image du fil, 16:9' },
+}
+
+/** Dimensions en pixels de l'image d'un réseau. */
+export function dimensions(reseau: ReseauImage) {
+  const { largeur, hauteur } = GABARITS[RESEAUX[reseau].gabarit]
+  return { largeur, hauteur }
 }
 
 /**
@@ -107,20 +175,6 @@ const PALETTES = {
 } as const
 
 type Palette = (typeof PALETTES)[ThemeImage]
-
-/**
- * Réglages par format. `u` est l'échelle des tailles de texte ; les maxima de
- * lignes tronquent un intitulé trop long plutôt que de pousser le visuel hors
- * du cadre — l'intitulé entier reste sur la page dont l'adresse est imprimée.
- */
-const MISE_EN_PAGE: Record<
-  FormatImage,
-  { u: number; marge: number; lignesTitre: number; lignesSujet: number }
-> = {
-  carre: { u: 1, marge: 64, lignesTitre: 2, lignesSujet: 2 },
-  paysage: { u: 0.8, marge: 52, lignesTitre: 3, lignesSujet: 2 },
-  story: { u: 1.15, marge: 80, lignesTitre: 5, lignesSujet: 5 },
-}
 
 const POLICE = '"Inter Variable", ui-sans-serif, system-ui, sans-serif'
 
@@ -202,10 +256,7 @@ function morceaux(
   taille: number,
   alignement: 'gauche' | 'droite' = 'gauche',
 ) {
-  const largeurs = liste.map(({ texte, poids = 400 }) => {
-    police(ctx, poids, taille)
-    return ctx.measureText(texte).width
-  })
+  const largeurs = liste.map((morceau) => largeurMorceaux(ctx, [morceau], taille))
   let curseur =
     alignement === 'droite' ? x - largeurs.reduce((a, b) => a + b, 0) : x
   ctx.textBaseline = 'middle'
@@ -380,6 +431,40 @@ function nomGroupe(groupe: GroupBreakdownDto) {
   return groupe.origin === 'reconstructed' ? `${nom}*` : nom
 }
 
+/**
+ * Décompte d'un groupe, non-votants compris quand il y en a : la barre leur
+ * donne leur part réelle, la ligne doit donc dire combien ils sont.
+ */
+function chiffresGroupe(tally: TallyDto, p: Palette): Morceau[] {
+  const nonVotants = tally.not_voting + tally.voluntary_not_voting
+  return [
+    { texte: String(tally.votes_for), couleur: p.pour, poids: 600 },
+    { texte: ' pour · ', couleur: p.encrePale },
+    { texte: String(tally.votes_against), couleur: p.contre, poids: 600 },
+    { texte: ' contre · ', couleur: p.encrePale },
+    { texte: String(tally.abstentions), couleur: p.abstention, poids: 600 },
+    { texte: ' abst.', couleur: p.encrePale },
+    ...(nonVotants > 0
+      ? [
+          { texte: ' · ', couleur: p.encrePale },
+          { texte: String(nonVotants), couleur: p.encreDouce, poids: 600 },
+          { texte: ` non-votant${nonVotants > 1 ? 's' : ''}`, couleur: p.encrePale },
+        ]
+      : []),
+  ]
+}
+
+function largeurMorceaux(
+  ctx: CanvasRenderingContext2D,
+  liste: Morceau[],
+  taille: number,
+) {
+  return liste.reduce((somme, { texte, poids = 400 }) => {
+    police(ctx, poids, taille)
+    return somme + ctx.measureText(texte).width
+  }, 0)
+}
+
 /** Une ligne par groupe, les barres à l'échelle du groupe le plus nombreux. */
 function groupes(
   ctx: CanvasRenderingContext2D,
@@ -394,26 +479,29 @@ function groupes(
   const hauteurNote = reconstitue ? 32 * u : 0
 
   const pas = Math.min(56 * u, (cadre.hauteur - hauteurNote) / liste.length)
-  const taille = Math.min(20 * u, pas * 0.5)
   const plusGrand = Math.max(...liste.map((g) => tallySize(g.tally)), 1)
 
-  police(ctx, 600, taille)
-  const largeurNom = Math.max(...liste.map((g) => ctx.measureText(nomGroupe(g)).width))
-  const largeurChiffres = Math.max(
-    ...liste.map((g) => {
-      police(ctx, 400, taille)
-      return ctx.measureText(
-        `${g.tally.votes_for} pour · ${g.tally.votes_against} contre · ${g.tally.abstentions} abst.`,
-      ).width
-    }),
-  )
+  // Le texte rétrécit tant que la barre n'a pas au moins le quart de la
+  // largeur : en paysage, la colonne est étroite et les non-votants allongent
+  // la ligne.
+  let taille = Math.min(20 * u, pas * 0.5)
+  let largeurNom = 0
+  let largeurBarre = 0
+  for (;;) {
+    police(ctx, 600, taille)
+    largeurNom = Math.max(...liste.map((g) => ctx.measureText(nomGroupe(g)).width))
+    const largeurChiffres = Math.max(
+      ...liste.map((g) => largeurMorceaux(ctx, chiffresGroupe(g.tally, p), taille)),
+    )
+    largeurBarre =
+      cadre.largeur - taille * 0.64 - 10 * u - largeurNom - 18 * u - largeurChiffres - 18 * u
+    if (largeurBarre >= cadre.largeur * 0.25 || taille <= 12 * u) break
+    taille *= 0.92
+  }
+  largeurBarre = Math.max(largeurBarre, 40 * u)
   const pastille = taille * 0.32
   const debutNom = cadre.x + pastille * 2 + 10 * u
   const debutBarre = debutNom + largeurNom + 18 * u
-  const largeurBarre = Math.max(
-    cadre.largeur - (debutBarre - cadre.x) - largeurChiffres - 18 * u,
-    40 * u,
-  )
   const y0 = cadre.y + (cadre.hauteur - hauteurNote - pas * liste.length) / 2
 
   liste.forEach((groupe, i) => {
@@ -439,21 +527,7 @@ function groupes(
       Math.min(1, tallySize(groupe.tally) / plusGrand),
     )
 
-    morceaux(
-      ctx,
-      [
-        { texte: String(groupe.tally.votes_for), couleur: p.pour, poids: 600 },
-        { texte: ' pour · ', couleur: p.encrePale },
-        { texte: String(groupe.tally.votes_against), couleur: p.contre, poids: 600 },
-        { texte: ' contre · ', couleur: p.encrePale },
-        { texte: String(groupe.tally.abstentions), couleur: p.abstention, poids: 600 },
-        { texte: ' abst.', couleur: p.encrePale },
-      ],
-      cadre.x + cadre.largeur,
-      milieu,
-      taille,
-      'droite',
-    )
+    morceaux(ctx, chiffresGroupe(groupe.tally, p), cadre.x + cadre.largeur, milieu, taille, 'droite')
   })
 
   if (reconstitue) {
@@ -487,10 +561,22 @@ export function dessinerVote(
   data: ScrutinDetailDto,
   options: OptionsImage,
 ) {
-  const { largeur: W, hauteur: H } = FORMATS[options.format]
-  const { u, marge: M, lignesTitre, lignesSujet } = MISE_EN_PAGE[options.format]
+  const gabarit = RESEAUX[options.reseau].gabarit
+  const {
+    largeur: W,
+    hauteur: H,
+    u,
+    marges,
+    lignesTitre,
+    lignesSujet,
+  } = GABARITS[gabarit]
+  // Bords de la zone de contenu.
+  const G = marges.gauche
+  const D = W - marges.droite
+  const haut = marges.haut
+  const bas = H - marges.bas
   const p = PALETTES[options.theme]
-  const paysage = options.format === 'paysage'
+  const paysage = gabarit === 'paysage'
 
   canvas.width = W
   canvas.height = H
@@ -501,26 +587,27 @@ export function dessinerVote(
   ctx.fillRect(0, 0, W, H)
 
   // En paysage, le texte à gauche et le visuel à droite ; sinon empilés.
-  const colonne = paysage ? Math.round(W * 0.47) - M : W - 2 * M
-  let y = M
+  const coupure = G + Math.round((D - G) * 0.47)
+  const colonne = paysage ? coupure - G : D - G
+  let y = haut
 
   /* En-tête : identité du site, numéro et date du scrutin. */
   const hauteurLogo = 38 * u
-  const largeurLogo = logo(ctx, M, y, hauteurLogo, options.theme === 'sombre')
+  const largeurLogo = logo(ctx, G, y, hauteurLogo, options.theme === 'sombre')
   morceaux(
     ctx,
     [
       { texte: 'QuiVote', couleur: p.encre, poids: 600 },
       { texte: 'Quoi', couleur: p.accent, poids: 600 },
     ],
-    M + largeurLogo + 12 * u,
+    G + largeurLogo + 12 * u,
     y + hauteurLogo * 0.6,
     26 * u,
   )
   morceaux(
     ctx,
     [{ texte: `Scrutin n° ${data.number} · ${formatDate(data.date)}`, couleur: p.encrePale }],
-    W - M,
+    D,
     y + hauteurLogo * 0.6,
     21 * u,
     'droite',
@@ -536,12 +623,12 @@ export function dessinerVote(
   const hauteurPastille = taillePastille * 1.7
   ctx.fillStyle = adopte ? p.pourDoux : p.contreDoux
   ctx.beginPath()
-  ctx.roundRect(M, y, largeurPastille, hauteurPastille, 8 * u)
+  ctx.roundRect(G, y, largeurPastille, hauteurPastille, 8 * u)
   ctx.fill()
   morceaux(
     ctx,
     [{ texte: resultat, couleur: adopte ? p.pour : p.contre, poids: 600 }],
-    M + 12 * u,
+    G + 12 * u,
     y + hauteurPastille / 2,
     taillePastille,
   )
@@ -550,7 +637,7 @@ export function dessinerVote(
   morceaux(
     ctx,
     [{ texte: procedure, couleur: p.encrePale }],
-    M + largeurPastille + 14 * u,
+    G + largeurPastille + 14 * u,
     y + hauteurPastille / 2,
     19 * u,
   )
@@ -563,7 +650,7 @@ export function dessinerVote(
   y += paragraphe(
     ctx,
     data.dossier_uid ? data.dossier_label || data.dossier_uid : data.subject,
-    M,
+    G,
     y,
     colonne,
     lignesTitre,
@@ -574,7 +661,7 @@ export function dessinerVote(
     police(ctx, 400, tailleSujet)
     ctx.fillStyle = p.encreDouce
     y += 10 * u
-    y += paragraphe(ctx, data.subject, M, y, colonne, lignesSujet, tailleSujet * 1.4)
+    y += paragraphe(ctx, data.subject, G, y, colonne, lignesSujet, tailleSujet * 1.4)
   }
   y += 30 * u
 
@@ -588,7 +675,7 @@ export function dessinerVote(
   ]
   const tailleChiffre = 56 * u
   chiffres.forEach(([libelle, valeur, couleur], i) => {
-    const x = M + (colonne / chiffres.length) * i
+    const x = G + (colonne / chiffres.length) * i
     police(ctx, 600, tailleChiffre)
     ctx.fillStyle = couleur
     ctx.textBaseline = 'top'
@@ -599,14 +686,14 @@ export function dessinerVote(
   })
   y += tailleChiffre + 6 * u + 18 * u + 22 * u
 
-  barre(ctx, p, s.tally, M, y, colonne, 12 * u)
+  barre(ctx, p, s.tally, G, y, colonne, 12 * u)
   y += 12 * u + 14 * u
   police(ctx, 400, 18 * u)
   ctx.fillStyle = p.encrePale
   ctx.textBaseline = 'top'
   ctx.fillText(
     `${s.voters} votants · ${s.expressed} suffrages exprimés · ${s.required} requis`,
-    M,
+    G,
     y,
   )
   y += 18 * u + 32 * u
@@ -614,9 +701,9 @@ export function dessinerVote(
   /* Pied : la source et l'adresse de la page, sur chaque image. */
   const taillePied = 18 * u
   const hauteurPied = taillePied + 28 * u
-  const hautPied = H - M - hauteurPied
+  const hautPied = bas - hauteurPied
   ctx.fillStyle = p.trait
-  ctx.fillRect(M, hautPied, W - 2 * M, Math.max(1, u))
+  ctx.fillRect(G, hautPied, D - G, Math.max(1, u))
   const lien = options.lien.replace(/^https?:\/\//, '')
   // Le numéro est déjà en en-tête : s'il ne tient pas à côté de l'adresse,
   // la source se raccourcit plutôt que de la chevaucher.
@@ -624,41 +711,45 @@ export function dessinerVote(
   police(ctx, 600, taillePied)
   const largeurLien = ctx.measureText(lien).width
   police(ctx, 400, taillePied)
-  if (ctx.measureText(source).width + largeurLien + 24 * u > W - 2 * M) {
+  if (ctx.measureText(source).width + largeurLien + 24 * u > D - G) {
     source = 'Source : Assemblée nationale'
   }
   morceaux(
     ctx,
     [{ texte: source, couleur: p.encrePale }],
-    M,
-    H - M - taillePied / 2,
+    G,
+    bas - taillePied / 2,
     taillePied,
   )
-  morceaux(ctx, [{ texte: lien, couleur: p.accent, poids: 600 }], W - M, H - M - taillePied / 2, taillePied, 'droite')
+  morceaux(ctx, [{ texte: lien, couleur: p.accent, poids: 600 }], D, bas - taillePied / 2, taillePied, 'droite')
 
   /* Visuel, dans l'espace restant. */
   const cadre: Cadre = paysage
     ? {
-        x: Math.round(W * 0.47) + 24 * u,
-        y: M + hauteurLogo + 34 * u,
-        largeur: W - M - (Math.round(W * 0.47) + 24 * u),
-        hauteur: hautPied - 28 * u - (M + hauteurLogo + 34 * u),
+        x: coupure + 24 * u,
+        y: haut + hauteurLogo + 34 * u,
+        largeur: D - (coupure + 24 * u),
+        hauteur: hautPied - 28 * u - (haut + hauteurLogo + 34 * u),
       }
-    : { x: M, y, largeur: W - 2 * M, hauteur: hautPied - 28 * u - y }
+    : { x: G, y, largeur: D - G, hauteur: hautPied - 28 * u - y }
   if (cadre.hauteur < 80 * u) return
 
   const avecSieges = data.groups.some((g) => g.votes.some((v) => v.seat !== null))
   if (options.visuel === 'hemicycle' && avecSieges) {
-    // En story, l'hémicycle seul laisserait la moitié de l'image vide : la
-    // répartition par groupe prend la place restante.
+    // Quand la hauteur le permet, l'hémicycle seul laisserait la moitié de
+    // l'image vide : la répartition par groupe prend la place restante.
     if (cadre.hauteur > 700 * u && data.groups.length > 0) {
-      const haut = cadre.hauteur * 0.5
-      hemicycle(ctx, p, options.theme, data, { ...cadre, hauteur: haut }, u)
+      const hauteurHemicycle = cadre.hauteur * 0.5
+      hemicycle(ctx, p, options.theme, data, { ...cadre, hauteur: hauteurHemicycle }, u)
       groupes(
         ctx,
         p,
         data,
-        { ...cadre, y: cadre.y + haut + 24 * u, hauteur: cadre.hauteur - haut - 24 * u },
+        {
+          ...cadre,
+          y: cadre.y + hauteurHemicycle + 24 * u,
+          hauteur: cadre.hauteur - hauteurHemicycle - 24 * u,
+        },
         u,
       )
     } else {
