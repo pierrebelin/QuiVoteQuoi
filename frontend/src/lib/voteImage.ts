@@ -219,17 +219,49 @@ function morceaux(
 
 /* ---------------------------------------------------------------- dessins */
 
-function logo(ctx: CanvasRenderingContext2D, x: number, y: number, hauteur: number) {
-  const echelle = hauteur / LOGO_VUE.hauteur
+function logo(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  hauteur: number,
+  surFondSombre: boolean,
+) {
+  if (!surFondSombre) {
+    const echelle = hauteur / LOGO_VUE.hauteur
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.scale(echelle, echelle)
+    LOGO_TRACES.forEach(([d, couleur]) => {
+      ctx.fillStyle = couleur
+      ctx.fill(new Path2D(d))
+    })
+    ctx.restore()
+    return LOGO_VUE.largeur * echelle
+  }
+
+  // Sur fond sombre, les rayons bleu nuit disparaissent : le logo prend la
+  // pastille crème du favicon, rayons centraux en blanc comme lui.
+  const cote = hauteur * 1.15
+  const haut = y + (hauteur - cote) / 2
+  ctx.fillStyle = '#ded3bd'
+  ctx.beginPath()
+  ctx.roundRect(x, haut, cote, cote, cote * 0.19)
+  ctx.fill()
+
+  const largeur = cote * 0.82
+  const echelle = largeur / LOGO_VUE.largeur
   ctx.save()
-  ctx.translate(x, y)
+  ctx.translate(
+    x + (cote - largeur) / 2,
+    haut + (cote - LOGO_VUE.hauteur * echelle) / 2,
+  )
   ctx.scale(echelle, echelle)
   LOGO_TRACES.forEach(([d, couleur]) => {
-    ctx.fillStyle = couleur
+    ctx.fillStyle = couleur === '#ded3bd' ? '#ffffff' : couleur
     ctx.fill(new Path2D(d))
   })
   ctx.restore()
-  return LOGO_VUE.largeur * echelle
+  return cote
 }
 
 /**
@@ -287,6 +319,7 @@ type Cadre = { x: number; y: number; largeur: number; hauteur: number }
 function hemicycle(
   ctx: CanvasRenderingContext2D,
   p: Palette,
+  theme: ThemeImage,
   data: ScrutinDetailDto,
   cadre: Cadre,
   u: number,
@@ -300,7 +333,7 @@ function hemicycle(
   ).length
 
   const legende =
-    'Chaque député à son siège · en gris clair, aucune position enregistrée' +
+    `Chaque député à son siège · en gris ${theme === 'sombre' ? 'foncé' : 'clair'}, aucune position enregistrée` +
     (horsPlan > 0
       ? ` · ${horsPlan} position${horsPlan > 1 ? 's' : ''} sans siège localisable`
       : '')
@@ -473,7 +506,7 @@ export function dessinerVote(
 
   /* En-tête : identité du site, numéro et date du scrutin. */
   const hauteurLogo = 38 * u
-  const largeurLogo = logo(ctx, M, y, hauteurLogo)
+  const largeurLogo = logo(ctx, M, y, hauteurLogo, options.theme === 'sombre')
   morceaux(
     ctx,
     [
@@ -585,9 +618,18 @@ export function dessinerVote(
   ctx.fillStyle = p.trait
   ctx.fillRect(M, hautPied, W - 2 * M, Math.max(1, u))
   const lien = options.lien.replace(/^https?:\/\//, '')
+  // Le numéro est déjà en en-tête : s'il ne tient pas à côté de l'adresse,
+  // la source se raccourcit plutôt que de la chevaucher.
+  let source = `Source : Assemblée nationale, scrutin public n° ${data.number}`
+  police(ctx, 600, taillePied)
+  const largeurLien = ctx.measureText(lien).width
+  police(ctx, 400, taillePied)
+  if (ctx.measureText(source).width + largeurLien + 24 * u > W - 2 * M) {
+    source = 'Source : Assemblée nationale'
+  }
   morceaux(
     ctx,
-    [{ texte: `Source : Assemblée nationale, scrutin public n° ${data.number}`, couleur: p.encrePale }],
+    [{ texte: source, couleur: p.encrePale }],
     M,
     H - M - taillePied / 2,
     taillePied,
@@ -611,7 +653,7 @@ export function dessinerVote(
     // répartition par groupe prend la place restante.
     if (cadre.hauteur > 700 * u && data.groups.length > 0) {
       const haut = cadre.hauteur * 0.5
-      hemicycle(ctx, p, data, { ...cadre, hauteur: haut }, u)
+      hemicycle(ctx, p, options.theme, data, { ...cadre, hauteur: haut }, u)
       groupes(
         ctx,
         p,
@@ -620,7 +662,7 @@ export function dessinerVote(
         u,
       )
     } else {
-      hemicycle(ctx, p, data, cadre, u)
+      hemicycle(ctx, p, options.theme, data, cadre, u)
     }
   } else {
     groupes(ctx, p, data, cadre, u)
