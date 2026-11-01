@@ -5,7 +5,7 @@
  * dossier locale. L'API de production est la source ; aucune écriture ne lui
  * est adressée. Usage :
  *
- *   HEMICYCLE_PUBLIC_BASE_URL=https://<DOMAINE_PUBLIC> \
+ *   QUIVOTEQUOI_PUBLIC_BASE_URL=https://<DOMAINE_PUBLIC> \
  *     node scripts/import-public-dossier.mjs DLR5L17N51732
  */
 import { spawnSync } from 'node:child_process'
@@ -13,8 +13,8 @@ import { spawnSync } from 'node:child_process'
 const uid = process.argv[2]
 if (!uid) throw new Error('Usage: node scripts/import-public-dossier.mjs <UID_DOSSIER>')
 
-const publicBaseUrl = process.env.HEMICYCLE_PUBLIC_BASE_URL
-if (!publicBaseUrl) throw new Error('HEMICYCLE_PUBLIC_BASE_URL est requis')
+const publicBaseUrl = process.env.QUIVOTEQUOI_PUBLIC_BASE_URL
+if (!publicBaseUrl) throw new Error('QUIVOTEQUOI_PUBLIC_BASE_URL est requis')
 
 const base = new URL('/api', publicBaseUrl).toString()
 const fetchJson = async (path) => {

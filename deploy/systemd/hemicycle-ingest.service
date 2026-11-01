@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — ingestion (referentiel, scrutins, dossiers, textes)
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — ingestion (referentiel, scrutins, dossiers, textes)
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 # Le job appelle l'API sur la boucle locale : sans le service, rien a appeler.
 Requires=hemicycle.service
 After=hemicycle.service

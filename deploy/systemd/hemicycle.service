@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — API Axum
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — API Axum
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 After=network-online.target
 Wants=network-online.target
 

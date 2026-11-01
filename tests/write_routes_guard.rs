@@ -19,24 +19,24 @@ use chrono::Utc;
 use sqlx::postgres::PgPoolOptions;
 use tower::ServiceExt;
 
-use hemicycle_data::api::routes::create_router;
-use hemicycle_data::api::security::AdminGuard;
-use hemicycle_data::infrastructure::llm::unavailable_classifier::UnavailableClassifier;
-use hemicycle_data::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
-use hemicycle_data::infrastructure::national_assembly::actor_client::AmoActorClient;
-use hemicycle_data::infrastructure::national_assembly::amendment_client::AmendmentClient;
-use hemicycle_data::infrastructure::national_assembly::client::NationalAssemblyClient;
-use hemicycle_data::infrastructure::national_assembly::scrutin_client::ScrutinClient;
-use hemicycle_data::infrastructure::persistence::pg_actor_repository::PgActorRepository;
-use hemicycle_data::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
-use hemicycle_data::infrastructure::persistence::pg_candidate_repository::PgCandidateRepository;
-use hemicycle_data::infrastructure::persistence::pg_dossier_repository::PgDossierRepository;
-use hemicycle_data::infrastructure::persistence::pg_final_vote_repository::PgFinalVoteRepository;
-use hemicycle_data::infrastructure::persistence::pg_group_repository::PgGroupRepository;
-use hemicycle_data::infrastructure::persistence::pg_scrutin_repository::PgScrutinRepository;
-use hemicycle_data::infrastructure::persistence::pg_theme_repository::PgThemeRepository;
-use hemicycle_data::infrastructure::security::AdminTokenSecret;
-use hemicycle_data::AppState;
+use quivotequoi::api::routes::create_router;
+use quivotequoi::api::security::AdminGuard;
+use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableClassifier;
+use quivotequoi::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
+use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient;
+use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
+use quivotequoi::infrastructure::national_assembly::client::NationalAssemblyClient;
+use quivotequoi::infrastructure::national_assembly::scrutin_client::ScrutinClient;
+use quivotequoi::infrastructure::persistence::pg_actor_repository::PgActorRepository;
+use quivotequoi::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
+use quivotequoi::infrastructure::persistence::pg_candidate_repository::PgCandidateRepository;
+use quivotequoi::infrastructure::persistence::pg_dossier_repository::PgDossierRepository;
+use quivotequoi::infrastructure::persistence::pg_final_vote_repository::PgFinalVoteRepository;
+use quivotequoi::infrastructure::persistence::pg_group_repository::PgGroupRepository;
+use quivotequoi::infrastructure::persistence::pg_scrutin_repository::PgScrutinRepository;
+use quivotequoi::infrastructure::persistence::pg_theme_repository::PgThemeRepository;
+use quivotequoi::infrastructure::security::AdminTokenSecret;
+use quivotequoi::AppState;
 
 const SECRET: &str = "0123456789abcdef0123456789abcdef";
 
@@ -70,10 +70,10 @@ fn state() -> AppState {
         candidate_repository: Arc::new(PgCandidateRepository::new(db.clone())),
         dossier_repository: Arc::new(PgDossierRepository::new(db.clone())),
         dossier_group_actions_repository: Arc::new(
-            hemicycle_data::infrastructure::persistence::pg_dossier_group_actions_repository::PgDossierGroupActionsRepository::new(db.clone()),
+            quivotequoi::infrastructure::persistence::pg_dossier_group_actions_repository::PgDossierGroupActionsRepository::new(db.clone()),
         ),
         dossier_summary_repository: Arc::new(
-            hemicycle_data::infrastructure::persistence::pg_dossier_summary_repository::PgDossierSummaryRepository::new(db.clone()),
+            quivotequoi::infrastructure::persistence::pg_dossier_summary_repository::PgDossierSummaryRepository::new(db.clone()),
         ),
         dossier_summary_generator: Arc::new(UnavailableDossierSummaryGenerator),
         actor_source: Arc::new(AmoActorClient::new()),

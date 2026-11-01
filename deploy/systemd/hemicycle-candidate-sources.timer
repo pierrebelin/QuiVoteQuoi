@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — vérification quotidienne des sources de programmes 2027
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — vérification quotidienne des sources de programmes 2027
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 
 [Timer]
 Unit=hemicycle-candidate-sources.service

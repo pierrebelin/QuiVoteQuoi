@@ -277,7 +277,7 @@ Ajouter cette clé publique dans GitHub → Settings du dépôt → Deploy keys,
 
 ```bash
 ssh-keyscan github.com >> /home/hemicycle/.ssh/known_hosts
-git clone git@github.com:pierrebelin/HemicycleData.git /home/hemicycle/app
+git clone git@github.com:pierrebelin/QuiVoteQuoi.git /home/hemicycle/app
 ```
 
 ### 4.4 Chaînes de compilation
@@ -573,7 +573,7 @@ par jour, onze passages sur douze ne téléchargent donc rien. C'est ce qui rend
 la cadence de deux heures tenable ; sans ce mécanisme, il faudrait l'espacer.
 
 Le client se nomme auprès de la source
-(`hemicycle.data/<version> (+<URL du dépôt>)`). Si l'Assemblée devait un jour
+(`QuiVoteQuoi/<version> (+<URL du dépôt>)`). Si l'Assemblée devait un jour
 resserrer l'accès, c'est ce qui permet de nous joindre plutôt que de nous
 couper.
 

@@ -6,7 +6,7 @@
 //! qui la porte, en production, pendant un rafraichissement. Ce test fait
 //! echouer la divergence au plus tot.
 
-use hemicycle_data::domain::theme::FamilyCode;
+use quivotequoi::domain::theme::FamilyCode;
 use std::collections::BTreeSet;
 
 /// Codes inseres dans `theme_families` par l'ensemble des migrations.

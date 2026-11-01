@@ -5,7 +5,7 @@
 //!
 //! Usage: cargo run --bin sync-official-text-versions
 
-use hemicycle_data::infrastructure::official_text_versions_registry::{
+use quivotequoi::infrastructure::official_text_versions_registry::{
     bundled_versions, VerifiedOfficialTextVersion,
 };
 use sqlx::{PgPool, Row};
@@ -20,7 +20,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    let pool = hemicycle_data::infrastructure::config::try_connect_database()
+    let pool = quivotequoi::infrastructure::config::try_connect_database()
         .await
         .map_err(std::io::Error::other)?;
 
