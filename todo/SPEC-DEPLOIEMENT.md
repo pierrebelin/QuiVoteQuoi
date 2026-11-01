@@ -660,26 +660,26 @@ sudo systemctl disable --now hemicycle-candidate-sources.timer
 
 ## 7. Recette
 
-- [ ] `https://<DOMAINE_PUBLIC>` répond en 200, certificat valide
-- [ ] Une route SPA profonde rechargée directement (F5) renvoie l'application, pas un 404
-- [ ] `GET /api/health` répond via HTTPS
-- [ ] `POST /api/refresh` depuis Internet renvoie `401` avec `WWW-Authenticate: Basic`
-- [ ] Le même appel avec l'identifiant HTTP Basic mais sans jeton renvoie `401` sans `WWW-Authenticate`
-- [ ] Sur le site public, l'écran d'arbitrage demande l'identifiant puis accepte une écriture avec le jeton du jour
-- [ ] Le port `8085` n'est pas joignable depuis l'extérieur (`nc -zv <IP> 8085` échoue)
-- [ ] Tunnel SSH ouvert, `http://localhost:8080` sert le site et accepte les POST
-- [ ] `systemctl restart hemicycle` remonte le service et rejoue les migrations sans erreur
-- [ ] Un merge sur `main` déclenche le workflow et le site sert bien le nouveau code
-- [ ] `sudo -l` sous `hemicycle` ne liste que les trois commandes `systemctl`
-- [ ] `~/app/deploy/bin/admin-token.sh` affiche 32 caractères hexadécimaux
-- [ ] `POST /api/refresh` sans jeton, depuis le tunnel admin, renvoie `401`
-- [ ] Le même appel avec le jeton du jour aboutit
-- [ ] `deploy/cron/hemicycle-ingest.sh` lancé à la main sort en `0`
-- [ ] `deploy/cron/hemicycle-text-capture.sh` lancé à la main sort en `0`
-- [ ] `deploy/cron/hemicycle-candidate-sources.sh` lancé à la main sort en `0`
-- [ ] `ss -ltnp | grep 8085` montre une écoute sur `127.0.0.1`, pas sur `0.0.0.0`
-- [ ] `systemctl list-timers hemicycle-ingest.timer` annonce une prochaine passe à moins de 2 h
-- [ ] `systemctl list-timers hemicycle-text-capture.timer` annonce une prochaine capture quotidienne
-- [ ] `systemctl list-timers hemicycle-candidate-sources.timer` annonce une prochaine vérification quotidienne des sources 2027
-- [ ] `crontab -l` sous `hemicycle` ne contient **pas** de ligne `hemicycle-ingest.sh` (le timer et la crontab s'excluent, §3.3)
-- [ ] Après un `systemctl restart hemicycle`, le job attend la reprise au lieu d'échouer
+- [x] `https://<DOMAINE_PUBLIC>` répond en 200, certificat valide
+- [x] Une route SPA profonde rechargée directement (F5) renvoie l'application, pas un 404
+- [x] `GET /api/health` répond via HTTPS
+- [x] `POST /api/refresh` depuis Internet renvoie `401` avec `WWW-Authenticate: Basic`
+- [x] Le même appel avec l'identifiant HTTP Basic mais sans jeton renvoie `401` sans `WWW-Authenticate`
+- [x] Sur le site public, l'écran d'arbitrage demande l'identifiant puis accepte une écriture avec le jeton du jour
+- [x] Le port `8085` n'est pas joignable depuis l'extérieur (`nc -zv <IP> 8085` échoue)
+- [x] Tunnel SSH ouvert, `http://localhost:8080` sert le site et accepte les POST
+- [x] `systemctl restart hemicycle` remonte le service et rejoue les migrations sans erreur
+- [x] Un merge sur `main` déclenche le workflow et le site sert bien le nouveau code
+- [x] `sudo -l` sous `hemicycle` ne liste que les trois commandes `systemctl`
+- [x] `~/app/deploy/bin/admin-token.sh` affiche 32 caractères hexadécimaux
+- [x] `POST /api/refresh` sans jeton, depuis le tunnel admin, renvoie `401`
+- [x] Le même appel avec le jeton du jour aboutit
+- [x] `deploy/cron/hemicycle-ingest.sh` lancé à la main sort en `0`
+- [x] `deploy/cron/hemicycle-text-capture.sh` lancé à la main sort en `0`
+- [x] `deploy/cron/hemicycle-candidate-sources.sh` lancé à la main sort en `0`
+- [x] `ss -ltnp | grep 8085` montre une écoute sur `127.0.0.1`, pas sur `0.0.0.0`
+- [x] `systemctl list-timers hemicycle-ingest.timer` annonce une prochaine passe à moins de 2 h
+- [x] `systemctl list-timers hemicycle-text-capture.timer` annonce une prochaine capture quotidienne
+- [x] `systemctl list-timers hemicycle-candidate-sources.timer` annonce une prochaine vérification quotidienne des sources 2027
+- [x] `crontab -l` sous `hemicycle` ne contient **pas** de ligne `hemicycle-ingest.sh` (le timer et la crontab s'excluent, §3.3)
+- [x] Après un `systemctl restart hemicycle`, le job attend la reprise au lieu d'échouer
