@@ -2,6 +2,7 @@
 pub enum LlmProvider {
     Anthropic,
     OpenAi,
+    Mistral,
 }
 
 impl LlmProvider {
@@ -15,8 +16,9 @@ impl LlmProvider {
         match raw.trim().to_ascii_lowercase().as_str() {
             "anthropic" | "claude" => Ok(Self::Anthropic),
             "openai" | "chatgpt" => Ok(Self::OpenAi),
+            "mistral" => Ok(Self::Mistral),
             value => Err(format!(
-                "LLM_PROVIDER invalide: {value} (valeurs attendues: anthropic ou openai)"
+                "LLM_PROVIDER invalide: {value} (valeurs attendues: anthropic, openai ou mistral)"
             )),
         }
     }
@@ -25,6 +27,7 @@ impl LlmProvider {
         match self {
             Self::Anthropic => "Anthropic/Claude",
             Self::OpenAi => "OpenAI/ChatGPT",
+            Self::Mistral => "Mistral",
         }
     }
 
@@ -32,6 +35,7 @@ impl LlmProvider {
         match self {
             Self::Anthropic => "ANTHROPIC_API_KEY",
             Self::OpenAi => "OPENAI_API_KEY",
+            Self::Mistral => "MISTRAL_API_KEY",
         }
     }
 }
@@ -48,10 +52,14 @@ mod tests {
         );
         assert_eq!(LlmProvider::parse(" OPENAI ").unwrap(), LlmProvider::OpenAi);
         assert_eq!(LlmProvider::parse("chatgpt").unwrap(), LlmProvider::OpenAi);
+        assert_eq!(
+            LlmProvider::parse(" Mistral ").unwrap(),
+            LlmProvider::Mistral
+        );
     }
 
     #[test]
     fn rejects_unknown_provider() {
-        assert!(LlmProvider::parse("mistral").is_err());
+        assert!(LlmProvider::parse("gemini").is_err());
     }
 }

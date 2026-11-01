@@ -22,6 +22,8 @@ use quivotequoi::application::ports::theme_repository::ThemeRepository;
 use quivotequoi::infrastructure::config;
 use quivotequoi::infrastructure::llm::anthropic_classifier::AnthropicThemeClassifier;
 use quivotequoi::infrastructure::llm::anthropic_dossier_summary::AnthropicDossierSummaryGenerator;
+use quivotequoi::infrastructure::llm::mistral_classifier::MistralThemeClassifier;
+use quivotequoi::infrastructure::llm::mistral_dossier_summary::MistralDossierSummaryGenerator;
 use quivotequoi::infrastructure::llm::openai_classifier::OpenAiThemeClassifier;
 use quivotequoi::infrastructure::llm::openai_dossier_summary::OpenAiDossierSummaryGenerator;
 use quivotequoi::infrastructure::llm::provider::LlmProvider;
@@ -111,6 +113,16 @@ async fn main() {
                 Arc::new(UnavailableClassifier)
             }
         },
+        Some(LlmProvider::Mistral) => match MistralThemeClassifier::from_env() {
+            Some(classifier) => {
+                tracing::info!("Theme classifier ready ({})", classifier.model());
+                Arc::new(classifier)
+            }
+            None => {
+                tracing::warn!("MISTRAL_API_KEY absent: no theme proposal will be produced");
+                Arc::new(UnavailableClassifier)
+            }
+        },
         None => Arc::new(UnavailableClassifier),
     };
 
@@ -132,6 +144,16 @@ async fn main() {
             }
             None => {
                 tracing::warn!("OPENAI_API_KEY absent: dossier summaries will stay pending");
+                Arc::new(UnavailableDossierSummaryGenerator)
+            }
+        },
+        Some(LlmProvider::Mistral) => match MistralDossierSummaryGenerator::from_env() {
+            Some(generator) => {
+                tracing::info!("Dossier summary generator ready ({})", generator.model());
+                Arc::new(generator)
+            }
+            None => {
+                tracing::warn!("MISTRAL_API_KEY absent: dossier summaries will stay pending");
                 Arc::new(UnavailableDossierSummaryGenerator)
             }
         },
