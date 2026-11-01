@@ -16,7 +16,7 @@ chaque merge sur `main` via GitHub Actions.
 | Base | PostgreSQL local sur le VPS |
 | Secrets | posés à la main une fois dans `/home/hemicycle/shared/.env`, jamais dans GitHub |
 | Port backend | `8085` en local (le `3000` par défaut est supposé pris par l'application Node) |
-| Écriture publique | tous les `POST /api/` renvoient `403` sur le vhost public |
+| Écriture publique | tous les `POST /api/` exigent un identifiant HTTP Basic sur le vhost public (`401` sans lui) |
 | Écriture applicative | jeton du jour obligatoire, dérivé de `ADMIN_TOKEN_SECRET` (§3.2) |
 
 ## 2. Arborescence cible
@@ -48,7 +48,7 @@ dossier : le reste du home reste en `750`, le code source n'est jamais exposé.
 ```
 Internet ──► Nginx :443 (vhost public, TLS Let's Encrypt)
                ├─ /            → fichiers statiques /home/hemicycle/www (fallback SPA)
-               ├─ POST /api/   → 403
+               ├─ POST /api/   → HTTP Basic, puis proxy 127.0.0.1:8085
                └─ GET  /api/   → proxy 127.0.0.1:8085
 
 Tunnel SSH ──► Nginx :8080 sur 127.0.0.1 (vhost admin)
@@ -92,12 +92,19 @@ d'administration :
 | `POST /api/themes/propose` | aucun front (outil) |
 | `POST /api/themes/arbitrate` | `ThemeArbitrationPage` |
 
-Aucun parcours de consultation n'écrit. Le vhost public renvoie donc `403` sur
-toute méthode autre que `GET`/`HEAD`/`OPTIONS` sous `/api/`. Sans cela,
+Aucun parcours de consultation n'écrit. Le vhost public exige donc un
+identifiant HTTP Basic (`auth_basic`) sur toute méthode autre que
+`GET`/`HEAD`/`OPTIONS` sous `/api/`, et répond `401` sans lui. Sans cela,
 n'importe qui déclenche les ingestions Assemblée nationale et consomme la clé
 Anthropic.
 
-L'administration passe par un tunnel SSH :
+L'opérateur administre depuis le site en ligne : le navigateur demande
+l'identifiant à la première écriture, puis le renvoie seul ; l'écran demande
+ensuite le jeton du jour (§3.2). Le fichier d'identifiants
+`/etc/nginx/hemicycle-admin.htpasswd` est posé à la main (§4.7), jamais
+versionné.
+
+Le tunnel SSH vers le vhost admin reste disponible, sans identifiant HTTP Basic :
 
 ```bash
 ssh -N -L 8080:127.0.0.1:8080 hemicycle@<IP_DU_VPS>
@@ -113,7 +120,8 @@ Les trois dettes que portait cette section sont soldées.
 **Le filtre n'est plus seulement périmétrique.** Un middleware Axum
 (`src/api/security.rs`) exige un jeton sur les huit routes d'écriture. Le
 `limit_except` du vhost public reste en place : deux barrières, dont une qui
-tient même si un autre service du VPS atteint `127.0.0.1:8085` en direct.
+tient même si un autre service du VPS atteint `127.0.0.1:8085` en direct. Un
+jeton qui fuite ne suffit pas sans l'identifiant HTTP Basic, et inversement.
 
 **Le jeton change tous les jours.** Il n'est pas posé dans le `.env` et n'est
 stocké nulle part — il est dérivé du secret et de la date UTC :
@@ -132,7 +140,7 @@ Les deux appelants légitimes le dérivent du même secret :
 
 | Appelant | Comment |
 |---|---|
-| Écran d'administration (tunnel SSH) | l'opérateur colle le jeton du jour dans le champ prévu |
+| Écran d'administration (site public après identifiant HTTP Basic, ou tunnel SSH) | l'opérateur colle le jeton du jour dans le champ prévu |
 | Tâche CRON du VPS | `deploy/cron/hemicycle-ingest.sh` appelle `deploy/bin/admin-token.sh` |
 
 ```bash
@@ -351,6 +359,14 @@ chmod 644 /etc/nginx/sites-available/hemicycle-public.conf
 grep -q '__DOMAINE_PUBLIC__' /etc/nginx/sites-available/hemicycle-public.conf \
     && { echo 'Substitution ratée : nginx refusera le fichier' >&2; exit 1; }
 
+# Identifiant HTTP Basic des écritures publiques (§3.1). bcrypt (-B) ; le mot
+# de passe est demandé au clavier, jamais passé en argument. Lisible par les
+# workers nginx (www-data), par personne d'autre.
+apt install -y apache2-utils
+htpasswd -B -c /etc/nginx/hemicycle-admin.htpasswd <IDENTIFIANT>
+chown root:www-data /etc/nginx/hemicycle-admin.htpasswd
+chmod 640 /etc/nginx/hemicycle-admin.htpasswd
+
 ln -sf /etc/nginx/sites-available/hemicycle-public.conf /etc/nginx/sites-enabled/
 ln -sf /etc/nginx/sites-available/hemicycle-admin.conf /etc/nginx/sites-enabled/
 systemctl daemon-reload
@@ -538,10 +554,12 @@ curl -s 127.0.0.1:8085/api/health        # santé côté serveur
 tail -f ~/shared/ingest.log              # dernière ingestion CRON
 ```
 
-Vérification du filtre d'écriture depuis l'extérieur — doit répondre `403` :
+Vérification du filtre d'écriture depuis l'extérieur — doit répondre `401` avec
+`WWW-Authenticate: Basic` (sans cet en-tête, le `401` vient du backend : nginx
+a laissé passer la requête) :
 
 ```bash
-curl -s -o /dev/null -w '%{http_code}\n' -X POST https://<DOMAINE_PUBLIC>/api/refresh
+curl -s -o /dev/null -D - -X POST https://<DOMAINE_PUBLIC>/api/refresh | grep -iE '^(HTTP|www-authenticate)'
 ```
 
 ### 6.2 Ingestion périodique
@@ -645,7 +663,9 @@ sudo systemctl disable --now hemicycle-candidate-sources.timer
 - [ ] `https://<DOMAINE_PUBLIC>` répond en 200, certificat valide
 - [ ] Une route SPA profonde rechargée directement (F5) renvoie l'application, pas un 404
 - [ ] `GET /api/health` répond via HTTPS
-- [ ] `POST /api/refresh` depuis Internet renvoie `403`
+- [ ] `POST /api/refresh` depuis Internet renvoie `401` avec `WWW-Authenticate: Basic`
+- [ ] Le même appel avec l'identifiant HTTP Basic mais sans jeton renvoie `401` sans `WWW-Authenticate`
+- [ ] Sur le site public, l'écran d'arbitrage demande l'identifiant puis accepte une écriture avec le jeton du jour
 - [ ] Le port `8085` n'est pas joignable depuis l'extérieur (`nc -zv <IP> 8085` échoue)
 - [ ] Tunnel SSH ouvert, `http://localhost:8080` sert le site et accepte les POST
 - [ ] `systemctl restart hemicycle` remonte le service et rejoue les migrations sans erreur

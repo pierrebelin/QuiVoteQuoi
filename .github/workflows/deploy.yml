@@ -100,12 +100,16 @@ jobs:
           [ "$code" = "200" ]
 
           # Le filtre d'ecriture du vhost public doit tenir a chaque
-          # deploiement : une reponse autre que 403 signifie que l'API
-          # d'ingestion est ouverte a Internet.
-          code=$(curl -s -o /dev/null -w '%{http_code}' \
-                 --max-time 15 -X POST "${PUBLIC_BASE_URL}/api/refresh")
-          echo "POST /api/refresh -> $code (403 attendu)"
-          [ "$code" = "403" ]
+          # deploiement : nginx doit exiger l'identifiant HTTP Basic. Le
+          # backend repond lui aussi 401 sans jeton, d'ou la verification de
+          # l'en-tete : sans `WWW-Authenticate: Basic`, la requete a traverse
+          # nginx et seul le jeton du jour protege l'API d'ingestion.
+          headers=$(curl -s -o /dev/null -D - --max-time 15 \
+                    -X POST "${PUBLIC_BASE_URL}/api/refresh")
+          code=$(printf '%s' "$headers" | head -n 1 | awk '{print $2}')
+          echo "POST /api/refresh -> $code (401 + WWW-Authenticate: Basic attendus)"
+          [ "$code" = "401" ]
+          printf '%s' "$headers" | grep -qi '^www-authenticate: basic'
 
       - name: Nettoyage
         if: always()
