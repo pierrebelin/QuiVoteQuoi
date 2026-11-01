@@ -275,17 +275,18 @@ Variables reconnues :
 | `BIND_ADDR` | adresse d'écoute (défaut `127.0.0.1`) |
 | `ADMIN_TOKEN_SECRET` | secret maître des routes d'écriture ; absent, toute écriture est fermée |
 | `ALLOWED_ORIGINS` | origines tierces autorisées par CORS, séparées par des virgules ; vide par défaut |
-| `LLM_PROVIDER` | fournisseur des traitements LLM : `anthropic`/`claude` ou `openai`/`chatgpt` ; défaut `anthropic` |
+| `LLM_PROVIDER` | fournisseur des traitements LLM : `anthropic`/`claude`, `openai`/`chatgpt` ou `mistral` ; défaut `anthropic` |
 | `ANTHROPIC_API_KEY` | clé Claude, utilisée seulement si `LLM_PROVIDER=anthropic` |
 | `OPENAI_API_KEY` | clé OpenAI/ChatGPT, utilisée seulement si `LLM_PROVIDER=openai` |
-| `ANTHROPIC_MODEL` / `OPENAI_MODEL` | modèle par défaut du fournisseur correspondant |
+| `MISTRAL_API_KEY` | clé Mistral, utilisée seulement si `LLM_PROVIDER=mistral` |
+| `ANTHROPIC_MODEL` / `OPENAI_MODEL` / `MISTRAL_MODEL` | modèle par défaut du fournisseur correspondant (Mistral : `mistral-small-latest`, un identifiant daté est préférable) |
 | `THEME_MODEL` | surcharge facultative du modèle de thématisation |
 | `AMENDMENT_BATCH_PER_REFRESH` | amendements écrits par passe d'ingestion (défaut `40000`) ; `0` lève la borne |
 | `DOSSIER_SUMMARY_BATCH_PER_REFRESH` | dossiers examinés pour les synthèses après ingestion (défaut `10`) |
 | `DOSSIER_SUMMARY_MODEL` | surcharge facultative du modèle de synthèse ; à défaut, modèle du fournisseur sélectionné |
 
 Le fournisseur se change dans `.env`, puis le service doit être redémarré. Les
-deux adaptateurs envoient le même paquet de faits et appliquent les mêmes
+adaptateurs envoient le même paquet de faits et appliquent les mêmes
 validations ; aucune clé n'est utilisée en repli automatique. Une clé absente
 ou une erreur d'appel laisse les données brutes accessibles et les synthèses
 indisponibles, sans faire échouer l'ingestion.
