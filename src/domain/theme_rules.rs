@@ -96,7 +96,7 @@ impl ThemeRule {
 /// chevauchent pas — « financement » ne contient pas « finances » — mais
 /// l'ordre reste celui de la specificite pour que l'ajout d'une regle ne
 /// depende pas de cette coincidence.
-pub const RULES: [ThemeRule; 9] = [
+pub const RULES: [ThemeRule; 17] = [
     ThemeRule {
         id: "financement de la sécurité sociale",
         marker: "financement de la sécurité sociale",
@@ -169,6 +169,62 @@ pub const RULES: [ThemeRule; 9] = [
         statement: "Une proposition de résolution modifiant le règlement de l'Assemblée nationale \
                     porte sur la procédure interne de l'Assemblée.",
     },
+    ThemeRule {
+        id: "motion de censure",
+        marker: "motion de censure",
+        families: &[FamilyCode::InstitutionsProcedure],
+        statement: "Une motion de censure met en jeu la responsabilité du Gouvernement devant \
+                    l'Assemblée nationale, selon une procédure constitutionnelle.",
+    },
+    ThemeRule {
+        id: "loi constitutionnelle",
+        marker: "loi constitutionnelle",
+        families: &[FamilyCode::InstitutionsProcedure],
+        statement: "Une loi constitutionnelle porte sur les institutions de la République ou \
+                    leur organisation territoriale.",
+    },
+    ThemeRule {
+        id: "assurance chômage",
+        marker: "assurance chômage",
+        families: &[FamilyCode::TravailEmploi],
+        statement: "Un texte relatif à l'assurance chômage porte sur l'indemnisation et \
+                    l'accompagnement des personnes privées d'emploi.",
+    },
+    ThemeRule {
+        id: "dialogue social",
+        marker: "dialogue social",
+        families: &[FamilyCode::TravailEmploi],
+        statement: "Un texte relatif au dialogue social porte sur les relations collectives de \
+                    travail entre salariés, employeurs et leurs représentants.",
+    },
+    ThemeRule {
+        id: "enseignement",
+        marker: "enseignement",
+        families: &[FamilyCode::EducationCulture],
+        statement: "Un texte relatif à l'enseignement porte sur l'organisation ou les personnels \
+                    du système éducatif.",
+    },
+    ThemeRule {
+        id: "jeux olympiques et paralympiques",
+        marker: "jeux olympiques et paralympiques",
+        families: &[FamilyCode::EducationCulture],
+        statement: "Un texte relatif aux jeux Olympiques et Paralympiques porte sur le sport et \
+                    son organisation.",
+    },
+    ThemeRule {
+        id: "souveraineté agricole",
+        marker: "souveraineté agricole",
+        families: &[FamilyCode::AgricultureAlimentation],
+        statement: "Un texte relatif à la protection ou à la souveraineté agricoles porte sur \
+                    l'agriculture et l'alimentation.",
+    },
+    ThemeRule {
+        id: "fraudes sociales et fiscales",
+        marker: "fraudes sociales et fiscales",
+        families: &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite],
+        statement: "Un texte relatif aux fraudes sociales et fiscales porte à la fois sur les \
+                    prestations sociales et sur les obligations fiscales.",
+    },
 ];
 
 /// Regle applicable a une cle de texte, s'il y en a une.
@@ -238,6 +294,44 @@ mod tests {
             assert_eq!(
                 rule_for(&key(label)).unwrap().families(),
                 [FamilyCode::InternationalDefense]
+            );
+        }
+    }
+
+    #[test]
+    fn unambiguous_titles_from_the_unassigned_queue_are_ruled() {
+        let cases = [
+            (
+                "motion de censure déposée en application de l'article 49, alinéa 3",
+                &[FamilyCode::InstitutionsProcedure][..],
+            ),
+            (
+                "projet de loi constitutionnelle relatif à la Nouvelle-Calédonie",
+                &[FamilyCode::InstitutionsProcedure][..],
+            ),
+            (
+                "projet de loi d'urgence pour la protection et la souveraineté agricoles",
+                &[FamilyCode::AgricultureAlimentation][..],
+            ),
+            (
+                "projet de loi portant transposition d'un accord relatif à l'assurance chômage",
+                &[FamilyCode::TravailEmploi][..],
+            ),
+            (
+                "projet de loi relatif aux jeux olympiques et paralympiques de 2030",
+                &[FamilyCode::EducationCulture][..],
+            ),
+            (
+                "projet de loi relatif à la lutte contre les fraudes sociales et fiscales",
+                &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite][..],
+            ),
+        ];
+
+        for (label, expected) in cases {
+            assert_eq!(
+                rule_for_label(label).unwrap().families(),
+                expected,
+                "{label}"
             );
         }
     }
