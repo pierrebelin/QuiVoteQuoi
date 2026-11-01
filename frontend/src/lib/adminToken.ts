@@ -8,8 +8,9 @@
  *   ssh hemicycle@<IP_DU_VPS> '~/app/deploy/bin/admin-token.sh'
  *
  * Il est conservé en `localStorage` — le stocker n'est pas un risque nouveau :
- * il vaut au plus jusqu'à minuit UTC, et l'écran n'est joignable que par le
- * tunnel SSH. Passé cette échéance, l'API répond 401 et il faut le recoller.
+ * il vaut au plus jusqu'à minuit UTC, et sur le site public il ne suffit pas
+ * seul : nginx exige d'abord l'identifiant HTTP Basic de l'opérateur. Passé
+ * minuit, l'API répond 401 et il faut le recoller.
  */
 
 const TOKEN_KEY = 'quivotequoi.adminToken'
@@ -51,16 +52,30 @@ export async function adminFetch(
 
   const response = await fetch(input, { ...init, headers })
 
+  // Deux couches peuvent refuser : nginx (identifiant HTTP Basic, ou filtre
+  // d'écriture d'une ancienne configuration) et le backend (jeton du jour).
+  // Seul nginx annonce `WWW-Authenticate: Basic`, et seul le backend cite
+  // ADMIN_TOKEN_SECRET dans son 403 : imputer le refus à la mauvaise couche
+  // envoie l'opérateur chercher sur le serveur une panne qui n'y est pas.
   if (response.status === 401) {
+    if (response.headers.get('www-authenticate')?.startsWith('Basic')) {
+      throw new ApiError(
+        401,
+        "Identifiant d'administration refusé ou saisie annulée. Recharger la page puis relancer l'action pour qu'il soit redemandé.",
+      )
+    }
     throw new ApiError(
       401,
       "Jeton absent, faux ou expiré. Le jeton change chaque jour : en récupérer un neuf avec `deploy/bin/admin-token.sh`, puis le recoller.",
     )
   }
   if (response.status === 403) {
+    const body = await response.text()
     throw new ApiError(
       403,
-      "Écriture fermée côté serveur : ADMIN_TOKEN_SECRET n'est pas configuré.",
+      body.includes('ADMIN_TOKEN_SECRET')
+        ? "Écriture fermée côté serveur : ADMIN_TOKEN_SECRET n'est pas configuré."
+        : "Écriture refusée par le serveur web avant l'application. Passer par le tunnel SSH d'administration.",
     )
   }
   if (!response.ok) {
