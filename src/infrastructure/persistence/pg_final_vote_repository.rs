@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::final_vote_repository::{
     FinalVoteFilter, FinalVotePage, FinalVoteRecord, FinalVoteRepository, FinalVoteTotals,
     GroupOption, GroupTallyRecord, RepositoryError,
@@ -112,10 +113,6 @@ impl PgFinalVoteRepository {
         }
         Ok(by_key)
     }
-}
-
-fn db(e: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(e.to_string())
 }
 
 fn tally_from_row(row: &sqlx::postgres::PgRow) -> VoteTally {

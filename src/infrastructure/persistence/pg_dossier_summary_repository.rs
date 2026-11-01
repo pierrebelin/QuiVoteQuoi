@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::dossier_group_actions_repository::{
     DossierSummaryRepository, GeneratedGroupSummary, RepositoryError, StoredGroupSummary,
     SummarySource, SummaryStatus,
@@ -14,10 +15,6 @@ impl PgDossierSummaryRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn db(error: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(error.to_string())
 }
 
 #[async_trait]

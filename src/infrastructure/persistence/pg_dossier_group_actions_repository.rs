@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::dossier_group_actions_repository::{
     AmendmentFact, DossierGroupActionsRepository, DossierGroupFacts, FinalVoteFact, GroupFacts,
     RepositoryError,
@@ -198,10 +199,6 @@ impl PgDossierGroupActionsRepository {
             groups,
         }))
     }
-}
-
-fn db(error: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(error.to_string())
 }
 
 #[async_trait]

@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::PgPool;
 
+use super::db;
 use crate::application::ports::actor_repository::{
     ActorRepository, RegistrySummary, RepositoryError,
 };
@@ -30,11 +31,7 @@ impl ActorRepository for PgActorRepository {
         &self,
         registry: &ActorRegistry,
     ) -> Result<RegistrySummary, RepositoryError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(db)?;
 
         for chunk in registry.groups.chunks(BATCH_SIZE) {
             let uids: Vec<&str> = chunk.iter().map(|g| g.uid().as_str()).collect();
@@ -66,7 +63,7 @@ impl ActorRepository for PgActorRepository {
             .bind(&ends)
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
         }
 
         for chunk in registry.actors.chunks(BATCH_SIZE) {
@@ -93,7 +90,7 @@ impl ActorRepository for PgActorRepository {
             .bind(&roles)
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
         }
 
         // Aucune suppression: une appartenance close reste consultable, elle
@@ -128,12 +125,10 @@ impl ActorRepository for PgActorRepository {
             .bind(&qualities)
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
         }
 
-        tx.commit()
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        tx.commit().await.map_err(db)?;
 
         Ok(RegistrySummary {
             actors: registry.actors.len(),
@@ -158,7 +153,7 @@ impl ActorRepository for PgActorRepository {
         .bind(&uids)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         // Toutes les appartenances de ces acteurs, closes comprises: le groupe
         // se lit a la date de l'acte, pas a aujourd'hui (RM-01).
@@ -171,7 +166,7 @@ impl ActorRepository for PgActorRepository {
         .bind(&uids)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         let group_rows = sqlx::query_as::<_, GroupRow>(
             "SELECT uid, legislature, label, abbrev, color, start_date, end_date
@@ -179,7 +174,7 @@ impl ActorRepository for PgActorRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(ActorDirectory::new(
             actor_rows

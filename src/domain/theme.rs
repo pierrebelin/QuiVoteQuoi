@@ -725,7 +725,13 @@ mod tests {
             ThemeAssignment::open(subject, FamilyCode::Logement, date(), "modele".into(), None)
                 .unwrap();
         let earlier = NaiveDate::from_ymd_opt(2026, 7, 1).unwrap();
-        assert!(assignment.close(earlier).is_err());
+        assert_eq!(
+            assignment.close(earlier).unwrap_err(),
+            ThemeError::ClosedBeforeOpened {
+                opened_on: date(),
+                closed_on: earlier,
+            }
+        );
         assert!(assignment.is_current());
     }
 

@@ -21,7 +21,7 @@ use tower::ServiceExt;
 
 use quivotequoi::api::routes::create_router;
 use quivotequoi::api::security::AdminGuard;
-use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableClassifier;
+use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableThemeClassifier;
 use quivotequoi::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
 use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient;
 use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
@@ -41,7 +41,7 @@ use quivotequoi::AppState;
 const SECRET: &str = "0123456789abcdef0123456789abcdef";
 
 /// Les neuf routes d'ecriture de l'API. Toute route ajoutee ici sans garde
-/// fait echouer `toute_route_d_ecriture_exige_un_jeton`.
+/// fait echouer `every_write_route_requires_a_token`.
 const WRITE_ROUTES: [&str; 9] = [
     "/api/refresh",
     "/api/registry/refresh",
@@ -85,7 +85,7 @@ fn state() -> AppState {
         final_vote_repository: Arc::new(PgFinalVoteRepository::new(db.clone())),
         group_repository: Arc::new(PgGroupRepository::new(db.clone())),
         theme_repository: Arc::new(PgThemeRepository::new(db)),
-        theme_classifier: Arc::new(UnavailableClassifier),
+        theme_classifier: Arc::new(UnavailableThemeClassifier),
     }
 }
 
@@ -114,7 +114,7 @@ fn post(path: &str) -> Request<Body> {
 }
 
 #[tokio::test]
-async fn toute_route_d_ecriture_exige_un_jeton() {
+async fn every_write_route_requires_a_token() {
     for path in WRITE_ROUTES {
         let status = status_of(guarded_router(), post(path)).await;
         assert_eq!(
@@ -126,7 +126,7 @@ async fn toute_route_d_ecriture_exige_un_jeton() {
 }
 
 #[tokio::test]
-async fn un_jeton_perime_ne_passe_aucune_route_d_ecriture() {
+async fn a_stale_token_passes_no_write_route() {
     let stale = AdminTokenSecret::new(SECRET.to_string())
         .unwrap()
         .token_for(Utc::now().date_naive() - chrono::Duration::days(30));
@@ -150,7 +150,7 @@ async fn un_jeton_perime_ne_passe_aucune_route_d_ecriture() {
 /// echoue en base (le pool ne mene nulle part) : ce qui compte est qu'elle ne
 /// soit plus refusee en 401/403.
 #[tokio::test]
-async fn le_jeton_du_jour_franchit_la_garde() {
+async fn todays_token_passes_the_guard() {
     let token = token_of_today();
 
     let mut request = post("/api/registry/refresh");
@@ -166,7 +166,7 @@ async fn le_jeton_du_jour_franchit_la_garde() {
 /// Sans `ADMIN_TOKEN_SECRET`, l'ecriture est fermee : 403, et aucun jeton ne
 /// l'ouvre.
 #[tokio::test]
-async fn sans_secret_l_ecriture_est_fermee() {
+async fn writes_are_closed_without_a_secret() {
     let router = create_router(state(), AdminGuard::closed());
 
     let mut request = post("/api/refresh");
@@ -180,7 +180,7 @@ async fn sans_secret_l_ecriture_est_fermee() {
 /// Le site public ne demande pas de jeton : une lecture non authentifiee ne
 /// doit jamais rendre 401 ni 403 (README.md §2).
 #[tokio::test]
-async fn les_routes_de_consultation_restent_ouvertes() {
+async fn read_routes_stay_open() {
     for path in [
         "/api/scrutins",
         "/api/groupes",
@@ -205,7 +205,7 @@ async fn les_routes_de_consultation_restent_ouvertes() {
 /// avant meme le controle de methode : 401, pas 405. C'est le comportement
 /// voulu — un client anonyme n'apprend pas quelles methodes le chemin accepte.
 #[tokio::test]
-async fn une_methode_inconnue_sur_un_chemin_d_ecriture_est_refusee_avant_le_405() {
+async fn unknown_method_on_a_write_path_is_rejected_before_the_405() {
     let request = Request::builder()
         .method("DELETE")
         .uri("/api/refresh")
@@ -221,7 +221,7 @@ async fn une_methode_inconnue_sur_un_chemin_d_ecriture_est_refusee_avant_le_405(
 /// En revanche un chemin inconnu reste un 404 : la garde ne couvre que les
 /// routes d'ecriture declarees, elle n'avale pas tout le trafic.
 #[tokio::test]
-async fn un_chemin_inconnu_rend_404() {
+async fn an_unknown_path_returns_404() {
     let request = Request::builder()
         .method("POST")
         .uri("/api/inexistant")

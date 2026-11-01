@@ -13,8 +13,8 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
-use crate::domain::actor::GroupUid;
-use crate::domain::scrutin::{Outcome, VotePosition, VoteTally};
+use super::actor::GroupUid;
+use super::scrutin::{Outcome, VotePosition, VoteTally};
 
 /// Debuts d'objet designant un vote sur l'ensemble d'un texte.
 ///

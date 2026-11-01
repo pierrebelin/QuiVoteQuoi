@@ -8,10 +8,10 @@ use crate::domain::theme::ProposedFamily;
 /// Il echoue franchement plutot que de rendre une liste vide: un texte sans
 /// famille faute de cle ne doit pas etre confondu avec un texte que le modele
 /// n'a pas su rattacher. La page methode distingue les deux causes.
-pub struct UnavailableClassifier;
+pub struct UnavailableThemeClassifier;
 
 #[async_trait]
-impl ThemeClassifier for UnavailableClassifier {
+impl ThemeClassifier for UnavailableThemeClassifier {
     async fn propose_batch(
         &self,
         _labels: &[String],

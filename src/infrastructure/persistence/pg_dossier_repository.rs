@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
+use super::db;
 use crate::application::ports::dossier_repository::{
     DossierCriteria, DossierPage, DossierRepository, RepositoryError, StoredDossierState,
 };
@@ -30,7 +31,7 @@ impl PgDossierRepository {
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -55,7 +56,7 @@ impl PgDossierRepository {
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -75,11 +76,7 @@ impl PgDossierRepository {
     }
 
     async fn save_batch(&self, dossiers: &[LegislativeDossier]) -> Result<(), RepositoryError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(db)?;
 
         for dossier in dossiers {
             let stage_code = dossier.current_stage.map(|s| s.to_code().to_string());
@@ -158,13 +155,13 @@ impl PgDossierRepository {
             .bind(&merge_cause)
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
 
             sqlx::query("DELETE FROM legislative_acts WHERE dossier_uid = $1")
                 .bind(dossier.uid.as_str())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
 
             for act in &dossier.acts {
                 sqlx::query(
@@ -176,14 +173,14 @@ impl PgDossierRepository {
                 .bind(&act.code)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
             }
 
             sqlx::query("DELETE FROM dossier_initiators WHERE dossier_uid = $1")
                 .bind(dossier.uid.as_str())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
 
             for initiator in &dossier.initiators {
                 let group = initiator.group();
@@ -203,14 +200,14 @@ impl PgDossierRepository {
                 .bind(initiator.official_url())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
             }
 
             sqlx::query("DELETE FROM dossier_documents WHERE dossier_uid = $1")
                 .bind(dossier.uid.as_str())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
 
             for doc in &dossier.documents {
                 sqlx::query(
@@ -232,13 +229,11 @@ impl PgDossierRepository {
                 .bind(&doc.source_metadata_fingerprint)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
             }
         }
 
-        tx.commit()
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        tx.commit().await.map_err(db)?;
         Ok(())
     }
 
@@ -250,7 +245,7 @@ impl PgDossierRepository {
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows.into_iter().map(InitiatorRow::into_initiator).collect())
     }
@@ -330,7 +325,7 @@ impl DossierRepository for PgDossierRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -372,7 +367,7 @@ impl DossierRepository for PgDossierRepository {
         .bind(since)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -394,7 +389,7 @@ impl DossierRepository for PgDossierRepository {
             .persistent(false)
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
 
         let mut query: QueryBuilder<Postgres> = QueryBuilder::new(PAGE_SELECT);
         push_criteria(&mut query, criteria);
@@ -410,7 +405,7 @@ impl DossierRepository for PgDossierRepository {
             .persistent(false)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
 
         Ok(DossierPage {
             items: rows
@@ -439,7 +434,7 @@ impl DossierRepository for PgDossierRepository {
         .bind(uid.as_str())
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         match row {
             Some(r) => {
@@ -473,7 +468,7 @@ impl DossierRepository for PgDossierRepository {
         .bind(count as i64)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -493,7 +488,7 @@ impl DossierRepository for PgDossierRepository {
         .bind(uid.as_str())
         .execute(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(result.rows_affected() > 0)
     }

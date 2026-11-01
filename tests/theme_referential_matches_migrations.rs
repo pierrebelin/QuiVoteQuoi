@@ -52,7 +52,7 @@ fn codes_inserted_by_migrations() -> BTreeSet<String> {
 }
 
 #[test]
-fn le_catalogue_en_base_porte_exactement_les_familles_du_domaine() {
+fn database_catalogue_holds_exactly_the_domain_families() {
     let expected: BTreeSet<String> = FamilyCode::ALL
         .iter()
         .map(|family| family.as_str().to_string())
@@ -66,7 +66,7 @@ fn le_catalogue_en_base_porte_exactement_les_familles_du_domaine() {
 }
 
 #[test]
-fn chaque_famille_porte_un_libelle_et_un_perimetre_publiables() {
+fn every_family_has_a_publishable_label_and_scope() {
     for family in FamilyCode::ALL {
         assert!(!family.label().trim().is_empty(), "{}", family.as_str());
         assert!(!family.scope().trim().is_empty(), "{}", family.as_str());
@@ -75,7 +75,7 @@ fn chaque_famille_porte_un_libelle_et_un_perimetre_publiables() {
 }
 
 #[test]
-fn les_familles_sensibles_disent_leur_regle_de_rattachement() {
+fn sensitive_families_state_their_attachment_rule() {
     // RM-11: sur ces familles, la justification porte sur l'objet du texte et
     // jamais sur son orientation. Le perimetre publie doit le dire, sinon la
     // regle ne vit que dans le code.

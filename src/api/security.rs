@@ -193,7 +193,7 @@ mod tests {
     }
 
     #[test]
-    fn accepte_le_jeton_du_jour_en_en_tete_dedie() {
+    fn accepts_todays_token_in_the_dedicated_header() {
         let today = day(2026, 8, 7);
         let result = verify(
             &guard(),
@@ -204,7 +204,7 @@ mod tests {
     }
 
     #[test]
-    fn accepte_le_jeton_du_jour_en_bearer() {
+    fn accepts_todays_token_as_bearer() {
         let today = day(2026, 8, 7);
         let bearer = format!("Bearer {}", token_of(today));
         let result = verify(&guard(), &headers(&[("authorization", &bearer)]), today);
@@ -213,7 +213,7 @@ mod tests {
 
     /// Une tache CRON lancee a 23 h 59 doit encore passer a 00 h 01.
     #[test]
-    fn accepte_le_jeton_de_la_veille() {
+    fn accepts_yesterdays_token() {
         let today = day(2026, 8, 7);
         let result = verify(
             &guard(),
@@ -224,7 +224,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_le_jeton_d_avant_hier() {
+    fn rejects_the_token_of_two_days_ago() {
         let result = verify(
             &guard(),
             &headers(&[("x-admin-token", &token_of(day(2026, 8, 5)))]),
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_le_jeton_de_demain() {
+    fn rejects_tomorrows_token() {
         let result = verify(
             &guard(),
             &headers(&[("x-admin-token", &token_of(day(2026, 8, 8)))]),
@@ -244,13 +244,13 @@ mod tests {
     }
 
     #[test]
-    fn refuse_une_requete_sans_en_tete() {
+    fn rejects_a_request_without_headers() {
         let result = verify(&guard(), &headers(&[]), day(2026, 8, 7));
         assert_eq!(result, Err(AuthRejection::InvalidToken));
     }
 
     #[test]
-    fn refuse_un_jeton_faux() {
+    fn rejects_a_wrong_token() {
         let result = verify(
             &guard(),
             &headers(&[("x-admin-token", "00000000000000000000000000000000")]),
@@ -260,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_un_prefixe_du_jeton_du_jour() {
+    fn rejects_a_prefix_of_todays_token() {
         let today = day(2026, 8, 7);
         let truncated = &token_of(today)[..16];
         let result = verify(&guard(), &headers(&[("x-admin-token", truncated)]), today);
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_le_secret_maitre_presente_tel_quel() {
+    fn rejects_the_master_secret_presented_as_is() {
         let result = verify(
             &guard(),
             &headers(&[("x-admin-token", SECRET)]),
@@ -278,7 +278,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_un_bearer_sans_prefixe() {
+    fn rejects_a_bearer_without_the_prefix() {
         let today = day(2026, 8, 7);
         let result = verify(
             &guard(),
@@ -289,7 +289,7 @@ mod tests {
     }
 
     #[test]
-    fn ferme_l_ecriture_quand_le_secret_n_est_pas_configure() {
+    fn closes_writes_when_the_secret_is_not_configured() {
         let today = day(2026, 8, 7);
         let result = verify(
             &AdminGuard::closed(),
@@ -300,7 +300,7 @@ mod tests {
     }
 
     #[test]
-    fn l_en_tete_dedie_prime_sur_le_bearer() {
+    fn dedicated_header_takes_precedence_over_bearer() {
         let today = day(2026, 8, 7);
         let bearer = format!("Bearer {}", token_of(today));
         let result = verify(
@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn le_secret_ne_fuit_pas_dans_le_debug_de_la_garde() {
+    fn secret_does_not_leak_in_the_guard_debug_output() {
         assert!(!format!("{:?}", guard()).contains(SECRET));
     }
 }

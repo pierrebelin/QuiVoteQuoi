@@ -88,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_numbers() {
+    fn a_paragraph_containing_a_number_is_rejected() {
         assert_eq!(
             SummaryParagraph::new("Le groupe apparait sur 2 actes.".into()),
             Err(SummaryError::ContainsNumber)
@@ -96,7 +96,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_positioning_vocabulary() {
+    fn a_paragraph_using_positioning_vocabulary_is_rejected() {
         assert_eq!(
             SummaryParagraph::new("Le groupe est favorable au texte.".into()),
             Err(SummaryError::ForbiddenPositioning)

@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
+use super::db;
 use crate::application::ports::amendment_repository::{
     AmendmentGroupOption, AmendmentPage, AmendmentPageRequest, AmendmentRepository,
     AmendmentSummary, DossierAmendmentCoverage, RepositoryError, SignatoryRow,
@@ -20,10 +21,6 @@ impl PgAmendmentRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn db(e: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(e.to_string())
 }
 
 /// Amendements rattaches a un dossier.

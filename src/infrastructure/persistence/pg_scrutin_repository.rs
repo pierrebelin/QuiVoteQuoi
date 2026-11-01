@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
+use super::db;
 use crate::application::ports::scrutin_repository::{
     CodeCount, DatasetShape, RepositoryError, ScrutinFilter, ScrutinPage, ScrutinRepository,
     ScrutinSummary,
@@ -18,6 +19,9 @@ const SCRUTIN_BATCH: usize = 100;
 /// Lignes par instruction `UNNEST`. Un scrutin porte jusqu'a 574 positions
 /// nominales, un lot de 100 scrutins en porte donc jusqu'a 57 400.
 const ROW_BATCH: usize = 4000;
+/// Bornes de la taille de page d'une liste de scrutins.
+const PAGE_LIMIT_MIN: i64 = 1;
+const PAGE_LIMIT_MAX: i64 = 200;
 
 pub struct PgScrutinRepository {
     pool: PgPool,
@@ -57,10 +61,6 @@ impl PgScrutinRepository {
             })
             .collect())
     }
-}
-
-fn db(e: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(e.to_string())
 }
 
 #[async_trait]
@@ -292,7 +292,7 @@ impl ScrutinRepository for PgScrutinRepository {
         let mut query: QueryBuilder<Postgres> = QueryBuilder::new(SUMMARY_SELECT);
         push_conditions(&mut query, filter);
         query.push(" ORDER BY s.scrutin_date DESC, s.uid DESC LIMIT ");
-        query.push_bind(filter.limit.clamp(1, 200));
+        query.push_bind(filter.limit.clamp(PAGE_LIMIT_MIN, PAGE_LIMIT_MAX));
         query.push(" OFFSET ");
         query.push_bind(filter.offset.max(0));
 

@@ -8,3 +8,10 @@ pub mod pg_final_vote_repository;
 pub mod pg_group_repository;
 pub mod pg_scrutin_repository;
 pub mod pg_theme_repository;
+
+use crate::application::ports::RepositoryError;
+
+/// Convertit une erreur sqlx en `RepositoryError::Database`, message inchangé.
+pub(crate) fn db(error: sqlx::Error) -> RepositoryError {
+    RepositoryError::Database(error.to_string())
+}

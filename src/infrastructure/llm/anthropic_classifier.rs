@@ -9,14 +9,14 @@
 //! libelle de loi; l'envoyer une fois par texte revient a payer le cadrage 322
 //! fois. Un lot de vingt le paie seize fois en tout.
 
-use std::time::Duration;
-
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
 use crate::application::ports::theme_classifier::{ClassifierError, ThemeClassifier};
 use crate::domain::theme::{FamilyCode, ProposedFamily, MAX_FAMILIES};
+
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
 
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
@@ -65,7 +65,7 @@ impl AnthropicThemeClassifier {
             })
             .unwrap_or_else(|| DEFAULT_MODEL.to_string());
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(180))
+            .timeout(HTTP_TIMEOUT)
             .build()
             .ok()?;
         Some(Self {
@@ -247,7 +247,7 @@ impl ThemeClassifier for AnthropicThemeClassifier {
             };
 
             let status = response.status();
-            if status.as_u16() == 429 || status.is_server_error() {
+            if is_retryable(status) {
                 last_error = ClassifierError::Call(format!("HTTP {status}"));
                 backoff(attempt).await;
                 continue;
@@ -256,7 +256,7 @@ impl ThemeClassifier for AnthropicThemeClassifier {
                 let detail = response.text().await.unwrap_or_default();
                 return Err(ClassifierError::Call(format!(
                     "HTTP {status}: {}",
-                    detail.chars().take(300).collect::<String>()
+                    truncate_detail(&detail)
                 )));
             }
 
@@ -281,10 +281,6 @@ impl ThemeClassifier for AnthropicThemeClassifier {
     fn batch_size(&self) -> usize {
         BATCH_SIZE
     }
-}
-
-async fn backoff(attempt: u32) {
-    tokio::time::sleep(Duration::from_millis(500 * 2u64.pow(attempt - 1))).await;
 }
 
 /// Lit la reponse et la reattribue aux libelles par leur numero.

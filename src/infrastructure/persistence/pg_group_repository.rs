@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::group_repository::{
     GroupRecord, GroupRepository, GroupStatisticsRecord, RepositoryError,
 };
@@ -20,10 +21,6 @@ impl PgGroupRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn db(e: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(e.to_string())
 }
 
 #[async_trait]

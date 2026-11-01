@@ -17,7 +17,7 @@ use super::actor::{ActorUid, GroupUid};
 /// nominales (RM-03).
 pub const MISSING_GROUP_SENTINEL: &str = "PO0";
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ScrutinError {
     #[error("scrutin uid must not be empty")]
     EmptyScrutinUid,
@@ -640,7 +640,10 @@ mod tests {
 
     #[test]
     fn scrutin_uid_rejects_empty() {
-        assert!(ScrutinUid::new("  ".into()).is_err());
+        assert_eq!(
+            ScrutinUid::new("  ".into()).unwrap_err(),
+            ScrutinError::EmptyScrutinUid
+        );
     }
 
     #[test]
@@ -672,7 +675,26 @@ mod tests {
             vec![],
             None,
         );
-        assert!(err.is_err());
+        assert_eq!(err.unwrap_err(), ScrutinError::EmptyScrutinNumber);
+    }
+
+    #[test]
+    fn vote_position_round_trips_through_its_string() {
+        for position in [
+            VotePosition::For,
+            VotePosition::Against,
+            VotePosition::Abstention,
+            VotePosition::NotVoting,
+        ] {
+            assert_eq!(VotePosition::parse(position.as_str()), Some(position));
+        }
+    }
+
+    #[test]
+    fn tally_origin_round_trips_through_its_string() {
+        for origin in [TallyOrigin::Published, TallyOrigin::Reconstructed] {
+            assert_eq!(TallyOrigin::parse(origin.as_str()), Some(origin));
+        }
     }
 
     #[test]
@@ -689,7 +711,10 @@ mod tests {
             VotePosition::from_source("abstention").unwrap(),
             VotePosition::Abstention
         );
-        assert!(VotePosition::from_source("favorable").is_err());
+        assert_eq!(
+            VotePosition::from_source("favorable").unwrap_err(),
+            ScrutinError::UnknownVotePosition("favorable".into())
+        );
     }
 
     #[test]

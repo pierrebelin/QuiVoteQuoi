@@ -27,7 +27,7 @@ use quivotequoi::infrastructure::llm::mistral_dossier_summary::MistralDossierSum
 use quivotequoi::infrastructure::llm::openai_classifier::OpenAiThemeClassifier;
 use quivotequoi::infrastructure::llm::openai_dossier_summary::OpenAiDossierSummaryGenerator;
 use quivotequoi::infrastructure::llm::provider::LlmProvider;
-use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableClassifier;
+use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableThemeClassifier;
 use quivotequoi::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
 use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient;
 use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
@@ -100,7 +100,7 @@ async fn main() {
             }
             None => {
                 tracing::warn!("ANTHROPIC_API_KEY absent: no theme proposal will be produced");
-                Arc::new(UnavailableClassifier)
+                Arc::new(UnavailableThemeClassifier)
             }
         },
         Some(LlmProvider::OpenAi) => match OpenAiThemeClassifier::from_env() {
@@ -110,7 +110,7 @@ async fn main() {
             }
             None => {
                 tracing::warn!("OPENAI_API_KEY absent: no theme proposal will be produced");
-                Arc::new(UnavailableClassifier)
+                Arc::new(UnavailableThemeClassifier)
             }
         },
         Some(LlmProvider::Mistral) => match MistralThemeClassifier::from_env() {
@@ -120,10 +120,10 @@ async fn main() {
             }
             None => {
                 tracing::warn!("MISTRAL_API_KEY absent: no theme proposal will be produced");
-                Arc::new(UnavailableClassifier)
+                Arc::new(UnavailableThemeClassifier)
             }
         },
-        None => Arc::new(UnavailableClassifier),
+        None => Arc::new(UnavailableThemeClassifier),
     };
 
     let dossier_summary_generator: Arc<dyn DossierSummaryGenerator> = match llm_provider {

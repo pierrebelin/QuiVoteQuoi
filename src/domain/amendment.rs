@@ -18,7 +18,7 @@ use serde::Serialize;
 use super::actor::{ActorDirectory, ActorUid, GroupUid};
 use super::theme::{clean, lowercase};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum AmendmentError {
     #[error("amendment uid must not be empty")]
     EmptyAmendmentUid,
@@ -742,10 +742,22 @@ mod tests {
 
     #[test]
     fn an_empty_uid_or_number_is_refused() {
-        assert!(AmendmentUid::new(String::new()).is_err());
-        assert!(AmendmentUid::new("   ".to_string()).is_err());
-        assert!(AmendmentNumber::new(String::new()).is_err());
-        assert!(LegislativeTextRef::new("  ".to_string()).is_err());
+        assert_eq!(
+            AmendmentUid::new(String::new()).unwrap_err(),
+            AmendmentError::EmptyAmendmentUid
+        );
+        assert_eq!(
+            AmendmentUid::new("   ".to_string()).unwrap_err(),
+            AmendmentError::EmptyAmendmentUid
+        );
+        assert_eq!(
+            AmendmentNumber::new(String::new()).unwrap_err(),
+            AmendmentError::EmptyAmendmentNumber
+        );
+        assert_eq!(
+            LegislativeTextRef::new("  ".to_string()).unwrap_err(),
+            AmendmentError::EmptyTextRef
+        );
     }
 
     #[test]

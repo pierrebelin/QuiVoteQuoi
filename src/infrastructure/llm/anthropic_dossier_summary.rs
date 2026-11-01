@@ -1,7 +1,6 @@
 //! Generateur de paragraphes descriptifs, strictement borne par des faits.
 
 use std::collections::{HashMap, HashSet};
-use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::Deserialize;
@@ -15,11 +14,16 @@ use crate::application::ports::dossier_summary_generator::{
 };
 use crate::domain::dossier_summary::SummaryParagraph;
 
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
 const DEFAULT_MODEL: &str = "claude-opus-5";
 const PROMPT_VERSION: &str = "dossier-group-summary-v1";
 const MAX_ATTEMPTS: u32 = 3;
+
+/// Plafond de jetons de sortie d'une synthèse, commun aux trois fournisseurs.
+pub(crate) const SUMMARY_MAX_OUTPUT_TOKENS: u32 = 2_400;
 
 pub struct AnthropicDossierSummaryGenerator {
     http: reqwest::Client,
@@ -42,7 +46,7 @@ impl AnthropicDossierSummaryGenerator {
             })
             .unwrap_or_else(|| DEFAULT_MODEL.to_string());
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(180))
+            .timeout(HTTP_TIMEOUT)
             .build()
             .ok()?;
         Some(Self {
@@ -55,7 +59,7 @@ impl AnthropicDossierSummaryGenerator {
     fn request_body(&self, facts: &DossierGroupFacts) -> Value {
         json!({
             "model": self.model,
-            "max_tokens": 2400,
+            "max_tokens": SUMMARY_MAX_OUTPUT_TOKENS,
             "output_config": {
                 "effort": "low",
                 "format": { "type": "json_schema", "schema": response_schema() }
@@ -322,7 +326,7 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
                 }
             };
             let status = response.status();
-            if status.as_u16() == 429 || status.is_server_error() {
+            if is_retryable(status) {
                 last_error = SummaryGeneratorError::Call(format!("HTTP {status}"));
                 backoff(attempt).await;
                 continue;
@@ -330,13 +334,7 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
             if !status.is_success() {
                 return Err(SummaryGeneratorError::Call(format!(
                     "HTTP {status}: {}",
-                    response
-                        .text()
-                        .await
-                        .unwrap_or_default()
-                        .chars()
-                        .take(300)
-                        .collect::<String>()
+                    truncate_detail(&response.text().await.unwrap_or_default())
                 )));
             }
             let payload: Value = response
@@ -354,10 +352,6 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
     fn prompt_version(&self) -> &str {
         PROMPT_VERSION
     }
-}
-
-async fn backoff(attempt: u32) {
-    tokio::time::sleep(Duration::from_millis(500 * 2u64.pow(attempt - 1))).await;
 }
 
 #[cfg(test)]

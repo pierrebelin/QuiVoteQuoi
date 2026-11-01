@@ -1,11 +1,11 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::domain::actor::{
+use super::actor::{
     ActorDirectory, ActorRole, ActorUid, GroupUid, MembershipQuality, ParliamentaryGroup,
 };
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum DomainError {
     #[error("dossier uid must not be empty")]
     EmptyDossierUid,
@@ -532,7 +532,7 @@ impl LegislativeDossier {
                     // groupe utilisable, seul l'acteur nous interesse ici.
                     directory
                         .actor(actor_ref)
-                        .map(|actor| crate::domain::actor::ActorAtDate {
+                        .map(|actor| super::actor::ActorAtDate {
                             actor,
                             group: None,
                             quality: None,
@@ -764,7 +764,10 @@ mod tests {
 
     #[test]
     fn dossier_uid_rejects_empty() {
-        assert!(DossierUid::new("".into()).is_err());
+        assert_eq!(
+            DossierUid::new("".into()).unwrap_err(),
+            DomainError::EmptyDossierUid
+        );
     }
 
     #[test]
@@ -775,10 +778,22 @@ mod tests {
 
     #[test]
     fn score_rejects_out_of_range() {
-        assert!(Score::new(11, 5, 5, 50).is_err());
-        assert!(Score::new(5, 11, 5, 50).is_err());
-        assert!(Score::new(5, 5, 11, 50).is_err());
-        assert!(Score::new(5, 5, 5, 101).is_err());
+        assert_eq!(
+            Score::new(11, 5, 5, 50).unwrap_err(),
+            DomainError::InvalidProgress(11)
+        );
+        assert_eq!(
+            Score::new(5, 11, 5, 50).unwrap_err(),
+            DomainError::InvalidMagnitude(11)
+        );
+        assert_eq!(
+            Score::new(5, 5, 11, 50).unwrap_err(),
+            DomainError::InvalidMomentum(11)
+        );
+        assert_eq!(
+            Score::new(5, 5, 5, 101).unwrap_err(),
+            DomainError::InvalidTotal(101)
+        );
     }
 
     #[test]
@@ -798,7 +813,10 @@ mod tests {
 
     #[test]
     fn initiator_rejects_empty_name() {
-        assert!(Initiator::unresolved("".into()).is_err());
+        assert_eq!(
+            Initiator::unresolved("".into()).unwrap_err(),
+            DomainError::EmptyInitiatorName
+        );
     }
 
     #[test]
@@ -886,7 +904,10 @@ mod tests {
 
     #[test]
     fn committee_rejects_empty() {
-        assert!(Committee::new("".into()).is_err());
+        assert_eq!(
+            Committee::new("".into()).unwrap_err(),
+            DomainError::EmptyCommittee
+        );
     }
 
     #[test]
@@ -1016,6 +1037,24 @@ mod tests {
     }
 
     #[test]
+    fn stage_round_trips_through_its_code() {
+        for stage in [
+            LegislativeStage::FirstReadingAN,
+            LegislativeStage::FirstReadingSenate,
+            LegislativeStage::SecondReadingAN,
+            LegislativeStage::SecondReadingSenate,
+            LegislativeStage::JointCommittee,
+            LegislativeStage::NewReadingAN,
+            LegislativeStage::NewReadingSenate,
+            LegislativeStage::FinalReading,
+            LegislativeStage::ConstitutionalReview,
+            LegislativeStage::Promulgation,
+        ] {
+            assert_eq!(LegislativeStage::from_code(stage.to_code()), Some(stage));
+        }
+    }
+
+    #[test]
     fn stage_from_unknown_code_returns_none() {
         assert_eq!(LegislativeStage::from_code("UNKNOWN"), None);
         assert_eq!(LegislativeStage::from_code("AN1-DEPOT"), None);
@@ -1028,7 +1067,7 @@ mod tests {
     }
 
     #[test]
-    fn chamber_assignment() {
+    fn each_stage_maps_to_the_chamber_that_holds_it() {
         assert_eq!(
             LegislativeStage::FirstReadingAN.chamber(),
             Chamber::AssembleeNationale

@@ -158,7 +158,7 @@ impl<'a> ProposeThemeFamilies<'a> {
             }
 
             if items.len() == 1 {
-                tracing::warn!(label = missing[0].label, "aucune réponse après essai isolé");
+                tracing::warn!(label = missing[0].label, "no answer after isolated retry");
                 self.record_failed(&missing, today, run).await?;
                 continue;
             }
