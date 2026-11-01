@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import GuideLink from '../components/GuideLink'
 import Hemicycle from '../components/Hemicycle'
+import VoteImageExport from '../components/VoteImageExport'
 import { siegesDesGroupes, tallyDesVotes } from '../components/sieges'
 import { CoverageNote } from '../components/ScrutinList'
 import {
@@ -146,6 +147,7 @@ function GroupBlock({
 
 export default function ScrutinDetailPage() {
   const { uid } = useParams<{ uid: string }>()
+  const [partage, setPartage] = useState(false)
 
   const { data, isLoading, isError, error } = useQuery<ScrutinDetailDto>({
     queryKey: ['scrutin', uid],
@@ -240,6 +242,14 @@ export default function ScrutinDetailPage() {
               Dossier législatif →
             </Link>
           )}
+          <button
+            type="button"
+            onClick={() => setPartage(!partage)}
+            aria-expanded={partage}
+            className="font-medium text-accent hover:underline"
+          >
+            Partager en image
+          </button>
         </div>
 
         {/* Ce que le vote recouvre exactement, et ce qu'il ne recouvre pas :
@@ -258,6 +268,10 @@ export default function ScrutinDetailPage() {
           )}
         </p>
       </div>
+
+      {partage && (
+        <VoteImageExport scrutin={data} onClose={() => setPartage(false)} />
+      )}
 
       {/*
         La synthèse est ce que le lecteur vient chercher : elle occupe le haut
