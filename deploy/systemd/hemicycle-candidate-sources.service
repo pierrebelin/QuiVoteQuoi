@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — vérification des sources de programmes 2027
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — vérification des sources de programmes 2027
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 After=network-online.target hemicycle.service
 Wants=network-online.target
 Requires=hemicycle.service

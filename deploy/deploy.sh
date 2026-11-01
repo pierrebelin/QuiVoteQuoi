@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploiement de hemicycle.data sur le VPS. Tourne sous l'utilisateur
+# Deploiement de QuiVoteQuoi sur le VPS. Tourne sous l'utilisateur
 # `hemicycle`, appele par GitHub Actions via SSH :
 #
 #   ~/app/deploy/deploy.sh <sha>

@@ -30,9 +30,9 @@ const CACHE_TTL: Duration = Duration::from_secs(3600);
 /// difference entre « bot inconnu » et « projet qu'on previent avant de
 /// couper ».
 const USER_AGENT: &str = concat!(
-    "hemicycle.data/",
+    "QuiVoteQuoi/",
     env!("CARGO_PKG_VERSION"),
-    " (+https://github.com/pierrebelin/HemicycleData)"
+    " (+https://github.com/pierrebelin/QuiVoteQuoi)"
 );
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
@@ -556,7 +556,7 @@ mod tests {
 
     #[test]
     fn the_client_names_itself_and_says_where_to_reach_us() {
-        assert!(USER_AGENT.starts_with("hemicycle.data/"));
-        assert!(USER_AGENT.contains("https://github.com/pierrebelin/HemicycleData"));
+        assert!(USER_AGENT.starts_with("QuiVoteQuoi/"));
+        assert!(USER_AGENT.contains("https://github.com/pierrebelin/QuiVoteQuoi"));
     }
 }

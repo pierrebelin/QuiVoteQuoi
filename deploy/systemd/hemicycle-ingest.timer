@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — ingestion toutes les deux heures
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — ingestion toutes les deux heures
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 
 [Timer]
 Unit=hemicycle-ingest.service

@@ -12,7 +12,7 @@
  * tunnel SSH. Passé cette échéance, l'API répond 401 et il faut le recoller.
  */
 
-const TOKEN_KEY = 'hemicycle.adminToken'
+const TOKEN_KEY = 'quivotequoi.adminToken'
 
 export function getAdminToken(): string {
   return localStorage.getItem(TOKEN_KEY) ?? ''

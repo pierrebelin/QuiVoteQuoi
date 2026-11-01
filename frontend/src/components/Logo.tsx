@@ -18,7 +18,7 @@ export default function Logo({ className }: LogoProps) {
     <svg
       viewBox="0 0 200 116"
       role="img"
-      aria-label="hémicycle.data"
+      aria-label="QuiVoteQuoi"
       className={className}
     >
       <path

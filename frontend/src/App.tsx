@@ -55,8 +55,8 @@ export default function App() {
             >
               <Logo className="h-9 w-auto shrink-0" />
               <h1 className="text-[15px] font-semibold tracking-tight">
-                hémicycle
-                <span className="text-accent">.data</span>
+                QuiVote
+                <span className="text-accent">Quoi</span>
               </h1>
             </Link>
             <span className="sm:hidden">

@@ -12,7 +12,7 @@
 //! ```
 
 use chrono::Utc;
-use hemicycle_data::infrastructure::security::AdminTokenSecret;
+use quivotequoi::infrastructure::security::AdminTokenSecret;
 
 fn main() -> std::process::ExitCode {
     dotenvy::dotenv().ok();

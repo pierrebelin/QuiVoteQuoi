@@ -9,7 +9,7 @@
 use std::time::Duration;
 
 use chrono::Utc;
-use hemicycle_data::infrastructure::official_text_versions_registry::{
+use quivotequoi::infrastructure::official_text_versions_registry::{
     bundled_versions, VerifiedOfficialTextVersion,
 };
 use reqwest::Client;
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let http = Client::builder().timeout(Duration::from_secs(30)).build()?;
-    let pool = hemicycle_data::infrastructure::config::try_connect_database()
+    let pool = quivotequoi::infrastructure::config::try_connect_database()
         .await
         .map_err(std::io::Error::other)?;
 

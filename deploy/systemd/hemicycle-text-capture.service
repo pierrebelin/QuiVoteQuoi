@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — capture des textes officiels rattaches aux votes finaux
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — capture des textes officiels rattaches aux votes finaux
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 # La capture utilise directement PostgreSQL, mais les migrations sont jouees au
 # demarrage du service principal : il doit donc etre lance auparavant.
 Requires=hemicycle.service

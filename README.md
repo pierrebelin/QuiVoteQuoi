@@ -1,4 +1,4 @@
-# hémicycle.data
+# QuiVoteQuoi
 
 **Consulter ce que les groupes parlementaires ont réellement voté à l'Assemblée nationale — par thème, sur pièces, sans interprétation.**
 
@@ -11,7 +11,7 @@ Backend Rust (API REST), frontend SPA React/TypeScript, données issues de l'ope
 ## Dépôt public
 
 Le code source, les migrations et l'historique des évolutions sont consultables
-sur [GitHub](https://github.com/pierrebelin/HemicycleData), sous
+sur [GitHub](https://github.com/pierrebelin/QuiVoteQuoi), sous
 [PolyForm Noncommercial 1.0.0](LICENSE). Il est donc public et modifiable pour
 des usages non commerciaux, mais ce n'est pas une licence open source au sens
 strict. Cette transparence permet de vérifier les règles de traitement ; pour

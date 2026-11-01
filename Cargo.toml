@@ -1,10 +1,17 @@
 [package]
-name = "hemicycle-data"
+name = "quivotequoi"
 version = "0.1.0"
 edition = "2021"
 # Les binaires de `src/bin/` sont des outils de mesure jetables. `cargo run`
 # lance le serveur.
 default-run = "hemicycle-data"
+
+# Le binaire du serveur garde son nom d'avant le renommage : l'unite systemd du
+# VPS l'execute par ce chemin et `deploy/deploy.sh` ne reinstalle pas les
+# unites. Un nouveau nom laisserait le service relancer l'ancien binaire.
+[[bin]]
+name = "hemicycle-data"
+path = "src/main.rs"
 
 # Outil d'exploitation, pas un binaire jetable : le CRON et l'operateur en
 # dependent pour deriver le jeton du jour.

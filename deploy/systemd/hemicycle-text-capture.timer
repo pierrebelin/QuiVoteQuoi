@@ -1,6 +1,6 @@
 [Unit]
-Description=hemicycle.data — capture quotidienne des textes officiels
-Documentation=https://github.com/pierrebelin/HemicycleData
+Description=QuiVoteQuoi — capture quotidienne des textes officiels
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
 
 [Timer]
 Unit=hemicycle-text-capture.service
