@@ -152,8 +152,8 @@ Les chiffres et répartitions de vote restent calculés et affichés par le prod
 | Étape | Livrable | Condition de passage |
 |---|---|---|
 | 1. Cadrage des actes présentés | ✅ Définition publiée du vote sur l’ensemble, du « plus récent » et du lien avec un dossier | Pas de doublon ou de version ambiguë dans les cinq cartes |
-| 2. Référencement des textes | 🟡 Inventaire des documents officiels, versions, URLs et licences ; registre de rattachement explicite vote → version, synchronisable depuis le VPS sans accès distant depuis le poste de développement ; cinq références pilotes vérifiées, à synchroniser sur le VPS | Chaque carte pilote relie un vote à son texte exact |
-| 3. Résumé pilote | 🟡 Captures horodatées et empreintées des cinq textes pilotes prêtes à être exécutées sur le VPS ; résumés neutres et sourcés à produire ensuite | Contrôle humain : chaque phrase est soutenue par le texte cité |
+| 2. Référencement des textes | ✅ Inventaire des documents officiels, versions, URLs et licences ; registre de rattachement explicite vote → version, synchronisable depuis le VPS sans accès distant depuis le poste de développement ; cinq références pilotes vérifiées et synchronisées sur le VPS | Chaque carte pilote relie un vote à son texte exact |
+| 3. Résumé pilote | ✅ Captures horodatées et empreintées des cinq textes pilotes exécutées sur le VPS ; résumés neutres et sourcés produits | Contrôle humain : chaque phrase est soutenue par le texte cité |
 | 4. Lecture intégrale | Affichage replié de documents dont la réutilisation est confirmée | Version, source et date visibles ; aucune confusion entre versions |
 | 5. Nouvelle entrée | Accueil thème → groupe → cinq cartes | Un néophyte atteint une carte sans connaître « scrutin » ou « dossier » |
 | 6. Vérification publique | Méthode, limites, tests de couverture et de neutralité | Même thème et même groupe donnent le même résultat à tous les visiteurs |
