@@ -494,6 +494,8 @@ pub struct DossierDetailDto {
     pub committee: Option<String>,
     pub curation_status: String,
     pub outcome: OutcomeDto,
+    /// Familles rattachees au dossier, posees par le handler.
+    pub families: Vec<AssignedFamilyDto>,
 }
 
 impl DossierDetailDto {
@@ -502,6 +504,7 @@ impl DossierDetailDto {
     ) -> Self {
         let d = result.dossier;
         Self {
+            families: Vec::new(),
             outcome: OutcomeDto::from(d.outcome()),
             uid: d.uid().as_str().to_string(),
             title: d.title().to_string(),

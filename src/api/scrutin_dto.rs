@@ -95,6 +95,8 @@ pub struct ScrutinSummaryDto {
     /// RM-05, RM-08: amendements rapproches, dans l'ordre de citation; vide
     /// quand le scrutin n'est pas rapproche (la liste garde alors le libelle court).
     pub cited: Vec<CitedAmendmentDto>,
+    /// Familles rattachees au scrutin, posees par le handler; vide sans rattachement.
+    pub families: Vec<AssignedFamilyDto>,
 }
 
 impl From<ScrutinListItem> for ScrutinSummaryDto {
@@ -120,6 +122,7 @@ impl From<ScrutinListItem> for ScrutinSummaryDto {
                 .into_iter()
                 .map(CitedAmendmentDto::from)
                 .collect(),
+            families: Vec::new(),
         }
     }
 }

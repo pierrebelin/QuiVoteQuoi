@@ -2,7 +2,9 @@ use chrono::{NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
 use crate::application::use_cases::get_dossier_group_actions::DossierGroupActions;
-use crate::domain::dossier_group_facts::{DossierGroupFacts, FinalVoteFact, GroupFacts};
+use crate::domain::dossier_group_facts::{
+    AmendmentFact, DossierGroupFacts, FinalVoteFact, GroupFacts,
+};
 use crate::domain::dossier_summary::{
     GroupSummaryState, StoredGroupSummary, SummarySource, SummaryStatus,
 };
@@ -29,7 +31,32 @@ pub struct GroupActionsDto {
     pub summary: Option<SummaryDto>,
     pub final_votes: Vec<FinalVoteDto>,
     pub amendment_count: usize,
+    /// Amendements du groupe par sort, libelle de la source (RM-09), du plus
+    /// frequent au plus rare. Les chiffres restent ceux du groupe sur ce dossier.
+    pub amendment_fates: Vec<FateCountDto>,
     pub amendments_url: String,
+}
+
+#[derive(Serialize)]
+pub struct FateCountDto {
+    /// Vide quand la source ne publie aucun sort.
+    pub label: String,
+    pub count: usize,
+}
+
+fn fate_counts(amendments: &[AmendmentFact]) -> Vec<FateCountDto> {
+    let mut counts: Vec<FateCountDto> = Vec::new();
+    for amendment in amendments {
+        match counts.iter_mut().find(|c| c.label == amendment.fate_label) {
+            Some(count) => count.count += 1,
+            None => counts.push(FateCountDto {
+                label: amendment.fate_label.clone(),
+                count: 1,
+            }),
+        }
+    }
+    counts.sort_by(|a, b| b.count.cmp(&a.count));
+    counts
 }
 
 #[derive(Serialize)]
@@ -175,6 +202,7 @@ fn group_dto(
             .map(|vote| FinalVoteDto::from_fact(vote, legislature))
             .collect(),
         amendment_count: group.amendments.len(),
+        amendment_fates: fate_counts(&group.amendments),
         amendments_url: format!("/dossiers/{}?amendements_group={}", dossier_uid, group.uid),
     }
 }

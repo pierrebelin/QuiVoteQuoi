@@ -13,6 +13,7 @@ use crate::api::dto::{
 use crate::api::error::ApiError;
 use crate::application::ports::dossier_repository::DossierCriteria;
 use crate::application::use_cases::browse_dossiers::{BrowseDossiers, DossierQuery};
+use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::curate_dossier::CurateDossier;
 use crate::application::use_cases::fetch_recent_dossiers::FetchRecentDossiers;
 use crate::application::use_cases::get_dossier_detail::GetDossierDetail;
@@ -94,7 +95,14 @@ pub async fn get_dossier_detail(
         .map_err(ApiError::internal)?
         .ok_or_else(|| ApiError::not_found("Dossier not found"))?;
 
-    Ok(Json(DossierDetailDto::from_result(result)))
+    let families = BrowseThemes::new(state.theme_repository.as_ref())
+        .families_of_dossier(uid.as_str())
+        .await
+        .map_err(ApiError::internal)?;
+
+    let mut dto = DossierDetailDto::from_result(result);
+    dto.families = families.into_iter().map(Into::into).collect();
+    Ok(Json(dto))
 }
 
 pub async fn get_dossier_group_actions(
