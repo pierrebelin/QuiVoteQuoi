@@ -26,3 +26,5 @@ pub mod save_dossier;
 pub mod suggest_dossiers;
 #[cfg(test)]
 pub mod theme_fakes;
+#[cfg(test)]
+pub mod read_fakes;

@@ -13,6 +13,15 @@ export interface AmendmentDto {
   /** Groupe du signataire **à la date de dépôt**, jamais son groupe actuel. */
   author_group_label: string | null
   author_group_abbrev: string | null
+  /** Couleur publiée du groupe au dépôt (RM-10), null si le groupe n'en publie pas. */
+  author_group_color: string | null
+  /** Ton du texte lisible sur la couleur du groupe. */
+  author_text_tone: 'white' | 'black' | null
+  /** Aperçu de l'exposé (RM-05), null si la source n'en publie pas. */
+  summary_preview: string | null
+  summary_preview_truncated: boolean
+  /** Sort tel qu'affiché sur la carte (RM-08). */
+  fate_banner: string
   author_group_origin: GroupOrigin
   author_group_ambiguous: boolean
   fate_code: string

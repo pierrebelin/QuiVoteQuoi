@@ -229,6 +229,60 @@ impl AmendmentFate {
 }
 
 // ---------------------------------------------------------------------------
+// Apercu et bandeau de sort
+// ---------------------------------------------------------------------------
+
+/// Longueur de l'apercu de l'expose sommaire, en caracteres (RM-05).
+pub const PREVIEW_LENGTH: usize = 300;
+
+/// Apercu de l'expose sommaire: ses premiers caracteres, jamais reformules.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub enum SummaryPreview {
+    Unpublished,
+    Text { text: String, truncated: bool },
+}
+
+impl SummaryPreview {
+    pub fn of(summary: Option<&str>) -> Self {
+        let Some(summary) = summary else {
+            return Self::Unpublished;
+        };
+        if summary.chars().count() <= PREVIEW_LENGTH {
+            return Self::Text {
+                text: summary.to_string(),
+                truncated: false,
+            };
+        }
+        let mut text: String = summary.chars().take(PREVIEW_LENGTH).collect();
+        text.push('\u{2026}');
+        Self::Text {
+            text,
+            truncated: true,
+        }
+    }
+}
+
+/// Bandeau de sort affiche sur la carte d'un amendement.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct FateBanner(String);
+
+impl FateBanner {
+    pub fn of(fate: FateCode, fate_label: &str, state_label: Option<&str>) -> Self {
+        if fate != FateCode::Unspecified {
+            return Self(fate_label.to_string());
+        }
+        Self(match state_label.map(str::trim).filter(|s| !s.is_empty()) {
+            Some(state) => format!("Sort non publi\u{00e9} (\u{00e9}tat : {state})"),
+            None => "Sort non publi\u{00e9}".to_string(),
+        })
+    }
+
+    pub fn label(&self) -> &str {
+        &self.0
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Signataires
 // ---------------------------------------------------------------------------
 
@@ -1255,6 +1309,62 @@ mod tests {
         assert_eq!(
             AmendmentNumber::new("CF120".to_string()).unwrap().key(),
             "cf120"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Apercu et bandeau de sort
+    // -----------------------------------------------------------------------
+
+    fn shown(text: impl Into<String>, truncated: bool) -> SummaryPreview {
+        SummaryPreview::Text {
+            text: text.into(),
+            truncated,
+        }
+    }
+
+    #[test]
+    fn should_show_whole_summary_without_ellipsis_when_it_has_300_characters_or_less() {
+        let exactly = "a".repeat(300);
+        assert_eq!(
+            SummaryPreview::of(Some(&exactly)),
+            shown(exactly.clone(), false)
+        );
+        assert_eq!(
+            SummaryPreview::of(Some("Supprime l'article.")),
+            shown("Supprime l'article.", false)
+        );
+    }
+
+    #[test]
+    fn should_cut_summary_at_300_characters_mid_word_and_mark_ellipsis_when_it_is_longer() {
+        let long = format!("{}{}", "a".repeat(298), "bcdef");
+        assert_eq!(
+            SummaryPreview::of(Some(&long)),
+            shown(format!("{}bc\u{2026}", "a".repeat(298)), true)
+        );
+    }
+
+    #[test]
+    fn should_count_characters_not_bytes_when_summary_has_accents() {
+        let accented = format!("{}ZZ", "\u{00e9}".repeat(299));
+        assert_eq!(
+            SummaryPreview::of(Some(&accented)),
+            shown(format!("{}Z\u{2026}", "\u{00e9}".repeat(299)), true)
+        );
+    }
+
+    #[test]
+    fn should_mark_summary_unpublished_when_amendment_has_none() {
+        assert_eq!(SummaryPreview::of(None), SummaryPreview::Unpublished);
+    }
+
+    #[test]
+    fn should_announce_unpublished_fate_with_published_state_when_source_gives_no_fate() {
+        let banner = FateBanner::of(FateCode::Unspecified, "", Some("D\u{00e9}pos\u{00e9}"));
+        assert_eq!(
+            banner.label(),
+            "Sort non publi\u{00e9} (\u{00e9}tat : D\u{00e9}pos\u{00e9})"
         );
     }
 }

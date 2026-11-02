@@ -1,7 +1,8 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
-use crate::application::ports::scrutin_repository::{ScrutinFilter, ScrutinPage, ScrutinSummary};
+use crate::application::ports::scrutin_repository::ScrutinFilter;
+use crate::application::use_cases::list_scrutins::{ScrutinListItem, ScrutinListPage};
 use crate::application::use_cases::get_scrutin_detail::ScrutinDetail;
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
 use crate::domain::scrutin::{scrutin_official_url, VoteTally};
@@ -74,7 +75,10 @@ pub struct ScrutinSummaryDto {
     pub uid: String,
     pub number: String,
     pub date: NaiveDate,
+    /// RM-08: l'objet officiel, conserve tel que publie.
     pub subject: String,
+    /// RM-09: libelle court calcule par le cas d'usage.
+    pub short_label: String,
     pub ballot_type: String,
     pub outcome_code: String,
     pub outcome_label: String,
@@ -86,14 +90,16 @@ pub struct ScrutinSummaryDto {
     pub official_url: String,
 }
 
-impl From<ScrutinSummary> for ScrutinSummaryDto {
-    fn from(s: ScrutinSummary) -> Self {
+impl From<ScrutinListItem> for ScrutinSummaryDto {
+    fn from(item: ScrutinListItem) -> Self {
+        let s = item.summary;
         let official_url = scrutin_official_url(s.legislature, &s.number);
         Self {
             uid: s.uid,
             number: s.number,
             date: s.date,
             subject: s.subject,
+            short_label: item.short_label.as_str().to_string(),
             ballot_type: s.ballot_type_label,
             outcome_code: s.outcome_code,
             outcome_label: s.outcome_label,
@@ -115,8 +121,8 @@ pub struct ScrutinListResponse {
     pub coverage_note: &'static str,
 }
 
-impl From<(ScrutinPage, i64)> for ScrutinListResponse {
-    fn from((page, offset): (ScrutinPage, i64)) -> Self {
+impl From<(ScrutinListPage, i64)> for ScrutinListResponse {
+    fn from((page, offset): (ScrutinListPage, i64)) -> Self {
         let scrutins: Vec<ScrutinSummaryDto> = page
             .items
             .into_iter()
@@ -309,5 +315,60 @@ impl From<ScrutinsSummary> for ScrutinsRefreshResponse {
             unresolved_votes: s.unresolved_votes,
             registry_anomaly: s.registry_anomaly,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::use_cases::list_scrutins::ScrutinListItem;
+    use crate::application::use_cases::read_fakes::scrutin_row;
+    use crate::domain::scrutin::ShortLabel;
+
+    fn item(uid: &str, subject: &str) -> ScrutinListItem {
+        ScrutinListItem {
+            summary: scrutin_row(uid, subject),
+            short_label: ShortLabel::from_subject(subject),
+        }
+    }
+
+    #[test]
+    fn should_serve_short_label_and_official_subject_when_list_response_is_built() {
+        let page = ScrutinListPage {
+            items: vec![item("S1", "l'article 3 du projet de loi de finances")],
+            total: 1,
+        };
+
+        let json = serde_json::to_value(ScrutinListResponse::from((page, 0))).unwrap();
+
+        assert_eq!(json["scrutins"][0]["short_label"], "Vote sur l'article 3");
+        assert_eq!(
+            json["scrutins"][0]["subject"],
+            "l'article 3 du projet de loi de finances"
+        );
+    }
+
+    #[test]
+    fn should_serve_short_labels_in_source_order_when_list_response_is_built() {
+        let page = ScrutinListPage {
+            items: vec![
+                item("S2", "l'ensemble du projet de loi"),
+                item("S1", "objet inconnu de la source"),
+            ],
+            total: 2,
+        };
+
+        let json = serde_json::to_value(ScrutinListResponse::from((page, 0))).unwrap();
+
+        let labels: Vec<&str> = json["scrutins"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["short_label"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            labels,
+            vec!["Vote sur l'ensemble du texte", "objet inconnu de la source"]
+        );
     }
 }

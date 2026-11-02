@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Card, ErrorPanel, Note, Pill, SectionTitle, type PillTone } from './ui'
 import type { AmendmentDto, DossierAmendmentsResponse } from '../types/amendments'
+import AmendmentAuthor from './AmendmentAuthor'
 
 const PAGE_SIZE = 5
 
@@ -59,58 +60,6 @@ function formatDate(iso: string) {
   })
 }
 
-/** Un signataire nommé, avec le groupe qu'il avait au dépôt. */
-function Author({ amendment }: { amendment: AmendmentDto }) {
-  const name = amendment.author_name ?? amendment.author_actor_uid ?? 'Auteur non identifié'
-
-  return (
-    <span className="text-ink-soft">
-      {amendment.author_official_url ? (
-        <a
-          href={amendment.author_official_url}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-ink hover:underline"
-        >
-          {name}
-        </a>
-      ) : (
-        <span className="font-medium text-ink">{name}</span>
-      )}
-
-      {amendment.author_group_abbrev && (
-        <span
-          className="ml-1.5"
-          title={
-            amendment.author_group_origin === 'resolved_at_deposit'
-              ? `${amendment.author_group_label} — groupe du signataire à la date de dépôt, reconstitué depuis les appartenances datées`
-              : `${amendment.author_group_label} — groupe publié par la source sur cet amendement`
-          }
-        >
-          ({amendment.author_group_abbrev})
-        </span>
-      )}
-
-      {amendment.author_group_ambiguous && (
-        <span
-          className="ml-1.5 text-ink-faint"
-          title="Deux groupes concurrents revendiquent ce signataire à la date de dépôt : aucun n'est affiché."
-        >
-          (groupe indéterminé)
-        </span>
-      )}
-
-      {amendment.cosignatory_count > 0 && (
-        <span className="text-ink-faint">
-          {' '}
-          et {amendment.cosignatory_count} cosignataire
-          {amendment.cosignatory_count > 1 ? 's' : ''}
-        </span>
-      )}
-    </span>
-  )
-}
-
 function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
   const summary = amendment.summary
     ? /[<&]/.test(amendment.summary)
@@ -123,12 +72,8 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-mono text-xs text-ink-faint">n° {amendment.number}</span>
         <span className="text-sm font-medium text-ink">{amendment.target_title}</span>
-        <Author amendment={amendment} />
-        {amendment.fate_label && (
-          <Pill tone={fateTones[amendment.fate_code] ?? 'neutral'}>
-            {amendment.fate_label}
-          </Pill>
-        )}
+        <AmendmentAuthor amendment={amendment} />
+        <Pill tone={fateTones[amendment.fate_code] ?? 'neutral'}>{amendment.fate_banner}</Pill>
         {amendment.deposited_on && (
           <span className="text-xs text-ink-faint">
             déposé le {formatDate(amendment.deposited_on)}
@@ -138,8 +83,11 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
 
       {summary ? (
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs font-medium text-ink-soft hover:text-ink">
-            Exposé sommaire
+          <summary className="cursor-pointer text-sm leading-relaxed text-ink-soft hover:text-ink">
+            {amendment.summary_preview ?? summary}
+            {amendment.summary_preview_truncated && (
+              <span className="ml-1 text-xs font-medium underline">Lire la suite</span>
+            )}
           </summary>
           {/* Verbatim : le texte du signataire, ni résumé ni abrégé (RM-03). */}
           <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink-soft">

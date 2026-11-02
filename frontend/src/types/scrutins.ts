@@ -22,7 +22,10 @@ export interface ScrutinSummaryDto {
   uid: string
   number: string
   date: string
+  /** Objet officiel tel que publié par l'Assemblée. */
   subject: string
+  /** Libellé court calculé côté serveur ; l'objet tel quel quand aucune forme ne le reconnaît. */
+  short_label: string
   ballot_type: string
   outcome_code: string
   outcome_label: string

@@ -19,9 +19,9 @@ export function CoverageNote({ note }: { note: string }) {
  * L'intitulé publié par l'Assemblée est procédural avant d'être informatif :
  * « l'ensemble de la proposition de loi visant à moderniser la gestion du
  * patrimoine immobilier de l'État (texte de la commission mixte paritaire) ».
- * Le titre du dossier dit la même chose en six mots. On lit donc le dossier en
- * premier et l'intitulé juste dessous — jamais à sa place : c'est l'intitulé
- * qui fait foi, et lui seul distingue un vote sur l'ensemble d'un vote sur un
+ * Le serveur en tire un libellé court (« Vote sur l'article 3 ») qui sert de
+ * titre ; l'intitulé officiel reste juste dessous, jamais retiré : c'est lui qui
+ * fait foi, et lui seul distingue un vote sur l'ensemble d'un vote sur un
  * amendement du même texte.
  */
 export function ScrutinRow({
@@ -64,8 +64,16 @@ export function ScrutinRow({
         </div>
 
         <p className="text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
-          {scrutin.subject}
+          {scrutin.short_label}
         </p>
+        {/* L'objet officiel reste lisible sous le libellé court. Quand aucune
+            forme ne reconnaît l'objet, le libellé court est l'objet tel quel :
+            on ne le répète pas. */}
+        {scrutin.short_label !== scrutin.subject && (
+          <p className="mt-1 text-[13px] leading-snug text-ink-soft">
+            {scrutin.subject}
+          </p>
+        )}
       </div>
 
       {/* Colonne de largeur fixe, pour que les barres s'alignent d'une ligne à
