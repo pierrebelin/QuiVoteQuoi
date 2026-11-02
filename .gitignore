@@ -23,3 +23,9 @@ id_ed25519*
 
 # Configuration et worktrees locaux
 .claude/
+
+# Sortie locale de graphify
+graphify-out/
+
+# Plans et rapports locaux
+todo/
