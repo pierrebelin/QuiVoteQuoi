@@ -25,7 +25,7 @@ import { fetchJson } from '../lib/fetchJson'
 import { capitalized, typographic } from '../lib/entryFlow'
 import { amendmentCardPath } from '../types/amendments'
 import type { InitiatorDto, OutcomeDto } from '../types/dossiers'
-import type { GroupBreakdownDto, ScrutinDetailDto } from '../types/scrutins'
+import type { CitedAmendmentDto, GroupBreakdownDto, ScrutinDetailDto } from '../types/scrutins'
 import {
   formatDate,
   positionClasses,
@@ -115,6 +115,76 @@ function InitiatorBox({ initiator, kind }: { initiator: InitiatorDto; kind: stri
 }
 
 /**
+ * Plusieurs auteurs en une seule vignette : les noms à la suite, chacun avec
+ * son groupe au dépôt ; la qualité (ministre, député) passe en infobulle. La
+ * date de lecture des groupes reste affichée, une fois par date distincte
+ * (README.md §3).
+ */
+function InitiatorsBox({ initiators, kind }: { initiators: InitiatorDto[]; kind: string }) {
+  const dates = [
+    ...new Set(initiators.flatMap((i) => (i.group && i.reference_date ? [i.reference_date] : []))),
+  ]
+  return (
+    <InfoBox
+      visual={
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface text-ink-soft ring-1 ring-inset ring-line">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className="size-6"
+          >
+            <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4" />
+          </svg>
+        </span>
+      }
+    >
+      <p className="text-xs text-ink-faint">{kind} déposé par</p>
+      <p>
+        {initiators.map((initiator, i) => {
+          const group = initiator.reference_date ? initiator.group : null
+          return (
+            <span key={i}>
+              {i > 0 && ', '}
+              {initiator.official_url ? (
+                <a
+                  href={initiator.official_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  title={initiator.role ?? undefined}
+                  className="font-semibold hover:text-accent hover:underline"
+                >
+                  {initiator.full_name}
+                </a>
+              ) : (
+                <span className="font-semibold" title={initiator.role ?? undefined}>
+                  {initiator.full_name}
+                </span>
+              )}
+              {group && (
+                <span className="text-ink-soft" title={group.label}>
+                  {' '}
+                  ({group.abbrev})
+                </span>
+              )}
+            </span>
+          )
+        })}
+      </p>
+      {dates.length > 0 && (
+        <p className="text-xs text-ink-faint">
+          groupe{dates.length > 1 ? 's' : ''} au {dates.map(shortDate).join(', ')}, date du dépôt
+        </p>
+      )}
+    </InfoBox>
+  )
+}
+
+/**
  * Sort du texte, distinct de l'issue du scrutin : un texte adopté ici peut
  * encore être modifié ailleurs. Rien n'est affiché quand la source ne conclut
  * rien — « en cours » serait une affirmation que personne n'a écrite.
@@ -158,6 +228,94 @@ function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: 
         </Link>
       </p>
     </InfoBox>
+  )
+}
+
+/**
+ * L'amendement mis aux voix : numéro, article visé, signataire aux couleurs
+ * publiées de son groupe au dépôt (RM-10), puis l'exposé en citation. Un
+ * exposé long s'ouvre sur son aperçu ; le texte déplié reste verbatim (RM-03).
+ */
+function CitedAmendment({
+  amendment,
+  methodLabels,
+}: {
+  amendment: CitedAmendmentDto
+  methodLabels: string[]
+}) {
+  const [open, setOpen] = useState(false)
+  const collapsible = amendment.summary_preview_truncated && amendment.summary_preview != null
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="text-xs text-ink-faint">
+          Amendement <span className="font-mono">n° {amendment.number}</span>
+        </span>
+        <span className="text-[15px] font-semibold text-ink">{amendment.target_title}</span>
+      </div>
+
+      {amendment.author_name && (
+        <p className="mt-1 text-sm text-ink-soft">
+          <span className="font-medium text-ink">{amendment.author_name}</span>
+          {amendment.author_group_abbrev &&
+            (amendment.author_group_color ? (
+              <span
+                className="ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold"
+                style={{
+                  backgroundColor: amendment.author_group_color,
+                  color: amendment.author_text_tone === 'white' ? '#ffffff' : '#000000',
+                }}
+              >
+                {amendment.author_group_abbrev}
+              </span>
+            ) : (
+              <span className="ml-1.5">({amendment.author_group_abbrev})</span>
+            ))}
+          {amendment.cosignatory_count > 0 && (
+            <span className="text-ink-faint">
+              {' '}
+              et {amendment.cosignatory_count} cosignataire
+              {amendment.cosignatory_count > 1 ? 's' : ''}
+            </span>
+          )}
+        </p>
+      )}
+
+      {amendment.summary ? (
+        <blockquote className="mt-3 max-w-3xl border-l-[3px] border-line-strong pl-3 text-sm leading-relaxed text-ink-soft">
+          <span className="mb-1 block text-xs text-ink-faint">Exposé sommaire</span>
+          <p className="whitespace-pre-line">
+            {collapsible && !open ? amendment.summary_preview : amendment.summary}
+            {collapsible && (
+              <button
+                type="button"
+                onClick={() => setOpen(!open)}
+                className={`ml-1 text-xs font-medium text-accent underline hover:text-ink ${FOCUS_RING}`}
+              >
+                {open ? 'Replier' : 'Lire la suite'}
+              </button>
+            )}
+          </p>
+        </blockquote>
+      ) : (
+        <p className="mt-3 text-xs text-ink-faint">
+          La source ne publie pas d'exposé sommaire pour cet amendement.
+        </p>
+      )}
+
+      <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 text-xs">
+        <span className="text-ink-faint">Lien établi par : {methodLabels.join(' + ')}</span>
+        {/* Pas de page officielle de l'amendement (AMENDEMENTS H8) :
+            le renvoi mène à sa carte, dans son dossier. */}
+        <Link
+          to={amendmentCardPath(amendment.dossier_uid, amendment.number)}
+          className="font-medium text-accent hover:underline"
+        >
+          Voir l'amendement dans son dossier →
+        </Link>
+      </div>
+    </div>
   )
 }
 
@@ -453,9 +611,11 @@ export default function ScrutinDetailPage() {
 
         {dossier && (dossier.initiators.length > 0 || dossier.outcome.kind !== 'no_recorded_conclusion') && (
           <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            {dossier.initiators.map((initiator, i) => (
-              <InitiatorBox key={i} initiator={initiator} kind={textKind(dossier.procedure)} />
-            ))}
+            {dossier.initiators.length === 1 ? (
+              <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
+            ) : dossier.initiators.length > 1 ? (
+              <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
+            ) : null}
             {data.dossier_uid && (
               <OutcomeBox outcome={dossier.outcome} dossierUid={data.dossier_uid} />
             )}
@@ -573,54 +733,30 @@ export default function ScrutinDetailPage() {
       </Card>
 
       {(data.cited.length > 0 || data.unnumbered_identical_amendments) && (
-        <section className="mb-4">
-          <SectionTitle>Ce qui a été mis aux voix</SectionTitle>
-          <div className="space-y-2">
+        <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
+          <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+            Ce qui a été mis aux voix
+          </h3>
+          <div className="divide-y divide-line">
             {data.cited.map((c) => (
-              <Card key={c.rank}>
+              <div key={c.rank} className="py-4 first:pt-0 last:pb-0">
                 {c.amendment ? (
-                  <div>
-                    <p className="text-sm font-medium">
-                      Amendement n° {c.amendment.number} — {c.amendment.target_title}
-                    </p>
-                    {c.amendment.author_name && (
-                      <p className="text-xs text-ink-faint">
-                        {c.amendment.author_name}
-                        {c.amendment.author_group_abbrev && ` (${c.amendment.author_group_abbrev})`}
-                      </p>
-                    )}
-                    {c.amendment.summary && (
-                      <p className="mt-2 text-sm leading-relaxed whitespace-pre-line">
-                        {c.amendment.summary}
-                      </p>
-                    )}
-                    <p className="mt-2 text-xs text-ink-faint">
-                      Lien établi par : {c.method_labels.join(' + ')}
-                    </p>
-                    {/* Pas de page officielle de l'amendement (AMENDEMENTS H8) :
-                        le renvoi mène à sa carte, dans son dossier. */}
-                    <Link
-                      to={amendmentCardPath(c.amendment.dossier_uid, c.amendment.number)}
-                      className="mt-1 inline-block text-xs font-medium text-accent hover:underline"
-                    >
-                      Voir la carte de l'amendement dans le dossier
-                    </Link>
-                  </div>
+                  <CitedAmendment amendment={c.amendment} methodLabels={c.method_labels} />
                 ) : (
                   <p className="text-sm text-ink-faint">
                     {c.cited_number ? `Amendement n° ${c.cited_number} : ` : ''}
                     {c.cause_label}
                   </p>
                 )}
-              </Card>
+              </div>
             ))}
-            {data.unnumbered_identical_amendments && (
-              <p className="text-xs text-ink-faint">
-                L'objet annonce des amendements identiques sans en donner le numéro.
-              </p>
-            )}
           </div>
-        </section>
+          {data.unnumbered_identical_amendments && (
+            <p className="mt-3 text-xs text-ink-faint">
+              L'objet annonce des amendements identiques sans en donner le numéro.
+            </p>
+          )}
+        </Card>
       )}
 
       <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
