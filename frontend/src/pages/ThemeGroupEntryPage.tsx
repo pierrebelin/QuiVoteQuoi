@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
+import { FamilyIllustration } from '../components/FamilyIllustration'
+import { PoliticalLogo } from '../components/PoliticalLogo'
+import { GROUP_LOGOS } from '../content/logos'
 import { Card, ErrorPanel, Loading, Note, Pill } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
 import type { FamiliesResponse, FamilyDto } from '../types/themes'
@@ -17,7 +20,7 @@ const FIRST_THEMES_COUNT = 8
 const MAX_GROUPS_BEFORE_LOAD = 4
 
 function themeButtonClass(selected: boolean) {
-  return `rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-colors ${
+  return `group flex items-center gap-3 rounded-xl border p-2 pr-3 text-left text-sm font-medium transition-colors ${
     selected
       ? 'border-ink bg-ink text-white'
       : 'border-line bg-surface text-ink-soft shadow-card hover:border-line-strong hover:text-ink'
@@ -43,15 +46,19 @@ function GroupChoice({
       aria-pressed={selected}
       disabled={disabled}
       onClick={onClick}
-      className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
+      style={{ borderLeftColor: group.color ?? undefined }}
+      className={`flex items-center gap-3 rounded-xl border border-l-4 p-2 pr-3 text-left transition-colors ${
         selected
           ? 'border-ink bg-ink text-white'
           : 'border-line bg-surface text-ink-soft shadow-card hover:border-line-strong hover:text-ink disabled:cursor-not-allowed disabled:opacity-45'
       }`}
     >
-      <span className="block text-sm font-semibold">{group.label}</span>
-      <span className={`mt-0.5 block text-xs ${selected ? 'text-white/70' : 'text-ink-faint'}`}>
-        {group.abbrev} · {group.final_vote_count} vote{group.final_vote_count > 1 ? 's' : ''} sur l’ensemble publié{group.final_vote_count > 1 ? 's' : ''}
+      <PoliticalLogo logo={GROUP_LOGOS[group.abbrev]} fallback={group.abbrev} color={group.color} />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{group.label}</span>
+        <span className={`mt-0.5 block text-xs ${selected ? 'text-white/70' : 'text-ink-faint'}`}>
+          {group.abbrev} · {group.final_vote_count} vote{group.final_vote_count > 1 ? 's' : ''} sur l’ensemble publié{group.final_vote_count > 1 ? 's' : ''}
+        </span>
       </span>
     </button>
   )
@@ -255,7 +262,8 @@ export default function ThemeGroupEntryPage() {
                   onClick={() => chooseTheme(family.code)}
                   className={themeButtonClass(theme === family.code)}
                 >
-                  {family.label}
+                  <FamilyIllustration code={family.code} className="size-10 shrink-0 rounded-lg" glyphClassName="size-6" />
+                  <span>{family.label}</span>
                 </button>
               ))}
             </div>

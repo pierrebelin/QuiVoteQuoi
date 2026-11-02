@@ -1,6 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
+import { PoliticalLogo } from '../components/PoliticalLogo'
 import { Card, ErrorPanel, Loading, Note, PageHeader, SectionTitle } from '../components/ui'
+import { PARTIES } from '../content/logos'
+import { PORTRAITS } from '../content/portraits'
 import { fetchJson } from '../lib/fetchJson'
 import type {
   CandidateComparisonResponse,
@@ -10,6 +13,39 @@ import type {
 } from '../types/candidates'
 import type { FamiliesResponse } from '../types/themes'
 import { formatDate } from '../types/scrutins'
+
+/** Identité visuelle du premier parti déclaré : une candidature sans parti
+ * sourcé n'en reçoit aucune, plutôt qu'une appartenance déduite. */
+function partyOf(candidate: CandidateDto) {
+  const organization = candidate.political_organizations[0]
+  return organization ? PARTIES[organization.label] : undefined
+}
+
+/** Sans logo référencé, pas de plaque : un sigle reconstitué pour un parti
+ * que l'Assemblée ne nomme pas serait une invention du site. */
+function CandidateLogo({ candidate, className }: { candidate: CandidateDto; className?: string }) {
+  const party = partyOf(candidate)
+  if (!party) return null
+  return <PoliticalLogo logo={party.logo} fallback="" color={party.color} className={className} />
+}
+
+/** Portrait libre de la candidature, ou silhouette neutre : la liste garde le
+ * même alignement, qu'une photo existe ou non. */
+function CandidatePortrait({ candidate, className }: { candidate: CandidateDto; className: string }) {
+  const portrait = PORTRAITS[candidate.id]
+  return (
+    <span aria-hidden className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-surface-soft ring-1 ring-line ${className}`}>
+      {portrait ? (
+        <img src={portrait.src} alt="" loading="lazy" className="size-full object-cover object-[50%_20%]" />
+      ) : (
+        <svg viewBox="0 0 24 24" fill="currentColor" className="size-3/4 translate-y-[12%] text-ink-faint/50">
+          <circle cx="12" cy="8" r="4.5" />
+          <path d="M3 22c0-5 4-8.5 9-8.5s9 3.5 9 8.5z" />
+        </svg>
+      )}
+    </span>
+  )
+}
 
 function CandidatePicker({
   candidates,
@@ -38,13 +74,15 @@ function CandidatePicker({
             aria-pressed={isSelected}
             disabled={full && !isSelected}
             onClick={() => onToggle(candidate.id)}
-            className={`rounded-lg px-2.5 py-1 text-[13px] font-medium ring-1 ring-inset transition-colors ${
+            className={`flex items-center gap-2 rounded-full py-1 pr-1.5 pl-1 text-[13px] font-medium ring-1 ring-inset transition-colors ${
               isSelected
                 ? 'bg-ink text-white ring-ink'
                 : 'bg-surface text-ink-soft shadow-card ring-line hover:text-ink hover:ring-line-strong disabled:cursor-not-allowed disabled:opacity-45'
             }`}
           >
+            <CandidatePortrait candidate={candidate} className="size-7" />
             {candidate.display_name}
+            <CandidateLogo candidate={candidate} className="h-5 w-8 rounded p-0.5" />
           </button>
         )
       })}
@@ -235,8 +273,21 @@ export default function CandidateComparisonPage() {
               {selected.length > 0 && (
                 <section className={`mt-6 grid gap-4 ${selected.length > 1 ? 'lg:grid-cols-2' : ''}`}>
                   {selected.map((candidate) => (
-                    <Card key={candidate.id} className="px-4 py-4 sm:px-5">
-                      <h3 className="text-lg font-semibold">{candidate.display_name}</h3>
+                    <Card
+                      key={candidate.id}
+                      className={`px-4 py-4 sm:px-5 ${partyOf(candidate) ? 'border-t-4' : ''}`}
+                      style={{ borderTopColor: partyOf(candidate)?.color }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <CandidatePortrait candidate={candidate} className="size-16" />
+                        <div className="min-w-0">
+                          <h3 className="text-lg font-semibold">{candidate.display_name}</h3>
+                          {PORTRAITS[candidate.id]?.year && (
+                            <p className="text-xs text-ink-faint">Photo de {PORTRAITS[candidate.id].year}</p>
+                          )}
+                        </div>
+                        <CandidateLogo candidate={candidate} className="ml-auto h-12 w-20" />
+                      </div>
                       <CandidateSources candidate={candidate} />
                       <section className="mt-5 border-t border-line pt-4">
                         <SectionTitle>Propositions pour ce thème</SectionTitle>
