@@ -36,6 +36,7 @@ fn status_of(error: BrowseFinalVotesError) -> ApiError {
         | BrowseFinalVotesError::Dossier(_)
         | BrowseFinalVotesError::Actor(_) => ApiError::internal(error),
         BrowseFinalVotesError::TooManyGroups(_)
+        | BrowseFinalVotesError::ConflictingGroupSelection
         | BrowseFinalVotesError::UnknownGroup(_)
         | BrowseFinalVotesError::UnknownFamily(_) => ApiError::bad_request(error),
     }
@@ -52,6 +53,13 @@ mod tests {
         let error = status_of(BrowseFinalVotesError::UnknownGroup("PS".to_string()));
 
         assert!(matches!(error, ApiError::BadRequest(message) if message.contains("PS")));
+    }
+
+    #[test]
+    fn a_conflicting_group_selection_is_the_visitor_s_error() {
+        let error = status_of(BrowseFinalVotesError::ConflictingGroupSelection);
+
+        assert!(matches!(error, ApiError::BadRequest(_)));
     }
 
     #[test]

@@ -30,6 +30,9 @@ pub struct FinalVoteListQuery {
     pub theme: Option<String>,
     /// Groupes compares, sigles ou identifiants separes par une virgule.
     pub groupes: Option<String>,
+    /// Mode « tous les groupes » de la page d'accueil: une position par groupe
+    /// du referentiel. Exclusif avec `groupes`.
+    pub tous_groupes: Option<bool>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -45,6 +48,7 @@ impl From<FinalVoteListQuery> for BrowseFinalVotesCommand {
                 .map(|token| token.trim().to_string())
                 .filter(|token| !token.is_empty())
                 .collect(),
+            all_groups: query.tous_groupes.unwrap_or(false),
             limit: query.limit,
             offset: query.offset,
         }
@@ -290,5 +294,42 @@ impl From<(FinalVoteView, i64)> for FinalVoteListResponse {
             share_note: SHARE_NOTE,
             outcome_note: OUTCOME_NOTE,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn query() -> FinalVoteListQuery {
+        FinalVoteListQuery {
+            theme: None,
+            groupes: None,
+            tous_groupes: None,
+            limit: None,
+            offset: None,
+        }
+    }
+
+    #[test]
+    fn the_all_groups_parameter_sets_the_command_flag() {
+        let command = BrowseFinalVotesCommand::from(FinalVoteListQuery {
+            tous_groupes: Some(true),
+            ..query()
+        });
+
+        assert!(command.all_groups);
+        assert!(command.groups.is_empty());
+    }
+
+    #[test]
+    fn the_all_groups_flag_is_off_by_default() {
+        let command = BrowseFinalVotesCommand::from(FinalVoteListQuery {
+            groupes: Some("RN, SOC".to_string()),
+            ..query()
+        });
+
+        assert!(!command.all_groups);
+        assert_eq!(command.groups, vec!["RN", "SOC"]);
     }
 }
