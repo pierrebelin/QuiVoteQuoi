@@ -1,10 +1,15 @@
 use std::collections::HashMap;
 
 use crate::application::ports::actor_repository::ActorRepository;
+use crate::application::ports::amendment_citation_repository::AmendmentCitationRepository;
+use crate::application::use_cases::browse_dossier_amendments::{
+    author_uids, cited_view_of, CitedAmendmentView,
+};
+use crate::domain::amendment_citation::UnlinkedCause;
 use crate::application::ports::scrutin_repository::{RepositoryError, ScrutinRepository};
 use crate::domain::actor::{ActorDirectory, ActorUid};
 use crate::domain::scrutin::{
-    GroupTally, NonVotingCause, Scrutin, ScrutinUid, TallyOrigin, VotePosition,
+    GroupTally, NonVotingCause, Scrutin, ScrutinUid, SubjectMentions, TallyOrigin, VotePosition,
 };
 
 /// Position nominale prete a l'affichage.
@@ -44,6 +49,15 @@ pub struct CorrectionView {
     pub malfunction: bool,
 }
 
+/// Un numero cite par l'objet: l'amendement trouve, ou la cause de l'absence de lien.
+#[derive(Debug, Clone)]
+pub struct CitedNumberView {
+    pub rank: u16,
+    pub cited_number: Option<String>,
+    pub amendment: Option<CitedAmendmentView>,
+    pub cause: Option<UnlinkedCause>,
+}
+
 #[derive(Debug, Clone)]
 pub struct ScrutinDetail {
     pub scrutin: Scrutin,
@@ -51,21 +65,26 @@ pub struct ScrutinDetail {
     pub corrections: Vec<CorrectionView>,
     /// Acteurs absents du referentiel: affiches par identifiant.
     pub unknown_actors: usize,
+    pub cited: Vec<CitedNumberView>,
+    pub unnumbered_identical_amendments: bool,
 }
 
 /// CU-03 — Consulter un scrutin.
 pub struct GetScrutinDetail<'a> {
     repository: &'a dyn ScrutinRepository,
+    citations: &'a dyn AmendmentCitationRepository,
     actor_repository: &'a dyn ActorRepository,
 }
 
 impl<'a> GetScrutinDetail<'a> {
     pub fn new(
         repository: &'a dyn ScrutinRepository,
+        citations: &'a dyn AmendmentCitationRepository,
         actor_repository: &'a dyn ActorRepository,
     ) -> Self {
         Self {
             repository,
+            citations,
             actor_repository,
         }
     }
@@ -84,6 +103,19 @@ impl<'a> GetScrutinDetail<'a> {
             .map(|v| v.actor_uid.clone())
             .chain(scrutin.corrections().iter().map(|c| c.actor_uid.clone()))
             .collect();
+
+        // Citations stockees, dans l'ordre de l'objet; leurs auteurs se
+        // nomment par le meme chargement du referentiel.
+        let mut rows = self
+            .citations
+            .citations_of(std::slice::from_ref(scrutin.uid()))
+            .await?;
+        rows.sort_by_key(|row| row.rank);
+        actor_uids.extend(author_uids(
+            rows.iter()
+                .filter_map(|row| row.amendment.as_ref())
+                .map(|cited| &cited.summary),
+        ));
         actor_uids.sort();
         actor_uids.dedup();
 
@@ -162,11 +194,37 @@ impl<'a> GetScrutinDetail<'a> {
             })
             .collect();
 
+        let cited = rows
+            .into_iter()
+            .map(|row| {
+                let full_summary = row
+                    .amendment
+                    .as_ref()
+                    .and_then(|cited| cited.summary.summary.clone());
+                let (rank, cited_number, cause) = (row.rank, row.cited_number.clone(), row.cause);
+                let amendment = cited_view_of(row, &directory).map(|mut view| {
+                    // Le detail sert l'expose entier, jamais l'apercu (RM-06).
+                    view.summary = full_summary;
+                    view
+                });
+                CitedNumberView {
+                    rank,
+                    cited_number,
+                    amendment,
+                    cause,
+                }
+            })
+            .collect();
+        let unnumbered_identical_amendments =
+            SubjectMentions::unnumbered_identical_amendments(scrutin.subject());
+
         Ok(Some(ScrutinDetail {
             scrutin,
             groups,
             corrections,
             unknown_actors,
+            cited,
+            unnumbered_identical_amendments,
         }))
     }
 }
@@ -218,6 +276,11 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
+    use crate::application::ports::amendment_citation_repository::{CitationRow, CitedAmendmentRow};
+    use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
+    use crate::application::use_cases::read_fakes::amendment_row;
+    use crate::domain::amendment_citation::LinkMethod;
+    use crate::domain::dossier::DossierUid;
     use crate::application::ports::scrutin_repository::{
         ScrutinFilter, ScrutinPage, ScrutinSummary,
     };
@@ -227,7 +290,7 @@ mod tests {
         BallotType, NewScrutin, NominalVote, Outcome, VoteCorrection, VoteSynthesis, VoteTally,
     };
 
-    fn scrutin() -> Scrutin {
+    fn scrutin_about(subject: &str) -> Scrutin {
         Scrutin::new(NewScrutin {
             uid: ScrutinUid::new("V1".into()).unwrap(),
             number: "1".into(),
@@ -239,7 +302,7 @@ mod tests {
             ballot_type: BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
             outcome: Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
             requester: None,
-            subject: "objet".into(),
+            subject: subject.into(),
             synthesis: VoteSynthesis {
                 voters: 3,
                 expressed: 3,
@@ -299,7 +362,9 @@ mod tests {
         .unwrap()
     }
 
-    struct StubScrutinRepository;
+    struct StubScrutinRepository {
+        subject: &'static str,
+    }
 
     #[async_trait]
     impl ScrutinRepository for StubScrutinRepository {
@@ -310,7 +375,7 @@ mod tests {
             unreachable!()
         }
         async fn by_uid(&self, uid: &ScrutinUid) -> Result<Option<Scrutin>, RepositoryError> {
-            Ok((uid.as_str() == "V1").then(scrutin))
+            Ok((uid.as_str() == "V1").then(|| scrutin_about(self.subject)))
         }
         async fn by_dossier(&self, _u: &str) -> Result<Vec<ScrutinSummary>, RepositoryError> {
             unreachable!()
@@ -374,24 +439,140 @@ mod tests {
     }
 
     async fn detail() -> ScrutinDetail {
-        let repository = StubScrutinRepository;
+        detail_of("objet", vec![]).await
+    }
+
+    async fn detail_of(subject: &'static str, rows: Vec<CitationRow>) -> ScrutinDetail {
+        let repository = StubScrutinRepository { subject };
+        let citations = InMemoryCitationRepository {
+            rows: Mutex::new(rows),
+            ..Default::default()
+        };
         let actors = StubActorRepository {
             requested: Mutex::new(vec![]),
         };
-        GetScrutinDetail::new(&repository, &actors)
+        GetScrutinDetail::new(&repository, &citations, &actors)
             .execute(&ScrutinUid::new("V1".into()).unwrap())
             .await
             .unwrap()
             .unwrap()
     }
 
+    fn linked_row(rank: u16, number: &str, by_cited_article: bool) -> CitationRow {
+        let mut summary = amendment_row();
+        summary.uid = format!("AM{number}");
+        summary.number = number.into();
+        summary.summary = Some("Expos\u{00e9} complet, sans aucune coupure.".into());
+        CitationRow {
+            scrutin: ScrutinUid::new("V1".into()).unwrap(),
+            rank,
+            cited_number: Some(number.into()),
+            amendment: Some(CitedAmendmentRow {
+                dossier_uid: DossierUid::new("DLR5L17N1".into()).unwrap(),
+                summary,
+            }),
+            cause: None,
+            method: LinkMethod { by_cited_article },
+        }
+    }
+
+    fn unlinked_row(rank: u16, number: Option<&str>, cause: UnlinkedCause) -> CitationRow {
+        CitationRow {
+            scrutin: ScrutinUid::new("V1".into()).unwrap(),
+            rank,
+            cited_number: number.map(str::to_string),
+            amendment: None,
+            cause: Some(cause),
+            method: LinkMethod {
+                by_cited_article: false,
+            },
+        }
+    }
+
+    #[tokio::test]
+    async fn should_tell_what_was_put_to_the_vote_with_whole_summary_and_method_when_scrutin_is_linked(
+    ) {
+        let detail = detail_of(
+            "l'amendement n\u{00b0} 12 \u{00e0} l'article 3",
+            vec![linked_row(0, "12", true)],
+        )
+        .await;
+
+        assert_eq!(detail.cited.len(), 1);
+        let cited = &detail.cited[0];
+        assert_eq!(cited.cause, None);
+        let amendment = cited.amendment.as_ref().unwrap();
+        assert_eq!(amendment.dossier_uid, "DLR5L17N1");
+        assert_eq!(amendment.number, "12");
+        assert_eq!(
+            amendment.summary.as_deref(),
+            Some("Expos\u{00e9} complet, sans aucune coupure.")
+        );
+        assert_eq!(amendment.author.name.as_deref(), Some("Jean Dupont"));
+        assert_eq!(
+            amendment.method.unwrap().labels(),
+            vec!["Num\u{00e9}ro d'amendement cit\u{00e9}", "Article cit\u{00e9}"]
+        );
+    }
+
+    #[tokio::test]
+    async fn should_give_each_unlinked_number_its_cause_when_subject_cites_several() {
+        let detail = detail_of(
+            "les amendements n\u{00b0} 7, 99 et 100",
+            vec![
+                linked_row(0, "7", false),
+                unlinked_row(1, Some("99"), UnlinkedCause::Unresolved),
+                unlinked_row(2, Some("100"), UnlinkedCause::Ambiguous),
+            ],
+        )
+        .await;
+
+        let causes: Vec<Option<UnlinkedCause>> = detail.cited.iter().map(|c| c.cause).collect();
+        assert_eq!(
+            causes,
+            vec![
+                None,
+                Some(UnlinkedCause::Unresolved),
+                Some(UnlinkedCause::Ambiguous)
+            ]
+        );
+        assert!(detail.cited[0].amendment.is_some());
+        assert!(detail.cited[1].amendment.is_none());
+        assert_eq!(detail.cited[1].cited_number.as_deref(), Some("99"));
+        assert_eq!(detail.cited[2].cited_number.as_deref(), Some("100"));
+    }
+
+    #[tokio::test]
+    async fn should_give_no_cited_amendment_when_subject_names_no_amendment() {
+        let detail = detail_of("l'ensemble du projet de loi", vec![]).await;
+
+        assert!(detail.cited.is_empty());
+        assert!(!detail.unnumbered_identical_amendments);
+    }
+
+    #[tokio::test]
+    async fn should_say_identical_amendments_are_unnumbered_when_subject_announces_them_without_numbers(
+    ) {
+        let detail = detail_of(
+            "les amendements identiques de suppression de l'article 5",
+            vec![unlinked_row(0, None, UnlinkedCause::NoNumber)],
+        )
+        .await;
+
+        assert!(detail.unnumbered_identical_amendments);
+        assert_eq!(detail.cited.len(), 1);
+        assert_eq!(detail.cited[0].cause, Some(UnlinkedCause::NoNumber));
+        assert_eq!(detail.cited[0].cited_number, None);
+    }
+
     #[tokio::test]
     async fn returns_nothing_for_an_unknown_scrutin() {
-        let repository = StubScrutinRepository;
+        let repository = StubScrutinRepository { subject: "objet" };
+        let citations = InMemoryCitationRepository::default();
         let actors = StubActorRepository {
             requested: Mutex::new(vec![]),
         };
-        let result = GetScrutinDetail::new(&repository, &actors)
+        let result = GetScrutinDetail::new(&repository, &citations, &actors)
             .execute(&ScrutinUid::new("V999".into()).unwrap())
             .await
             .unwrap();

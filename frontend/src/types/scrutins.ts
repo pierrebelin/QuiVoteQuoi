@@ -22,7 +22,10 @@ export interface ScrutinSummaryDto {
   uid: string
   number: string
   date: string
+  /** Objet officiel tel que publié par l'Assemblée. */
   subject: string
+  /** Libellé court calculé côté serveur ; l'objet tel quel quand aucune forme ne le reconnaît. */
+  short_label: string
   ballot_type: string
   outcome_code: string
   outcome_label: string
@@ -31,6 +34,8 @@ export interface ScrutinSummaryDto {
   dossier_label: string | null
   has_reconstructed_tallies: boolean
   official_url: string
+  /** Amendements rapprochés, dans l'ordre de citation ; vide si le scrutin n'est pas rapproché. */
+  cited: CitedAmendmentDto[]
 }
 
 export interface ScrutinListResponse {
@@ -91,6 +96,33 @@ export interface SynthesisDto {
   tally: TallyDto
 }
 
+export interface CitedAmendmentDto {
+  dossier_uid: string
+  number: string
+  target_title: string
+  /** Exposé entier : servi par le détail seulement, null dans la liste. */
+  summary: string | null
+  /** Aperçu de l'exposé (RM-05), null si la source n'en publie pas. */
+  summary_preview: string | null
+  summary_preview_truncated: boolean
+  author_name: string | null
+  author_group_abbrev: string | null
+  /** Couleur publiée du groupe au dépôt (RM-10), null si le groupe n'en publie pas. */
+  author_group_color: string | null
+  /** Ton du texte lisible sur la couleur du groupe. */
+  author_text_tone: 'white' | 'black' | null
+  cosignatory_count: number
+}
+
+export interface CitedNumberDto {
+  rank: number
+  cited_number: string | null
+  amendment: CitedAmendmentDto | null
+  method_labels: string[]
+  cause_code: string | null
+  cause_label: string | null
+}
+
 export interface ScrutinDetailDto {
   uid: string
   number: string
@@ -113,6 +145,8 @@ export interface ScrutinDetailDto {
   dossier_label: string | null
   official_url: string
   unknown_actors: number
+  cited: CitedNumberDto[]
+  unnumbered_identical_amendments: boolean
   coverage_note: string
 }
 

@@ -246,6 +246,40 @@ impl ParliamentaryGroup {
     pub fn is_dissolved(&self) -> bool {
         self.end_date.is_some()
     }
+
+    /// Ton du texte lisible sur la couleur publiee du groupe; `None` sans couleur.
+    pub fn text_tone(&self) -> Option<TextTone> {
+        let hex = self.color.as_deref()?.trim().trim_start_matches('#');
+        if hex.len() != 6 || !hex.is_ascii() {
+            return None;
+        }
+        let channel = |i: usize| u8::from_str_radix(&hex[i..i + 2], 16).ok().map(f64::from);
+        let (r, g, b) = (channel(0)?, channel(2)?, channel(4)?);
+        // Luminance percue (ITU-R BT.601), seuil a mi-echelle.
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+        Some(if luminance < 150.0 {
+            TextTone::Light
+        } else {
+            TextTone::Dark
+        })
+    }
+}
+
+/// Ton du texte posé sur la couleur d'un groupe.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TextTone {
+    Light,
+    Dark,
+}
+
+impl TextTone {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Light => "white",
+            Self::Dark => "black",
+        }
+    }
 }
 
 /// Qualite de l'appartenance, conservee telle qu'elle est publiee.
@@ -889,5 +923,39 @@ mod tests {
 
         assert!(dissolved.is_dissolved());
         assert_eq!(dissolved.label(), "\u{00c0} Droite");
+    }
+
+    fn colored_group(color: Option<&str>) -> ParliamentaryGroup {
+        ParliamentaryGroup::new(
+            GroupUid::new("PO1".into()).unwrap(),
+            17,
+            "Groupe".into(),
+            "GRP".into(),
+            color.map(str::to_string),
+            Some(date(2024, 7, 18)),
+            None,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn should_write_white_on_group_color_when_color_is_dark() {
+        let dark = colored_group(Some("#1A237E")).text_tone();
+        let light = colored_group(Some("#FFEB3B")).text_tone();
+        assert_eq!(
+            (dark.map(|t| t.as_str()), light.map(|t| t.as_str())),
+            (Some("white"), Some("black"))
+        );
+    }
+
+    #[test]
+    fn should_write_black_on_group_color_when_color_is_light() {
+        let tone = colored_group(Some("#FFEB3B")).text_tone();
+        assert_eq!(tone.map(|t| t.as_str()), Some("black"));
+    }
+
+    #[test]
+    fn should_give_no_tone_when_group_publishes_no_color() {
+        assert_eq!(colored_group(None).text_tone(), None);
     }
 }

@@ -1,5 +1,29 @@
+import type { TallyDto } from './scrutins'
+
 /** Origine du groupe affiché à côté d'un signataire (README.md §3.2). */
 export type GroupOrigin = 'published' | 'resolved_at_deposit' | 'unknown'
+
+/** Scrutin qui a mis un amendement aux voix, avec son décompte. */
+export interface AmendmentVoteDto {
+  scrutin_uid: string
+  scrutin_number: string
+  date: string
+  tally: TallyDto
+}
+
+/** Ancre posée sur la carte d'un amendement, que vise le détail d'un scrutin. */
+export function amendmentAnchor(number: string) {
+  return `amendement-${number.replace(/\s+/g, '-')}`
+}
+
+/**
+ * Carte d'un amendement dans son dossier, depuis un scrutin : l'onglet des
+ * scrutins et amendements, la page filtrée sur le numéro, l'ancre de la carte.
+ */
+export function amendmentCardPath(dossierUid: string, number: string) {
+  const params = new URLSearchParams({ tab: 'tableaux', amendement: number })
+  return `/dossiers/${dossierUid}?${params}#${amendmentAnchor(number)}`
+}
 
 export interface AmendmentDto {
   uid: string
@@ -13,6 +37,15 @@ export interface AmendmentDto {
   /** Groupe du signataire **à la date de dépôt**, jamais son groupe actuel. */
   author_group_label: string | null
   author_group_abbrev: string | null
+  /** Couleur publiée du groupe au dépôt (RM-10), null si le groupe n'en publie pas. */
+  author_group_color: string | null
+  /** Ton du texte lisible sur la couleur du groupe. */
+  author_text_tone: 'white' | 'black' | null
+  /** Aperçu de l'exposé (RM-05), null si la source n'en publie pas. */
+  summary_preview: string | null
+  summary_preview_truncated: boolean
+  /** Sort tel qu'affiché sur la carte (RM-08). */
+  fate_banner: string
   author_group_origin: GroupOrigin
   author_group_ambiguous: boolean
   fate_code: string
@@ -22,6 +55,8 @@ export interface AmendmentDto {
   /** Exposé sommaire entier. Le serveur ne le tronque jamais (RM-03). */
   summary: string | null
   cosignatory_count: number
+  /** Scrutins qui l'ont mis aux voix, chronologiques ; vide = jamais rapproché (RM-08). */
+  votes: AmendmentVoteDto[]
 }
 
 export interface AmendmentCoverageDto {

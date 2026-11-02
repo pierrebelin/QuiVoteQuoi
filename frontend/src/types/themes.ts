@@ -95,6 +95,21 @@ export interface ThemeRuleDto {
   statement: string
 }
 
+/** Liens établis et absences de lien du rapprochement scrutins–amendements. */
+export interface AmendmentLinkingDto {
+  linked: number
+  /** Parmi les liens, ceux où l'article cité a départagé plusieurs candidats. */
+  linked_by_cited_article: number
+  /** Une entrée par cause d'absence de lien, avec le libellé du domaine. */
+  absences: LinkAbsenceDto[]
+}
+
+export interface LinkAbsenceDto {
+  code: 'no_number' | 'no_dossier' | 'unresolved' | 'ambiguous'
+  label: string
+  count: number
+}
+
 export interface MethodResponse {
   families: FamilyCoverageDto[]
   max_families_per_text: number
@@ -114,6 +129,9 @@ export interface MethodResponse {
   dossiers_assigned: number
   /** Dossiers qu'aucun scrutin ne relie à un texte. */
   dossiers_without_text: number
+  amendment_linking: AmendmentLinkingDto
+  /** Ce que recouvre « non résolu », dit sous le compteur. */
+  amendment_linking_note: string
   extraction_rule: string
   model_scope: string
   rule_scope: string

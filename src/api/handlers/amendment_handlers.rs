@@ -18,6 +18,8 @@ pub struct AmendmentPageQuery {
     pub search: Option<String>,
     pub fate: Option<String>,
     pub group: Option<String>,
+    /// Numero exact: ouvre la page qui porte la carte (depuis un scrutin).
+    pub number: Option<String>,
 }
 
 /// CU-02 — Amendements d'un dossier.
@@ -35,12 +37,14 @@ pub async fn get_dossier_amendments(
         search: query.search.filter(|s| !s.trim().is_empty()),
         fate_code: query.fate.filter(|s| !s.trim().is_empty()),
         author_group_uid: query.group.filter(|s| !s.trim().is_empty()),
+        number: query.number.filter(|s| !s.trim().is_empty()),
         ..page
     };
 
     let amendments = BrowseDossierAmendments::new(
         state.amendment_repository.as_ref(),
         state.actor_repository.as_ref(),
+        state.amendment_citation_repository.as_ref(),
     )
     .execute(&uid, &page)
     .await

@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use application::ports::actor_repository::ActorRepository;
 use application::ports::actor_source::ActorSource;
+use application::ports::amendment_citation_repository::AmendmentCitationRepository;
 use application::ports::amendment_repository::AmendmentRepository;
 use application::ports::amendment_source::AmendmentSource;
 use application::ports::assembly_source::AssemblySource;
@@ -39,6 +40,7 @@ pub struct AppState {
     pub amendment_source: Arc<dyn AmendmentSource>,
     pub scrutin_repository: Arc<dyn ScrutinRepository>,
     pub amendment_repository: Arc<dyn AmendmentRepository>,
+    pub amendment_citation_repository: Arc<dyn AmendmentCitationRepository>,
     pub final_vote_repository: Arc<dyn FinalVoteRepository>,
     pub group_repository: Arc<dyn GroupRepository>,
     pub theme_repository: Arc<dyn ThemeRepository>,

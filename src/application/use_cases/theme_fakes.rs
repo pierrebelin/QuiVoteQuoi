@@ -28,6 +28,7 @@ pub struct InMemoryThemeRepository {
     pub assignments: Mutex<Vec<ThemeAssignment>>,
     pub awaiting: Mutex<Vec<DebatedText>>,
     pub awaiting_dossiers: Mutex<Vec<PendingDossier>>,
+    pub method_report: Mutex<Option<MethodReport>>,
 }
 
 impl InMemoryThemeRepository {
@@ -222,7 +223,12 @@ impl ThemeRepository for InMemoryThemeRepository {
     }
 
     async fn method_report(&self) -> Result<MethodReport, RepositoryError> {
-        unimplemented!("read model, teste sur la base")
+        Ok(self
+            .method_report
+            .lock()
+            .unwrap()
+            .clone()
+            .expect("method_report non programme"))
     }
 
     async fn text_count(&self) -> Result<i64, RepositoryError> {

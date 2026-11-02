@@ -13,6 +13,7 @@ use crate::application::use_cases::arbitrate_theme::{
     ArbitrateTheme, ArbitrationCommand, ArbitrationError,
 };
 use crate::application::use_cases::browse_themes::BrowseThemes;
+use crate::application::use_cases::describe_method::DescribeMethod;
 use crate::application::use_cases::extract_debated_texts::ExtractDebatedTexts;
 use crate::application::use_cases::propose_theme_families::ProposeThemeFamilies;
 use crate::domain::theme::{FamilyCode, TextKey};
@@ -24,13 +25,17 @@ pub async fn list_families(State(state): State<AppState>) -> Json<FamiliesRespon
     Json(FamiliesResponse::new(families))
 }
 
-/// CU-06 — Page methode.
+/// CU-06 — Page methode, avec les compteurs du rapprochement scrutins-amendements
+/// (SUJET CU-01).
 pub async fn get_method(State(state): State<AppState>) -> Result<Json<MethodResponse>, ApiError> {
-    let report = BrowseThemes::new(state.theme_repository.as_ref())
-        .method()
-        .await
-        .map_err(ApiError::internal)?;
-    Ok(Json(MethodResponse::from(report)))
+    let overview = DescribeMethod::new(
+        state.theme_repository.as_ref(),
+        state.amendment_citation_repository.as_ref(),
+    )
+    .execute()
+    .await
+    .map_err(ApiError::internal)?;
+    Ok(Json(MethodResponse::from(overview)))
 }
 
 /// CU-05 — Textes sans famille. Atteignable depuis toute page de theme (RM-01).
