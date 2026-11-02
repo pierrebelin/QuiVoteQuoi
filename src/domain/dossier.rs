@@ -30,7 +30,7 @@ pub struct DossierUid(String);
 
 impl DossierUid {
     pub fn new(raw: String) -> Result<Self, DossierError> {
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(DossierError::EmptyDossierUid);
         }
         Ok(Self(raw))
@@ -52,7 +52,7 @@ pub struct Committee(String);
 
 impl Committee {
     pub fn new(raw: String) -> Result<Self, DossierError> {
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(DossierError::EmptyCommittee);
         }
         Ok(Self(raw))
@@ -253,7 +253,7 @@ impl Initiator {
     /// Initiateur non resolu: le nom brut est conserve, aucun groupe n'est
     /// devine (RM-04).
     pub fn unresolved(full_name: String) -> Result<Self, DossierError> {
-        if full_name.is_empty() {
+        if full_name.trim().is_empty() {
             return Err(DossierError::EmptyInitiatorName);
         }
         Ok(Self {
@@ -277,7 +277,7 @@ impl Initiator {
         reference_date: Option<NaiveDate>,
         official_url: Option<String>,
     ) -> Result<Self, DossierError> {
-        if full_name.is_empty() {
+        if full_name.trim().is_empty() {
             return Err(DossierError::EmptyInitiatorName);
         }
         if group.is_some() && reference_date.is_none() {
@@ -914,6 +914,14 @@ mod tests {
     }
 
     #[test]
+    fn dossier_uid_rejects_blank() {
+        assert_eq!(
+            DossierUid::new(" \t".into()).unwrap_err(),
+            DossierError::EmptyDossierUid
+        );
+    }
+
+    #[test]
     fn dossier_uid_accepts_valid() {
         let uid = DossierUid::new("DLR5L17N12345".into()).unwrap();
         assert_eq!(uid.as_str(), "DLR5L17N12345");
@@ -958,6 +966,30 @@ mod tests {
     fn initiator_rejects_empty_name() {
         assert_eq!(
             Initiator::unresolved("".into()).unwrap_err(),
+            DossierError::EmptyInitiatorName
+        );
+    }
+
+    #[test]
+    fn initiator_rejects_blank_name() {
+        assert_eq!(
+            Initiator::unresolved(" \t".into()).unwrap_err(),
+            DossierError::EmptyInitiatorName
+        );
+    }
+
+    #[test]
+    fn resolved_initiator_rejects_blank_name() {
+        assert_eq!(
+            Initiator::resolved(
+                " \t".into(),
+                ActorUid::new("PA1".into()).unwrap(),
+                ActorRole::Deputy,
+                None,
+                None,
+                None,
+            )
+            .unwrap_err(),
             DossierError::EmptyInitiatorName
         );
     }
@@ -1049,6 +1081,14 @@ mod tests {
     fn committee_rejects_empty() {
         assert_eq!(
             Committee::new("".into()).unwrap_err(),
+            DossierError::EmptyCommittee
+        );
+    }
+
+    #[test]
+    fn committee_rejects_blank() {
+        assert_eq!(
+            Committee::new(" \t".into()).unwrap_err(),
             DossierError::EmptyCommittee
         );
     }

@@ -26,7 +26,7 @@ pub struct ActorUid(String);
 
 impl ActorUid {
     pub fn new(raw: String) -> Result<Self, ActorError> {
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(ActorError::EmptyActorUid);
         }
         Ok(Self(raw))
@@ -48,7 +48,7 @@ pub struct GroupUid(String);
 
 impl GroupUid {
     pub fn new(raw: String) -> Result<Self, ActorError> {
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(ActorError::EmptyGroupUid);
         }
         Ok(Self(raw))
@@ -566,9 +566,25 @@ mod tests {
     }
 
     #[test]
+    fn actor_uid_rejects_blank() {
+        assert_eq!(
+            ActorUid::new(" \t".into()).unwrap_err(),
+            ActorError::EmptyActorUid
+        );
+    }
+
+    #[test]
     fn group_uid_rejects_empty() {
         assert_eq!(
             GroupUid::new("".into()).unwrap_err(),
+            ActorError::EmptyGroupUid
+        );
+    }
+
+    #[test]
+    fn group_uid_rejects_blank() {
+        assert_eq!(
+            GroupUid::new(" \t".into()).unwrap_err(),
             ActorError::EmptyGroupUid
         );
     }
