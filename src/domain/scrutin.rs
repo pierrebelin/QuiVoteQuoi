@@ -11,7 +11,79 @@ use chrono::NaiveDate;
 use serde::Serialize;
 
 use super::actor::{ActorDirectory, ActorUid, GroupUid};
+use super::amendment::amendment_numbers_in_subject;
+use super::article::ArticleNumber;
 use super::dossier::DossierUid;
+
+/// Libelle court d'un scrutin, calcule depuis son objet par quatre formes
+/// fixes (RM-09); l'objet tel quel quand aucune ne le reconnait.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct ShortLabel(String);
+
+impl ShortLabel {
+    pub fn from_subject(subject: &str) -> Self {
+        let normalized = subject.trim().replace('\u{2019}', "'");
+        let lower = normalized.to_lowercase();
+        let label = if lower.starts_with("l'amendement") {
+            Self::amendment(&normalized["l'amendement".len()..])
+        } else if lower.starts_with("l'ensemble") {
+            Some("Vote sur l'ensemble du texte".to_string())
+        } else if lower.starts_with("l'article") {
+            ArticleNumber::in_text(&normalized).map(|n| format!("Vote sur l'article {n}"))
+        } else if lower.starts_with("la motion ") {
+            Self::motion(&normalized["la motion ".len()..])
+        } else {
+            None
+        };
+        Self(label.unwrap_or_else(|| subject.to_string()))
+    }
+
+    /// « n° 1376 de Mme Thomin apres l'article 15 ... » -> forme courte.
+    fn amendment(rest: &str) -> Option<String> {
+        let rest = rest.trim().strip_prefix("n\u{00b0}")?.trim_start();
+        let (number, rest) = rest.split_once(' ')?;
+        let rest = rest.strip_prefix("de ")?;
+        let end = [" apr\u{00e8}s ", " avant ", " \u{00e0} l'"]
+            .iter()
+            .filter_map(|m| rest.find(m))
+            .min()
+            .unwrap_or(rest.len());
+        let author = rest[..end].trim();
+        let mut label = format!("Amendement n\u{00b0} {number}");
+        if !author.is_empty() {
+            label.push_str(&format!(" de {author}"));
+        }
+        if let Some(article) = ArticleNumber::in_text(&rest[end..]) {
+            label.push_str(&format!(", article {article}"));
+        }
+        Some(label)
+    }
+
+    /// « de rejet prealable, deposee par ... » -> « Motion de rejet prealable ».
+    fn motion(rest: &str) -> Option<String> {
+        let kind = rest.split(',').next()?.trim().trim_end_matches('.');
+        let kind = kind.split(" d\u{00e9}pos\u{00e9}").next()?.trim();
+        kind.strip_prefix("de ")
+            .filter(|k| !k.is_empty())
+            .map(|_| format!("Motion {kind}"))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Ce que l'objet d'un scrutin annonce sans le nommer (SPEC-sujet-amendements).
+pub struct SubjectMentions;
+
+impl SubjectMentions {
+    /// Vrai quand l'objet annonce des amendements identiques sans en donner un
+    /// seul numero.
+    pub fn unnumbered_identical_amendments(subject: &str) -> bool {
+        subject.to_lowercase().contains("amendements identiques")
+            && amendment_numbers_in_subject(subject).is_empty()
+    }
+}
 
 /// Reference de groupe factice publiee par la source quand la ventilation par
 /// groupe est perdue. La repartition se reconstruit alors depuis les positions
@@ -680,6 +752,19 @@ mod tests {
     }
 
     #[test]
+    fn should_detect_unnumbered_identical_amendments_when_subject_announces_them() {
+        assert!(SubjectMentions::unnumbered_identical_amendments(
+            "les amendements identiques de M. Martin, Mme Durand et plusieurs de leurs collègues après l'article 3 du projet de loi"
+        ));
+        assert!(!SubjectMentions::unnumbered_identical_amendments(
+            "les amendements identiques n° 12 et 45 de M. Martin après l'article 3 du projet de loi"
+        ));
+        assert!(!SubjectMentions::unnumbered_identical_amendments(
+            "l'amendement n° 12 de M. Martin après l'article 3 du projet de loi"
+        ));
+    }
+
+    #[test]
     fn scrutin_uid_rejects_empty() {
         assert_eq!(
             ScrutinUid::new("  ".into()).unwrap_err(),
@@ -1095,5 +1180,49 @@ mod tests {
         )
         .unwrap();
         assert!(!rejected.is_adopted());
+    }
+
+    fn short(subject: &str) -> String {
+        ShortLabel::from_subject(subject).as_str().to_string()
+    }
+
+    #[test]
+    fn should_label_article_vote_when_subject_puts_an_article_to_the_vote() {
+        assert_eq!(
+            short("l'article 15 du projet de loi de finances pour 2026"),
+            "Vote sur l'article 15"
+        );
+    }
+
+    #[test]
+    fn should_label_amendment_with_cited_author_and_article_when_subject_names_them() {
+        assert_eq!(
+            short(
+                "l'amendement n\u{00b0} 1376 de Mme Thomin apr\u{00e8}s l'article 15 du projet de loi de finances pour 2026"
+            ),
+            "Amendement n\u{00b0} 1376 de Mme Thomin, article 15"
+        );
+    }
+
+    #[test]
+    fn should_label_whole_text_vote_when_subject_puts_the_whole_text_to_the_vote() {
+        assert_eq!(
+            short("l'ensemble du projet de loi de finances pour 2026"),
+            "Vote sur l'ensemble du texte"
+        );
+    }
+
+    #[test]
+    fn should_label_motion_with_its_type_when_subject_is_a_motion() {
+        assert_eq!(
+            short("la motion de rejet pr\u{00e9}alable, d\u{00e9}pos\u{00e9}e par Mme Panot, du projet de loi."),
+            "Motion de rejet pr\u{00e9}alable"
+        );
+    }
+
+    #[test]
+    fn should_keep_subject_as_is_when_no_form_recognises_it() {
+        let subject = "la d\u{00e9}claration du Gouvernement sur la politique \u{00e9}nerg\u{00e9}tique";
+        assert_eq!(short(subject), subject);
     }
 }

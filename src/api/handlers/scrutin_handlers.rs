@@ -21,10 +21,14 @@ pub async fn list_scrutins(
     let filter: ScrutinFilter = params.into();
     let offset = filter.offset.max(0);
 
-    let page = ListScrutins::new(state.scrutin_repository.as_ref())
-        .execute(filter)
-        .await
-        .map_err(ApiError::internal)?;
+    let page = ListScrutins::new(
+        state.scrutin_repository.as_ref(),
+        state.amendment_citation_repository.as_ref(),
+        state.actor_repository.as_ref(),
+    )
+    .execute(filter)
+    .await
+    .map_err(ApiError::internal)?;
 
     Ok(Json(ScrutinListResponse::from((page, offset))))
 }
@@ -38,6 +42,7 @@ pub async fn get_scrutin_detail(
 
     let detail = GetScrutinDetail::new(
         state.scrutin_repository.as_ref(),
+        state.amendment_citation_repository.as_ref(),
         state.actor_repository.as_ref(),
     )
     .execute(&uid)
@@ -59,10 +64,14 @@ pub async fn get_dossier_scrutins(
     let mut filter: ScrutinFilter = params.into();
     filter.dossier_uid = Some(uid);
     let offset = filter.offset.max(0);
-    let page = ListScrutins::new(state.scrutin_repository.as_ref())
-        .execute(filter)
-        .await
-        .map_err(ApiError::internal)?;
+    let page = ListScrutins::new(
+        state.scrutin_repository.as_ref(),
+        state.amendment_citation_repository.as_ref(),
+        state.actor_repository.as_ref(),
+    )
+    .execute(filter)
+    .await
+    .map_err(ApiError::internal)?;
 
     let scrutins: Vec<ScrutinSummaryDto> = page
         .items

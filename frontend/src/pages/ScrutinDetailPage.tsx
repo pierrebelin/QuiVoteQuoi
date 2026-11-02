@@ -17,6 +17,7 @@ import {
   VoteBar,
 } from '../components/ui'
 import { GroupDot } from './GroupListPage'
+import { amendmentCardPath } from '../types/amendments'
 import type { GroupBreakdownDto, ScrutinDetailDto } from '../types/scrutins'
 import {
   formatDate,
@@ -362,6 +363,62 @@ export default function ScrutinDetailPage() {
             non-votants volontaires à part.
           </p>
         </Card>
+      )}
+
+      {(data.cited.length > 0 || data.unnumbered_identical_amendments) && (
+        <section className="mb-5">
+          <SectionTitle>Ce qui a été mis aux voix</SectionTitle>
+          <div className="space-y-2">
+            {data.cited.map((c) => (
+              <Card key={c.rank}>
+                {c.amendment ? (
+                  <div>
+                    <p className="text-sm font-medium">
+                      Amendement n° {c.amendment.number} —{' '}
+                      {c.amendment.target_title}
+                    </p>
+                    {c.amendment.author_name && (
+                      <p className="text-xs text-ink-faint">
+                        {c.amendment.author_name}
+                        {c.amendment.author_group_abbrev &&
+                          ` (${c.amendment.author_group_abbrev})`}
+                      </p>
+                    )}
+                    {c.amendment.summary && (
+                      <p className="mt-2 whitespace-pre-line text-sm leading-relaxed">
+                        {c.amendment.summary}
+                      </p>
+                    )}
+                    <p className="mt-2 text-xs text-ink-faint">
+                      Lien établi par : {c.method_labels.join(' + ')}
+                    </p>
+                    {/* Pas de page officielle de l'amendement (AMENDEMENTS H8) :
+                        le renvoi mène à sa carte, dans son dossier. */}
+                    <Link
+                      to={amendmentCardPath(c.amendment.dossier_uid, c.amendment.number)}
+                      className="mt-1 inline-block text-xs font-medium text-accent hover:underline"
+                    >
+                      Voir la carte de l'amendement dans le dossier
+                    </Link>
+                  </div>
+                ) : (
+                  <p className="text-sm text-ink-faint">
+                    {c.cited_number
+                      ? `Amendement n° ${c.cited_number} : `
+                      : ''}
+                    {c.cause_label}
+                  </p>
+                )}
+              </Card>
+            ))}
+            {data.unnumbered_identical_amendments && (
+              <p className="text-xs text-ink-faint">
+                L'objet annonce des amendements identiques sans en donner le
+                numéro.
+              </p>
+            )}
+          </div>
+        </section>
       )}
 
       <section className="mb-5">

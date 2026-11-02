@@ -1,7 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
-import { Card, ErrorPanel, Note, Pill, SectionTitle, type PillTone } from './ui'
-import type { AmendmentDto, DossierAmendmentsResponse } from '../types/amendments'
+import { Link, useSearchParams } from 'react-router'
+import {
+  Card,
+  ErrorPanel,
+  Note,
+  Pill,
+  SectionTitle,
+  TallyLine,
+  type PillTone,
+} from './ui'
+import {
+  amendmentAnchor,
+  type AmendmentDto,
+  type DossierAmendmentsResponse,
+} from '../types/amendments'
+import AmendmentAuthor from './AmendmentAuthor'
 
 const PAGE_SIZE = 5
 
@@ -59,58 +73,6 @@ function formatDate(iso: string) {
   })
 }
 
-/** Un signataire nommé, avec le groupe qu'il avait au dépôt. */
-function Author({ amendment }: { amendment: AmendmentDto }) {
-  const name = amendment.author_name ?? amendment.author_actor_uid ?? 'Auteur non identifié'
-
-  return (
-    <span className="text-ink-soft">
-      {amendment.author_official_url ? (
-        <a
-          href={amendment.author_official_url}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium text-ink hover:underline"
-        >
-          {name}
-        </a>
-      ) : (
-        <span className="font-medium text-ink">{name}</span>
-      )}
-
-      {amendment.author_group_abbrev && (
-        <span
-          className="ml-1.5"
-          title={
-            amendment.author_group_origin === 'resolved_at_deposit'
-              ? `${amendment.author_group_label} — groupe du signataire à la date de dépôt, reconstitué depuis les appartenances datées`
-              : `${amendment.author_group_label} — groupe publié par la source sur cet amendement`
-          }
-        >
-          ({amendment.author_group_abbrev})
-        </span>
-      )}
-
-      {amendment.author_group_ambiguous && (
-        <span
-          className="ml-1.5 text-ink-faint"
-          title="Deux groupes concurrents revendiquent ce signataire à la date de dépôt : aucun n'est affiché."
-        >
-          (groupe indéterminé)
-        </span>
-      )}
-
-      {amendment.cosignatory_count > 0 && (
-        <span className="text-ink-faint">
-          {' '}
-          et {amendment.cosignatory_count} cosignataire
-          {amendment.cosignatory_count > 1 ? 's' : ''}
-        </span>
-      )}
-    </span>
-  )
-}
-
 function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
   const summary = amendment.summary
     ? /[<&]/.test(amendment.summary)
@@ -123,12 +85,8 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-mono text-xs text-ink-faint">n° {amendment.number}</span>
         <span className="text-sm font-medium text-ink">{amendment.target_title}</span>
-        <Author amendment={amendment} />
-        {amendment.fate_label && (
-          <Pill tone={fateTones[amendment.fate_code] ?? 'neutral'}>
-            {amendment.fate_label}
-          </Pill>
-        )}
+        <AmendmentAuthor amendment={amendment} />
+        <Pill tone={fateTones[amendment.fate_code] ?? 'neutral'}>{amendment.fate_banner}</Pill>
         {amendment.deposited_on && (
           <span className="text-xs text-ink-faint">
             déposé le {formatDate(amendment.deposited_on)}
@@ -138,8 +96,11 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
 
       {summary ? (
         <details className="mt-2">
-          <summary className="cursor-pointer text-xs font-medium text-ink-soft hover:text-ink">
-            Exposé sommaire
+          <summary className="cursor-pointer text-sm leading-relaxed text-ink-soft hover:text-ink">
+            {amendment.summary_preview ?? summary}
+            {amendment.summary_preview_truncated && (
+              <span className="ml-1 text-xs font-medium underline">Lire la suite</span>
+            )}
           </summary>
           {/* Verbatim : le texte du signataire, ni résumé ni abrégé (RM-03). */}
           <p className="mt-1.5 whitespace-pre-wrap text-sm leading-relaxed text-ink-soft">
@@ -151,6 +112,30 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
           La source ne publie pas d'exposé sommaire pour cet amendement.
         </p>
       )}
+
+      {/* Pied de carte (RM-08) : les scrutins qui l'ont mis aux voix, du plus
+          ancien au plus récent, ou la mention qu'aucun n'est rapproché. */}
+      <div className="mt-3 border-t border-line pt-2 text-xs text-ink-faint">
+        {amendment.votes.length > 0 ? (
+          <ul className="space-y-1">
+            {amendment.votes.map((vote) => (
+              <li key={vote.scrutin_uid} className="flex flex-wrap items-baseline gap-x-2">
+                <span>Mis aux voix ·</span>
+                <Link
+                  to={`/scrutins/${vote.scrutin_uid}`}
+                  className="font-medium text-accent hover:underline"
+                >
+                  scrutin n° {vote.scrutin_number}
+                </Link>
+                <span>{formatDate(vote.date)}</span>
+                <TallyLine tally={vote.tally} dense />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>Aucun scrutin public rapproché</p>
+        )}
+      </div>
     </Card>
   )
 }
@@ -170,6 +155,10 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
   const [group, setGroup] = useState(initialGroup)
   const [search, setSearch] = useState('')
   const [draft, setDraft] = useState('')
+  // Depuis le détail d'un scrutin : `?amendement=<numéro>` ouvre la page qui
+  // porte la carte (le serveur filtre sur ce numéro exact, paramètre `number`).
+  const [searchParams, setSearchParams] = useSearchParams()
+  const number = searchParams.get('amendement') ?? ''
 
   useEffect(() => {
     if (initialGroup) {
@@ -185,6 +174,7 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
   if (fate) params.set('fate', fate)
   if (group) params.set('group', group)
   if (search) params.set('search', search)
+  if (number) params.set('number', number)
 
   const { data, isLoading, isError, error } = useQuery<DossierAmendmentsResponse>({
     queryKey: ['dossier-amendements', uid, params.toString()],
@@ -203,6 +193,22 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
     setter(value)
     setOffset(0)
   }
+  const showAll = () => {
+    const next = new URLSearchParams(searchParams)
+    next.delete('amendement')
+    setSearchParams(next, { replace: true })
+    setOffset(0)
+  }
+
+  // Les cartes arrivent après la page : le navigateur ne peut pas suivre
+  // l'ancre seul.
+  useEffect(() => {
+    if (number && data) {
+      document
+        .getElementById(amendmentAnchor(number))
+        ?.scrollIntoView({ block: 'center' })
+    }
+  }, [number, data])
 
   return (
     <section id="dossier-amendements" className="mb-6">
@@ -250,6 +256,19 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
         </select>
       </div>
 
+      {number && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface-soft px-3 py-2 text-xs text-ink-soft">
+          <span>Amendement n° {number}, ouvert depuis un scrutin.</span>
+          <button
+            type="button"
+            onClick={showAll}
+            className="font-medium text-accent hover:underline"
+          >
+            Afficher tous les amendements du dossier
+          </button>
+        </div>
+      )}
+
       {isLoading && (
         <p className="animate-pulse text-sm text-ink-faint">
           Chargement des amendements…
@@ -270,12 +289,21 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
             <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
               {data.coverage.base_total === 0
                 ? "Les amendements ne sont pas encore ingérés sur ce site. Cette section restera vide jusqu'à la première passe d'ingestion."
-                : "Aucun amendement ingéré ne se rattache à un texte de ce dossier. Cela ne signifie pas qu'aucun amendement n'a été déposé sur ce texte."}
+                : number
+                  ? `Aucun amendement n° ${number} n'est ingéré pour ce dossier.`
+                  : "Aucun amendement ingéré ne se rattache à un texte de ce dossier. Cela ne signifie pas qu'aucun amendement n'a été déposé sur ce texte."}
             </p>
           ) : (
             <>
               {data.amendments.map((amendment) => (
-                <AmendmentRow key={amendment.uid} amendment={amendment} />
+                // L'ancre que vise le détail d'un scrutin (SUJET CU-03).
+                <div
+                  key={amendment.uid}
+                  id={amendmentAnchor(amendment.number)}
+                  className="scroll-mt-20"
+                >
+                  <AmendmentRow amendment={amendment} />
+                </div>
               ))}
 
               <div className="flex items-center justify-between gap-3 pt-1">

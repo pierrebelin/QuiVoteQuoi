@@ -54,6 +54,10 @@ fn push_filters(query: &mut QueryBuilder<'_, Postgres>, page: &AmendmentPageRequ
         query.push_bind(format!("%{search}%"));
         query.push(")");
     }
+    if let Some(number) = page.number.as_deref() {
+        query.push(" AND a.number = ");
+        query.push_bind(number.to_string());
+    }
     if let Some(fate) = page.fate_code.as_deref() {
         if fate == "other" {
             query.push(" AND a.fate_code NOT IN ('adopted', 'rejected')");

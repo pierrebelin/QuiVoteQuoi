@@ -182,6 +182,7 @@ pub async fn refresh_dossiers(
         state.scrutin_repository.as_ref(),
         state.amendment_source.as_ref(),
         state.amendment_repository.as_ref(),
+        state.amendment_citation_repository.as_ref(),
         state.theme_repository.as_ref(),
         state.theme_classifier.as_ref(),
         config::theme_batch_per_refresh(),

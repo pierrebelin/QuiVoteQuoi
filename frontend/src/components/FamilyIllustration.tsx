@@ -195,9 +195,11 @@ const FALLBACK: Art = {
 export function FamilyIllustration({
   code,
   className = '',
+  glyphClassName = 'size-9',
 }: {
   code: string
   className?: string
+  glyphClassName?: string
 }) {
   const art = ART[code] ?? FALLBACK
   return (
@@ -213,7 +215,7 @@ export function FamilyIllustration({
         strokeWidth={1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
-        className="size-9 transition-transform duration-300 group-hover:scale-110"
+        className={`${glyphClassName} transition-transform duration-300 group-hover:scale-110`}
       >
         {art.glyph}
       </svg>

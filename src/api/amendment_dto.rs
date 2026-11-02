@@ -1,10 +1,13 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
+use super::final_vote_dto::TallyDto;
+use crate::application::ports::amendment_citation_repository::AmendmentVote;
 use crate::application::ports::amendment_repository::AmendmentGroupOption;
 use crate::application::ports::amendment_repository::DossierAmendmentCoverage;
 use crate::application::use_cases::browse_dossier_amendments::{AmendmentView, DossierAmendments};
 use crate::application::use_cases::refresh_amendments::AmendmentsSummary;
+use crate::domain::amendment::SummaryPreview;
 
 /// RM-03. Le site reproduit, il ne redige pas.
 pub const AMENDMENT_SOURCE_NOTE: &str = "L'exposé sommaire est reproduit mot pour mot, \
@@ -38,6 +41,15 @@ pub struct AmendmentDto {
     /// Groupe du signataire **a la date de depot** (RM-02).
     pub author_group_label: Option<String>,
     pub author_group_abbrev: Option<String>,
+    /// Couleur publiee du groupe (RM-10); `None` quand il n'en publie pas.
+    pub author_group_color: Option<String>,
+    /// `white` ou `black`: ton du texte lisible sur la couleur du groupe.
+    pub author_text_tone: Option<String>,
+    /// Apercu de l'expose (RM-05); `None` quand la source n'en publie pas.
+    pub summary_preview: Option<String>,
+    pub summary_preview_truncated: bool,
+    /// Sort tel qu'il s'affiche sur la carte (RM-08).
+    pub fate_banner: String,
     /// `published`, `resolved_at_deposit` ou `unknown`. Sert a l'affichage: un
     /// groupe reconstitue et un groupe publie ne se presentent pas pareil.
     pub author_group_origin: String,
@@ -51,20 +63,50 @@ pub struct AmendmentDto {
     /// Expose sommaire entier. Jamais tronque cote serveur (RM-03).
     pub summary: Option<String>,
     pub cosignatory_count: i64,
+    /// Scrutins qui l'ont mis aux voix, chronologiques; vide = jamais rapproche (RM-08).
+    pub votes: Vec<AmendmentVoteDto>,
+}
+
+#[derive(Serialize)]
+pub struct AmendmentVoteDto {
+    pub scrutin_uid: String,
+    pub scrutin_number: String,
+    pub date: NaiveDate,
+    pub tally: TallyDto,
+}
+
+impl From<AmendmentVote> for AmendmentVoteDto {
+    fn from(vote: AmendmentVote) -> Self {
+        Self {
+            scrutin_uid: vote.scrutin_uid.as_str().to_string(),
+            scrutin_number: vote.scrutin_number,
+            date: vote.date,
+            tally: vote.tally.into(),
+        }
+    }
 }
 
 impl From<AmendmentView> for AmendmentDto {
     fn from(view: AmendmentView) -> Self {
         let summary = view.summary;
+        let (summary_preview, summary_preview_truncated) = match view.preview {
+            SummaryPreview::Unpublished => (None, false),
+            SummaryPreview::Text { text, truncated } => (Some(text), truncated),
+        };
         Self {
+            author_group_color: view.author.group_color,
+            author_text_tone: view.author.text_tone.map(|t| t.as_str().to_string()),
+            summary_preview,
+            summary_preview_truncated,
+            fate_banner: view.fate_banner.label().to_string(),
             uid: summary.uid,
             number: summary.number,
             target_title: summary.target_title,
             target_kind: summary.target_kind,
-            author_name: view.author_name.or(summary.author_label),
-            author_official_url: view.author_official_url,
-            author_group_label: view.author_group_label,
-            author_group_abbrev: view.author_group_abbrev,
+            author_name: view.author.name.or(summary.author_label),
+            author_official_url: view.author.official_url,
+            author_group_label: view.author.group_label,
+            author_group_abbrev: view.author.group_abbrev,
             author_kind: summary.author_kind,
             author_actor_uid: summary.author_actor_uid,
             author_group_origin: summary.author_group_origin,
@@ -75,6 +117,7 @@ impl From<AmendmentView> for AmendmentDto {
             deposited_on: summary.deposited_on,
             summary: summary.summary,
             cosignatory_count: summary.cosignatory_count,
+            votes: view.votes.into_iter().map(Into::into).collect(),
         }
     }
 }

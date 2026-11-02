@@ -5,6 +5,8 @@ import Hemicycle from '../components/Hemicycle'
 import ScrutinList, { CoverageNote } from '../components/ScrutinList'
 import { siegesDesGroupes, tallyDesVotes } from '../components/sieges'
 import { Card, ErrorPanel, Loading, Note, TallyLine } from '../components/ui'
+import { ALL_LOGOS } from '../content/logos'
+import { PORTRAITS } from '../content/portraits'
 import { fetchJson } from '../lib/fetchJson'
 import { GITHUB_REPOSITORY_URL } from '../lib/repository'
 import type { MethodResponse } from '../types/themes'
@@ -580,6 +582,38 @@ export default function HomePage() {
           >
             data.assemblee-nationale.fr ↗
           </a>
+          <details className="mt-4 border-t border-line pt-3 text-sm text-ink-soft">
+            <summary className="cursor-pointer font-medium text-ink">Crédits des logos et des portraits</summary>
+            <p className="mt-2 leading-relaxed">
+              Les logos des groupes et des partis sont reproduits depuis Wikimedia
+              Commons, sous la licence indiquée. Ils identifient une organisation et
+              n’engagent aucune d’elles envers ce site.
+            </p>
+            <ul className="mt-2 space-y-1 text-xs">
+              {ALL_LOGOS.map((logo) => (
+                <li key={logo.src}>
+                  <a href={logo.credit.page} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                    {logo.credit.file}
+                  </a>{' '}
+                  · {logo.credit.author} · {logo.credit.license}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 leading-relaxed">
+              Les portraits des candidats viennent aussi de Wikimedia Commons. Ils
+              sont réduits et réencodés, et datés de leur prise de vue.
+            </p>
+            <ul className="mt-2 space-y-1 text-xs">
+              {Object.values(PORTRAITS).map((portrait) => (
+                <li key={portrait.src}>
+                  <a href={portrait.credit.page} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+                    {portrait.credit.file}
+                  </a>{' '}
+                  · {portrait.credit.author} · {portrait.credit.license}
+                </li>
+              ))}
+            </ul>
+          </details>
         </Card>
       </Section>
     </div>

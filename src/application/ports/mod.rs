@@ -1,6 +1,7 @@
 pub mod actor_repository;
 pub mod actor_source;
 pub mod amendment_repository;
+pub mod amendment_citation_repository;
 pub mod amendment_source;
 pub mod assembly_source;
 pub mod candidate_repository;
