@@ -10,7 +10,7 @@ use std::collections::BTreeMap;
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use super::actor::{ActorUid, GroupUid};
+use super::actor::{ActorDirectory, ActorUid, GroupUid};
 
 /// Reference de groupe factice publiee par la source quand la ventilation par
 /// groupe est perdue. La repartition se reconstruit alors depuis les positions
@@ -359,6 +359,12 @@ impl ReconstructionReport {
     }
 }
 
+/// Page officielle d'un scrutin sur le site de l'Assemblee (RM-07). Une seule
+/// forme d'adresse, partagee par le domaine et par les reponses de l'API.
+pub fn scrutin_official_url(legislature: u16, number: &str) -> String {
+    format!("https://www.assemblee-nationale.fr/dyn/{legislature}/scrutins/{number}")
+}
+
 #[allow(clippy::too_many_arguments)]
 impl Scrutin {
     pub fn new(
@@ -447,9 +453,6 @@ impl Scrutin {
     pub fn nominal_votes(&self) -> &[NominalVote] {
         &self.nominal_votes
     }
-    pub fn nominal_votes_mut(&mut self) -> &mut [NominalVote] {
-        &mut self.nominal_votes
-    }
     pub fn corrections(&self) -> &[VoteCorrection] {
         &self.corrections
     }
@@ -459,10 +462,7 @@ impl Scrutin {
 
     /// Page officielle du scrutin (RM-07).
     pub fn official_url(&self) -> String {
-        format!(
-            "https://www.assemblee-nationale.fr/dyn/{}/scrutins/{}",
-            self.legislature, self.number
-        )
+        scrutin_official_url(self.legislature, &self.number)
     }
 
     /// Vrai quand au moins une ligne de groupe a ete reconstruite: declenche la
@@ -480,7 +480,7 @@ impl Scrutin {
 
     /// Acteurs dont le groupe reste a resoudre parce qu'ils votent sous la
     /// sentinelle. L'appelant leur cherche leur appartenance a la date du
-    /// scrutin, puis appelle `reconstruct_sentinel_groups`.
+    /// scrutin, puis appelle `attach_groups`.
     pub fn actors_under_sentinel(&self) -> Vec<ActorUid> {
         let mut uids: Vec<ActorUid> = self
             .nominal_votes
@@ -497,11 +497,40 @@ impl Scrutin {
         uids
     }
 
+    /// Rattache chaque position nominale sans groupe au groupe que le repertoire
+    /// donne a son votant a la date du scrutin, puis reconstruit la repartition
+    /// (RM-03, RM-04 de la spec ACTEURS).
+    ///
+    /// Acteur inconnu du repertoire, sans appartenance ou en appartenance
+    /// ambigue a cette date: rien n'est devine, la position reste sans groupe et
+    /// le rapport la compte comme non resolue.
+    ///
+    /// Une position qui porte deja un groupe n'est jamais touchee, la sentinelle
+    /// `PO0` comprise. Cas limite connu: une position rangee explicitement sous
+    /// `PO0` par la source reste sous `PO0` et compte comme non resolue, meme si
+    /// le repertoire connait son groupe.
+    ///
+    /// A n'appeler que sur un scrutin qui porte des lignes factices
+    /// (`has_sentinel_tallies`): sans elles il n'y a rien a reconstruire, et les
+    /// positions sans groupe n'ont pas a etre rattachees.
+    pub fn attach_groups(&mut self, directory: &ActorDirectory) -> ReconstructionReport {
+        let date = self.date;
+        for vote in &mut self.nominal_votes {
+            if vote.group_uid.is_some() {
+                continue;
+            }
+            vote.group_uid = directory
+                .resolve_at(&vote.actor_uid, date)
+                .and_then(|resolved| resolved.group.map(|group| group.uid().clone()));
+        }
+        self.reconstruct_sentinel_groups()
+    }
+
     /// Remplace les lignes de groupe factices par une repartition reconstruite
     /// depuis les positions nominales (RM-03).
     ///
     /// Prerequis: les positions concernees portent deja leur vrai groupe, resolu
-    /// par l'appelant sur l'appartenance a la date du scrutin. Une position
+    /// par l'appelant (`attach_groups`) sur l'appartenance a la date du scrutin. Une position
     /// laissee sans groupe n'est comptee nulle part et remonte dans le rapport:
     /// mieux vaut un decompte visiblement incomplet qu'un chiffre invente.
     pub fn reconstruct_sentinel_groups(&mut self) -> ReconstructionReport {
@@ -563,6 +592,9 @@ impl Scrutin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::actor::{
+        Actor, ActorRole, GroupMembership, MembershipPeriod, MembershipQuality, ParliamentaryGroup,
+    };
 
     fn date() -> NaiveDate {
         NaiveDate::from_ymd_opt(2024, 12, 2).unwrap()
@@ -727,6 +759,18 @@ mod tests {
     }
 
     #[test]
+    fn scrutin_official_url_is_built_from_the_legislature_and_the_number() {
+        assert_eq!(
+            scrutin_official_url(17, "489"),
+            "https://www.assemblee-nationale.fr/dyn/17/scrutins/489"
+        );
+        assert_eq!(
+            scrutin_official_url(16, "1"),
+            "https://www.assemblee-nationale.fr/dyn/16/scrutins/1"
+        );
+    }
+
+    #[test]
     fn voluntary_non_voters_are_not_expected_among_named_positions() {
         let tally = VoteTally {
             votes_for: 10,
@@ -886,6 +930,145 @@ mod tests {
             .map(|u| u.as_str().to_string())
             .collect();
         assert_eq!(uids, vec!["PA1".to_string(), "PA2".to_string()]);
+    }
+
+    fn sentinel_line() -> GroupTally {
+        GroupTally {
+            group_uid: group(MISSING_GROUP_SENTINEL),
+            member_count: Some(122),
+            majority_position: None,
+            tally: VoteTally::default(),
+            origin: TallyOrigin::Published,
+        }
+    }
+
+    /// PA1 siege dans PO_A jusqu'au 30 juin 2025, puis dans PO_B. PA2 est
+    /// absent du repertoire.
+    fn directory_with_a_group_change() -> ActorDirectory {
+        let deputy = Actor::new(
+            actor("PA1"),
+            Some("M.".into()),
+            "Jean".into(),
+            "Dupont".into(),
+            ActorRole::Deputy,
+        )
+        .unwrap();
+        let parliamentary_group = |uid: &str, abbrev: &str| {
+            ParliamentaryGroup::new(
+                group(uid),
+                17,
+                format!("Groupe {abbrev}"),
+                abbrev.into(),
+                None,
+                None,
+                None,
+            )
+            .unwrap()
+        };
+        let membership = |source: &str, group_uid: &str, start, end| {
+            GroupMembership::new(
+                source.into(),
+                actor("PA1"),
+                group(group_uid),
+                17,
+                MembershipPeriod::new(start, end).unwrap(),
+                MembershipQuality::new("Membre".into()).unwrap(),
+            )
+        };
+
+        ActorDirectory::new(
+            vec![deputy],
+            vec![
+                parliamentary_group("PO_A", "A"),
+                parliamentary_group("PO_B", "B"),
+            ],
+            vec![
+                membership(
+                    "PM1",
+                    "PO_A",
+                    NaiveDate::from_ymd_opt(2024, 7, 19).unwrap(),
+                    Some(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap()),
+                ),
+                membership(
+                    "PM2",
+                    "PO_B",
+                    NaiveDate::from_ymd_opt(2025, 7, 1).unwrap(),
+                    None,
+                ),
+            ],
+        )
+    }
+
+    #[test]
+    fn attach_groups_gives_a_vote_without_group_the_directory_group_at_the_scrutin_date() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![vote("PA1", None, VotePosition::For)],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        // Le scrutin date de decembre 2024: PA1 siegeait alors dans PO_A, pas
+        // dans PO_B, son groupe actuel.
+        assert_eq!(s.nominal_votes()[0].group_uid, Some(group("PO_A")));
+        assert_eq!(report.sentinel_lines, 1);
+        assert_eq!(report.rebuilt_lines, 1);
+        assert_eq!(report.unresolved_votes, 0);
+        assert!(!s.has_sentinel_tallies());
+        assert_eq!(s.group_tallies()[0].group_uid, group("PO_A"));
+        assert_eq!(s.group_tallies()[0].origin, TallyOrigin::Reconstructed);
+        assert_eq!(s.group_tallies()[0].tally.votes_for, 1);
+    }
+
+    #[test]
+    fn attach_groups_leaves_an_unknown_actor_without_group_and_counts_it_unresolved() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![
+                vote("PA1", None, VotePosition::For),
+                vote("PA2", None, VotePosition::For),
+            ],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        assert_eq!(s.nominal_votes()[1].group_uid, None);
+        assert_eq!(report.unresolved_votes, 1);
+        assert_eq!(s.group_tallies().len(), 1);
+        assert_eq!(s.group_tallies()[0].tally.votes_for, 1);
+    }
+
+    #[test]
+    fn attach_groups_does_not_touch_a_vote_that_already_has_a_group() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![vote("PA1", Some("PO_B"), VotePosition::For)],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        // Le repertoire donnerait PO_A a cette date: le groupe porte par la
+        // position l'emporte.
+        assert_eq!(s.nominal_votes()[0].group_uid, Some(group("PO_B")));
+        assert_eq!(report.unresolved_votes, 0);
+        assert_eq!(s.group_tallies()[0].group_uid, group("PO_B"));
+    }
+
+    #[test]
+    fn attach_groups_keeps_an_explicit_sentinel_vote_under_the_sentinel() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![vote("PA1", Some(MISSING_GROUP_SENTINEL), VotePosition::For)],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        assert_eq!(
+            s.nominal_votes()[0].group_uid,
+            Some(group(MISSING_GROUP_SENTINEL))
+        );
+        assert_eq!(report.unresolved_votes, 1);
+        assert!(s.group_tallies().is_empty());
     }
 
     #[test]

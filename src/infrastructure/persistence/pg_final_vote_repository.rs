@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
-use super::db;
+use super::{db, FINAL_VOTE_PREDICATE};
 use crate::application::ports::final_vote_repository::{
     FinalVoteFilter, FinalVotePage, FinalVoteRecord, FinalVoteRepository, FinalVoteTotals,
     GroupOption, GroupTallyRecord, RepositoryError,
@@ -12,15 +12,6 @@ use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::final_vote::OfficialTextVersion;
 use crate::domain::scrutin::VoteTally;
 use crate::domain::theme::FamilyCode;
-
-/// Selection des votes sur l'ensemble d'un texte.
-///
-/// La condition reprend `domain::final_vote::FINAL_VOTE_MARKERS`, ecrite ici en
-/// SQL pour rester indexable: la meme regle appliquee en Rust obligerait a
-/// charger les 8 434 scrutins pour en garder 222. Les deux formes d'apostrophe
-/// sont testees, la source melange les deux.
-const FINAL_VOTE_PREDICATE: &str =
-    "(s.subject LIKE 'l''ensemble %' OR s.subject LIKE 'l\u{2019}ensemble %')";
 
 pub struct PgFinalVoteRepository {
     pool: PgPool,

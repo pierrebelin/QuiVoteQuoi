@@ -6,13 +6,12 @@ use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupFacts, GeneratedGroupSummary, SummarySource,
-};
+use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
 use crate::application::ports::dossier_summary_generator::{
     DossierSummaryGenerator, SummaryGeneratorError,
 };
-use crate::domain::dossier_summary::SummaryParagraph;
+use crate::domain::dossier_group_facts::DossierGroupFacts;
+use crate::domain::dossier_summary::{SummaryParagraph, SummarySource};
 
 use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
 
@@ -357,7 +356,7 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::ports::dossier_group_actions_repository::GroupFacts;
+    use crate::domain::dossier_group_facts::{AmendmentFact, GroupFacts};
     use chrono::NaiveDate;
 
     fn facts() -> DossierGroupFacts {
@@ -376,18 +375,16 @@ mod tests {
                 start_date: None,
                 end_date: None,
                 final_votes: vec![],
-                amendments: vec![
-                    crate::application::ports::dossier_group_actions_repository::AmendmentFact {
-                        uid: "A1".into(),
-                        number: "1".into(),
-                        target_title: "Article".into(),
-                        target_kind: None,
-                        fate_code: "adopted".into(),
-                        fate_label: "Adopte".into(),
-                        deposited_on: None,
-                        summary_available: true,
-                    },
-                ],
+                amendments: vec![AmendmentFact {
+                    uid: "A1".into(),
+                    number: "1".into(),
+                    target_title: "Article".into(),
+                    target_kind: None,
+                    fate_code: "adopted".into(),
+                    fate_label: "Adopte".into(),
+                    deposited_on: None,
+                    summary_available: true,
+                }],
             }],
         }
     }

@@ -75,14 +75,14 @@ mod tests {
     impl AssemblySource for FakeSource {
         async fn fetch_dossiers_since(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<LegislativeDossier>, SourceError> {
             unreachable!()
         }
 
         async fn fetch_dossiers_since_with_refs(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
             unreachable!()
         }
@@ -112,10 +112,7 @@ mod tests {
         async fn load_states(
             &self,
         ) -> Result<
-            std::collections::HashMap<
-                String,
-                crate::application::ports::dossier_repository::StoredDossierState,
-            >,
+            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
             RepositoryError,
         > {
             unreachable!()

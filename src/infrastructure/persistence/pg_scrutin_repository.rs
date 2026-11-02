@@ -4,10 +4,10 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
 use super::db;
 use crate::application::ports::scrutin_repository::{
-    CodeCount, DatasetShape, RepositoryError, ScrutinFilter, ScrutinPage, ScrutinRepository,
-    ScrutinSummary,
+    RepositoryError, ScrutinFilter, ScrutinPage, ScrutinRepository, ScrutinSummary,
 };
 use crate::domain::actor::{ActorUid, GroupUid};
+use crate::domain::dataset::{CodeCount, DatasetShape};
 use crate::domain::scrutin::{
     BallotType, DossierReference, GroupTally, NominalVote, NonVotingCause, Outcome, Scrutin,
     ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,

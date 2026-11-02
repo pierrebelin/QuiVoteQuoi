@@ -4,9 +4,8 @@ use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::scrutin_repository::ScrutinRepository;
 use crate::application::ports::scrutin_source::ScrutinSource;
 use crate::domain::actor::ActorUid;
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scrutin::Scrutin;
-
-use super::refresh_actor_registry::CURRENT_LEGISLATURE;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefreshScrutinsError {
@@ -113,20 +112,10 @@ impl<'a> RefreshScrutins<'a> {
                 continue;
             }
 
-            let date = scrutin.date();
-            for vote in scrutin.nominal_votes_mut() {
-                if vote.group_uid.is_some() {
-                    continue;
-                }
-                // RM-04 de la spec ACTEURS: acteur inconnu ou groupe ambigu a
-                // cette date, rien n'est devine. Le vote reste sans groupe et
-                // sera compte comme non resolu.
-                vote.group_uid = directory
-                    .resolve_at(&vote.actor_uid, date)
-                    .and_then(|resolved| resolved.group.map(|g| g.uid().clone()));
-            }
-
-            let report = scrutin.reconstruct_sentinel_groups();
+            // RM-04 de la spec ACTEURS: acteur inconnu ou groupe ambigu a cette
+            // date, rien n'est devine; le vote reste sans groupe et le rapport
+            // le compte comme non resolu.
+            let report = scrutin.attach_groups(&directory);
             if report.happened() {
                 summary.reconstructed_scrutins += 1;
                 summary.unresolved_votes += report.unresolved_votes;
@@ -146,13 +135,14 @@ mod tests {
 
     use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
     use crate::application::ports::scrutin_repository::{
-        DatasetShape, ScrutinFilter, ScrutinPage, ScrutinSummary as PageSummary,
+        ScrutinFilter, ScrutinPage, ScrutinSummary as PageSummary,
     };
     use crate::application::ports::scrutin_source::SourceError;
     use crate::domain::actor::{
         Actor, ActorDirectory, ActorRegistry, ActorRole, GroupMembership, GroupUid,
         MembershipPeriod, MembershipQuality, ParliamentaryGroup,
     };
+    use crate::domain::dataset::DatasetShape;
     use crate::domain::scrutin::{
         BallotType, GroupTally, NominalVote, Outcome, ScrutinUid, TallyOrigin, VotePosition,
         VoteSynthesis, VoteTally, MISSING_GROUP_SENTINEL,

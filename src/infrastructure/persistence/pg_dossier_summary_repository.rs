@@ -3,9 +3,9 @@ use sqlx::{PgPool, Row};
 
 use super::db;
 use crate::application::ports::dossier_group_actions_repository::{
-    DossierSummaryRepository, GeneratedGroupSummary, RepositoryError, StoredGroupSummary,
-    SummarySource, SummaryStatus,
+    DossierSummaryRepository, GeneratedGroupSummary, RepositoryError,
 };
+use crate::domain::dossier_summary::{StoredGroupSummary, SummarySource, SummaryStatus};
 
 pub struct PgDossierSummaryRepository {
     pool: PgPool,

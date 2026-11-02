@@ -6,8 +6,8 @@ use super::db;
 use crate::application::ports::group_repository::{
     GroupRecord, GroupRepository, GroupStatisticsRecord, RepositoryError,
 };
-use crate::application::use_cases::refresh_actor_registry::CURRENT_LEGISLATURE;
 use crate::domain::group_profile::{ParticipationCounts, QualityCount};
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 
 /// Appartenances valides a une date donnee. La fin est inclusive, comme dans
 /// `domain::actor::MembershipPeriod`.

@@ -1,12 +1,10 @@
 use std::collections::{BTreeSet, HashMap};
 
-use chrono::NaiveDate;
-
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::assembly_source::AssemblySource;
-use crate::application::ports::dossier_repository::{DossierRepository, StoredDossierState};
+use crate::application::ports::dossier_repository::DossierRepository;
 use crate::domain::actor::ActorUid;
-use crate::domain::dossier::{InitiatorAttachment, LegislativeDossier};
+use crate::domain::dossier::{InitiatorAttachment, WriteDecision};
 
 /// Ce qu'un rafraichissement a ecrit, et ce qu'il a volontairement laisse de
 /// cote. Les deux sont comptes: un dossier saute doit rester explicable
@@ -65,50 +63,8 @@ impl<'a> RefreshDossiers<'a> {
         self.execute_with(RefreshScope::Incremental).await
     }
 
-    /// Un dossier n'est reecrit que si la source a bouge.
-    ///
-    /// Deux raisons de sauter, dans cet ordre:
-    ///
-    /// 1. le sort stocke est definitif (promulgation, retrait, fusion) — il ne
-    ///    peut plus changer, quoi que la source republie;
-    /// 2. le dernier acte et le nombre d'actes sont identiques a ce qui est
-    ///    stocke — rien n'a bouge.
-    ///
-    /// L'anciennete n'est deliberement pas un critere: une proposition de loi
-    /// dormante depuis deux ans peut etre inscrite a l'ordre du jour du jour au
-    /// lendemain. La sauter sur son age figerait sa page au moment ou elle
-    /// redevient interessante, sans rien economiser de plus que la regle 2 —
-    /// qui la saute deja tant qu'elle dort.
-    ///
-    /// Limite connue: une correction de titre ou de resume qui ne toucherait
-    /// aucun acte n'est pas detectee. `RefreshScope::Full` la rattrape.
-    fn should_write(
-        dossier: &LegislativeDossier,
-        stored: Option<&StoredDossierState>,
-        summary: &mut DossiersSummary,
-    ) -> bool {
-        let Some(stored) = stored else {
-            return true;
-        };
-
-        if stored.outcome_is_final {
-            summary.skipped_final += 1;
-            return false;
-        }
-
-        if stored.last_activity_date == dossier.last_activity_date
-            && stored.act_count == dossier.acts.len()
-        {
-            summary.skipped_unchanged += 1;
-            return false;
-        }
-
-        true
-    }
-
     pub async fn execute_with(&self, scope: RefreshScope) -> Result<DossiersSummary, RefreshError> {
-        let since = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
-        let dossiers_with_refs = self.source.fetch_dossiers_since_with_refs(since).await?;
+        let dossiers_with_refs = self.source.fetch_dossiers_since_with_refs(None).await?;
 
         let mut summary = DossiersSummary {
             seen: dossiers_with_refs.len(),
@@ -125,9 +81,19 @@ impl<'a> RefreshDossiers<'a> {
         // le referentiel a charger.
         let dossiers_with_refs: Vec<_> = dossiers_with_refs
             .into_iter()
-            .filter(|(dossier, _)| {
-                Self::should_write(dossier, stored.get(dossier.uid.as_str()), &mut summary)
-            })
+            .filter(
+                |(dossier, _)| match dossier.write_decision(stored.get(dossier.uid.as_str())) {
+                    WriteDecision::Write => true,
+                    WriteDecision::SkipFinal => {
+                        summary.skipped_final += 1;
+                        false
+                    }
+                    WriteDecision::SkipUnchanged => {
+                        summary.skipped_unchanged += 1;
+                        false
+                    }
+                },
+            )
             .collect();
 
         if dossiers_with_refs.is_empty() {
@@ -224,6 +190,7 @@ pub(crate) mod tests {
     };
     use crate::domain::dossier::{
         CurationStatus, DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, Score,
+        StoredDossierState,
     };
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
@@ -238,14 +205,14 @@ pub(crate) mod tests {
     impl AssemblySource for FakeSource {
         async fn fetch_dossiers_since(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<LegislativeDossier>, SourceError> {
             unreachable!()
         }
 
         async fn fetch_dossiers_since_with_refs(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
             Ok(self.dossiers_with_refs.clone())
         }
@@ -645,6 +612,7 @@ mod incremental_tests {
     use crate::application::ports::assembly_source::SourceError;
     use crate::domain::dossier::{DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier};
     use async_trait::async_trait;
+    use chrono::NaiveDate;
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
@@ -658,14 +626,14 @@ mod incremental_tests {
     impl AssemblySource for FakeSource {
         async fn fetch_dossiers_since(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<LegislativeDossier>, SourceError> {
             unreachable!()
         }
 
         async fn fetch_dossiers_since_with_refs(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
             Ok(self.dossiers.iter().cloned().map(|d| (d, vec![])).collect())
         }

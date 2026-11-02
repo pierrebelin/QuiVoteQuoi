@@ -4,16 +4,16 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{PgPool, Row};
 
-use super::db;
+use super::{db, FINAL_VOTE_PREDICATE};
 use crate::application::ports::dossier_group_actions_repository::{
-    AmendmentFact, DossierGroupActionsRepository, DossierGroupFacts, FinalVoteFact, GroupFacts,
-    RepositoryError,
+    DossierGroupActionsRepository, RepositoryError,
+};
+use crate::domain::dossier::DossierPeriod;
+use crate::domain::dossier_group_facts::{
+    AmendmentFact, DossierGroupFacts, FinalVoteFact, GroupFacts,
 };
 use crate::domain::final_vote::reading_of;
 use crate::domain::scrutin::VoteTally;
-
-const FINAL_VOTE_PREDICATE: &str =
-    "(s.subject LIKE 'l''ensemble %' OR s.subject LIKE 'l\u{2019}ensemble %')";
 
 pub struct PgDossierGroupActionsRepository {
     pool: PgPool,
@@ -59,11 +59,12 @@ impl PgDossierGroupActionsRepository {
         .await
         .map_err(db)?;
         let first_act_date: Option<NaiveDate> = act_dates.get("first_date");
-        let period_start = [deposit_date, first_document_date, first_act_date]
-            .into_iter()
-            .flatten()
-            .min()
-            .or(Some(last_activity_date));
+        let period = DossierPeriod::from_dates(
+            deposit_date,
+            first_document_date,
+            first_act_date,
+            last_activity_date,
+        );
 
         let group_rows = sqlx::query(
             "SELECT uid, abbrev, label, color, start_date, end_date
@@ -74,8 +75,8 @@ impl PgDossierGroupActionsRepository {
               ORDER BY start_date NULLS FIRST, abbrev, uid",
         )
         .bind(legislature)
-        .bind(last_activity_date)
-        .bind(period_start)
+        .bind(period.end())
+        .bind(period.start())
         .fetch_all(&self.pool)
         .await
         .map_err(db)?;
@@ -194,8 +195,8 @@ impl PgDossierGroupActionsRepository {
             title: dossier.get("title"),
             official_url: dossier.get("url"),
             legislature: legislature as u16,
-            period_start,
-            period_end: Some(last_activity_date),
+            period_start: Some(period.start()),
+            period_end: Some(period.end()),
             groups,
         }))
     }

@@ -47,16 +47,35 @@ Fichiers ignorés par Git (`.gitignore` : `.claude/`, `**/AGENTS.md`) : la corre
 - Santé : port `HealthProbe`, use case `CheckHealth`, adapter `PgHealthProbe`, DTO `HealthResponse` (réponse JSON inchangée) ; `AppState.db` remplacé par `health_probe`. `ALLOWED_ORIGINS` lu par `config::allowed_origins()`.
 - **TLS — option retirée.** Chaîne de `data.assemblee-nationale.fr` saine le 2026-11-01 : feuille `CN=www.assemblee-nationale.fr` (SAN couvre `data.assemblee-nationale.fr`, valide jusqu'au 2027-01-31) → intermédiaire GandiCert servi → racine DigiCert Global Root G2 (présente dans webpki-roots, utilisé par `rustls-tls`) ; `openssl s_client` : `Verify return code: 0 (ok)`, `curl -I` sans `-k` : 200. `danger_accept_invalid_certs(true)` retiré : la vérification du certificat est active.
 
-### Lot 3 — Logique métier vers le domaine (M/L, plus forte valeur)
+### Lot 3 — Logique métier vers le domaine (M/L, plus forte valeur) — ✅ fait le 2026-11-01
 
-- Fusion des lignées de groupes : `browse_groups.rs:116-222` et sa copie `browse_final_votes.rs:138-219` → `domain/group_lineage`.
-- Fraîcheur des synthèses (empreinte + modèle + version de prompt), dupliquée dans deux use cases ; `fingerprint` (`sha2`, `serde_json`) → `domain/dossier_summary`.
-- `refresh_scrutins.rs:110-135` mute `vote.group_uid` en boucle → `Scrutin::attach_groups`, suppression de `nominal_votes_mut`.
-- `refresh_dossiers.rs` : règle `should_write` et date magique `2000-01-01`.
-- `pg_dossier_group_actions_repository.rs:62-76` : règle de début de période calculée en SQL → domaine.
-- `FINAL_VOTE_PREDICATE` dupliqué dans deux repositories, miroir de `FINAL_VOTE_MARKERS`.
-- Initiateur « Gouvernement » par défaut (`client.rs:121-129`), `CURRENT_LEGISLATURE` importé d'un use case par deux autres, calculs de part dans `describe_dataset.rs`, état `no_data/ready/summary_pending` et gabarit d'URL AN calculés dans les DTO.
-- `fetch_recent_dossiers.rs` reçoit `today` au lieu d'appeler `Utc::now()`.
+`cargo test --locked` vert : lib 486 passés (+70), 3 ignorés ; intégration 7 + 3 + 2. Comportement observable inchangé ; chaque règle déplacée a ses tests dans le domaine.
+
+- **3a — déplacements simples.**
+  - `FetchRecentDossiers::execute(days, today)` : l'horloge est lue dans le handler ; le test ne dépend plus de la date du jour.
+  - `CURRENT_LEGISLATURE` → `domain/legislature.rs` (plus d'import d'un use case par l'infrastructure) ; `client.rs` remplace son `unwrap_or(17)`.
+  - `Initiator::default_for(Option<Initiative>, has_initiator_refs)` et `GOVERNMENT_INITIATOR_NAME` dans `domain/dossier.rs`.
+  - Un seul `FINAL_VOTE_PREDICATE` dans `persistence/mod.rs`, un test le lie à `FINAL_VOTE_MARKERS`.
+  - `DatasetShape` et `CodeCount` → `domain/dataset.rs`, avec `scrutins_without_dossier`, `share_without_dossier_percent` et `scrutins_per_text`.
+- **3b — scrutin.**
+  - `Scrutin::attach_groups(&ActorDirectory) -> ReconstructionReport` ; `nominal_votes_mut` supprimé.
+  - `scrutin_official_url(legislature, number)` : une seule construction de l'URL AN d'un scrutin, partagée par `Scrutin::official_url` et les deux DTO.
+- **3c — lignées.**
+  - `domain/group_lineage` porte `group_by_lineage` / `LineageGroup` (représentant : la canonique, sinon la dernière vue), `displayed_group`, `designates`, `same_group` et `uids_of`.
+  - `VotingWindow::span` remplace `widen`.
+  - `browse_groups` et `browse_final_votes` ne gardent que le repli de chaque groupe et leurs tris.
+  - Écart toléré : `GroupSummary::designated_by` suit désormais la lignée déclarée et non plus les seuls `uids` présents dans les lignes. La différence n'est atteignable que si un identifiant de lignée manque de `parliamentary_groups`.
+- **3d — dossiers.**
+  - `StoredDossierState` passe dans le domaine, avec `WriteDecision` et `LegislativeDossier::write_decision`. Les compteurs restent dans le use case.
+  - `AssemblySource::fetch_dossiers_since{,_with_refs}(Option<NaiveDate>)` : `None` signifie qu'il n'y a pas de borne. La date `2000-01-01` disparaît.
+  - `DossierPeriod::from_dates` porte la règle de début et de fin de période. Les `min()` et le filtre de recouvrement des groupes restent en SQL.
+- **3e — synthèses.**
+  - `DossierGroupFacts` et ses sous-structures → `domain/dossier_group_facts.rs`, à l'identique. `fingerprint_is_stable` fige l'empreinte SHA-256 d'un jeu de faits.
+  - `domain/dossier_summary.rs` reçoit `FactsFingerprint`, `SummaryStatus`, `SummarySource` et `StoredGroupSummary`, avec deux règles distinctes :
+    - `is_shown_for`, en lecture : statut `Ready` et même empreinte ;
+    - `is_up_to_date`, en écriture : en plus, même modèle et même version de prompt.
+  - `GroupFacts::has_actions` et `GroupSummaryState` (`as_str` donne les chaînes du contrat JSON).
+  - Le hachage (`sha2`, `serde_json`) reste dans l'application, dans une seule fonction : `domain.md` n'autorise que `chrono`, `serde` et `thiserror`.
 
 ### Lot 4 — Encapsulation du domaine (M/L)
 
@@ -99,3 +118,8 @@ Fichiers ignorés par Git (`.gitignore` : `.claude/`, `**/AGENTS.md`) : la corre
 | 1 | `danger_accept_invalid_certs` | ✅ Tranché : chaîne saine, option retirée (lot 2) |
 | 2 | Curation / suggestions | Supprimer si le frontend actuel ne s'en sert plus |
 | 3 | Ordre des lots | 0 → 1 → 2 → 3, puis 4–6 selon le temps |
+| 4 | Vote déjà sous la sentinelle `PO0` explicite : `Scrutin::attach_groups` ne le rattache pas et le compte non résolu (comportement d'avant le lot 3, documenté) | Le rattacher comme un vote sans groupe, si la source publie de tels votes |
+| 5 | `is_final_vote_subject` ignore casse et espaces de tête, `FINAL_VOTE_PREDICATE` (`LIKE`) non | Aligner la fonction du domaine sur le SQL, qui est ce que le site affiche (aucun appelant en production) |
+| 6 | `pg_dossier_repository.rs` recalcule `outcome_is_final` par chaînes (`promulgated`, `withdrawn`, `merged_into`), doublon de `DossierOutcome::is_final` | Passer par `DossierOutcome::parse(..).is_final()` (lot 4) |
+| 7 | `infrastructure/llm/anthropic_dossier_summary.rs` construit encore l'URL AN d'un scrutin à la main | Utiliser `scrutin_official_url` |
+| 8 | `FactsFingerprint::new` est infaillible (valeur opaque), `StoredGroupSummary.facts_fingerprint` reste `String` | Garder ; contrôle 64 hex seulement si une empreinte d'une autre forme apparaît |

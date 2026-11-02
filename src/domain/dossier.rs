@@ -318,7 +318,27 @@ impl Initiator {
     pub fn official_url(&self) -> Option<&str> {
         self.official_url.as_deref()
     }
+
+    /// Initiateur d'un dossier dont la source ne nomme aucun acteur.
+    ///
+    /// Un projet de loi vient du gouvernement: la source ne liste alors aucun
+    /// depute, et l'initiateur est le gouvernement lui-meme, sans acteur ni
+    /// groupe. Toute autre initiative, ou une initiative inconnue, ne donne
+    /// rien: l'initiateur absent n'est jamais devine.
+    pub fn default_for(initiative: Option<Initiative>, has_initiator_refs: bool) -> Vec<Self> {
+        if initiative == Some(Initiative::Government) && !has_initiator_refs {
+            Self::unresolved(GOVERNMENT_INITIATOR_NAME.to_string())
+                .into_iter()
+                .collect()
+        } else {
+            vec![]
+        }
+    }
 }
+
+/// Nom porte par l'initiateur d'un projet de loi que la source ne rattache a
+/// aucun acteur.
+pub const GOVERNMENT_INITIATOR_NAME: &str = "Gouvernement";
 
 /// Qui a depose le texte, lu dans le libelle de procedure de la source.
 ///
@@ -505,7 +525,110 @@ pub struct InitiatorAttachment {
     pub missing_deposit_date: bool,
 }
 
+/// Ce que la base sait deja d'un dossier, lu avant toute reecriture.
+///
+/// Le rafraichissement compare cet etat a celui de la source pour n'ecrire
+/// que ce qui a bouge : reecrire les 3 035 dossiers coute une quinzaine
+/// d'allers-retours chacun sur la base PostgreSQL locale du VPS.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredDossierState {
+    pub last_activity_date: NaiveDate,
+    pub act_count: usize,
+    /// Sort qui ne peut plus changer (promulgation, retrait, fusion).
+    pub outcome_is_final: bool,
+}
+
+/// Ce qu'un rafraichissement fait d'un dossier lu dans la source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WriteDecision {
+    /// Dossier absent de la base, ou dont la source a bouge: a reecrire.
+    Write,
+    /// Sort definitif deja stocke: plus rien ne peut changer.
+    SkipFinal,
+    /// Dernier acte et nombre d'actes inchanges depuis la derniere ingestion.
+    SkipUnchanged,
+}
+
+/// Periode qu'un dossier couvre, du premier fait date a la derniere activite.
+///
+/// Elle borne les groupes parlementaires dont l'existence recoupe le dossier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DossierPeriod {
+    start: NaiveDate,
+    end: NaiveDate,
+}
+
+impl DossierPeriod {
+    /// Le debut est la plus ancienne des dates connues parmi le depot, le
+    /// premier document et le premier acte; sans aucune de ces dates, la
+    /// periode se resume a la derniere activite. La fin est toujours la
+    /// derniere activite.
+    ///
+    /// Une date absente n'est jamais devinee: elle est ignoree, et seule
+    /// l'absence de toutes ramene le debut a la derniere activite.
+    pub fn from_dates(
+        deposit_date: Option<NaiveDate>,
+        first_document_date: Option<NaiveDate>,
+        first_act_date: Option<NaiveDate>,
+        last_activity_date: NaiveDate,
+    ) -> Self {
+        let start = [deposit_date, first_document_date, first_act_date]
+            .into_iter()
+            .flatten()
+            .min()
+            .unwrap_or(last_activity_date);
+
+        Self {
+            start,
+            end: last_activity_date,
+        }
+    }
+
+    pub fn start(&self) -> NaiveDate {
+        self.start
+    }
+
+    pub fn end(&self) -> NaiveDate {
+        self.end
+    }
+}
+
 impl LegislativeDossier {
+    /// Un dossier n'est reecrit que si la source a bouge.
+    ///
+    /// Deux raisons de sauter, dans cet ordre:
+    ///
+    /// 1. le sort stocke est definitif (promulgation, retrait, fusion) — il ne
+    ///    peut plus changer, quoi que la source republie;
+    /// 2. le dernier acte et le nombre d'actes sont identiques a ce qui est
+    ///    stocke — rien n'a bouge.
+    ///
+    /// L'anciennete n'est deliberement pas un critere: une proposition de loi
+    /// dormante depuis deux ans peut etre inscrite a l'ordre du jour du jour au
+    /// lendemain. La sauter sur son age figerait sa page au moment ou elle
+    /// redevient interessante, sans rien economiser de plus que la regle 2 —
+    /// qui la saute deja tant qu'elle dort.
+    ///
+    /// Limite connue: une correction de titre ou de resume qui ne toucherait
+    /// aucun acte n'est pas detectee. Une reecriture complete la rattrape.
+    pub fn write_decision(&self, stored: Option<&StoredDossierState>) -> WriteDecision {
+        let Some(stored) = stored else {
+            return WriteDecision::Write;
+        };
+
+        if stored.outcome_is_final {
+            return WriteDecision::SkipFinal;
+        }
+
+        if stored.last_activity_date == self.last_activity_date
+            && stored.act_count == self.acts.len()
+        {
+            return WriteDecision::SkipUnchanged;
+        }
+
+        WriteDecision::Write
+    }
+
     /// Rattache chaque initiateur au groupe qu'il avait a la date de depot.
     ///
     /// Sans date de depot, l'identite de l'acteur est conservee mais aucun
@@ -1078,5 +1201,191 @@ mod tests {
         );
         assert_eq!(LegislativeStage::JointCommittee.chamber(), Chamber::Joint);
         assert_eq!(LegislativeStage::Promulgation.chamber(), Chamber::None);
+    }
+
+    #[test]
+    fn government_bill_without_initiator_reference_defaults_to_the_government() {
+        let initiators = Initiator::default_for(Some(Initiative::Government), false);
+
+        assert_eq!(initiators.len(), 1);
+        assert_eq!(initiators[0].full_name(), GOVERNMENT_INITIATOR_NAME);
+        assert_eq!(initiators[0].full_name(), "Gouvernement");
+        assert!(initiators[0].actor_uid().is_none());
+        assert!(initiators[0].group().is_none());
+    }
+
+    #[test]
+    fn government_bill_with_initiator_references_gets_no_default_initiator() {
+        let initiators = Initiator::default_for(Some(Initiative::Government), true);
+
+        assert!(initiators.is_empty());
+    }
+
+    #[test]
+    fn parliamentary_bill_without_initiator_reference_gets_no_default_initiator() {
+        let initiators = Initiator::default_for(Some(Initiative::Parliamentary), false);
+
+        assert!(initiators.is_empty());
+    }
+
+    #[test]
+    fn procedure_without_known_initiative_gets_no_default_initiator() {
+        let initiators = Initiator::default_for(None, false);
+
+        assert!(initiators.is_empty());
+    }
+
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    fn act_on(date: NaiveDate) -> LegislativeAct {
+        LegislativeAct {
+            date,
+            label: "Acte".into(),
+            code: None,
+        }
+    }
+
+    /// Dossier de la source: derniere activite le 13 mai 2025, deux actes.
+    fn source_dossier_with_two_acts() -> LegislativeDossier {
+        let mut dossier = dossier_deposited_on(None);
+        dossier.acts = vec![act_on(date(2025, 4, 1)), act_on(date(2025, 5, 13))];
+        dossier
+    }
+
+    fn stored_state(
+        last_activity_date: NaiveDate,
+        act_count: usize,
+        outcome_is_final: bool,
+    ) -> StoredDossierState {
+        StoredDossierState {
+            last_activity_date,
+            act_count,
+            outcome_is_final,
+        }
+    }
+
+    #[test]
+    fn dossier_absent_from_the_database_is_written() {
+        let dossier = source_dossier_with_two_acts();
+
+        assert_eq!(dossier.write_decision(None), WriteDecision::Write);
+    }
+
+    #[test]
+    fn dossier_with_a_final_outcome_is_skipped_even_when_the_source_moved() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2024, 1, 1), 1, true);
+
+        assert_eq!(
+            dossier.write_decision(Some(&stored)),
+            WriteDecision::SkipFinal
+        );
+    }
+
+    #[test]
+    fn dossier_with_a_final_outcome_and_unchanged_acts_is_counted_as_final_not_unchanged() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 13), 2, true);
+
+        assert_eq!(
+            dossier.write_decision(Some(&stored)),
+            WriteDecision::SkipFinal
+        );
+    }
+
+    #[test]
+    fn dossier_with_same_last_activity_and_act_count_is_skipped_as_unchanged() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 13), 2, false);
+
+        assert_eq!(
+            dossier.write_decision(Some(&stored)),
+            WriteDecision::SkipUnchanged
+        );
+    }
+
+    #[test]
+    fn dossier_with_an_inserted_act_on_the_same_date_is_written() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 13), 1, false);
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn dossier_with_a_different_last_activity_date_is_written() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 12), 2, false);
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn dormant_dossier_is_judged_on_its_acts_not_on_its_age() {
+        let mut dossier = source_dossier_with_two_acts();
+        dossier.last_activity_date = date(2022, 1, 1);
+        let unchanged = stored_state(date(2022, 1, 1), 2, false);
+        let revived = stored_state(date(2022, 1, 1), 1, false);
+
+        assert_eq!(
+            dossier.write_decision(Some(&unchanged)),
+            WriteDecision::SkipUnchanged
+        );
+        assert_eq!(dossier.write_decision(Some(&revived)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn period_starts_on_the_deposit_date_when_it_is_the_only_known_date() {
+        let period =
+            DossierPeriod::from_dates(Some(date(2024, 3, 1)), None, None, date(2025, 5, 13));
+
+        assert_eq!(period.start(), date(2024, 3, 1));
+        assert_eq!(period.end(), date(2025, 5, 13));
+    }
+
+    #[test]
+    fn period_starts_on_the_first_document_when_it_precedes_the_deposit() {
+        let period = DossierPeriod::from_dates(
+            Some(date(2024, 3, 1)),
+            Some(date(2024, 2, 10)),
+            Some(date(2024, 4, 1)),
+            date(2025, 5, 13),
+        );
+
+        assert_eq!(period.start(), date(2024, 2, 10));
+    }
+
+    #[test]
+    fn period_starts_on_the_oldest_act_when_it_precedes_every_other_date() {
+        let period = DossierPeriod::from_dates(
+            Some(date(2024, 3, 1)),
+            Some(date(2024, 2, 10)),
+            Some(date(2024, 1, 5)),
+            date(2025, 5, 13),
+        );
+
+        assert_eq!(period.start(), date(2024, 1, 5));
+    }
+
+    #[test]
+    fn period_without_any_known_date_collapses_onto_the_last_activity() {
+        let period = DossierPeriod::from_dates(None, None, None, date(2025, 5, 13));
+
+        assert_eq!(period.start(), date(2025, 5, 13));
+        assert_eq!(period.end(), date(2025, 5, 13));
+    }
+
+    #[test]
+    fn period_ignores_a_missing_deposit_date_instead_of_guessing_one() {
+        let period = DossierPeriod::from_dates(
+            None,
+            Some(date(2024, 6, 1)),
+            Some(date(2024, 7, 1)),
+            date(2025, 5, 13),
+        );
+
+        assert_eq!(period.start(), date(2024, 6, 1));
     }
 }

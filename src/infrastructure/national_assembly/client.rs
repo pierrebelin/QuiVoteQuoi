@@ -10,6 +10,7 @@ use crate::domain::dossier::{
     Committee, CurationStatus, DossierUid, Initiative, Initiator, LegislativeAct,
     LegislativeDocument, LegislativeDossier,
 };
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scoring::compute_score;
 
 use super::archive_fetcher::ArchiveFetcher;
@@ -65,7 +66,7 @@ impl NationalAssemblyClient {
             .legislature
             .as_deref()
             .and_then(|s| s.parse().ok())
-            .unwrap_or(17);
+            .unwrap_or(CURRENT_LEGISLATURE);
 
         let url = raw.dossier_title.titre_chemin.as_ref().map(|chemin| {
             format!("https://www.assemblee-nationale.fr/dyn/{legislature}/dossiers/{chemin}")
@@ -120,16 +121,10 @@ impl NationalAssemblyClient {
             .and_then(|c| Committee::new(c).ok());
         let initiator_refs = extract_initiator_refs(&raw.initiator);
 
-        let is_government_bill = Initiative::from_procedure(&raw.parliamentary_procedure.libelle)
-            == Some(Initiative::Government);
-
-        let initiators = if initiator_refs.is_empty() && is_government_bill {
-            Initiator::unresolved("Gouvernement".to_string())
-                .into_iter()
-                .collect()
-        } else {
-            vec![]
-        };
+        let initiators = Initiator::default_for(
+            Initiative::from_procedure(&raw.parliamentary_procedure.libelle),
+            !initiator_refs.is_empty(),
+        );
 
         Some((
             LegislativeDossier {
@@ -228,7 +223,7 @@ impl NationalAssemblyClient {
 
     fn parse_dossiers(
         data: &[u8],
-        since: NaiveDate,
+        since: Option<NaiveDate>,
     ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
         let cursor = Cursor::new(data);
         let mut archive =
@@ -269,7 +264,7 @@ impl NationalAssemblyClient {
                     None => continue,
                 };
 
-            if dossier.last_activity_date < since {
+            if since.is_some_and(|since| dossier.last_activity_date < since) {
                 continue;
             }
 
@@ -332,7 +327,7 @@ impl NationalAssemblyClient {
 impl AssemblySource for NationalAssemblyClient {
     async fn fetch_dossiers_since(
         &self,
-        since: NaiveDate,
+        since: Option<NaiveDate>,
     ) -> Result<Vec<LegislativeDossier>, SourceError> {
         let results = self.fetch_dossiers_since_with_refs(since).await?;
         Ok(results.into_iter().map(|(d, _)| d).collect())
@@ -340,7 +335,7 @@ impl AssemblySource for NationalAssemblyClient {
 
     async fn fetch_dossiers_since_with_refs(
         &self,
-        since: NaiveDate,
+        since: Option<NaiveDate>,
     ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
         let zip_data = self.get_zip().await?;
 
@@ -348,7 +343,10 @@ impl AssemblySource for NationalAssemblyClient {
             .await
             .map_err(|e| SourceError::Parse(e.to_string()))??;
 
-        tracing::info!("Found {} dossiers since {since}", parsed.len());
+        match since {
+            Some(since) => tracing::info!("Found {} dossiers since {since}", parsed.len()),
+            None => tracing::info!("Found {} dossiers, no lower date bound", parsed.len()),
+        }
         Ok(parsed)
     }
 

@@ -6,13 +6,13 @@ use sqlx::{PgPool, Postgres, QueryBuilder};
 
 use super::{db, invalid_row};
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierPage, DossierRepository, RepositoryError, StoredDossierState,
+    DossierCriteria, DossierPage, DossierRepository, RepositoryError,
 };
 use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
 use crate::domain::dossier::{
     Committee, CurationStatus, DossierOutcome, DossierUid, Initiator, InitiatorGroup,
     LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
-    Score,
+    Score, StoredDossierState,
 };
 
 pub struct PgDossierRepository {

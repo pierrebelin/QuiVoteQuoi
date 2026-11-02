@@ -32,7 +32,10 @@ pub async fn get_recent_dossiers(
 ) -> Result<Json<RecentDossiersResponse>, ApiError> {
     let uc = FetchRecentDossiers::new(state.dossier_repository.as_ref());
 
-    let dossiers = uc.execute(params.days).await.map_err(ApiError::internal)?;
+    let dossiers = uc
+        .execute(params.days, Utc::now().date_naive())
+        .await
+        .map_err(ApiError::internal)?;
 
     let dtos: Vec<DossierDto> = dossiers.into_iter().map(DossierDto::from).collect();
 

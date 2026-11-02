@@ -1,7 +1,6 @@
-use crate::application::ports::scrutin_repository::{
-    DatasetShape, RepositoryError, ScrutinRepository,
-};
+use crate::application::ports::scrutin_repository::{RepositoryError, ScrutinRepository};
 use crate::application::ports::theme_repository::ThemeRepository;
+use crate::domain::dataset::DatasetShape;
 
 /// Ce que la page « Comprendre » affiche en chiffres.
 ///
@@ -38,14 +37,9 @@ impl<'a> DescribeDataset<'a> {
         let shape = self.scrutins.dataset_shape().await?;
         let texts_total = self.themes.text_count().await?;
 
-        let scrutins_without_dossier = shape.scrutins_total - shape.scrutins_with_dossier;
-
-        let scrutins_without_dossier_share = (shape.scrutins_total > 0).then(|| {
-            (scrutins_without_dossier as f64 * 100.0 / shape.scrutins_total as f64).round() as i64
-        });
-
-        let scrutins_per_text = (texts_total > 0)
-            .then(|| (shape.scrutins_total as f64 * 10.0 / texts_total as f64).round() / 10.0);
+        let scrutins_without_dossier = shape.scrutins_without_dossier();
+        let scrutins_without_dossier_share = shape.share_without_dossier_percent();
+        let scrutins_per_text = shape.scrutins_per_text(texts_total);
 
         Ok(DatasetOverview {
             shape,

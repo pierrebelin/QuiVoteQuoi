@@ -1,8 +1,8 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use crate::application::ports::scrutin_repository::CodeCount;
 use crate::application::use_cases::describe_dataset::DatasetOverview;
+use crate::domain::dataset::CodeCount;
 
 /// Les deux grandeurs dérivées sont des divisions, pas des mesures. La formule
 /// est publiée avec le chiffre pour que le lecteur puisse la refaire.

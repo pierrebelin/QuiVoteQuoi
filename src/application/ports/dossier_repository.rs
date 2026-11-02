@@ -3,22 +3,11 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use chrono::NaiveDate;
 
-use crate::domain::dossier::{CurationStatus, DossierUid, Initiative, LegislativeDossier};
+use crate::domain::dossier::{
+    CurationStatus, DossierUid, Initiative, LegislativeDossier, StoredDossierState,
+};
 
 pub use super::RepositoryError;
-
-/// Ce que la base sait deja d'un dossier, lu avant toute reecriture.
-///
-/// Le rafraichissement compare cet etat a celui de la source pour n'ecrire
-/// que ce qui a bouge : reecrire les 3 035 dossiers coute une quinzaine
-/// d'allers-retours chacun sur la base PostgreSQL locale du VPS.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StoredDossierState {
-    pub last_activity_date: NaiveDate,
-    pub act_count: usize,
-    /// Sort qui ne peut plus changer (promulgation, retrait, fusion).
-    pub outcome_is_final: bool,
-}
 
 /// Ce à quoi le visiteur restreint la liste des dossiers.
 ///

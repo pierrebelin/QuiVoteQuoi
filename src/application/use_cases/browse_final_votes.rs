@@ -5,7 +5,9 @@ use crate::application::ports::final_vote_repository::{
 use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::actor::{ActorError, GroupUid};
 use crate::domain::final_vote::{reading_of, FinalVote, GroupIdentity, GroupStance};
-use crate::domain::group_lineage::{lineage_of_uid, GroupLineage};
+use crate::domain::group_lineage::{
+    designates, displayed_group, group_by_lineage, same_group, uids_of,
+};
 use crate::domain::scrutin::{Outcome, ScrutinError, VotePosition};
 use crate::domain::theme::FamilyCode;
 
@@ -104,7 +106,11 @@ impl<'a> BrowseFinalVotes<'a> {
             // Un groupe renomme repond a plusieurs identifiants: les demander
             // tous evite que ses votes d'avant le changement de nom
             // disparaissent de la comparaison (README.md §2).
-            group_uids: selected.iter().flat_map(uids_of).collect(),
+            group_uids: selected
+                .iter()
+                .flat_map(|group| uids_of(&group.uid))
+                .map(str::to_string)
+                .collect(),
             limit: command
                 .limit
                 .unwrap_or(DEFAULT_PAGE_SIZE)
@@ -140,31 +146,22 @@ impl<'a> BrowseFinalVotes<'a> {
 /// le groupe n'a pas vote. La couverture affichee est la somme des periodes,
 /// pas celle de la derniere.
 fn merge_renamed_groups(groups: Vec<GroupOption>) -> Vec<GroupOption> {
-    let mut merged: Vec<GroupOption> = Vec::with_capacity(groups.len());
+    let mut merged: Vec<GroupOption> = group_by_lineage(groups, |group| group.uid.as_str())
+        .iter()
+        .map(|group| {
+            let options = group.members();
+            let own = group.representative();
+            let shown = group.displayed(&own.abbrev, &own.label);
 
-    for group in groups {
-        let Some(lineage) = lineage_of_uid(&group.uid) else {
-            merged.push(group);
-            continue;
-        };
-
-        match merged
-            .iter_mut()
-            .find(|kept| kept.uid == lineage.canonical_uid)
-        {
-            Some(kept) => {
-                kept.final_vote_count += group.final_vote_count;
-                kept.color = kept.color.take().or(group.color);
+            GroupOption {
+                uid: shown.uid.to_string(),
+                abbrev: shown.abbrev.to_string(),
+                label: shown.label.to_string(),
+                color: options.iter().find_map(|option| option.color.clone()),
+                final_vote_count: options.iter().map(|option| option.final_vote_count).sum(),
             }
-            None => merged.push(GroupOption {
-                uid: lineage.canonical_uid.to_string(),
-                abbrev: lineage.abbrev.to_string(),
-                label: lineage.label.to_string(),
-                color: group.color,
-                final_vote_count: group.final_vote_count,
-            }),
-        }
-    }
+        })
+        .collect();
 
     // Le depot trie par couverture decroissante; la fusion additionne des
     // comptes et defait ce tri.
@@ -174,14 +171,6 @@ fn merge_renamed_groups(groups: Vec<GroupOption>) -> Vec<GroupOption> {
             .then_with(|| a.abbrev.cmp(&b.abbrev))
     });
     merged
-}
-
-/// Identifiants sous lesquels les ventilations d'un groupe sont enregistrees.
-fn uids_of(group: &GroupOption) -> Vec<String> {
-    match lineage_of_uid(&group.uid) {
-        Some(lineage) => lineage.uids.iter().map(|uid| uid.to_string()).collect(),
-        None => vec![group.uid.clone()],
-    }
 }
 
 /// Un groupe est designe par son identifiant ou par son sigle. Le sigle rend
@@ -201,7 +190,7 @@ fn resolve_groups(
 
         let group = known
             .iter()
-            .find(|group| designates(group, token))
+            .find(|group| designates(&group.uid, &group.abbrev, token))
             .cloned()
             .ok_or_else(|| BrowseFinalVotesError::UnknownGroup(token.to_string()))?;
 
@@ -216,12 +205,6 @@ fn resolve_groups(
     Ok(resolved)
 }
 
-fn designates(group: &GroupOption, token: &str) -> bool {
-    group.uid == token
-        || group.abbrev.eq_ignore_ascii_case(token)
-        || lineage_of_uid(&group.uid).is_some_and(|lineage| lineage.matches(token))
-}
-
 fn build_entry(
     record: FinalVoteRecord,
     selected: &[GroupOption],
@@ -231,15 +214,11 @@ fn build_entry(
     let stances = selected
         .iter()
         .filter_map(|group| {
-            let lineage = lineage_of_uid(&group.uid);
             record
                 .tallies
                 .iter()
-                .find(|tally| match lineage {
-                    Some(lineage) => lineage.contains_uid(&tally.group_uid),
-                    None => tally.group_uid == group.uid,
-                })
-                .map(|tally| build_stance(tally, lineage))
+                .find(|tally| same_group(&group.uid, &tally.group_uid))
+                .map(build_stance)
         })
         .collect::<Result<_, _>>()?;
 
@@ -270,25 +249,14 @@ fn build_entry(
 /// Position d'un groupe sur un vote.
 ///
 /// Sous une lignee, l'identite affichee est celle de la lignee et non celle que
-/// la ventilation porte: sinon la meme colonne changerait de sigle au milieu de
-/// la liste, au vote ou le groupe a ete renomme.
-fn build_stance(
-    record: &GroupTallyRecord,
-    lineage: Option<&GroupLineage>,
-) -> Result<GroupStance, ActorError> {
-    let identity = match lineage {
-        Some(lineage) => GroupIdentity {
-            uid: GroupUid::new(lineage.canonical_uid.to_string())?,
-            abbrev: lineage.abbrev.to_string(),
-            label: lineage.label.to_string(),
-            color: record.color.clone(),
-        },
-        None => GroupIdentity {
-            uid: GroupUid::new(record.group_uid.clone())?,
-            abbrev: record.abbrev.clone(),
-            label: record.label.clone(),
-            color: record.color.clone(),
-        },
+/// la ventilation porte (`displayed_group`).
+fn build_stance(record: &GroupTallyRecord) -> Result<GroupStance, ActorError> {
+    let shown = displayed_group(&record.group_uid, &record.abbrev, &record.label);
+    let identity = GroupIdentity {
+        uid: GroupUid::new(shown.uid.to_string())?,
+        abbrev: shown.abbrev.to_string(),
+        label: shown.label.to_string(),
+        color: record.color.clone(),
     };
 
     Ok(GroupStance::new(

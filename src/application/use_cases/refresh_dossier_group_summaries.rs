@@ -1,6 +1,6 @@
 use super::get_dossier_group_actions::fingerprint;
 use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupActionsRepository, DossierSummaryRepository, RepositoryError, SummaryStatus,
+    DossierGroupActionsRepository, DossierSummaryRepository, RepositoryError,
 };
 use crate::application::ports::dossier_summary_generator::DossierSummaryGenerator;
 
@@ -47,7 +47,7 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
             let expected: Vec<String> = facts
                 .groups
                 .iter()
-                .filter(|group| !group.final_votes.is_empty() || !group.amendments.is_empty())
+                .filter(|group| group.has_actions())
                 .map(|group| group.uid.clone())
                 .collect();
             let stored = self.summaries.summaries_for(&facts.dossier_uid).await?;
@@ -55,11 +55,11 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
                 && expected.iter().all(|uid| {
                     stored.iter().any(|summary| {
                         summary.group_uid == *uid
-                            && summary.status == SummaryStatus::Ready
-                            && summary.facts_fingerprint == fingerprint
-                            && summary.model.as_deref() == Some(self.generator.model())
-                            && summary.prompt_version.as_deref()
-                                == Some(self.generator.prompt_version())
+                            && summary.is_up_to_date(
+                                &fingerprint,
+                                self.generator.model(),
+                                self.generator.prompt_version(),
+                            )
                     })
                 });
             if already_ready {
@@ -68,7 +68,7 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
             }
 
             self.summaries
-                .mark_pending(&facts.dossier_uid, &expected, &fingerprint)
+                .mark_pending(&facts.dossier_uid, &expected, fingerprint.as_str())
                 .await?;
             report.dossiers_refreshed += 1;
 
@@ -82,7 +82,7 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
                     self.summaries
                         .save_ready(
                             &facts.dossier_uid,
-                            &fingerprint,
+                            fingerprint.as_str(),
                             self.generator.model(),
                             self.generator.prompt_version(),
                             &generated,
@@ -106,11 +106,10 @@ mod tests {
     use chrono::NaiveDate;
     use std::sync::Mutex;
 
-    use crate::application::ports::dossier_group_actions_repository::{
-        DossierGroupFacts, FinalVoteFact, GeneratedGroupSummary, GroupFacts, StoredGroupSummary,
-        SummarySource,
-    };
+    use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
     use crate::application::ports::dossier_summary_generator::SummaryGeneratorError;
+    use crate::domain::dossier_group_facts::{DossierGroupFacts, FinalVoteFact, GroupFacts};
+    use crate::domain::dossier_summary::{StoredGroupSummary, SummarySource, SummaryStatus};
     use crate::domain::scrutin::VoteTally;
 
     fn facts(with_vote: bool) -> DossierGroupFacts {

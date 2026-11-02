@@ -4,8 +4,7 @@ use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::amendment_repository::AmendmentRepository;
 use crate::application::ports::amendment_source::{AmendmentBatch, AmendmentSource, ArchiveScan};
 use crate::domain::amendment::GroupResolutionReport;
-
-use super::refresh_actor_registry::CURRENT_LEGISLATURE;
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 
 /// Nom de la source dans `source_archives`.
 pub const ARCHIVE_LABEL: &str = "amendements";

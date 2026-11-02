@@ -169,6 +169,15 @@ impl VotingWindow {
             _ => None,
         }
     }
+
+    /// Plus petite fenetre qui couvre les deux: un groupe renomme est vu sur
+    /// l'ensemble de ses periodes, de la premiere a la derniere.
+    pub fn span(self, other: Self) -> Self {
+        Self {
+            first: self.first.min(other.first),
+            last: self.last.max(other.last),
+        }
+    }
 }
 
 /// Nombre de deputes portant une qualite d'appartenance donnee.
@@ -279,5 +288,47 @@ mod tests {
                 last: date
             })
         );
+    }
+
+    fn window(first: (i32, u32, u32), last: (i32, u32, u32)) -> VotingWindow {
+        let date = |(y, m, d): (i32, u32, u32)| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        VotingWindow {
+            first: date(first),
+            last: date(last),
+        }
+    }
+
+    #[test]
+    fn the_span_of_two_disjoint_windows_runs_from_the_first_start_to_the_last_end() {
+        let former = window((2024, 10, 8), (2025, 7, 10));
+        let current = window((2025, 10, 15), (2026, 7, 21));
+
+        let expected = window((2024, 10, 8), (2026, 7, 21));
+        assert_eq!(former.span(current), expected);
+        assert_eq!(current.span(former), expected);
+    }
+
+    #[test]
+    fn the_span_of_nested_windows_is_the_outer_one() {
+        let outer = window((2024, 10, 8), (2026, 7, 21));
+        let inner = window((2025, 1, 27), (2025, 7, 10));
+
+        assert_eq!(outer.span(inner), outer);
+        assert_eq!(inner.span(outer), outer);
+    }
+
+    #[test]
+    fn the_span_of_overlapping_windows_keeps_the_earliest_start_and_the_latest_end() {
+        let early = window((2024, 10, 8), (2025, 7, 10));
+        let late = window((2025, 1, 27), (2026, 7, 21));
+
+        assert_eq!(early.span(late), window((2024, 10, 8), (2026, 7, 21)));
+    }
+
+    #[test]
+    fn a_window_spanned_with_itself_is_unchanged() {
+        let only = window((2025, 1, 27), (2025, 7, 10));
+
+        assert_eq!(only.span(only), only);
     }
 }

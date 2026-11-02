@@ -219,9 +219,10 @@ mod tests {
 
     use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
     use crate::application::ports::scrutin_repository::{
-        DatasetShape, ScrutinFilter, ScrutinPage, ScrutinSummary,
+        ScrutinFilter, ScrutinPage, ScrutinSummary,
     };
     use crate::domain::actor::{Actor, ActorRegistry, ActorRole, GroupUid, ParliamentaryGroup};
+    use crate::domain::dataset::DatasetShape;
     use crate::domain::scrutin::{
         BallotType, NominalVote, Outcome, VoteCorrection, VoteSynthesis, VoteTally,
     };

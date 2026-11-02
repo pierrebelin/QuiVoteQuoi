@@ -238,14 +238,14 @@ mod tests {
     };
     use crate::application::ports::assembly_source::SourceError;
     use crate::application::ports::scrutin_repository::{
-        DatasetShape, RepositoryError as ScrutinRepositoryError, ScrutinFilter, ScrutinPage,
-        ScrutinSummary,
+        RepositoryError as ScrutinRepositoryError, ScrutinFilter, ScrutinPage, ScrutinSummary,
     };
     use crate::application::ports::scrutin_source::SourceError as ScrutinSourceError;
     use crate::application::ports::theme_repository::ScrutinSubject;
     use crate::application::use_cases::theme_fakes::{InMemoryThemeRepository, StubClassifier};
     use crate::domain::actor::{ActorRegistry, ActorUid};
     use crate::domain::amendment::Amendment;
+    use crate::domain::dataset::DatasetShape;
     use crate::domain::dossier::{DossierUid, LegislativeDossier};
     use crate::domain::scrutin::{Scrutin, ScrutinUid};
     use crate::domain::theme::{DebatedText, FamilyCode, SubjectRef};
@@ -264,14 +264,14 @@ mod tests {
     impl AssemblySource for FakeAssemblySource {
         async fn fetch_dossiers_since(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<LegislativeDossier>, SourceError> {
             unreachable!()
         }
 
         async fn fetch_dossiers_since_with_refs(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
             Ok(vec![(
                 dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),

@@ -6,12 +6,11 @@
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
-use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupFacts, GeneratedGroupSummary,
-};
+use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
 use crate::application::ports::dossier_summary_generator::{
     DossierSummaryGenerator, SummaryGeneratorError,
 };
+use crate::domain::dossier_group_facts::DossierGroupFacts;
 
 use super::anthropic_dossier_summary::{
     facts_input, parse_text, response_schema, system_prompt, SUMMARY_MAX_OUTPUT_TOKENS,

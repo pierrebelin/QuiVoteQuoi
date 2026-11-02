@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::application::ports::scrutin_repository::{ScrutinFilter, ScrutinPage, ScrutinSummary};
 use crate::application::use_cases::get_scrutin_detail::ScrutinDetail;
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
-use crate::domain::scrutin::VoteTally;
+use crate::domain::scrutin::{scrutin_official_url, VoteTally};
 
 /// RM-06: la lacune est servie avec les listes, pas enfouie ailleurs.
 pub const SHOW_OF_HANDS_NOTE: &str = "Les votes \u{00e0} main lev\u{00e9}e ne figurent pas dans les donn\u{00e9}es publi\u{00e9}es par l'Assembl\u{00e9}e nationale : le site n'en rend pas compte.";
@@ -88,10 +88,7 @@ pub struct ScrutinSummaryDto {
 
 impl From<ScrutinSummary> for ScrutinSummaryDto {
     fn from(s: ScrutinSummary) -> Self {
-        let official_url = format!(
-            "https://www.assemblee-nationale.fr/dyn/{}/scrutins/{}",
-            s.legislature, s.number
-        );
+        let official_url = scrutin_official_url(s.legislature, &s.number);
         Self {
             uid: s.uid,
             number: s.number,
