@@ -116,10 +116,13 @@ export function groupShortName(group: { abbrev: string; label: string }): string
 /**
  * Position d'un groupe sur un vote.
  *
- * `majority` seul ne suffit pas : la source la publie aussi quand personne n'a
- * voté dans le groupe, et la lire telle quelle ferait apparaître un « pour »
- * que nul n'a exprimé. On compte donc d'abord les votants (pour + contre +
- * abstention, hors non-votants), puis l'égalité, avant de retenir la majorité.
+ * Lue sur les voix du groupe, pas sur `majority` : la source publie celle-ci
+ * même quand personne n'a voté, et elle peut contredire les comptes — sur
+ * « Fin de vie » (scrutin 8280), « pour » pour un groupe à 12 pour et 106
+ * contre. On compte donc les votants (pour + contre + abstention, hors
+ * non-votants), puis l'égalité, avant de retenir la position en tête. La
+ * position publiée n'est jamais recalculée : quand elle diffère, elle est
+ * affichée à part (`publishedMajorityNote`).
  *
  * `missing` : le groupe n'a aucune ligne publiée sur ce vote. Ce n'est ni une
  * abstention ni une position.
@@ -140,7 +143,7 @@ export function groupPosition(stance: StanceDto | undefined): GroupPosition {
   if (!stance) return 'missing'
   if (voterCount(stance) === 0) return 'nobody'
   if ((stance.share?.tied_labels.length ?? 0) > 1) return 'split'
-  const lead = stance.majority ?? stance.share?.leading ?? null
+  const lead = stance.share?.leading ?? stance.majority ?? null
   if (lead === 'for' || lead === 'against' || lead === 'abstention') return lead
   // Votants présents mais aucune tête : c'est une égalité que la source n'a pas nommée.
   return 'split'
@@ -175,6 +178,14 @@ const POSITION_WORDS: Record<GroupPosition, string> = {
   missing: MISSING_STANCE_NOTE.toLowerCase(),
 }
 
+/** Mention de la position publiée, quand elle diffère de celle lue sur les voix. */
+export function publishedMajorityNote(stance: StanceDto | undefined): string | null {
+  if (!stance?.majority || !stance.majority_label) return null
+  const position = groupPosition(stance)
+  if (position === stance.majority || position === 'nobody' || position === 'missing') return null
+  return `Position majoritaire publiée par l’Assemblée : ${stance.majority_label}`
+}
+
 /** Phrase lue et affichée en infobulle sur la tuile d'un groupe. */
 export function stanceDescription(
   group: { label: string },
@@ -190,7 +201,8 @@ export function stanceDescription(
     plural(abstentions, 'abstention').replace(' ', ' '),
     ...(nonVoters > 0 ? [plural(nonVoters, 'non-votant').replace(' ', ' ')] : []),
   ].join(', ')
-  return `${group.label} : ${POSITION_WORDS[position]} (${counts})`
+  const published = publishedMajorityNote(stance)
+  return `${group.label} : ${POSITION_WORDS[position]} (${counts})${published ? `. ${published}` : ''}`
 }
 
 /** Phrase du bandeau du groupe suivi. */
@@ -204,7 +216,8 @@ export function stanceSentence(stance: StanceDto | undefined): string {
   const of =
     members == null ? '' : `, sur ${members} député${members > 1 ? 's' : ''} du groupe`
   const lead = position === 'split' ? 'Le groupe s’est partagé : ' : ''
-  return `${lead}${stanceCounts(stance)}${of}.`
+  const published = publishedMajorityNote(stance)
+  return `${lead}${stanceCounts(stance)}${of}.${published ? ` ${published}.` : ''}`
 }
 
 /* ------------------------------------------------------------------- textes */

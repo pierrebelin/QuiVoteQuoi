@@ -1,10 +1,14 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::dossier_repository::DossierCriteria;
-use crate::application::use_cases::browse_dossiers::DEFAULT_PER_PAGE;
+use crate::application::use_cases::browse_dossiers::{
+    DEFAULT_PER_PAGE, DossierCard, InitiatorView,
+};
 use crate::application::use_cases::check_health::HealthReport;
 use crate::domain::dossier::{CurationStatus, DossierOutcome, Initiative, LegislativeDossier};
+use crate::domain::theme::FamilyCode;
 
 #[derive(Deserialize)]
 pub struct RecentActivityQuery {
@@ -132,6 +136,8 @@ pub struct DossierPageQuery {
     pub outcome: Option<String>,
     /// `government` ou `parliamentary`.
     pub initiative: Option<String>,
+    /// Code d'une famille de thèmes (`logement`, `sante`…).
+    pub family: Option<String>,
 }
 
 fn default_page() -> i64 {
@@ -162,6 +168,11 @@ impl From<&DossierPageQuery> for DossierCriteria {
                 .as_deref()
                 .map(str::trim)
                 .and_then(Initiative::parse),
+            family: q
+                .family
+                .as_deref()
+                .map(str::trim)
+                .and_then(|code| FamilyCode::parse(code).ok()),
         }
     }
 }
@@ -173,7 +184,63 @@ pub struct DossierPageResponse {
     pub per_page: i64,
     pub total: i64,
     pub total_pages: i64,
-    pub dossiers: Vec<DossierDto>,
+    pub dossiers: Vec<DossierListItemDto>,
+}
+
+/// Carte de la liste : le dossier, qui l'a déposé, ses thèmes et ses votes.
+#[derive(Serialize)]
+pub struct DossierListItemDto {
+    #[serde(flatten)]
+    pub dossier: DossierDto,
+    pub initiators: Vec<DossierInitiatorDto>,
+    pub families: Vec<AssignedFamilyDto>,
+    pub scrutin_count: i64,
+}
+
+impl From<DossierCard> for DossierListItemDto {
+    fn from(card: DossierCard) -> Self {
+        Self {
+            dossier: DossierDto::from(card.listing.dossier),
+            initiators: card
+                .initiators
+                .into_iter()
+                .map(DossierInitiatorDto::from)
+                .collect(),
+            families: card
+                .listing
+                .families
+                .into_iter()
+                .map(AssignedFamilyDto::from)
+                .collect(),
+            scrutin_count: card.listing.scrutin_count,
+        }
+    }
+}
+
+/// Initiateur d'une carte. `group_color` absent : le groupe ne publie pas de
+/// couleur, il s'affiche en texte.
+#[derive(Serialize)]
+pub struct DossierInitiatorDto {
+    pub full_name: String,
+    /// `deputy`, `minister`, `senator`, `other` ; absent si non résolu.
+    pub role: Option<String>,
+    pub group_abbrev: Option<String>,
+    pub group_label: Option<String>,
+    pub group_color: Option<String>,
+    pub group_text_tone: Option<String>,
+}
+
+impl From<InitiatorView> for DossierInitiatorDto {
+    fn from(view: InitiatorView) -> Self {
+        Self {
+            full_name: view.full_name,
+            role: view.role.map(|role| role.as_str().to_string()),
+            group_abbrev: view.group_abbrev,
+            group_label: view.group_label,
+            group_color: view.group_color,
+            group_text_tone: view.text_tone.map(|tone| tone.as_str().to_string()),
+        }
+    }
 }
 
 #[derive(Serialize)]

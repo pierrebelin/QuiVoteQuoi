@@ -2,18 +2,20 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
-use sqlx::{PgPool, Postgres, QueryBuilder};
+use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
 use super::{db, invalid_row};
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierPage, DossierRepository, RepositoryError,
+    DossierCriteria, DossierListing, DossierPage, DossierRepository, RepositoryError,
 };
+use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
 use crate::domain::dossier::{
     Committee, CurationStatus, DossierOutcome, DossierUid, Initiator, InitiatorGroup,
     LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
     NewLegislativeDossier, Score, StoredDossierState,
 };
+use crate::domain::theme::FamilyCode;
 
 pub struct PgDossierRepository {
     pool: PgPool,
@@ -249,6 +251,103 @@ impl PgDossierRepository {
 
         rows.into_iter().map(InitiatorRow::into_initiator).collect()
     }
+
+    /// Initiateurs des dossiers d'une page, en une requête.
+    async fn initiators_of(
+        &self,
+        uids: &[String],
+    ) -> Result<HashMap<String, Vec<Initiator>>, RepositoryError> {
+        let rows = sqlx::query_as::<_, PageInitiatorRow>(
+            "SELECT dossier_uid, full_name, actor_uid, actor_role, group_uid, group_abbrev, group_label, membership_quality, reference_date, official_url
+             FROM dossier_initiators WHERE dossier_uid = ANY($1) ORDER BY id",
+        )
+        .bind(uids)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let mut by_dossier: HashMap<String, Vec<Initiator>> = HashMap::new();
+        for row in rows {
+            by_dossier
+                .entry(row.dossier_uid)
+                .or_default()
+                .push(row.initiator.into_initiator()?);
+        }
+        Ok(by_dossier)
+    }
+
+    /// Familles courantes des dossiers d'une page, dans l'ordre du référentiel.
+    ///
+    /// Même règle que `families_of_dossier` du dépôt des thèmes (RM-06) : les
+    /// familles des textes que ses scrutins nomment, plus son propre
+    /// rattachement. Une famille portée par deux textes ne s'affiche qu'une fois.
+    async fn families_of(
+        &self,
+        uids: &[String],
+    ) -> Result<HashMap<String, Vec<AssignedFamily>>, RepositoryError> {
+        let rows = sqlx::query(
+            "SELECT s.dossier_uid, s.family_code, s.opened_on, s.motive
+             FROM (
+                 SELECT dt.dossier_uid, a.family_code, a.opened_on, a.motive, a.id
+                 FROM dossier_debated_texts dt
+                 JOIN theme_assignments a
+                   ON a.subject_kind = 'text' AND a.subject_id = dt.text_key AND a.closed_on IS NULL
+                 WHERE dt.dossier_uid = ANY($1)
+                 UNION ALL
+                 SELECT a.subject_id, a.family_code, a.opened_on, a.motive, a.id
+                 FROM theme_assignments a
+                 WHERE a.subject_kind = 'dossier' AND a.subject_id = ANY($1) AND a.closed_on IS NULL
+             ) s
+             JOIN theme_families f ON f.code = s.family_code
+             ORDER BY s.dossier_uid, f.display_order, s.opened_on, s.id",
+        )
+        .bind(uids)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let mut by_dossier: HashMap<String, Vec<AssignedFamily>> = HashMap::new();
+        for row in &rows {
+            let code: String = row.get("family_code");
+            let Ok(family) = FamilyCode::parse(&code) else {
+                continue;
+            };
+            let families = by_dossier.entry(row.get("dossier_uid")).or_default();
+            if families.iter().any(|f| f.family == family) {
+                continue;
+            }
+            families.push(AssignedFamily {
+                family,
+                opened_on: row.get("opened_on"),
+                motive: row.get("motive"),
+            });
+        }
+        Ok(by_dossier)
+    }
+
+    /// Nombre de scrutins publics des dossiers d'une page.
+    async fn scrutin_counts_of(
+        &self,
+        uids: &[String],
+    ) -> Result<HashMap<String, i64>, RepositoryError> {
+        let rows = sqlx::query(
+            "SELECT dossier_uid, count(*) AS total
+             FROM scrutins WHERE dossier_uid = ANY($1)
+             GROUP BY dossier_uid",
+        )
+        .bind(uids)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        Ok(rows
+            .iter()
+            .map(|row| (row.get("dossier_uid"), row.get("total")))
+            .collect())
+    }
 }
 
 const BATCH_SIZE: usize = 50;
@@ -290,6 +389,26 @@ fn push_criteria(query: &mut QueryBuilder<'_, Postgres>, criteria: &DossierCrite
         open(query, &mut separated);
         query.push("procedure_label LIKE ");
         query.push_bind(format!("{}%", escape_like(initiative.procedure_prefix())));
+    }
+    // Même règle que l'affichage des familles (RM-06) : celles des textes que
+    // les scrutins du dossier nomment, ou son propre rattachement.
+    if let Some(family) = criteria.family {
+        open(query, &mut separated);
+        query.push(
+            "(EXISTS (SELECT 1 FROM dossier_debated_texts dt
+                      JOIN theme_assignments a
+                        ON a.subject_kind = 'text' AND a.subject_id = dt.text_key
+                       AND a.closed_on IS NULL
+                      WHERE dt.dossier_uid = legislative_dossiers.uid AND a.family_code = ",
+        );
+        query.push_bind(family.as_str());
+        query.push(
+            ") OR EXISTS (SELECT 1 FROM theme_assignments a
+                      WHERE a.subject_kind = 'dossier' AND a.subject_id = legislative_dossiers.uid
+                        AND a.closed_on IS NULL AND a.family_code = ",
+        );
+        query.push_bind(family.as_str());
+        query.push("))");
     }
 }
 
@@ -401,13 +520,30 @@ impl DossierRepository for PgDossierRepository {
             .await
             .map_err(db)?;
 
-        Ok(DossierPage {
-            items: rows
-                .into_iter()
-                .map(|r| r.into_dossier(vec![], vec![], vec![]))
-                .collect::<Result<_, _>>()?,
-            total,
-        })
+        // Trois lectures groupées pour toute la page plutôt que trois par
+        // dossier : la liste en affiche vingt.
+        let uids: Vec<String> = rows.iter().map(|r| r.uid.clone()).collect();
+        let mut initiators = self.initiators_of(&uids).await?;
+        let mut families = self.families_of(&uids).await?;
+        let scrutin_counts = self.scrutin_counts_of(&uids).await?;
+
+        let items = rows
+            .into_iter()
+            .map(|r| {
+                let uid = r.uid.clone();
+                Ok(DossierListing {
+                    dossier: r.into_dossier(
+                        vec![],
+                        initiators.remove(&uid).unwrap_or_default(),
+                        vec![],
+                    )?,
+                    families: families.remove(&uid).unwrap_or_default(),
+                    scrutin_count: scrutin_counts.get(&uid).copied().unwrap_or(0),
+                })
+            })
+            .collect::<Result<_, RepositoryError>>()?;
+
+        Ok(DossierPage { items, total })
     }
 
     async fn find_by_uid(
@@ -609,6 +745,13 @@ struct ActRow {
     act_date: NaiveDate,
     label: String,
     act_code: Option<String>,
+}
+
+#[derive(sqlx::FromRow)]
+struct PageInitiatorRow {
+    dossier_uid: String,
+    #[sqlx(flatten)]
+    initiator: InitiatorRow,
 }
 
 #[derive(sqlx::FromRow)]

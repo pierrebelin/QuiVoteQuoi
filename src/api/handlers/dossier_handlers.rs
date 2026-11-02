@@ -1,13 +1,14 @@
+use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
-use axum::Json;
 use chrono::Utc;
 
+use crate::AppState;
 use crate::api::dossier_group_actions_dto::DossierGroupActionsResponse;
 use crate::api::dto::{
-    CurateBody, DossierDetailDto, DossierDto, DossierPageQuery, DossierPageResponse,
-    RecentActivityQuery, RecentDossiersResponse, RefreshQuery, RefreshResponse, RegistryResponse,
-    SuggestionsQuery, SuggestionsResponse,
+    CurateBody, DossierDetailDto, DossierDto, DossierListItemDto, DossierPageQuery,
+    DossierPageResponse, RecentActivityQuery, RecentDossiersResponse, RefreshQuery,
+    RefreshResponse, RegistryResponse, SuggestionsQuery, SuggestionsResponse,
 };
 use crate::api::error::ApiError;
 use crate::application::ports::dossier_repository::DossierCriteria;
@@ -24,7 +25,6 @@ use crate::application::use_cases::save_dossier::SaveDossier;
 use crate::application::use_cases::suggest_dossiers::SuggestDossiers;
 use crate::domain::dossier::DossierUid;
 use crate::infrastructure::config;
-use crate::AppState;
 
 pub async fn get_recent_dossiers(
     State(state): State<AppState>,
@@ -52,7 +52,10 @@ pub async fn browse_dossiers(
     Query(params): Query<DossierPageQuery>,
 ) -> Result<Json<DossierPageResponse>, ApiError> {
     let query = DossierQuery::new(params.page, params.per_page, DossierCriteria::from(&params));
-    let uc = BrowseDossiers::new(state.dossier_repository.as_ref());
+    let uc = BrowseDossiers::new(
+        state.dossier_repository.as_ref(),
+        state.actor_repository.as_ref(),
+    );
 
     let per_page = query.per_page();
     let page_number = query.page();
@@ -65,7 +68,11 @@ pub async fn browse_dossiers(
         total: page.total,
         total_pages: page.total.div_euclid(per_page)
             + i64::from(page.total.rem_euclid(per_page) > 0),
-        dossiers: page.items.into_iter().map(DossierDto::from).collect(),
+        dossiers: page
+            .items
+            .into_iter()
+            .map(DossierListItemDto::from)
+            .collect(),
     }))
 }
 

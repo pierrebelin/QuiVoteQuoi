@@ -1,6 +1,9 @@
+use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierPage, DossierRepository, RepositoryError,
+    DossierCriteria, DossierListing, DossierRepository, RepositoryError,
 };
+use crate::domain::actor::{ActorDirectory, ActorRole, TextTone};
+use crate::domain::dossier::Initiator;
 
 pub const DEFAULT_PER_PAGE: i64 = 20;
 pub const MAX_PER_PAGE: i64 = 100;
@@ -57,17 +60,84 @@ impl Default for DossierQuery {
 /// où en est un texte.
 pub struct BrowseDossiers<'a> {
     repository: &'a dyn DossierRepository,
+    actors: &'a dyn ActorRepository,
+}
+
+/// Initiateur tel que la carte l'affiche : nom, qualité, et le groupe stocké —
+/// celui de la date de dépôt (RM-01) — aux couleurs publiées de ce groupe.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InitiatorView {
+    pub full_name: String,
+    pub role: Option<ActorRole>,
+    pub group_abbrev: Option<String>,
+    pub group_label: Option<String>,
+    pub group_color: Option<String>,
+    pub text_tone: Option<TextTone>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DossierCard {
+    pub listing: DossierListing,
+    pub initiators: Vec<InitiatorView>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DossierCards {
+    pub items: Vec<DossierCard>,
+    pub total: i64,
 }
 
 impl<'a> BrowseDossiers<'a> {
-    pub fn new(repository: &'a dyn DossierRepository) -> Self {
-        Self { repository }
+    pub fn new(repository: &'a dyn DossierRepository, actors: &'a dyn ActorRepository) -> Self {
+        Self { repository, actors }
     }
 
-    pub async fn execute(&self, query: DossierQuery) -> Result<DossierPage, RepositoryError> {
-        self.repository
+    pub async fn execute(&self, query: DossierQuery) -> Result<DossierCards, RepositoryError> {
+        let page = self
+            .repository
             .find_page(query.criteria(), query.per_page(), query.offset())
-            .await
+            .await?;
+
+        // Le référentiel n'est chargé que pour les initiateurs de la page.
+        let uids: Vec<_> = page
+            .items
+            .iter()
+            .flat_map(|listing| listing.dossier.initiators())
+            .filter_map(|initiator| initiator.actor_uid().cloned())
+            .collect();
+        let directory = self.actors.load_directory_for(&uids).await?;
+
+        Ok(DossierCards {
+            items: page
+                .items
+                .into_iter()
+                .map(|listing| DossierCard {
+                    initiators: listing
+                        .dossier
+                        .initiators()
+                        .iter()
+                        .map(|initiator| initiator_view(initiator, &directory))
+                        .collect(),
+                    listing,
+                })
+                .collect(),
+            total: page.total,
+        })
+    }
+}
+
+/// Le référentiel ne sert qu'à peindre le groupe stocké, jamais à le
+/// recalculer sur l'appartenance courante.
+fn initiator_view(initiator: &Initiator, directory: &ActorDirectory) -> InitiatorView {
+    let stored = initiator.group();
+    let published = stored.and_then(|group| directory.group(&group.uid));
+    InitiatorView {
+        full_name: initiator.full_name().to_string(),
+        role: initiator.role(),
+        group_abbrev: stored.map(|group| group.abbrev.clone()),
+        group_label: stored.map(|group| group.label.clone()),
+        group_color: published.and_then(|group| group.color().map(str::to_string)),
+        text_tone: published.and_then(|group| group.text_tone()),
     }
 }
 
@@ -78,10 +148,14 @@ mod tests {
     use chrono::NaiveDate;
     use std::sync::Mutex;
 
+    use crate::application::ports::dossier_repository::DossierPage;
+    use crate::application::use_cases::read_fakes::FakeActors;
+    use crate::domain::actor::{ActorUid, GroupUid};
     use crate::domain::dossier::{
         CurationStatus, DossierOutcome, DossierUid, Initiative, LegislativeDossier,
         NewLegislativeDossier,
     };
+    use crate::domain::dossier::{Initiator, InitiatorGroup};
     use crate::domain::scoring::compute_score;
 
     struct InMemoryDossierRepository {
@@ -131,6 +205,11 @@ mod tests {
                     .into_iter()
                     .skip(offset as usize)
                     .take(limit as usize)
+                    .map(|dossier| DossierListing {
+                        dossier,
+                        families: vec![],
+                        scrutin_count: 0,
+                    })
                     .collect(),
             })
         }
@@ -206,6 +285,8 @@ mod tests {
         LegislativeDossier::new(dossier_parts(uid, day))
     }
 
+    const NO_COLOR: FakeActors = FakeActors { group_color: None };
+
     fn repo(count: u32) -> InMemoryDossierRepository {
         InMemoryDossierRepository {
             dossiers: Mutex::new((1..=count).map(|d| dossier(&format!("D{d}"), d)).collect()),
@@ -219,25 +300,33 @@ mod tests {
     #[tokio::test]
     async fn first_page_holds_the_most_recent_dossiers() {
         let repo = repo(5);
-        let page = BrowseDossiers::new(&repo)
+        let page = BrowseDossiers::new(&repo, &NO_COLOR)
             .execute(query(1, 2))
             .await
             .unwrap();
 
         assert_eq!(page.total, 5);
-        let uids: Vec<_> = page.items.iter().map(|d| d.uid().as_str()).collect();
+        let uids: Vec<_> = page
+            .items
+            .iter()
+            .map(|c| c.listing.dossier.uid().as_str())
+            .collect();
         assert_eq!(uids, vec!["D5", "D4"]);
     }
 
     #[tokio::test]
     async fn following_page_continues_without_repeating() {
         let repo = repo(5);
-        let page = BrowseDossiers::new(&repo)
+        let page = BrowseDossiers::new(&repo, &NO_COLOR)
             .execute(query(2, 2))
             .await
             .unwrap();
 
-        let uids: Vec<_> = page.items.iter().map(|d| d.uid().as_str()).collect();
+        let uids: Vec<_> = page
+            .items
+            .iter()
+            .map(|c| c.listing.dossier.uid().as_str())
+            .collect();
         assert_eq!(uids, vec!["D3", "D2"]);
     }
 
@@ -245,7 +334,7 @@ mod tests {
     #[tokio::test]
     async fn page_beyond_the_end_is_empty_and_still_reports_the_total() {
         let repo = repo(5);
-        let page = BrowseDossiers::new(&repo)
+        let page = BrowseDossiers::new(&repo, &NO_COLOR)
             .execute(query(99, 20))
             .await
             .unwrap();
@@ -287,7 +376,7 @@ mod tests {
 
     #[tokio::test]
     async fn search_keeps_only_the_matching_titles() {
-        let page = BrowseDossiers::new(&mixed_repo())
+        let page = BrowseDossiers::new(&mixed_repo(), &NO_COLOR)
             .execute(DossierQuery::new(
                 1,
                 20,
@@ -299,13 +388,17 @@ mod tests {
             .await
             .unwrap();
 
-        let titles: Vec<_> = page.items.iter().map(|d| d.title()).collect();
+        let titles: Vec<_> = page
+            .items
+            .iter()
+            .map(|c| c.listing.dossier.title())
+            .collect();
         assert_eq!(titles, vec!["Loi agricole", "Loi de finances"]);
     }
 
     #[tokio::test]
     async fn outcome_criterion_keeps_only_that_outcome() {
-        let page = BrowseDossiers::new(&mixed_repo())
+        let page = BrowseDossiers::new(&mixed_repo(), &NO_COLOR)
             .execute(DossierQuery::new(
                 1,
                 20,
@@ -317,13 +410,17 @@ mod tests {
             .await
             .unwrap();
 
-        let titles: Vec<_> = page.items.iter().map(|d| d.title()).collect();
+        let titles: Vec<_> = page
+            .items
+            .iter()
+            .map(|c| c.listing.dossier.title())
+            .collect();
         assert_eq!(titles, vec!["Loi de finances"]);
     }
 
     #[tokio::test]
     async fn initiative_criterion_separates_projets_from_propositions() {
-        let page = BrowseDossiers::new(&mixed_repo())
+        let page = BrowseDossiers::new(&mixed_repo(), &NO_COLOR)
             .execute(DossierQuery::new(
                 1,
                 20,
@@ -335,7 +432,11 @@ mod tests {
             .await
             .unwrap();
 
-        let titles: Vec<_> = page.items.iter().map(|d| d.title()).collect();
+        let titles: Vec<_> = page
+            .items
+            .iter()
+            .map(|c| c.listing.dossier.title())
+            .collect();
         assert_eq!(titles, vec!["R\u{00e9}forme du logement"]);
     }
 
@@ -343,7 +444,7 @@ mod tests {
     /// regarde, pas combien la base en contient (README.md §2).
     #[tokio::test]
     async fn total_counts_the_filtered_dossiers_not_the_whole_base() {
-        let page = BrowseDossiers::new(&mixed_repo())
+        let page = BrowseDossiers::new(&mixed_repo(), &NO_COLOR)
             .execute(DossierQuery::new(
                 1,
                 1,
@@ -361,7 +462,7 @@ mod tests {
 
     #[tokio::test]
     async fn criteria_combine_and_can_leave_nothing() {
-        let page = BrowseDossiers::new(&mixed_repo())
+        let page = BrowseDossiers::new(&mixed_repo(), &NO_COLOR)
             .execute(DossierQuery::new(
                 1,
                 20,
@@ -369,6 +470,7 @@ mod tests {
                     search: Some("loi".into()),
                     outcome_kind: Some("promulgated".into()),
                     initiative: Some(Initiative::Parliamentary),
+                    family: None,
                 },
             ))
             .await
@@ -376,5 +478,79 @@ mod tests {
 
         assert!(page.items.is_empty());
         assert_eq!(page.total, 0);
+    }
+
+    fn repo_with_initiators(initiators: Vec<Initiator>) -> InMemoryDossierRepository {
+        let mut parts = dossier_parts("D1", 1);
+        parts.initiators = initiators;
+        InMemoryDossierRepository {
+            dossiers: Mutex::new(vec![LegislativeDossier::new(parts)]),
+        }
+    }
+
+    fn deputy_of_group_a() -> Initiator {
+        Initiator::resolved(
+            "Jean Dupont".into(),
+            ActorUid::new("PA1".into()).unwrap(),
+            crate::domain::actor::ActorRole::Deputy,
+            Some(InitiatorGroup {
+                uid: GroupUid::new("PO_A".into()).unwrap(),
+                abbrev: "A".into(),
+                label: "Groupe A".into(),
+                quality: None,
+            }),
+            NaiveDate::from_ymd_opt(2026, 1, 5),
+            None,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn initiator_is_painted_in_the_published_color_of_their_deposit_group() {
+        let repo = repo_with_initiators(vec![deputy_of_group_a()]);
+        let actors = FakeActors {
+            group_color: Some("#1A237E".into()),
+        };
+        let page = BrowseDossiers::new(&repo, &actors)
+            .execute(query(1, 20))
+            .await
+            .unwrap();
+
+        let initiator = &page.items[0].initiators[0];
+        assert_eq!(initiator.full_name, "Jean Dupont");
+        assert_eq!(initiator.group_abbrev.as_deref(), Some("A"));
+        assert_eq!(initiator.group_color.as_deref(), Some("#1A237E"));
+        assert_eq!(initiator.text_tone, Some(TextTone::Light));
+    }
+
+    /// Sans couleur publiée, le groupe reste nommé, sans teinte inventée.
+    #[tokio::test]
+    async fn group_without_published_color_keeps_its_name_only() {
+        let repo = repo_with_initiators(vec![deputy_of_group_a()]);
+        let page = BrowseDossiers::new(&repo, &NO_COLOR)
+            .execute(query(1, 20))
+            .await
+            .unwrap();
+
+        let initiator = &page.items[0].initiators[0];
+        assert_eq!(initiator.group_abbrev.as_deref(), Some("A"));
+        assert_eq!(initiator.group_color, None);
+    }
+
+    /// Un initiateur absent du référentiel garde son nom, sans groupe deviné
+    /// (RM-04).
+    #[tokio::test]
+    async fn unresolved_initiator_keeps_their_name_without_a_group() {
+        let repo =
+            repo_with_initiators(vec![Initiator::unresolved("Claude Martin".into()).unwrap()]);
+        let page = BrowseDossiers::new(&repo, &NO_COLOR)
+            .execute(query(1, 20))
+            .await
+            .unwrap();
+
+        let initiator = &page.items[0].initiators[0];
+        assert_eq!(initiator.full_name, "Claude Martin");
+        assert_eq!(initiator.role, None);
+        assert_eq!(initiator.group_abbrev, None);
     }
 }

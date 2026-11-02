@@ -1,40 +1,24 @@
 import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
-import OutcomeBadge from '../components/OutcomeBadge'
+import DossierCard, { type DossierCardDto } from '../components/DossierCard'
+import { FamilyIllustration } from '../components/FamilyIllustration'
 import {
   Button,
   ErrorPanel,
-  ListCard,
   Loading,
-  Meta,
   PageHeader,
-  Pill,
   SegmentedControl,
 } from '../components/ui'
-import type { OutcomeDto } from '../types/dossiers'
-
-interface StageDto {
-  label: string
-  chamber: string
-}
-
-interface DossierDto {
-  uid: string
-  title: string
-  procedure: string
-  last_activity_date: string
-  last_activity_label: string
-  current_stage: StageDto | null
-  outcome: OutcomeDto
-}
+import { fetchJson } from '../lib/fetchJson'
+import type { FamiliesResponse } from '../types/themes'
 
 interface DossierPageResponse {
   page: number
   per_page: number
   total: number
   total_pages: number
-  dossiers: DossierDto[]
+  dossiers: DossierCardDto[]
 }
 
 const PER_PAGE = 20
@@ -60,7 +44,7 @@ const initiatives = [
   { value: 'parliamentary', label: 'Propositions' },
 ]
 
-type Criterion = 'search' | 'outcome' | 'initiative' | 'page'
+type Criterion = 'search' | 'outcome' | 'initiative' | 'theme' | 'page'
 
 export default function DossierListPage() {
   const [params, setParams] = useSearchParams()
@@ -68,10 +52,11 @@ export default function DossierListPage() {
   const search = params.get('search') ?? ''
   const outcome = params.get('outcome') ?? ''
   const initiative = params.get('initiative') ?? ''
+  const theme = params.get('theme') ?? ''
 
   const [draft, setDraft] = useState(search)
 
-  const filtered = Boolean(search || outcome || initiative)
+  const filtered = Boolean(search || outcome || initiative || theme)
 
   const query = new URLSearchParams({
     page: String(page),
@@ -80,6 +65,7 @@ export default function DossierListPage() {
   if (search) query.set('search', search)
   if (outcome) query.set('outcome', outcome)
   if (initiative) query.set('initiative', initiative)
+  if (theme) query.set('family', theme)
 
   const { data, isLoading, isError, error, isPlaceholderData } =
     useQuery<DossierPageResponse>({
@@ -93,6 +79,14 @@ export default function DossierListPage() {
       // la liste ne clignote pas à chaque changement de page.
       placeholderData: keepPreviousData,
     })
+
+  const families = useQuery<FamiliesResponse>({
+    queryKey: ['themes'],
+    queryFn: () => fetchJson<FamiliesResponse>('/api/themes'),
+    retry: false,
+  })
+
+  const today = new Date().toISOString().slice(0, 10)
 
   /*
     Les filtres vivent dans l'URL, comme la pagination : une liste filtrée se
@@ -132,7 +126,7 @@ export default function DossierListPage() {
                   le dire évite de laisser croire que la législature se réduit
                   à ces dossiers (README.md §2).
                 */
-                `${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''} correspond${data.total > 1 ? 'ent' : ''} à ces filtres. Les filtres restreignent l'affichage, jamais la base.`
+                `${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''} correspond${data.total > 1 ? 'ent' : ''} à ces filtres. Les filtres restreignent l'affichage, jamais la base.${theme ? ' Seuls les dossiers déjà rattachés à un thème y figurent.' : ''}`
               : `Les ${data.total.toLocaleString('fr-FR')} dossiers ouverts sous cette législature, du plus récemment actif au plus ancien. Rien n'est écarté.`
         }
         /*
@@ -194,6 +188,47 @@ export default function DossierListPage() {
         )}
       </div>
 
+      {/* Les thèmes en vignettes plutôt qu'en liste déroulante : on reconnaît
+          un sujet à son pictogramme avant d'en lire le libellé. La rangée
+          défile sur petit écran au lieu de repousser la liste. */}
+      {families.data && (
+        <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+          <button
+            type="button"
+            onClick={() => apply({ theme: '' })}
+            aria-pressed={!theme}
+            className={`shrink-0 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition ${
+              !theme
+                ? 'border-ink bg-surface text-ink ring-1 ring-ink'
+                : 'border-line bg-surface text-ink-soft hover:border-line-strong'
+            }`}
+          >
+            Tous les thèmes
+          </button>
+          {families.data.families.map((family) => (
+            <button
+              key={family.code}
+              type="button"
+              onClick={() => apply({ theme: theme === family.code ? '' : family.code })}
+              aria-pressed={theme === family.code}
+              title={family.scope}
+              className={`inline-flex shrink-0 items-center gap-2 rounded-xl border py-1 pr-3 pl-1 text-[13px] font-medium whitespace-nowrap transition ${
+                theme === family.code
+                  ? 'border-ink bg-surface text-ink ring-1 ring-ink'
+                  : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
+              }`}
+            >
+              <FamilyIllustration
+                code={family.code}
+                className="size-7 rounded-lg"
+                glyphClassName="size-[18px]"
+              />
+              {family.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {isLoading && <Loading>Chargement des dossiers…</Loading>}
       {isError && <ErrorPanel error={error} />}
 
@@ -204,50 +239,23 @@ export default function DossierListPage() {
       )}
 
       {/*
-        Une ligne par dossier plutôt qu'une carte : la largeur disponible porte
-        le titre et la date sur la même ligne, et vingt dossiers tiennent dans
-        une hauteur d'écran au lieu de trois.
+        Une carte par dossier, aérée : l'état en bandeau, le titre en entier,
+        les thèmes, puis qui l'a déposé, quand, où il en est et s'il a été voté.
+        Moins de dossiers par écran, mais chacun se lit sans ouvrir sa page.
       */}
       {data && data.dossiers.length > 0 && (
-        <ListCard muted={isPlaceholderData}>
+        <div
+          className={`space-y-4 transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
+        >
           {data.dossiers.map((d) => (
-            <Link
+            <DossierCard
               key={d.uid}
-              to={`/dossiers/${d.uid}`}
-              className="group flex flex-col gap-1.5 px-4 py-3 transition-colors hover:bg-surface-soft sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
-                  {d.title}
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <Meta>{d.procedure}</Meta>
-                  {d.current_stage && (
-                    <Pill tone="info">
-                      {d.current_stage.label}
-                      {d.current_stage.chamber && ` — ${d.current_stage.chamber}`}
-                    </Pill>
-                  )}
-                  <OutcomeBadge outcome={d.outcome} />
-                </div>
-              </div>
-              <div className="shrink-0 sm:w-40 sm:text-right">
-                <span className="block text-xs font-medium text-ink-soft">
-                  {new Date(
-                    d.last_activity_date + 'T00:00:00',
-                  ).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </span>
-                <span className="block text-xs text-ink-faint">
-                  {d.last_activity_label}
-                </span>
-              </div>
-            </Link>
+              dossier={d}
+              today={today}
+              onFamily={(code) => apply({ theme: code })}
+            />
           ))}
-        </ListCard>
+        </div>
       )}
 
       {data && data.total_pages > 1 && (

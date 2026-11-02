@@ -1,3 +1,5 @@
+import type { AssignedFamilyDto } from './themes'
+
 export interface TallyDto {
   votes_for: number
   votes_against: number
@@ -148,6 +150,10 @@ export interface ScrutinDetailDto {
   cited: CitedNumberDto[]
   unnumbered_identical_amendments: boolean
   coverage_note: string
+  /** Familles héritées du texte mis aux voix ; vide tant qu'il n'est rattaché à aucune. */
+  families: AssignedFamilyDto[]
+  /** Mention de lecture d'un vote sur l'ensemble (« lecture définitive »), sinon `null`. */
+  reading: string | null
 }
 
 export const positionLabels: Record<VoteDto['position'], string> = {

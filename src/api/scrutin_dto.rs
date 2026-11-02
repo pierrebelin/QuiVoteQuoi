@@ -1,12 +1,14 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::scrutin_repository::ScrutinFilter;
 use crate::application::use_cases::browse_dossier_amendments::CitedAmendmentView;
 use crate::application::use_cases::get_scrutin_detail::{CitedNumberView, ScrutinDetail};
 use crate::application::use_cases::list_scrutins::{ScrutinListItem, ScrutinListPage};
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
 use crate::domain::amendment::SummaryPreview;
+use crate::domain::final_vote::{is_final_vote_subject, reading_of};
 use crate::domain::scrutin::{scrutin_official_url, VoteTally};
 
 /// RM-06: la lacune est servie avec les listes, pas enfouie ailleurs.
@@ -305,6 +307,20 @@ pub struct ScrutinDetailDto {
     pub cited: Vec<CitedNumberDto>,
     pub unnumbered_identical_amendments: bool,
     pub coverage_note: &'static str,
+    /// Familles courantes heritees du texte mis aux voix (THEMES RM-06).
+    /// Vide tant que le texte n'est rattache a aucune famille.
+    pub families: Vec<AssignedFamilyDto>,
+    /// Mention de lecture d'un vote sur l'ensemble, reprise telle quelle de
+    /// l'objet (« lecture definitive »). Absente sur tout autre vote.
+    pub reading: Option<String>,
+}
+
+/// Seul un vote sur l'ensemble porte une mention de lecture: sur un
+/// amendement ou un article, la parenthese finale de l'objet dit autre chose.
+fn final_vote_reading(subject: &str) -> Option<String> {
+    is_final_vote_subject(subject)
+        .then(|| reading_of(subject, ""))
+        .flatten()
 }
 
 impl From<ScrutinDetail> for ScrutinDetailDto {
@@ -324,6 +340,7 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
             outcome_code: s.outcome().code().to_string(),
             outcome_label: s.outcome().label().to_string(),
             requester: s.requester().map(str::to_string),
+            reading: final_vote_reading(s.subject()),
             subject: s.subject().to_string(),
             synthesis: SynthesisDto {
                 voters: s.synthesis().voters,
@@ -381,6 +398,7 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
             cited: detail.cited.into_iter().map(CitedNumberDto::from).collect(),
             unnumbered_identical_amendments: detail.unnumbered_identical_amendments,
             coverage_note: SHOW_OF_HANDS_NOTE,
+            families: Vec::new(),
         }
     }
 }
@@ -425,6 +443,24 @@ mod tests {
             short_label: ShortLabel::from_subject(subject),
             cited: Vec::new(),
         }
+    }
+
+    #[test]
+    fn should_serve_reading_when_subject_is_a_final_vote() {
+        assert_eq!(
+            final_vote_reading(
+                "l'ensemble de la proposition de loi relative au droit à l'aide à mourir (lecture définitive)."
+            ),
+            Some("lecture définitive".to_string())
+        );
+    }
+
+    #[test]
+    fn should_serve_no_reading_when_subject_is_not_a_final_vote() {
+        assert_eq!(
+            final_vote_reading("l'amendement n° 12 de M. Dupont (deuxième délibération)."),
+            None
+        );
     }
 
     #[test]

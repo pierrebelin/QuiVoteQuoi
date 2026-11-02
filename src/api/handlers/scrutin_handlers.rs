@@ -7,6 +7,7 @@ use crate::api::scrutin_dto::{
     ScrutinSummaryDto, ScrutinsRefreshResponse, SHOW_OF_HANDS_NOTE,
 };
 use crate::application::ports::scrutin_repository::ScrutinFilter;
+use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::get_scrutin_detail::GetScrutinDetail;
 use crate::application::use_cases::list_scrutins::ListScrutins;
 use crate::application::use_cases::refresh_scrutins::RefreshScrutins;
@@ -50,7 +51,16 @@ pub async fn get_scrutin_detail(
     .map_err(ApiError::internal)?
     .ok_or_else(|| ApiError::not_found("Scrutin not found"))?;
 
-    Ok(Json(ScrutinDetailDto::from(detail)))
+    let families = BrowseThemes::new(state.theme_repository.as_ref())
+        .families_of_scrutins(&[uid.as_str().to_string()])
+        .await
+        .map_err(ApiError::internal)?
+        .remove(uid.as_str())
+        .unwrap_or_default();
+
+    let mut dto = ScrutinDetailDto::from(detail);
+    dto.families = families.into_iter().map(Into::into).collect();
+    Ok(Json(dto))
 }
 
 /// CU-04 — Scrutins d'un dossier. La section existe meme vide: la source peut
