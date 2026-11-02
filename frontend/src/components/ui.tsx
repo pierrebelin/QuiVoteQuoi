@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { TallyDto } from '../types/scrutins'
 
 /**
@@ -70,13 +70,16 @@ export function SectionTitle({
 export function Card({
   children,
   className = '',
+  style,
 }: {
   children: ReactNode
   className?: string
+  style?: CSSProperties
 }) {
   return (
     <div
       className={`rounded-xl border border-line bg-surface shadow-card ${className}`}
+      style={style}
     >
       {children}
     </div>

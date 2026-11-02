@@ -10,6 +10,8 @@ import {
   PageHeader,
   Pill,
 } from '../components/ui'
+import { PoliticalLogo } from '../components/PoliticalLogo'
+import { GROUP_LOGOS } from '../content/logos'
 import { GroupDot } from './GroupListPage'
 import { fetchJson } from '../lib/fetchJson'
 import type {
@@ -65,6 +67,13 @@ function ShareBar({ share }: { share: NonNullable<StanceDto['share']> }) {
  * Position d'un groupe sur un vote. Le pourcentage ne remplace jamais les
  * chiffres bruts : les deux sont affichés côte à côte (README.md §6).
  */
+/** Logo du groupe quand il en a un ; sinon la pastille, le sigle suivant déjà. */
+function GroupMark({ abbrev, color, className }: { abbrev: string; color: string | null; className: string }) {
+  const logo = GROUP_LOGOS[abbrev]
+  if (!logo) return <GroupDot color={color} />
+  return <PoliticalLogo logo={logo} fallback={abbrev} color={color} className={className} />
+}
+
 function StanceCard({ stance }: { stance: StanceDto }) {
   const { share, tally } = stance
   // Le pourcentage porte la position réellement majoritaire chez les votants,
@@ -76,8 +85,8 @@ function StanceCard({ stance }: { stance: StanceDto }) {
 
   return (
     <div className="min-w-0 rounded-lg border border-line bg-canvas px-3 py-2.5">
-      <div className="flex items-baseline gap-1.5">
-        <GroupDot color={stance.color} />
+      <div className="flex items-center gap-1.5">
+        <GroupMark abbrev={stance.abbrev} color={stance.color} className="h-6 w-10 rounded-md p-0.5" />
         <span className="text-sm font-semibold">{stance.abbrev}</span>
         {leading ? (
           <span
@@ -145,7 +154,10 @@ function StanceCard({ stance }: { stance: StanceDto }) {
 function MissingStance({ group }: { group: GroupDto }) {
   return (
     <div className="min-w-0 rounded-lg border border-dashed border-line px-3 py-2.5">
-      <span className="text-sm font-semibold text-ink-soft">{group.abbrev}</span>
+      <div className="flex items-center gap-1.5">
+        <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-10 rounded-md p-0.5 opacity-60" />
+        <span className="text-sm font-semibold text-ink-soft">{group.abbrev}</span>
+      </div>
       <p className="mt-1.5 text-xs text-ink-faint">
         Aucune ligne pour ce groupe sur ce scrutin.
       </p>
@@ -284,13 +296,13 @@ function GroupPicker({
               aria-pressed={isSelected}
               disabled={full && !isSelected}
               title={group.label}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium ring-1 ring-inset transition-colors ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium ring-1 ring-inset transition-colors has-[img]:pl-1 ${
                 isSelected
                   ? 'bg-ink text-white ring-ink'
                   : 'bg-surface text-ink-soft shadow-card ring-line hover:text-ink hover:ring-line-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:ring-line'
               }`}
             >
-              <GroupDot color={group.color} />
+              <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-9 rounded-md p-0.5" />
               {group.abbrev}
             </button>
           )

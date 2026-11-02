@@ -1,5 +1,8 @@
 # Base de développement uniquement. Elle ne démarre jamais toute seule :
 # docker compose -f compose.dev.yml up -d la lance, et `down` l'arrête.
+# Nom de projet figé : sans lui, Compose le déduit du dossier du dépôt, et un
+# dossier renommé pointe vers un volume vide au lieu de la base existante.
+name: hemicycledata
 services:
   postgres:
     image: postgres:17-alpine
