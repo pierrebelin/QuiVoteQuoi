@@ -20,7 +20,7 @@
  *   node scripts/seed-candidates-2027.mjs --dry-run
  */
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -50,7 +50,7 @@ const candidates = [
     proposals: [
       {
         familyCode: 'institutions-vie-politique',
-        excerpt: 'Inscrire dans la Constitution une règle d’or de maîtrise des déficits, et ramener le déficit de plus de 5 % à 2 % du PIB en fin de quinquennat, comme l’ont fait l’Allemagne ou les Pays-Bas.',
+        excerpt: 'Inscrire dans la Constitution une règle d\'or de maîtrise des déficits via un référendum, et ramener le déficit de plus de 5% à 2% du PIB à la fin du quinquennat.',
         sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere',
         sourceLabel: 'Avec Édouard 2027 — Pour une France plus prospère',
       },
@@ -81,7 +81,7 @@ const candidates = [
     declarationSourceUrl: 'https://lafranceinsoumise.fr/2026/05/03/declaration-de-lintergroupe-de-la-france-insoumise-du-3-mai-2026/',
     declarationSourceLabel: 'La France insoumise — Déclaration de l’intergroupe du 3 mai 2026',
     officialSiteUrl: 'https://melenchon2027.fr/',
-    programUrl: 'https://melenchon2027.fr/programme2025/livre/',
+    programUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
     organization: {
       id: 'la-france-insoumise',
       label: 'La France insoumise',
@@ -93,25 +93,25 @@ const candidates = [
       {
         familyCode: 'institutions-vie-politique',
         excerpt: 'Convoquer une Constituante pour passer à la 6e République.',
-        sourceUrl: 'https://melenchon2027.fr/programme2025/livre/chapitre1/s1/',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Réunir une Assemblée constituante pour passer à la 6e République',
       },
       {
         familyCode: 'pouvoir-achat',
         excerpt: 'Rendre l’impôt sur le revenu plus progressif avec un barème à 14 tranches contre 5 aujourd’hui.',
-        sourceUrl: 'https://melenchon2027.fr/programme2025/livre/chapitre6/s5/',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Faire la révolution fiscale',
       },
       {
         familyCode: 'environnement-energie',
         excerpt: 'Inscrire dans la Constitution le principe de la « règle verte », selon laquelle on ne prélève pas davantage à la nature que ce qu’elle est en état de reconstituer.',
-        sourceUrl: 'https://melenchon2027.fr/programme2025/livre/chapitre12/s1/',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
         sourceLabel: 'L’Avenir en commun, édition 2025 — La bifurcation écologique pour une société de l’harmonie',
       },
       {
         familyCode: 'international-defense',
         excerpt: 'Se retirer immédiatement du commandement intégré de l’OTAN puis, par étapes, de l’organisation elle-même.',
-        sourceUrl: 'https://melenchon2027.fr/programme2025/livre/chapitre16/s1/',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Assumer l’indépendance de la France dans le monde',
       },
     ],
@@ -133,7 +133,7 @@ const candidates = [
     },
     proposals: [
       {
-        familyCode: 'pouvoir-achat',
+        familyCode: 'economie-finances-publiques',
         excerpt: 'L’objectif est clair : zéro déficit en 10 ans maximum.',
         sourceUrl: 'https://attalpresident.fr/programme/dette-de-letat',
         sourceLabel: 'Attal Président — Dette de l’État',
@@ -1054,6 +1054,15 @@ const candidates = [
   },
 ]
 
+// Extraits relevés programme par programme, chacun retrouvé mot pour mot dans sa source.
+const extractedProposals = JSON.parse(readFileSync(new URL('./candidates-2027-proposals.json', import.meta.url), 'utf8'))
+const candidatesById = new Map(candidates.map((candidate) => [candidate.id, candidate]))
+for (const { candidateId, ...proposal } of extractedProposals) {
+  const candidate = candidatesById.get(candidateId)
+  if (!candidate) throw new Error(`Extrait rattaché à une candidature inconnue : ${candidateId}`)
+  candidate.proposals.push(proposal)
+}
+
 const sqlText = (value) => {
   if (value == null) return 'NULL'
   const base64 = Buffer.from(String(value)).toString('base64')
@@ -1120,6 +1129,8 @@ const sql = [
   'BEGIN;',
   ...candidates.map(insertCandidate),
   ...candidates.map(insertOrganization).filter(Boolean),
+  // Le script fait référence : un extrait corrigé ou retiré ne doit pas survivre en base.
+  `DELETE FROM candidate_program_proposals WHERE candidate_id IN (${values(candidates.map((candidate) => sqlText(candidate.id)))});`,
   ...candidates.flatMap((candidate) => candidate.proposals.map((proposal) => insertProposal(candidate, proposal))),
   'COMMIT;',
 ].join('\n\n')
