@@ -90,14 +90,14 @@ impl From<VoterShare> for ShareDto {
     fn from(share: VoterShare) -> Self {
         let leading = share.leading();
         Self {
-            voters: share.voters,
-            for_percent: share.for_percent,
-            against_percent: share.against_percent,
-            abstention_percent: share.abstention_percent,
+            voters: share.voters(),
+            for_percent: share.for_percent(),
+            against_percent: share.against_percent(),
+            abstention_percent: share.abstention_percent(),
             leading: leading.map(|p| p.as_str().to_string()),
             leading_label: leading.map(position_label),
             leading_percent: share.leading_percent(),
-            tied_labels: share.tied.iter().copied().map(position_label).collect(),
+            tied_labels: share.tied().iter().copied().map(position_label).collect(),
         }
     }
 }
@@ -144,15 +144,15 @@ pub struct StanceDto {
 impl From<&GroupStance> for StanceDto {
     fn from(stance: &GroupStance) -> Self {
         Self {
-            group_uid: stance.group.uid.as_str().to_string(),
-            abbrev: stance.group.abbrev.clone(),
-            label: stance.group.label.clone(),
-            color: stance.group.color.clone(),
-            member_count: stance.member_count,
-            majority: stance.published_majority.map(|p| p.as_str().to_string()),
-            majority_label: stance.published_majority.map(position_label),
-            tally: stance.tally.into(),
-            share: stance.share.clone().map(ShareDto::from),
+            group_uid: stance.group().uid.as_str().to_string(),
+            abbrev: stance.group().abbrev.clone(),
+            label: stance.group().label.clone(),
+            color: stance.group().color.clone(),
+            member_count: stance.member_count(),
+            majority: stance.published_majority().map(|p| p.as_str().to_string()),
+            majority_label: stance.published_majority().map(position_label),
+            tally: (*stance.tally()).into(),
+            share: stance.share().cloned().map(ShareDto::from),
         }
     }
 }

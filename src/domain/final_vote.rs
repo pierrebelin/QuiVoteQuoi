@@ -62,10 +62,10 @@ pub fn reading_of(subject: &str, text_label: &str) -> Option<String> {
 /// groupe qui a pourtant vote a l'unanimite des votants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct VoterShare {
-    pub voters: u16,
-    pub for_percent: u8,
-    pub against_percent: u8,
-    pub abstention_percent: u8,
+    voters: u16,
+    for_percent: u8,
+    against_percent: u8,
+    abstention_percent: u8,
     /// Positions arrivant en tete, lues sur les comptes bruts et non sur les
     /// parts arrondies — 8 pour / 6 contre / 8 abstentions donne 37 / 27 / 36
     /// une fois arrondi, alors que l'egalite est bien reelle.
@@ -76,7 +76,7 @@ pub struct VoterShare {
     /// hasard. Distinct de la position majoritaire publiee par la source, qui
     /// n'est jamais recalculee (RM-02) et que l'affichage montre a part quand
     /// les deux different.
-    pub tied: Vec<VotePosition>,
+    tied: Vec<VotePosition>,
 }
 
 impl VoterShare {
@@ -120,6 +120,26 @@ impl VoterShare {
             abstention_percent: percents[2] as u8,
             tied: tied_positions(&counts),
         })
+    }
+
+    pub fn voters(&self) -> u16 {
+        self.voters
+    }
+
+    pub fn for_percent(&self) -> u8 {
+        self.for_percent
+    }
+
+    pub fn against_percent(&self) -> u8 {
+        self.against_percent
+    }
+
+    pub fn abstention_percent(&self) -> u8 {
+        self.abstention_percent
+    }
+
+    pub fn tied(&self) -> &[VotePosition] {
+        &self.tied
     }
 
     /// Position majoritaire chez les votants. `None` a egalite: annoncer une
@@ -176,13 +196,13 @@ pub struct GroupIdentity {
 /// Ce qu'un groupe a fait sur un vote donne.
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupStance {
-    pub group: GroupIdentity,
+    group: GroupIdentity,
     /// Effectif publie du groupe au moment du scrutin (RM-08).
-    pub member_count: Option<u16>,
+    member_count: Option<u16>,
     /// Position majoritaire publiee par la source, jamais recalculee (RM-02).
-    pub published_majority: Option<VotePosition>,
-    pub tally: VoteTally,
-    pub share: Option<VoterShare>,
+    published_majority: Option<VotePosition>,
+    tally: VoteTally,
+    share: Option<VoterShare>,
 }
 
 impl GroupStance {
@@ -200,6 +220,26 @@ impl GroupStance {
             tally,
             share,
         }
+    }
+
+    pub fn group(&self) -> &GroupIdentity {
+        &self.group
+    }
+
+    pub fn member_count(&self) -> Option<u16> {
+        self.member_count
+    }
+
+    pub fn published_majority(&self) -> Option<VotePosition> {
+        self.published_majority
+    }
+
+    pub fn tally(&self) -> &VoteTally {
+        &self.tally
+    }
+
+    pub fn share(&self) -> Option<&VoterShare> {
+        self.share.as_ref()
     }
 }
 
@@ -369,6 +409,13 @@ mod tests {
     }
 
     #[test]
+    fn a_voter_share_exposes_its_voters_and_tied_positions() {
+        let share = VoterShare::from_tally(&tally(15, 9, 6, 10)).unwrap();
+        assert_eq!(share.voters(), 30);
+        assert_eq!(share.tied(), &[VotePosition::For]);
+    }
+
+    #[test]
     fn the_leading_position_is_the_most_numerous_one() {
         // Cas reel du scrutin 8431: la source publie « contre » comme position
         // majoritaire du groupe alors que 14 votants sur 16 s'abstiennent.
@@ -407,5 +454,44 @@ mod tests {
         // arrondie ne sert qu'a l'affichage.
         let share = VoterShare::from_tally(&tally(50, 49, 0, 0)).unwrap();
         assert_eq!(share.leading(), Some(VotePosition::For));
+    }
+
+    fn identity() -> GroupIdentity {
+        GroupIdentity {
+            uid: GroupUid::new("PO800538".to_string()).unwrap(),
+            abbrev: "RN".to_string(),
+            label: "Rassemblement National".to_string(),
+            color: None,
+        }
+    }
+
+    #[test]
+    fn a_group_stance_derives_its_share_from_its_tally() {
+        let counts = tally(15, 9, 6, 10);
+        let stance = GroupStance::new(identity(), Some(40), Some(VotePosition::For), counts);
+
+        assert_eq!(stance.share(), VoterShare::from_tally(&counts).as_ref());
+        assert_eq!(stance.tally(), &counts);
+    }
+
+    #[test]
+    fn a_group_stance_without_a_single_voter_has_no_share() {
+        let stance = GroupStance::new(identity(), None, None, tally(0, 0, 0, 12));
+
+        assert_eq!(stance.share(), None);
+    }
+
+    #[test]
+    fn a_group_stance_exposes_what_the_source_published() {
+        let stance = GroupStance::new(
+            identity(),
+            Some(125),
+            Some(VotePosition::Against),
+            tally(1, 2, 0, 0),
+        );
+
+        assert_eq!(stance.group().abbrev, "RN");
+        assert_eq!(stance.member_count(), Some(125));
+        assert_eq!(stance.published_majority(), Some(VotePosition::Against));
     }
 }

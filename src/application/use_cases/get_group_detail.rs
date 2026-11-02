@@ -156,7 +156,7 @@ mod tests {
         let view = profile(&counted_repository(), "RN").await.unwrap();
         let range = view.published_member_range.unwrap();
 
-        assert_eq!((range.min, range.max), (121, 125));
+        assert_eq!((range.min(), range.max()), (121, 125));
         assert!(!range.is_stable());
         assert_eq!(view.total_member_count, 131);
     }

@@ -120,8 +120,8 @@ impl AmendmentRepository for PgAmendmentRepository {
                 number_keys.push(amendment.number().key());
                 text_refs.push(amendment.text_ref().map(|r| r.as_str()));
                 examination_refs.push(amendment.examination_ref());
-                target_titles.push(amendment.target().title.as_str());
-                target_kinds.push(amendment.target().kind.as_deref());
+                target_titles.push(amendment.target().title());
+                target_kinds.push(amendment.target().kind());
                 fate_codes.push(amendment.fate().code().as_str());
                 fate_labels.push(amendment.fate().label());
                 state_labels.push(amendment.state_label());
@@ -132,19 +132,19 @@ impl AmendmentRepository for PgAmendmentRepository {
                 match amendment.author() {
                     Author::Deputy(signatory) => {
                         author_kinds.push("deputy");
-                        author_actor_uids.push(Some(signatory.actor_uid.as_str()));
+                        author_actor_uids.push(Some(signatory.actor_uid().as_str()));
                         author_labels.push(None);
-                        author_group_uids.push(signatory.group_uid.as_ref().map(|g| g.as_str()));
-                        author_group_origins.push(signatory.group_origin.as_str());
-                        author_group_ambiguous.push(signatory.group_ambiguous);
+                        author_group_uids.push(signatory.group_uid().map(|g| g.as_str()));
+                        author_group_origins.push(signatory.group_origin().as_str());
+                        author_group_ambiguous.push(signatory.group_ambiguous());
 
                         signatory_amendments.push(amendment.uid().as_str());
-                        signatory_actors.push(signatory.actor_uid.as_str());
-                        signatory_roles.push(signatory.role.as_str());
-                        signatory_ranks.push(signatory.rank as i16);
-                        signatory_groups.push(signatory.group_uid.as_ref().map(|g| g.as_str()));
-                        signatory_origins.push(signatory.group_origin.as_str());
-                        signatory_ambiguous.push(signatory.group_ambiguous);
+                        signatory_actors.push(signatory.actor_uid().as_str());
+                        signatory_roles.push(signatory.role().as_str());
+                        signatory_ranks.push(signatory.rank() as i16);
+                        signatory_groups.push(signatory.group_uid().map(|g| g.as_str()));
+                        signatory_origins.push(signatory.group_origin().as_str());
+                        signatory_ambiguous.push(signatory.group_ambiguous());
                         signatory_dates.push(amendment.deposited_on());
                     }
                     Author::Institutional { label } => {
@@ -159,12 +159,12 @@ impl AmendmentRepository for PgAmendmentRepository {
 
                 for signatory in amendment.cosignatories() {
                     signatory_amendments.push(amendment.uid().as_str());
-                    signatory_actors.push(signatory.actor_uid.as_str());
-                    signatory_roles.push(signatory.role.as_str());
-                    signatory_ranks.push(signatory.rank as i16);
-                    signatory_groups.push(signatory.group_uid.as_ref().map(|g| g.as_str()));
-                    signatory_origins.push(signatory.group_origin.as_str());
-                    signatory_ambiguous.push(signatory.group_ambiguous);
+                    signatory_actors.push(signatory.actor_uid().as_str());
+                    signatory_roles.push(signatory.role().as_str());
+                    signatory_ranks.push(signatory.rank() as i16);
+                    signatory_groups.push(signatory.group_uid().map(|g| g.as_str()));
+                    signatory_origins.push(signatory.group_origin().as_str());
+                    signatory_ambiguous.push(signatory.group_ambiguous());
                     signatory_dates.push(amendment.deposited_on());
                 }
             }

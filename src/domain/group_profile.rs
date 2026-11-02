@@ -133,8 +133,8 @@ impl ParticipationRates {
 /// serait un chiffre invente. Les deux bornes sont donc gardees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct MemberCountRange {
-    pub min: u16,
-    pub max: u16,
+    min: u16,
+    max: u16,
 }
 
 impl MemberCountRange {
@@ -142,6 +142,14 @@ impl MemberCountRange {
     /// sont incoherentes: mieux vaut ne rien afficher qu'un intervalle inverse.
     pub fn new(min: u16, max: u16) -> Option<Self> {
         (min <= max).then_some(Self { min, max })
+    }
+
+    pub fn min(&self) -> u16 {
+        self.min
+    }
+
+    pub fn max(&self) -> u16 {
+        self.max
     }
 
     pub fn is_stable(&self) -> bool {
@@ -158,8 +166,8 @@ impl MemberCountRange {
 /// deux taux ne se comparent pas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct VotingWindow {
-    pub first: NaiveDate,
-    pub last: NaiveDate,
+    first: NaiveDate,
+    last: NaiveDate,
 }
 
 impl VotingWindow {
@@ -168,6 +176,14 @@ impl VotingWindow {
             (Some(first), Some(last)) if first <= last => Some(Self { first, last }),
             _ => None,
         }
+    }
+
+    pub fn first(&self) -> NaiveDate {
+        self.first
+    }
+
+    pub fn last(&self) -> NaiveDate {
+        self.last
     }
 
     /// Plus petite fenetre qui couvre les deux: un groupe renomme est vu sur
@@ -277,6 +293,12 @@ mod tests {
     }
 
     #[test]
+    fn a_headcount_range_exposes_its_two_bounds() {
+        let range = MemberCountRange::new(121, 125).unwrap();
+        assert_eq!((range.min(), range.max()), (121, 125));
+    }
+
+    #[test]
     fn a_group_that_never_appears_in_a_scrutin_has_no_window() {
         let date = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
         assert!(VotingWindow::new(None, None).is_none());
@@ -288,6 +310,27 @@ mod tests {
                 last: date
             })
         );
+    }
+
+    #[test]
+    fn a_window_missing_one_of_its_dates_is_refused() {
+        let date = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
+        assert!(VotingWindow::new(None, Some(date)).is_none());
+    }
+
+    #[test]
+    fn a_window_whose_first_date_follows_its_last_is_refused() {
+        let earlier = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
+        let later = NaiveDate::from_ymd_opt(2025, 4, 2).unwrap();
+        assert!(VotingWindow::new(Some(later), Some(earlier)).is_none());
+    }
+
+    #[test]
+    fn a_window_exposes_its_first_and_last_dates() {
+        let first = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
+        let last = NaiveDate::from_ymd_opt(2025, 4, 2).unwrap();
+        let window = VotingWindow::new(Some(first), Some(last)).unwrap();
+        assert_eq!((window.first(), window.last()), (first, last));
     }
 
     fn window(first: (i32, u32, u32), last: (i32, u32, u32)) -> VotingWindow {

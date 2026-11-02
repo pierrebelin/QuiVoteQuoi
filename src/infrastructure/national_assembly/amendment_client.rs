@@ -450,8 +450,8 @@ mod tests {
         assert_eq!(amendment.uid().as_str(), "AMANR5L17PO59047BTC1376P0D1N000005");
         assert_eq!(amendment.number().as_str(), "AE5");
         assert_eq!(amendment.text_ref().unwrap().as_str(), "PNREANR5L17BTC1376");
-        assert_eq!(amendment.target().title, "Article unique");
-        assert_eq!(amendment.target().kind.as_deref(), Some("ARTICLE"));
+        assert_eq!(amendment.target().title(), "Article unique");
+        assert_eq!(amendment.target().kind(), Some("ARTICLE"));
         assert_eq!(amendment.deposited_on(), NaiveDate::from_ymd_opt(2025, 5, 28));
         assert_eq!(amendment.fate().label(), "Adopté");
         assert_eq!(amendment.state_label(), Some("Discuté"));
@@ -464,7 +464,7 @@ mod tests {
 
         assert_eq!(amendment.number().as_str(), "78");
         assert_eq!(amendment.text_ref().unwrap().as_str(), "PRJLANR5L17B0324");
-        assert_eq!(amendment.target().title, "ARTICLE 3");
+        assert_eq!(amendment.target().title(), "ARTICLE 3");
         assert_eq!(
             amendment.deposited_on(),
             NaiveDate::from_ymd_opt(2025, 10, 14)
@@ -477,15 +477,15 @@ mod tests {
         let Author::Deputy(author) = amendment.author() else {
             panic!("expected a deputy author");
         };
-        assert_eq!(author.actor_uid.as_str(), "PA1592");
+        assert_eq!(author.actor_uid().as_str(), "PA1592");
         // Le groupe publie par la source est date par construction.
-        assert_eq!(author.group_origin, GroupOrigin::Published);
-        assert_eq!(author.group_uid.as_ref().unwrap().as_str(), "PO845401");
+        assert_eq!(author.group_origin(), GroupOrigin::Published);
+        assert_eq!(author.group_uid().unwrap().as_str(), "PO845401");
 
         let cosigners: Vec<&str> = amendment
             .cosignatories()
             .iter()
-            .map(|s| s.actor_uid.as_str())
+            .map(|s| s.actor_uid().as_str())
             .collect();
         assert_eq!(cosigners, vec!["PA2000", "PA3000"]);
     }
@@ -494,7 +494,7 @@ mod tests {
     fn a_single_cosignatory_is_not_lost_to_the_xml_collapse() {
         let amendment = parse_one(SINGLE_COSIGNATORY);
         assert_eq!(amendment.cosignatories().len(), 1);
-        assert_eq!(amendment.cosignatories()[0].actor_uid.as_str(), "PA4000");
+        assert_eq!(amendment.cosignatories()[0].actor_uid().as_str(), "PA4000");
         // Horodatage complet: seul le jour est retenu.
         assert_eq!(
             amendment.deposited_on(),

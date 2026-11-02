@@ -490,7 +490,7 @@ mod tests {
         let Author::Deputy(author) = saved[0].author() else {
             panic!("expected a deputy author");
         };
-        assert_eq!(author.group_origin, GroupOrigin::ResolvedAtDeposit);
+        assert_eq!(author.group_origin(), GroupOrigin::ResolvedAtDeposit);
         // Le referentiel n'est interroge que pour les acteurs cites.
         assert_eq!(actors.requested.lock().unwrap().len(), 1);
     }
@@ -525,7 +525,7 @@ mod tests {
         let Author::Deputy(author) = saved[0].author() else {
             panic!("expected a deputy author");
         };
-        assert_eq!(author.group_origin, GroupOrigin::Unknown);
+        assert_eq!(author.group_origin(), GroupOrigin::Unknown);
     }
 
     #[tokio::test]

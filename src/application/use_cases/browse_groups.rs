@@ -114,7 +114,7 @@ pub fn merge_lineages(records: Vec<GroupRecord>) -> Vec<GroupSummary> {
         a.is_dissolved()
             .cmp(&b.is_dissolved())
             .then_with(|| b.member_count.cmp(&a.member_count))
-            .then_with(|| b.window.map(|w| w.last).cmp(&a.window.map(|w| w.last)))
+            .then_with(|| b.window.map(|w| w.last()).cmp(&a.window.map(|w| w.last())))
             .then_with(|| a.abbrev.cmp(&b.abbrev))
     });
     groups
@@ -260,8 +260,8 @@ pub(crate) mod tests {
         // 3 053 + 5 381 = 8 434, la legislature entiere.
         assert_eq!(group.scrutin_count, 8_434);
         let window = group.window.unwrap();
-        assert_eq!(window.first, date(2024, 10, 8));
-        assert_eq!(window.last, date(2026, 7, 21));
+        assert_eq!(window.first(), date(2024, 10, 8));
+        assert_eq!(window.last(), date(2026, 7, 21));
         assert_eq!(group.created_on, Some(date(2024, 7, 18)));
     }
 

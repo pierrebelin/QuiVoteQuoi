@@ -438,8 +438,8 @@ mod tests {
 
         let stances = &view.items[0].vote.stances;
         assert_eq!(stances.len(), 2);
-        assert_eq!(stances[0].group.abbrev, "SOC");
-        assert_eq!(stances[1].group.abbrev, "RN");
+        assert_eq!(stances[0].group().abbrev, "SOC");
+        assert_eq!(stances[1].group().abbrev, "RN");
     }
 
     #[tokio::test]
@@ -469,10 +469,10 @@ mod tests {
             .await
             .unwrap();
 
-        let share = view.items[0].vote.stances[0].share.clone().unwrap();
-        assert_eq!(share.voters, 86);
-        assert_eq!(share.against_percent, 98);
-        assert_eq!(share.for_percent, 2);
+        let share = view.items[0].vote.stances[0].share().cloned().unwrap();
+        assert_eq!(share.voters(), 86);
+        assert_eq!(share.against_percent(), 98);
+        assert_eq!(share.for_percent(), 2);
     }
 
     #[tokio::test]
@@ -582,7 +582,7 @@ mod tests {
             .items
             .iter()
             .flat_map(|entry| entry.vote.stances.iter())
-            .map(|stance| stance.group.abbrev.as_str())
+            .map(|stance| stance.group().abbrev.as_str())
             .collect();
         assert_eq!(stances, vec!["UDDPLR", "UDDPLR"]);
     }
