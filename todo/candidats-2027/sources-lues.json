@@ -1,0 +1,499 @@
+[
+  {
+    "candidate_id": "edouard-philippe",
+    "program_found": true,
+    "pages_read": [
+      "https://www.edouardphilippe.fr/",
+      "https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere",
+      "https://www.edouardphilippe.fr/priorites/pour-une-france-plus-sure",
+      "https://www.edouardphilippe.fr/priorites/pour-une-france-plus-conquerante",
+      "https://www.edouardphilippe.fr/priorites/pour-une-france-plus-attentive-a-ses-enfants"
+    ],
+    "comment": "4 pages « priorités » lues en HTML (pas de date affichée, source_published_on = null). Le texte actuel des pages diffère légèrement de celui des 4 extraits déjà publiés (apostrophes droites, ajout « 8 EPR supplémentaires… ») : les 4 mesures déjà publiées (règle d'or, moratoire normatif et fiscal, relance du nucléaire, drones) sont volontairement non reprises. Apostrophes copiées telles que sur la page (mélange droites/typographiques). Coupures à une frontière naturelle pour 2 mesures (pacte fiscal : arrêt avant « le plus grand choc de compétitivité jamais réalisé » ; savoirs fondamentaux : arrêt avant « socle sans lequel… »). Écartés : « diviser par deux l'immigration » (objectif, pas une mesure), « combattre sans concession l'islamisme… » (posture, rattachement ambigu), « concentrer l'action climatique sur ce qui réduit vraiment les émissions… » (adverbe évaluatif dans la phrase). Thèmes non abordés par les pages : logement, societe-libertes, collectivites-outre-mer. Classements discutables : rémunération des enseignants (education-culture plutôt que travail-emploi/fonction publique), exonération des heures supplémentaires et réduction d'IR pour enfants (pouvoir-achat, impôts des ménages), droit à la reconversion face à l'IA (travail-emploi)."
+  },
+  {
+    "candidate_id": "nicolas-dupont-aignan",
+    "program_found": true,
+    "pages_read": [
+      "https://www.debout-la-france.fr/notre-projet/",
+      "https://www.debout-la-france.fr/projet/affaires-etrangeres/",
+      "https://www.debout-la-france.fr/projet/affaires-europeennes/",
+      "https://www.debout-la-france.fr/projet/agriculture/",
+      "https://www.debout-la-france.fr/projet/bien-etre-animal/",
+      "https://www.debout-la-france.fr/projet/combat-pour-les-femmes/",
+      "https://www.debout-la-france.fr/projet/culture-patrimoine/",
+      "https://www.debout-la-france.fr/projet/defense/",
+      "https://www.debout-la-france.fr/projet/dependance-fin-de-vie/",
+      "https://www.debout-la-france.fr/projet/economie-travail/",
+      "https://www.debout-la-france.fr/projet/enseignement-superieur/",
+      "https://www.debout-la-france.fr/projet/environnement-energie/",
+      "https://www.debout-la-france.fr/projet/equilibre-territoire-monde-rural/",
+      "https://www.debout-la-france.fr/projet/famille/",
+      "https://www.debout-la-france.fr/projet/francais-de-l-etranger/",
+      "https://www.debout-la-france.fr/projet/grand-partenariat-entre-la-france-et-l-afrique/",
+      "https://www.debout-la-france.fr/projet/handicap/",
+      "https://www.debout-la-france.fr/projet/immigration-et-assimilation/",
+      "https://www.debout-la-france.fr/projet/instruction-publique/",
+      "https://www.debout-la-france.fr/projet/intelligence-artificielle/",
+      "https://www.debout-la-france.fr/projet/justice/",
+      "https://www.debout-la-france.fr/projet/logement/",
+      "https://www.debout-la-france.fr/projet/outre-mer/",
+      "https://www.debout-la-france.fr/projet/politique-mer/",
+      "https://www.debout-la-france.fr/projet/produire-en-france/",
+      "https://www.debout-la-france.fr/projet/refonder-et-moraliser-notre-democratie/",
+      "https://www.debout-la-france.fr/projet/retraites/",
+      "https://www.debout-la-france.fr/projet/sante/",
+      "https://www.debout-la-france.fr/projet/sciences-souverainete-industrielle/",
+      "https://www.debout-la-france.fr/projet/securite/",
+      "https://www.debout-la-france.fr/projet/sport-associations/",
+      "https://www.debout-la-france.fr/projet/tourisme/",
+      "https://www.debout-la-france.fr/projet/transport-automobilistes/"
+    ],
+    "comment": "Page /notre-projet/ = sommaire de 32 chapitres thématiques (/projet/<slug>/), tous lus. Le texte de la page indique que le programme 2027 est en cours d'actualisation (badge « Projet 2027 » sur les articles mis à jour) : aucun chapitre n'affiche ce badge dans le HTML servi, donc certains chapitres peuvent dater d'avant 2027 (à vérifier avant publication). 16 thèmes sur 16 couverts, 5 extraits (plafond) par thème ; beaucoup d'autres mesures existent dans chaque chapitre, non reprises. Extraits tronqués à une frontière naturelle (parenthèses/justifications finales retirées) ; typographie d'origine conservée (espaces fines insécables, apostrophes). Déjà publiés et donc écartés : armée aux frontières, Fonds Souverain IA, étiquetage « fabriqué en France », RIC. Classements à valider : sortie de l'UE/contribution nette → international-defense ; PAC nationale et cotisations agricoles → agriculture-alimentation ; interdiction des signes religieux → societe-libertes ; aides aux handicapés et bouclier autonomie → protection-sociale-retraites ; transports/ZFE/autoroutes → environnement-energie. Aucune mesure sur l'aide active à mourir dans le chapitre « Dépendance et fin de vie » (soins palliatifs non repris, plafond atteint) ; bien-être animal non repris (hors référentiel)."
+  },
+  {
+    "candidate_id": "augustin-billetdoux",
+    "program_found": false,
+    "pages_read": [
+      "https://billetdoux2027.fr/",
+      "https://billetdoux2027.fr/temoignages",
+      "https://billetdoux2027.fr/contact",
+      "https://billetdoux2027.fr/confidentialite",
+      "https://billetdoux2027.fr/sitemap.xml",
+      "https://billetdoux2027.fr/robots.txt"
+    ],
+    "comment": "Le site (Next.js, 4 pages au sitemap) ne contient qu'une vidéo de déclaration de candidature (https://video.billetdoux2027.fr/hero-video.mp4, ~10 min), un texte d'accroche sans mesure, des témoignages LinkedIn et un formulaire de contact. Aucun texte programmatique, aucun parti ni autre site officiel (cand.json : political_organizations vide). Vidéo non transcrite (pas d'outil de reconnaissance vocale disponible) : si elle contient des propositions, elles ne sont pas captables par texte. Recherche web sans résultat sur sa candidature. 0 extrait."
+  },
+  {
+    "candidate_id": "delphine-batho",
+    "program_found": false,
+    "pages_read": [
+      "https://www.delphinebatho.fr/",
+      "https://www.delphinebatho.fr/biographie/",
+      "https://www.delphinebatho.fr/plan-du-site/",
+      "https://www.delphinebatho.fr/participer-a-la-campagne/",
+      "https://www.delphinebatho.fr/retour-dexperience-sur-la-canicule/",
+      "https://www.delphinebatho.fr/inscription-echange-securite-climatique/",
+      "https://www.delphinebatho.fr/wp-json/wp/v2/pages",
+      "https://www.generationecologie.fr/",
+      "https://www.generationecologie.fr/a-propos/generation-ecologie/notre-projet/",
+      "https://www.generationecologie.fr/sinformer/nos-positions/nos-resolutions-politiques/",
+      "https://www.generationecologie.fr/2025/11/26/je-suis-candidate-a-lelection-presidentielle-pour-reconstruire-une-ecologie-capable-de-gouverner/",
+      "https://www.generationecologie.fr/2026/09/08/agir-pour-notre-securite-climatique/",
+      "https://www.generationecologie.fr/publication/motion-dorientation-de-generation-ecologie/",
+      "https://www.generationecologie.fr/publication/urgence-ecologie-les-fondations/"
+    ],
+    "comment": "Le site de campagne (15 pages WordPress, 0 article) ne contient qu'une déclaration de candidature qui dit que le programme reste à élaborer (« Nous voulons l'élaborer avec vous »), des formulaires et un extrait de livre sur la beauté. Le site de Génération Écologie ne publie pas de programme présidentiel 2027 : « Notre projet » renvoie à la décroissance, au manifeste Écologie intégrale (2019) et à deux PDF anciens (motion d'orientation du 9 septembre 2018 ; texte fondateur de la liste Urgence Écologie, européennes 2024). Je ne les ai pas utilisés : ce ne sont pas le programme 2027 de la candidate et les dater poserait un problème de neutralité. Les articles d'août-octobre 2026 sont des appels à mobilisation sans mesure chiffrée ou précise. Décision à prendre par l'éditeur s'il veut citer ces deux PDF. 0 extrait."
+  },
+  {
+    "candidate_id": "nathalie-arthaud",
+    "program_found": true,
+    "pages_read": [
+      "https://www.nathalie-arthaud.info",
+      "https://www.lutte-ouvriere.org/portail/breves/brochure-campagne-196541.html",
+      "https://www.lutte-ouvriere.org/medias/document/fichiers/2026/06/brochure-ete-2026.pdf",
+      "https://www.lutte-ouvriere.org/portail/journal/presidentielle-2027-soutenez-campagne-nathalie-arthaud-196575.html",
+      "https://www.lutte-ouvriere.org/portail/qui-sommes-nous/index.html",
+      "https://www.lutte-ouvriere.org/portail/qui-sommes-nous/qui-sommes-nous-nos-idees-et-positions-politiques-logement-un-droit-fondamental-conquerir",
+      "https://www.lutte-ouvriere.org/portail/qui-sommes-nous/qui-sommes-nous-ecologie",
+      "https://www.lutte-ouvriere.org/portail/qui-sommes-nous/qui-sommes-nous-etat",
+      "https://www.lutte-ouvriere.org/portail/qui-sommes-nous/qui-sommes-nous-dans-les-entreprises",
+      "https://www.lutte-ouvriere.org/portail/qui-sommes-nous/qui-sommes-nous-nos-idees-et-positions-politiques-quelques-reponses-des-questions-posees-nathalie-arthaud"
+    ],
+    "comment": "Pas de page programme : la page d'accueil du site renvoie à la « brochure de campagne » (PDF de 37 p., supplément à Lutte ouvrière n° 3021 du 26 juin 2026, lu via extraction PDF). Seule la section « Le programme que les travailleurs devront imposer ! » (p. 8-14 de la brochure) contient des revendications ; le reste est analyse et polémique (y compris contre d'autres candidats), non retenu. 8 extraits issus de la brochure (source_published_on = 2026-06-26, date du numéro imprimée dans le PDF) + 1 extrait logement de la page « Logement : un droit fondamental à conquérir » (LO, non datée, formulation conditionnelle « ils pourront… » coupée après ces mots). Les césures de fin de ligne du PDF (« indus - tries ») ont été réparées. Ton polémique des mesures conservé tel quel (« profiteurs de guerre »). Classement discutable : l'indexation des salaires, allocations et pensions (pouvoir-achat, mesure transversale). Les PDF de réponses à des questionnaires de 2022 (nucléaire, drogue, fin de vie, TVA…) et les pages doctrinales (écologie, État, entreprises) n'ont pas été retenus (2022 ou sans mesure). Thèmes non abordés : sante, education-culture, numerique, agriculture, institutions, international (hors posture), collectivites. Les 3 extraits déjà publiés sont des éditoriaux LO (urls différentes)."
+  },
+  {
+    "candidate_id": "marine-tondelier",
+    "program_found": true,
+    "pages_read": [
+      "https://marinetondelier.fr/",
+      "https://marinetondelier.fr/livrets-thematiques",
+      "https://marinetondelier.fr/carnets-de-doctrine",
+      "https://marinetondelier.fr/manifeste",
+      "https://marinetondelier.fr/s/Livret-sante-environnementale.pdf",
+      "https://marinetondelier.fr/s/Livret-sante-reproductive.pdf",
+      "https://marinetondelier.fr/s/livret-enfance-vf.pdf",
+      "https://marinetondelier.fr/s/Livret-solitude.pdf",
+      "https://marinetondelier.fr/s/Carnet-numerique.pdf",
+      "https://marinetondelier.fr/s/CARNET-DE-DOCTRINE-INTERNATIONAL.pdf",
+      "https://marinetondelier.fr/s/Livret-montagne.pdf",
+      "https://marinetondelier.fr/s/Livret-littoraux.pdf"
+    ],
+    "comment": "Le programme complet (557 mesures, lesecologistes.fr/share/page/6ImK65GKUnvibm33WGkjkj/projet, /pages/…/projet-2027, posts lesecologistes.fr) est derrière un contrôle anti-bot Cloudflare (403 « Just a moment », idem marinetondelier.fr/le-programme et sous-domaines) : non contourné. Lu à la place les livrets/carnets PDF du site officiel marinetondelier.fr (PDF lus via PDFKit, pdftotext absent de la machine : l'extraction peut différer de celle de check_verbatim.py, retours à la ligne et colonnes). Extraits issus de 5 PDF (santé environnementale, santé reproductive, enfance, solitude, carnet numérique). Lus sans extrait retenu : carnet international (doctrine, aucune mesure isolable), livret montagne et littoraux (mesures en paragraphes). Thèmes non couverts faute d'accès au programme complet : economie-finances-publiques, immigration, institutions-vie-politique, societe-libertes, international-defense, collectivites-outre-mer. Un extrait vient de l'accueil marinetondelier.fr (panier à prix coûtant)."
+  },
+  {
+    "candidate_id": "juan-branco",
+    "program_found": true,
+    "pages_read": [
+      "https://ruches.org/le-projet"
+    ],
+    "comment": "Page unique « Le Projet 2027 — La Voie », 845 mesures en puces, texte complet servi dans le HTML (aucun JS requis). Extraits = puces copiées telles quelles (une puce = une mesure), source_label porte le chapitre. Mesures écartées volontairement car non assimilables à un thème du référendum ou trop partielles (ex. « Décisions » de la Présidence, réformes de corps de la haute fonction publique). Quelques puces ont des coquilles d'origine conservées (ex. « réhaussement »). Une puce coupée à la frontière de la clause : taxe foncière (avant « et en place d'une obligation déclarative »), asile (1re phrase), référendum médias (avant « Bouygues… »), SCOP."
+  },
+  {
+    "candidate_id": "francois-ruffin",
+    "program_found": true,
+    "pages_read": [
+      "https://nouspresident.fr/notre-programme/",
+      "https://nouspresident.fr/statut-travailleurs-essentiels/",
+      "https://nouspresident.fr/separation-argent-etat/",
+      "https://nouspresident.fr/temps-loisirs/",
+      "https://nouspresident.fr/pour-une-exception-agriculturelle-francaise/",
+      "https://nouspresident.fr/travaillisme-ecologique/",
+      "https://nouspresident.fr/face-a-la-crise-du-logement-faire-sauter-le-verrou/",
+      "https://nouspresident.fr/pour-proteger-notre-industrie-relocaliser-100-produits-strategiques/",
+      "https://nouspresident.fr/education-une-ecole-de-tous-les-savoirs/",
+      "https://nouspresident.fr/plan-data-centers/",
+      "https://nouspresident.fr/plan-urgence-climat/",
+      "https://nouspresident.fr/plan-de-redressement/"
+    ],
+    "comment": "Les 8 cahiers de campagne et 3 plans d'action (pages serveur, lisibles sans JS) lus ; extraits dans les sections « Nos propositions » / « Notre projet ». Cap de 5 par thème respecté : choix de mesures non déjà publiées dans existing.json (statut des travailleurs essentiels, salaire du Président, cahier agriculture, travaillisme écologique). Coquille d'origine conservée : « provnenance ». Titres de mesure repris quand ils portent la mesure (PTZ, Buy French Act, 200 000 logements). Mesures non retenues faute de place (plafond de 5 par thème) : encadrement de l'intérim, droit opposable à la formation, 1 % patronal, plan logement des jeunes, rénovation énergétique détaillée, Commissariat général à la planification, pantouflage. Thèmes peu ou pas couverts : societe-libertes (aucun cahier dédié), sante (1 extrait), immigration (non abordée dans les cahiers lus). Classements discutables : suppression de la concurrence sur l'électricité → pouvoir-achat (prix basés sur les coûts) ; plafonnement des billets d'avion Outre-mer → pouvoir-achat (tarif) ; statut des data centers (urbanisme) retiré du lot pour le plafond de 5 par thème."
+  },
+  {
+    "candidate_id": "bruno-retailleau",
+    "program_found": true,
+    "pages_read": [
+      "https://www.avecretailleau.fr/projet",
+      "https://www.avecretailleau.fr/projet/theme/institutions",
+      "https://www.avecretailleau.fr/projet/theme/education",
+      "https://www.avecretailleau.fr/projet/theme/travail",
+      "https://www.avecretailleau.fr/projet/theme/industrie-entreprises",
+      "https://www.avecretailleau.fr/projet/theme/agriculture",
+      "https://www.avecretailleau.fr/projet/theme/logement",
+      "https://www.avecretailleau.fr/projet/theme/famille",
+      "https://www.avecretailleau.fr/projet/theme/electricite",
+      "https://www.avecretailleau.fr/projet/theme/comptes-publics",
+      "https://www.avecretailleau.fr/projet/theme/l-ia",
+      "https://www.avecretailleau.fr/projet/theme/retraites",
+      "https://www.avecretailleau.fr/projet/mesure/<slug> (120 pages mesure parsées, dont les 52 citées)"
+    ],
+    "comment": "Programme réel sur avecretailleau.fr/projet : 120 mesures, 18 thèmes dont 11 publiés ; Justice, Immigration (thème), Sécurité, Culture, Santé, Tourisme, Écologie affichés « À venir » (aucune mesure lisible) : justice-securite et sante restent donc à 0 extrait, immigration limité aux 3 mesures du thème « Pour le peuple et par le peuple ». Extrait = titre exact de la mesure (heading de la page mesure, point final isolé retiré), source_url = page de la mesure. Dates « Mis à jour le … » non reprises (date de mise à jour, pas de publication) → source_published_on null. Classements discutables : « Inscrire le droit à la sécurité dans la Constitution » et « La règle d'or » → institutions-vie-politique (objet constitutionnel, comme la règle d'or d'Édouard Philippe déjà publiée) ; « Conditionner les prestations sociales à cinq ans de séjour et de travail » → protection-sociale-retraites (objet : prestations) ; « Baisser les cotisations de 30 milliards… » → protection-sociale-retraites ; « Mieux payer les professeurs » → travail-emploi (fonction publique). Les titres « La règle d'or » et « Rendre 500 euros… » trop courts : remplacés par la phrase de la section « L'engagement »."
+  },
+  {
+    "candidate_id": "francois-asselineau",
+    "program_found": false,
+    "pages_read": [
+      "https://upr.fr/francois-asselineau",
+      "https://upr.fr/notre-programme",
+      "https://upr.fr/nos-fondamentaux",
+      "https://upr.fr/le-frexit",
+      "https://upr.fr/le-retour-au-franc",
+      "https://upr.fr/les-gope"
+    ],
+    "comment": "upr.fr/notre-programme indique « Programme 2027 : sera publié prochainement. En cours d’élaboration » (éditions 2012/2017/2022 listées à part, non lues). Extraits tirés des pages permanentes « Programme » du site du parti : Nos fondamentaux (intitulés courts de mesures, ex. « La reconnaissance du vote blanc »), page Le Frexit (liste « nous proposons notamment » et sections « Le Frexit nous permettra… ») et la page François Asselineau. ATTENTION : la page Le Frexit est un texte ancien réutilisé (elle cite « Pour 2017 » et des montants de 2017) ; les chiffres qu’elle porte (20 milliards, 950 € de minimum vieillesse, SMIC) peuvent être périmés pour 2027. À toi de décider de les garder ; sinon retirer les lignes source_url=https://upr.fr/le-frexit (7 lignes). Thèmes non abordés : santé, logement, justice-sécurité, immigration (hors « grands référendums »), éducation, numérique, société. Page Le retour au franc et GOPÉ : argumentaire sans mesure nette, non pris. 1 extrait (page François Asselineau) a un lien en ligne dans la source : « fragmenté » possible au script."
+  },
+  {
+    "candidate_id": "benoit-mathieu",
+    "program_found": true,
+    "pages_read": [
+      "https://benoitmathieu2027.fr/",
+      "https://benoitmathieu2027.fr/programme",
+      "https://benoitmathieu2027.fr/le-candidat"
+    ],
+    "comment": "Le candidat dit n’avoir volontairement aucun programme socio-économique (« uniquement démocratique », deux pivots : RIC et nouvelle Constitution par assemblée citoyenne de 500 tirés au sort). La mesure Constitution/assemblée est déjà publiée (existing.json) et les autres formulations de la page /le-candidat (5 étapes) la redisent : non dupliquées. 1 extrait ajouté (RIC), qui fusionne l’intitulé de bloc « Le Référendum d’Initiative Citoyenne (RIC) » et la phrase qui suit immédiatement (« L’objectif : proposer un article de loi… ») pour que la mesure soit lisible ; à retirer si une fusion titre+phrase est refusée. Non pris : les « innovations démocratiques » de /le-candidat (vote par classement irlandais, budgets participatifs, comités d’audit, open data) présentées comme exemples existants, pas comme propositions. Apostrophes droites sur ce site (conservées). Thèmes non abordés : tous sauf institutions-vie-politique."
+  },
+  {
+    "candidate_id": "david-lisnard",
+    "program_found": true,
+    "pages_read": [
+      "https://www.unenouvelleenergie.fr/notre-programme/",
+      "https://www.unenouvelleenergie.fr/notre-programme/etre-maitre-de-notre-destin/",
+      "https://www.unenouvelleenergie.fr/notre-programme/reussir-une-nouvelle-ambition-francaise/",
+      "https://www.unenouvelleenergie.fr/notre-programme/generer-un-renouveau-civique/",
+      "https://www.unenouvelleenergie.fr/notre-programme/agriculture/",
+      "https://www.unenouvelleenergie.fr/notre-programme/education/",
+      "https://www.unenouvelleenergie.fr/notre-programme/immigration/",
+      "https://www.unenouvelleenergie.fr/notre-programme/sante/",
+      "https://www.unenouvelleenergie.fr/notre-programme/securite/",
+      "https://www.unenouvelleenergie.fr/notre-programme/pole-de-travail-et-didees/",
+      "https://nouvelle-energie-media-prod.s3.fr-par.scw.cloud/media/legacy/2026/06/Discours-de-David-Lisnard-a-Bayeux-17062026.pdf",
+      "https://www.unenouvelleenergie.fr/questions/que-propose-david-lisnard-pour-le-pouvoir-d-achat/",
+      "https://www.unenouvelleenergie.fr/questions/quel-candidat-veut-supprimer-les-zones-a-faibles-emissions-zfe/",
+      "https://www.unenouvelleenergie.fr/questions/quel-candidat-veut-renforcer-l-armee/",
+      "https://www.unenouvelleenergie.fr/questions/quel-candidat-a-une-vision-sur-l-intelligence-artificielle/",
+      "https://www.unenouvelleenergie.fr/sitemap.xml",
+      "https://nouvelle-energie-media-prod.s3.fr-par.scw.cloud/media/legacy/2026/05/Livret-Sante-Nouvelle-Energie.pdf",
+      "https://www.unenouvelleenergie.fr/api/media/file/Nouvelle_energie_Livre_noir_pages_20_24_inversees.pdf"
+    ],
+    "comment": "Programme complet en 3 axes + 5 pages thématiques + discours de Bayeux (PDF, 17/06/2026, lié depuis la page programme). 60 extraits, 15 thèmes, max 5 par thème (le programme en offre davantage en travail-emploi, institutions, collectivités, justice : sélection sur les titres de mesures). Les 4 extraits déjà publiés ne sont pas repris. Les pages « Questions » sont des synthèses rédigées par le parti : seules 2 citations directes de Lisnard y ont été prises (pouvoir-achat : suspension des CEE, publiée 22/09/2026 ; ZFE, 21/05/2026) faute de mesure équivalente dans les pages programme ; à retirer si ce type de page est refusé. Thèmes sans extrait : numérique (IA : seulement des déclarations et des paraphrases du parti, aucune mesure citable textuellement). international-defense : pas de mesure de défense citable (FAQ armée = paraphrases), seulement des mesures européennes. Livre noir de la bureaucratie (PDF, tableaux à deux colonnes) et Livret Santé non utilisés : texte non vérifiable mot pour mot par pdftotext -layout (colonnes entrelacées) et mesures santé déjà couvertes par la page Santé. Extraits du discours de Bayeux : PDF lu avec PDFKit (pas de pdftotext sur la machine) ; contrôle du script possiblement « fragmenté ». Classements limites : rémunération et corps unique des enseignants → travail-emploi (fonction publique) plutôt qu’éducation ; Danemark/asile-immigration et CEDH (art. 55) → international-defense (rapport traité/droit européen) ; principe de précaution sortant de la Constitution → institutions ; « bassines » → environnement-energie (eau) ; AME non reprise (page Immigration : classement santé ou immigration discutable) ; voile à l’université → societe-libertes. Exactitude : 5 extraits HTML ont des liens/balises en ligne dans la source qui feront sortir « fragmenté » au script (texte identique aux espaces près)."
+  },
+  {
+    "candidate_id": "clara-egger",
+    "program_found": true,
+    "pages_read": [
+      "https://solutiondemocratique.fr/notre-solution/",
+      "https://solutiondemocratique.fr/calendrier-president/",
+      "https://solutiondemocratique.fr/proposition-de-revision-constitutionnelle-controle-constitution/",
+      "https://solutiondemocratique.fr/proposition-de-revision-legislative-pour-instaurer-la-democratie-directe-dans-les-communes/",
+      "https://solutiondemocratique.fr/referendum-obligatoire/",
+      "https://solutiondemocratique.fr/clara-egger/"
+    ],
+    "comment": "Programme volontairement limité à deux réformes institutionnelles (RIC constituant via l’article 89 ; décentralisation par le bas via le CGCT) avec calendrier d’application ; la page /calendrier-president/ est le lien « Découvrez le programme de notre candidate » de /notre-solution/. 10 extraits : 5 institutions-vie-politique, 5 collectivites-outre-mer, tirés des deux propositions de texte et du calendrier (les 2 extraits déjà publiés non repris). Thèmes non abordés : les 14 autres ; la page /calendrier-president/ y consacre des paragraphes (économie, environnement, migrations, retraites, énergie…) mais uniquement pour dire que le RIC constituant permettrait d’en décider : aucune mesure propre, non pris. Les engagements de forme (notaire, président arbitre) ne sont pas des mesures et n’ont pas été pris. 2 extraits ont des liens/balises en ligne dans la source (« fragmenté » possible au script)."
+  },
+  {
+    "candidate_id": "jean-luc-melenchon",
+    "program_found": true,
+    "pages_read": [
+      "https://melenchon2027.fr/programme/decouvrir/",
+      "https://melenchon2027.fr/programme/laec/",
+      "https://melenchon2027.fr/programme/plans-thematiques/",
+      "https://melenchon2027.fr/programme/plans-investissement/",
+      "https://melenchon2027.fr/programme2025/livre/",
+      "https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf"
+    ],
+    "comment": "Le livre en ligne https://melenchon2027.fr/programme2025/livre/ (et tous ses chapitres, dont les URLs des 4 extraits déjà publiés) renvoie désormais une redirection 301 vers l'accueil ; la page /programme/decouvrir/ annonce la 5e édition de L'Avenir en commun en librairie le 6 novembre. Les extraits viennent donc du PDF « L'Avenir en commun, édition 2025 » (69 p.) hébergé sur melenchon2027.fr (wp-json/wp/v2/media), lu avec un extracteur de texte PDF ; source_url = ce PDF (pas d'ancre de page), le titre de section du label est celui du sommaire du PDF (rattachement par proximité dans le flux de texte, à vérifier pour quelques mesures clés dont la mise en page sépare l'encadré du chapitre). Je privilégie les mesures marquées « MESURE CLÉ » dans le PDF. Aucun extrait n'est issu des plans thématiques/d'investissement (ESR, ruralité, automobile, BTP-logement, publiés en 2026) ni des PDF comptes publics / pôle public bancaire : possible complément. Les 4 extraits déjà publiés sont évités. Classement discutable : « Établir par référendum la liste des biens communs… et les collectiviser » rangé en economie-finances-publiques ; « Créer un pôle public de l'armement » en international-defense. 5 extraits par thème, les 16 thèmes sont couverts."
+  },
+  {
+    "candidate_id": "florian-philippot",
+    "program_found": true,
+    "pages_read": [
+      "https://les-patriotes.fr/projetpourlafrance/",
+      "https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf"
+    ],
+    "comment": "Page = simple téléchargement du PDF (19 pages, chaque page PDF = 2 pages imprimées en 4 colonnes). pdftotext absent de la machine : texte extrait colonne par colonne via PDFKit, extraits vérifiés mot à mot dans l'ordre de lecture. source_url = PDF#page=N (N = page du PDF). Titres de mesures en gras repris (le corps du texte est surtout argumentaire). Thèmes non abordés ou sans mesure concrète : logement, travail-emploi. Non repris faute de place : autoroutes et rail (transports), CEDH rangé en international-défense (objet : convention) et non en immigration, abattage rituel rangé en agriculture-alimentation (protection animale, discutable), identité numérique européenne en numérique. Section « Le Frexit en 10 questions » (FAQ) ignorée."
+  },
+  {
+    "candidate_id": "gabriel-attal",
+    "program_found": true,
+    "pages_read": [
+      "https://attalpresident.fr/programme",
+      "https://attalpresident.fr/programme/education",
+      "https://attalpresident.fr/programme/travail-salaires",
+      "https://attalpresident.fr/programme/frontieres",
+      "https://attalpresident.fr/programme/intelligence-artificielle",
+      "https://attalpresident.fr/programme/dette-de-letat",
+      "https://attalpresident.fr/programme/dette-ecologique",
+      "https://attalpresident.fr/programme/publics/retraites",
+      "https://attalpresident.fr/programme/publics/parents",
+      "https://attalpresident.fr/programme/mesures/<slug> (96 pages de mesures annoncées, liste sur /programme)"
+    ],
+    "comment": "Programme complet pas encore publié (« le programme dès sa sortie ») : 96 mesures annoncées au fil de l'eau, une page chacune avec date affichée (source_published_on = date d'annonce). Site Next.js : requêtes parallèles renvoient une page d'erreur 401 factice, lecture refaite en série. Extrait = phrase d'accroche de la page mesure (ou phrase des pages chantier/public). Plafond 5 par thème atteint : pouvoir-achat, économie, travail, protection sociale, agriculture, justice, international-défense, éducation, environnement ; non repris faute de place : cause animale (3 mesures), gens du voyage (4), fonds PME défense, audit armement et Livre blanc (déjà couverts par l'extrait publié). Constitution du travail non reprise (déjà publiée). Thèmes non abordés : société-libertés. Choix de thème discutables : 200-500 € enseignants et 100 000 postes → travail-emploi (fonction publique) ; équilibre Sécurité sociale → protection-sociale ; Mercosur → international-défense (traité) ; bouclier tarifaire eau → pouvoir-achat (prix) ; ministère de l'Eau → environnement ; recours 18 mois et droit à la climatisation → logement (urbanisme). Extrait déjà publié « zéro déficit en 10 ans » étiqueté pouvoir-achat : probablement économie-finances-publiques."
+  },
+  {
+    "candidate_id": "jean-francois-legendre",
+    "program_found": true,
+    "pages_read": [
+      "https://www.anousmaintenant.fr/",
+      "https://docs.google.com/document/d/1G4dUZaI20umZghEgSgRGCQeiWDJ2fiwhLZvtUK7hofc/edit?usp=sharing"
+    ],
+    "comment": "Le site n'expose que 4 piliers (déjà publiés). Mesures extraites du manifeste « 64 % » lié depuis le site (Google Doc public, lu via export texte). Éducation : le texte parle de « pistes de changement pourraient être » (conditionnel), reprises telles quelles. Non repris : vœux sans mesure (disparition des partis, réflexion sur le bac), ministère de la Relocalisation Verte (doublon de l'extrait publié). Thèmes non abordés : logement (seule une question rhétorique APL/encadrement des loyers), santé (texte dit explicitement ne pas la traiter), travail-emploi."
+  },
+  {
+    "candidate_id": "anasse-kazib",
+    "program_found": true,
+    "pages_read": [
+      "https://anasse2027.fr/programme",
+      "https://anasse2027.fr/programme/depliant-anasse-2027.pdf"
+    ],
+    "comment": "Page dit « programme 2027 en cours d'élaboration » : seules les premières mesures des 6 axes sont publiées ; dépliant PDF identique à la page. Programme 2022 de Révolution Permanente (lien de la page) volontairement non utilisé (ancien). Non repris : slogans (« Abolir l'exploitation… », « Défendre l'auto-organisation… ») et positions sans mesure (« Lutte pour la libération de la Palestine, de la Kanaky… »). Thèmes non abordés : santé, numérique, agriculture. Choix discutables : revenu étudiant et retraite → protection-sociale ; non au SNU → education-culture ; amnistie et dissolution des corps spéciaux → justice-securite ; travail domestique → societe-libertes ; investissements massifs services publics → économie."
+  },
+  {
+    "candidate_id": "karim-bouamrane",
+    "program_found": true,
+    "pages_read": [
+      "https://karimbouamrane2027.org/manifeste.html",
+      "https://karimbouamrane2027.org/",
+      "https://karimbouamrane2027.org/output/pdf/manifeste-karim-bouamrane-2027-v2.pdf"
+    ],
+    "comment": "Manifeste de valeurs, presque aucune mesure concrète ; PDF identique à la page ; pas de sitemap ni de page programme. 4 extraits seulement. Borderline : « grande cause nationale = protection des enfants » (affichage de priorité plus que mesure), à écarter si jugé slogan. Non repris : phrases d'intention (« une France qui loge/soigne/protège », « travailler paye », IA « je veux que… »). Thèmes non abordés : logement, santé, travail, agriculture, numérique. source_url avec ancre de section (#france-humaine, #france-forte, #protection-enfants-femmes)."
+  },
+  {
+    "candidate_id": "selma-labib",
+    "program_found": true,
+    "pages_read": [
+      "https://npa-revolutionnaires.org/articles/cest-au-x-travailleurs-et-aux-travailleuses-de-diriger-la-societe",
+      "https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf",
+      "https://npa-revolutionnaires.org/campagnes-presidentielles",
+      "https://npa-revolutionnaires.org/rss.xml",
+      "https://npa-revolutionnaires.org/articles/communique-presidentielle-2027-selma-labib-une-candidature-ouvriere-et-revolutionnaire-soutenue-par-gael-quirante",
+      "https://npa-revolutionnaires.org/articles/reponse-de-selma-labib-a-philippe-juvin-rapporteur-general-de-la-commission-des-finances",
+      "https://npa-revolutionnaires.org/articles/intervention-de-selma-labib-a-la-fete-de-lhumanite-2026",
+      "https://npa-revolutionnaires.org/articles/qui-seme-la-misere-recolte-la-colere",
+      "https://npa-revolutionnaires.org/articles/tous-et-toutes-en-campagne-et-dans-les-luttes-sans-attendre-2027"
+    ],
+    "comment": "Pas de page programme thématique : le tract 4 pages est surtout un texte d'analyse et de slogans (3 extraits déjà publiés, non dupliqués). Les mesures concrètes viennent de la réponse de Selma Labib au rapporteur général de la commission des Finances (26/10/2026, liste « nos objectifs face à la dette » : 5 extraits economie-finances-publiques + 1 pouvoir-achat sur TVA et taxes carburants) et de l'intervention à la fête de l'Humanité (15/09/2026 : +400 € salaires et pensions ; régularisation des sans-papiers). Le PDF du tract est en deux colonnes entrelacées par l'extraction : l'extrait « Dans chaque atelier… » a été reconstitué en lisant la seule colonne de gauche (mots inchangés, tronqué avant « : nous sommes les mieux placés… »). Le communiqué du 17 juin, « Qui sème la misère » et le dossier RER ne contiennent que des positions générales ou des doublons. Thèmes sans mesure programmatique trouvée : logement, santé, éducation-culture (seules des revendications lycéennes citées, pas des propositions de la candidate), numérique, société-libertés, collectivités. Ambiguïté : la hausse des salaires et pensions de 400 € est classée travail-emploi alors que l'extrait voisin déjà publié (« augmentation massive des salaires… indexation ») est en pouvoir-achat."
+  },
+  {
+    "candidate_id": "antoine-mikolajczak",
+    "program_found": false,
+    "pages_read": [
+      "https://parti-equinoxe.fr/presidentielle-2027/",
+      "https://parti-equinoxe.fr/programme/",
+      "https://parti-equinoxe.fr/qui-est-antoine-mikolajczak/",
+      "https://parti-equinoxe.fr/wp-content/uploads/2026/07/Parti-equinoxe-Tracts.pdf",
+      "https://parti-equinoxe.fr/wp-content/uploads/2026/08/Manifeste-du-parti-Equinoxe-Pour-en-finir-avec-la-demesure.pdf",
+      "https://parti-equinoxe.fr/wp-json/wp/v2/pages",
+      "https://parti-equinoxe.fr/wp-json/wp/v2/posts",
+      "https://parti-equinoxe.fr/clarte-moyens-et-confiance-pour-nos-territoires/",
+      "https://parti-equinoxe.fr/une-initiative-pour-repenser-la-democratie/",
+      "https://parti-equinoxe.fr/nos-reponses-aux-revendications-lyceennes/",
+      "https://parti-equinoxe.fr/proteger-les-animaux-lenvironnement-et-nos-eleveurs/",
+      "https://parti-equinoxe.fr/remettre-le-fret-sur-de-bons-rails/",
+      "https://parti-equinoxe.fr/sobriete-nucleaire-renouvelables/",
+      "https://parti-equinoxe.fr/rompre-avec-la-spirale-de-la-violence/",
+      "https://parti-equinoxe.fr/notre-plan-pour-sortir-de-la-violence/",
+      "https://parti-equinoxe.fr/nommer-un-ou-une-defenseur-de-la-sante/",
+      "https://parti-equinoxe.fr/renouer-avec-le-lien-social/",
+      "https://parti-equinoxe.fr/pour-une-ecole-plus-inclusive-plus-adaptee-plus-humaine/",
+      "https://parti-equinoxe.fr/oui-aux-formations-technologiques-et-professionnelles/",
+      "https://parti-equinoxe.fr/lenfer-des-flammes-la-france-repart-en-fumee/",
+      "https://parti-equinoxe.fr/loi-contre-lultra-fast-fashion-une-premiere-victoire/",
+      "https://parti-equinoxe.fr/la-voiture-la-plus-vendue-est-francaise/"
+    ],
+    "comment": "IMPORTANT : le programme détaillé n'est pas encore en ligne. La page presidentielle-2027 (modifiée le 02/11/2026 à 13h46) annonce « Rendez-vous le mercredi 4 novembre à 10h » (annonce initialement fixée au lundi 2 novembre, puis repoussée) ; /programme/ ne liste que les anciens programmes (européennes 2024, législatives 2022/2024, partielles 2025), non retenus car hors présidentielle 2027. À relancer après le 4 novembre. En attendant, extraits tirés des billets « Nos propositions » du site du parti publiés entre juillet et octobre 2026 (tribune d'Antoine Mikolajczak du 25/08, billets thématiques) et du tract de campagne PDF ; le manifeste PDF (texte philosophique, aucune mesure) n'a rien fourni. Les 3 extraits déjà publiés (priorités de la page présidentielle) ne sont pas dupliqués. 44 extraits, 3 à 5 par thème (collectivites 4, santé 4, numérique 3, travail-emploi 3). Aucune date visible sur les pages (seulement dans les métadonnées) : source_published_on null. Rattachements à relire : « protectionnisme stratégique » et « clauses miroirs » classés economie-finances-publiques (commerce) bien qu'ils figurent dans une section agricole ; A400M bombardiers d'eau classé justice-securite (sécurité civile) ; « métiers pénibles… retraite » classé travail-emploi ; statut des AESH et attractivité des métiers éducatifs classés travail-emploi (fonction publique) ; « Nommer un ou une défenseur de la santé » est le titre du billet, la proposition étant reprise d'une tribune de scientifiques. Thèmes sans mesure trouvée : pouvoir-achat, logement, protection-sociale-retraites, immigration, société-libertés, international-defense. Billets réactifs aux manifestations lycéennes d'octobre 2026 (violence, maintien de l'ordre) : mesures réelles mais liées à l'actualité."
+  },
+  {
+    "candidate_id": "marine-le-pen",
+    "program_found": false,
+    "pages_read": [
+      "https://marinelepen.com/",
+      "https://rassemblementnational.fr/",
+      "https://rassemblementnational.fr/petitions",
+      "https://rassemblementnational.fr/petition/logement-avec-marine-le-pen-appliquons-la-priorite-nationale",
+      "https://rassemblementnational.fr/petition/face-au-chaos-la-france-en-ordre",
+      "https://rassemblementnational.fr/petition/surprime-dassurance-non-a-la-double-peine-des-emeutes",
+      "https://rassemblementnational.fr/documents/GRN-CONTRE-BUDGET-2026.pdf"
+    ],
+    "comment": "Aucun programme présidentiel 2027 publié : marinelepen.com n'est qu'une page d'inscription (aucun contenu programmatique). Les 12 extraits viennent du site du parti (rassemblementnational.fr) : 5 mesures présentées sur l'accueil comme « mesures » à signer (TVA énergie, RIC, mosquées radicales, burkini, retraite à 60 ans) et 2 pétitions de campagne de sept.-oct. 2026 liées à Marine Le Pen (logement, « Face au chaos »). Ce ne sont pas un programme présidentiel structuré : à arbitrer avant publication. Écartés : programmes datés d'autres scrutins (22 mesures présidentielle 2022, programme législatives 2024, européennes 2024) ; Contre-budget 2026 (PDF diaporama dont l'extraction texte est illisible, colonnes mélangées) ; archive de dizaines de pétitions sans date ni lien avec la candidature 2027 ; slogans sans mesure (« stopper la submersion migratoire », « remettre la France en ordre ») ; « Pour investir dans le nucléaire » (trop vague). Thèmes non couverts : sante, education-culture, agriculture-alimentation, numerique, international-defense, economie-finances-publiques, travail-emploi, collectivites-outre-mer."
+  },
+  {
+    "candidate_id": "francis-lalanne",
+    "program_found": true,
+    "pages_read": [
+      "https://dieudolalanne2027.com/programme",
+      "https://dieudolalanne2027.com/wp-json/"
+    ],
+    "comment": "La page /programme (« Le Projet 2027 », 9 rubriques de 3 puces) est lisible en HTML et a été lue en entier ; elle renvoie vers france-libre.fr/nos-themes-et-valeurs/ pour plus de détails (non lu : valeurs générales du parti, hors périmètre 2027). Les 4 extraits déjà publiés ne sont pas dupliqués. 21 extraits. Écarts au texte : la source rend « Retraitdes troupes… » (balise gras collée au mot suivant), écrit « Retrait des » ; « Souveraineté Alimentaire : : » (double deux-points dans la source) est coupé après le libellé ; « Sortie de l'OTAN » figure deux fois (rubriques 1 et 2), gardé une fois (rubrique 1). Non retenus : « Restauration de la France-Afrique, en opposition avec la politique coloniale de la France » (mesure mêlée à un jugement), « Refus du contrôle social… » et « Stop à l'intrusion de l'État dans la sphère privée… » (principes sans dispositif précis). Rattachements à relire : gratuité des transports publics classée pouvoir-achat (objet = tarif) ; « Fin du pass et des obligations médicales : interdiction constitutionnelle de toute discrimination… » classé societe-libertes ; alignement du salaire des élus en institutions-vie-politique et réduction du salaire des hauts fonctionnaires en travail-emploi ; nationalisation et récupération du patrimoine cédé en economie-finances-publiques. Thèmes non abordés : logement, santé, environnement-énergie, numérique, éducation-culture, immigration, protection-sociale, collectivités."
+  },
+  {
+    "candidate_id": "raphael-glucksmann",
+    "program_found": true,
+    "pages_read": [
+      "https://glucks2027.fr/",
+      "https://glucks2027.fr/robots.txt",
+      "https://place-publique.eu/posts/2fgDdljEIy36rgxBjRyiQZ/raphael-glucksmann-sa-lettre-aux-francais",
+      "https://place-publique.eu/pages/69jA2SKIG5udlNX7wI3dmc/le-projet",
+      "https://place-publique.eu/pages/6mRSwq5tuSrSi68Cw1IADX/l-acte-i",
+      "https://place-publique.eu/pages/59EfFYTpFlj2lJhQ92PXsy/les-urgences",
+      "https://drive.google.com/file/d/1Ols_EJxRAxOJeR-fLEKp7IzEk8-TSI1Q/view?usp=sharing"
+    ],
+    "comment": "glucks2027.fr ne contient qu'une page d'accueil (lettre de candidature, aucun programme ; pas de sitemap). Le seul document programmatique primaire est l'« Acte I – notre vision pour la France » de Place publique (PDF de 88 pages, 42 chantiers, lien Google Drive depuis place-publique.eu/pages/6mRSwq5tuSrSi68Cw1IADX/l-acte-i ; directeur de la publication : Raphaël Glucksmann, co-président). C'est un document du parti qui se décrit comme « une vision et non un catalogue figé de mesures » : à signaler si la page doit distinguer programme de candidat et projet de parti. source_url = lien Drive du PDF (aucune page web ne porte les extraits). Texte extrait du PDF avec PDFKit ; chaque extrait est une sous-chaîne contiguë du texte du PDF (retours à la ligne et césures en fin de ligne recollés, mots inchangés). Les 4 extraits déjà publiés (lettre aux Français) ne sont pas dupliqués. 79 extraits, 5 par thème (4 pour collectivites-outre-mer). Choix de rattachement à relire : « Ticket climat » (titre de transport à tarif fixe), tarification sociale de l'eau et plafonnement des prix en outre-mer classés pouvoir-achat (objet = tarif/prix) ; abrogation de la réforme de l'assurance chômage classée travail-emploi ; crèches privées sous contrat classées protection-sociale-retraites ; définition du viol fondée sur le consentement classée justice-securite ; recherche, artistes-auteurs, pluralisme des médias classés education-culture. Aucune date affichée dans le PDF : source_published_on null. Non retenu faute de place (plafond 5/thème) : réserve opérationnelle, cyber sentinelle, Horizon Europe, Pass'Sport Santé, congé menstruel, état palestinien, etc. Plusieurs mesures du chantier 41 (régularisation, guichets uniques) sont dans le PDF mais mêlées à d'autres dans une même puce."
+  },
+  {
+    "candidate_id": "erwan-rohou",
+    "program_found": true,
+    "pages_read": [
+      "https://www.les-ecologistes-mei.org/post/le-livre-blanc-du-mouvement-ecologiste-ind%C3%A9pendant-1",
+      "https://www.les-ecologistes-mei.org/notre-programme",
+      "https://www.les-ecologistes-mei.org/qui-sommes-nous",
+      "https://www.les-ecologistes-mei.org/blog-feed.xml",
+      "https://www.les-ecologistes-mei.org/post/la-position-du-mei-sur-les-pesticides",
+      "https://www.les-ecologistes-mei.org/post/le-mei-s-exprime-sur-les-data-centers-%C3%A0-rantilly",
+      "https://www.les-ecologistes-mei.org/post/nos-propositions-sur-l-%C3%A9nergie",
+      "https://www.les-ecologistes-mei.org/post/d%C3%A9carboner-sans-d%C3%A9naturer-refonder-la-politique-%C3%A9nerg%C3%A9tique-fran%C3%A7aise",
+      "https://www.les-ecologistes-mei.org/post/tirons-enfin-une-le%C3%A7on-des-incendies-cet-%C3%A9t%C3%A9",
+      "https://www.les-ecologistes-mei.org/post/moratoire-urgent-sur-les-coupes-rases-foresti%C3%A8res",
+      "https://www.les-ecologistes-mei.org/post/protection-de-la-nature-le-mei-appelle-%C3%A0-un-sursaut-politique-et-institutionnel",
+      "https://www.les-ecologistes-mei.org/post/erwan-rohou-candidat-du-mei-aux-%C3%A9lections-pr%C3%A9sidentielles"
+    ],
+    "comment": "Source principale : Livre Blanc pour la Protection de l'environnement (« Éléments de Programmatique Présidentielle 2027 », page Wix publiée le « 5 oct. », mise à jour « 22 oct. » ; l'année n'est pas affichée, donc source_published_on null partout), complété par les billets MEI sur les pesticides (11 oct.), les data centers (24 oct.) et les propositions énergie (4 mars). Les 3 extraits déjà publiés (phrases d'introduction du Livre Blanc) ne sont pas dupliqués. Le Livre Blanc est rédigé en puces télégraphiques : les extraits sont des intitulés de mesures (ex. « Extension de 30 % des zones protégées. ») ; leur contexte est donné par source_label (axe du Livre Blanc). Les extraits du Livre Blanc sont des sous-chaînes contiguës du texte de la page. La page « Le programme » (/notre-programme, 12 mesures numérotées) est un texte non daté qui cite l'administration Bush et semble antérieur à 2027 : non utilisée, à arbitrer si besoin. Non retenus : moratoire sur les coupes rases (temporaire, jusqu'à l'hiver 2026), billet « Sensibilité au prix de l'essence » (opinion sans mesure), billet « Décarboner sans dénaturer » signé d'Erwan Rohou (orientations sans dispositif détaillé hormis la reprise de la loi de programmation). 23 extraits. Rattachements à relire : Juge de l'Environnement et formation des magistrats en justice-securite (organisation des juridictions) ; Défenseur de l'Environnement, reconnaissance constitutionnelle de la Nature et ANIE en institutions-vie-politique ; référendum local et droit d'opposition des communes en collectivites-outre-mer ; TVA sur les produits phytosanitaires en economie-finances-publiques (fiscalité, pas agriculture) ; mesures sur l'artificialisation (zones commerciales, loi sur le paysage) en logement (urbanisme). Thèmes non abordés : pouvoir-achat, travail-emploi, protection-sociale, santé, immigration, education-culture, société-libertés, international-defense."
+  },
+  {
+    "candidate_id": "fabien-roussel",
+    "program_found": true,
+    "pages_read": [
+      "https://www.fabienroussel2027.fr/",
+      "https://www.fabienroussel2027.fr/materiel",
+      "https://www.fabienroussel2027.fr/sitemap.xml",
+      "https://assets.nationbuilder.com/pcf/pages/44609/attachments/original/1791282014/Plan_Jeunesse_2027-2032.pdf",
+      "https://assets.nationbuilder.com/pcf/pages/44585/attachments/original/1791210591/tract_service_public.pdf",
+      "https://assets.nationbuilder.com/pcf/pages/44583/attachments/original/1791210341/tract_pompier.pdf",
+      "https://assets.nationbuilder.com/pcf/pages/44586/attachments/original/1791210673/tract_moblycee_6oct.pdf",
+      "https://assets.nationbuilder.com/pcf/pages/44587/attachments/original/1791210768/tract_lycee.pdf",
+      "https://www.pcf.fr/fete_de_lhumanite_2026_discours_de_fabien_roussel",
+      "https://www.pcf.fr/fabienroussel2027",
+      "https://www.pcf.fr/le_programme (404)"
+    ],
+    "comment": "Pas de page programme : la page d'accueil fabienroussel2027.fr n'est qu'une déclaration (« VIVRE ! »), /programme et /propositions en 404, le lien « 180 propositions » de pcf.fr pointe vers /le_programme (404). Les pages du sitemap (lettre_aux_francais, lettre_aux_soignants, lettre_aux_energeticiens, tract_essence, climat_planifier_produire_autrement_et_proteger, etc.) sont des coquilles NationBuilder sans contenu public. Seuls documents programmatiques : Plan « Jeunesse 2027-2032 » (PDF 12 p., 10 propositions, daté du 06/10/2026 sur la page /plan_jeunesse_2027_2032), tracts PDF Services publics et Pompiers (05/10/2026) et le discours de la Fête de l'Humanité déjà utilisé (complété par des mesures non encore publiées). Affiches PDF « Bloquer les prix / Baisser les taxes / Nationaliser TotalEnergies » et « L'énergie est notre avenir, nationalisons-la » : images sans couche texte (lues par OCR), slogans non repris car non copiables mot pour mot. Thèmes non abordés ou sans mesure exploitable : logement, santé, agriculture, numérique, immigration, collectivités, international (hors déclaration de paix déjà publiée), société-libertés (déjà publié). Classements à valider : ISF et droits de succession → pouvoir-achat (impôts des ménages) ; sapeurs-pompiers → justice-securite (sécurité civile) ; parité salariés/actionnaires dans les conseils d'administration → economie-finances-publiques (droit des sociétés). Dans les extraits du discours, l'apostrophe est droite (typographie d'origine de la page)."
+  },
+  {
+    "candidate_id": "eric-zemmour",
+    "program_found": false,
+    "pages_read": [
+      "https://www.ericzemmour.fr/",
+      "https://www.ericzemmour.fr/priorites",
+      "https://www.ericzemmour.fr/identite",
+      "https://www.ericzemmour.fr/impots",
+      "https://www.ericzemmour.fr/discours",
+      "https://www.ericzemmour.fr/sitemap.xml",
+      "https://www.parti-reconquete.fr/",
+      "https://www.parti-reconquete.fr/j-agis",
+      "https://leprogrammepourlafrance.fr/",
+      "https://www.budget2027.fr/",
+      "https://www.petition-remigration.fr/",
+      "https://www.stop-hausse-carburant.fr/",
+      "https://www.non-vote-etrangers.fr/",
+      "https://www.stop-immigration.com/",
+      "https://assets.ericzemmour.fr/ressources/tracts/avenir-est-a-nous.pdf",
+      "https://assets.ericzemmour.fr/ressources/tracts/verite-pouvoir-achat.pdf",
+      "https://assets.ericzemmour.fr/ressources/tracts/sante.pdf",
+      "https://assets.ericzemmour.fr/ressources/tracts/mercosur.pdf",
+      "https://assets.ericzemmour.fr/ressources/tracts/programme-pour-la-france.pdf"
+    ],
+    "comment": "Pas de page programme 2027. ericzemmour.fr = site de la campagne 2022 (pages /priorites, /identite, /impots… titrées « Éric Zemmour 2022 », sitemap daté de 2021-2022) : écartées. leprogrammepourlafrance.fr = plateforme participative de Sarah Knafo, programme 2027 « en construction » : aucune mesure arrêtée. budget2027.fr = « plan de Sarah Knafo » (24 mesures), attribué à elle et non à Éric Zemmour : écarté. Pétitions Reconquête (remigration, carburants, vote des étrangers, référendum immigration, santé, Mercosur) = appels à signer, non pris. Seul document de priorités retenu : tract Reconquête « L’avenir est à nous — Nos priorités pour les Français » (PDF hébergé sur assets.ericzemmour.fr, lié depuis parti-reconquete.fr/j-agis), 8 extraits sur 3 thèmes de mesures nettes ; non daté ; les phrases de slogan (école, « gabegies ») non prises. À toi de trancher si un tract de parti suffit comme source programme : sinon supprimer les 8 lignes (0 extrait). Tract « La vérité sur votre pouvoir d’achat » (mesures d’économies en grille) non pris : mise en page en cases, vérification verbatim fragile. Texte PDF lu avec PDFKit (pas de pdftotext sur la machine) : le contrôle verbatim du script peut sortir « fragmenté » pour ce PDF. Classements limites : CSG et droits de succession → pouvoir-achat (impôts des ménages) ; AME → sante (objet = prise en charge des soins), sinon immigration."
+  },
+  {
+    "candidate_id": "olivier-becht",
+    "program_found": true,
+    "pages_read": [
+      "https://becht2027.fr/projet-france/les-5-refondations/",
+      "https://becht2027.fr/projet-france/les-5-refondations/refondation-energie/",
+      "https://becht2027.fr/projet-france/les-5-refondations/refondation-sociale/",
+      "https://becht2027.fr/projet-france/les-5-refondations/refondation-sante/",
+      "https://becht2027.fr/projet-france/les-5-refondations/refondation-securite/",
+      "https://becht2027.fr/projet-france/les-5-refondations/refondation-democratique-territoriale/",
+      "https://becht2027.fr/projet-france/le-livre/",
+      "https://becht2027.fr/chapitre/partie-3/",
+      "https://becht2027.fr/chapitre/partie-4/",
+      "https://becht2027.fr/chapitre/partie-5/",
+      "https://becht2027.fr/chapitre/partie-6/",
+      "https://becht2027.fr/chapitre/partie-7/",
+      "https://becht2027.fr/chapitre/partie-8/",
+      "https://becht2027.fr/chapitre/partie-9/"
+    ],
+    "comment": "La page des 5 refondations (déjà exploitée) est un résumé ; le détail est dans les sous-pages et dans « Le livre — Le Projet France » (parties 4 à 9 lues en ligne, parties 10 et 11 annoncées pour les 5 et 9 novembre, non publiées, partie 10 = comptes publics). Les extraits viennent de ces chapitres (source_url = page du chapitre). Pas de date affichée. Couverture 16/16 ; thèmes sous le plafond : numerique (1), pouvoir-achat (1), agriculture-alimentation (2), environnement-energie (3), international-defense (3) car le livre reste très général ou conditionnel sur ces points (ex. confédération européenne au conditionnel, carburants de synthèse déjà publiés). Non repris : bien-être animal (hors référentiel), mesures budgétaires de la partie 10 (indisponible). Certains extraits commencent à une proposition subordonnée (« nous interdirons… », « nous créerons… ») pour ne garder que la mesure. Classements à valider : bouclier travail (60 % du net) → pouvoir-achat ; CDI universel et suppression de l'assurance chômage → travail-emploi ; hébergement d'urgence → logement ; agence de vérification de l'information → numerique."
+  },
+  {
+    "candidate_id": "mira-markovic",
+    "program_found": true,
+    "pages_read": [
+      "https://parti-animaliste.fr/mira-markovic-2027",
+      "https://parti-animaliste.fr/programme",
+      "https://parti-animaliste.fr/programme-legislatives",
+      "https://parti-animaliste.fr/legislatives-2027",
+      "https://parti-animaliste.fr/presse",
+      "https://parti-animaliste.fr/faq",
+      "https://b.parti-animaliste.fr/",
+      "https://parti-animaliste.fr/page-sitemap.xml"
+    ],
+    "comment": "ATTENTION : la page candidate /mira-markovic-2027 ne contient aucune mesure (appel aux parrainages). Aucun programme propre à la présidentielle 2027 n'est publié. Seul document programmatique national : le « Programme national » du Parti animaliste (page /programme-legislatives, PDF daté de 2022 : programme-national-2022.pdf ; il parle du « quinquennat 2022-2027 »), plus un programme européen 2024 (non utilisé). Les 46 extraits en sont tirés, avec la mention « version 2022 » dans source_label : à valider par l'éditeur avant publication, car ils ne sont pas sourcés comme programme 2027 de la candidate. Sans cette décision, renvoyer 0 extrait pour Mira Markovic. Programme monothématique (animaux) ; les mesures sont rattachées au référentiel selon leur objet (ex. TVA → pouvoir-achat, élevage intensif/pêche → agriculture-alimentation, corrida/armes à feu/parquets → justice-securite, chasse/aires protégées → environnement-energie, Charte constitutionnelle/ministère → institutions-vie-politique). Thèmes sans mesure : immigration, numerique, protection-sociale-retraites. Les mesures « animaux de compagnie » (mutuelle, CMU animale, transport gratuit) non reprises faute de thème."
+  },
+  {
+    "candidate_id": "natacha-polony",
+    "program_found": false,
+    "pages_read": [
+      "https://natachapolony2027.fr/",
+      "https://natachapolony2027.fr/natacha-polony/ma-vision",
+      "https://natachapolony2027.fr/natacha-polony/mes-principes",
+      "https://natachapolony2027.fr/actualites/pourquoi-nous-devons-agir",
+      "https://natachapolony2027.fr/sitemap.xml",
+      "https://www.npolony.fr/",
+      "https://www.npolony.fr/communiques",
+      "https://www.npolony.fr/actualites",
+      "https://www.npolony.fr/etat-de-la-france",
+      "https://www.npolony.fr/cahier",
+      "https://www.npolony.fr/videos",
+      "https://www.npolony.fr/presse"
+    ],
+    "comment": "Pas de programme rédigé : la lettre du 15/09/2026 dit « Je ne prétends pas que tout soit déjà écrit » ; « Ma vision » et « Mes principes » sont des textes de principes (très peu de mesures concrètes). Le cahier de doléances (npolony.fr/cahier) est un recueil de contributions de citoyens, pas de propositions de la candidate : exclu ; « État de la France » = constats ; vidéos/revue de presse non transcrites ; les 2 communiqués officiels (27 et 31/10/2026) ne contiennent qu'une mesure exploitable (EDF). 5 extraits seulement (institutions-vie-politique 4, environnement-energie 1). Thèmes non abordés par une mesure : tous les autres. Les 3 extraits déjà publiés (école, production, démocratie) sont des déclarations générales."
+  }
+]
