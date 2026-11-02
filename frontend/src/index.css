@@ -143,3 +143,16 @@ body {
 body {
   font-variant-numeric: tabular-nums;
 }
+
+/*
+ * Vignette d'une famille de thèmes (FamilyIllustration). La teinte propre à la
+ * famille est mêlée à la surface plutôt que posée telle quelle : le fond reste
+ * pâle en clair, sombre en sombre, sans second jeu de couleurs. Le trait
+ * emprunte un peu d'encre pour rester lisible sur les deux.
+ */
+.family-art {
+  background:
+    radial-gradient(circle at 30% 20%, color-mix(in oklab, var(--family-hue) 22%, transparent), transparent 60%),
+    color-mix(in oklab, var(--family-hue) 10%, var(--color-surface));
+  color: color-mix(in oklab, var(--family-hue) 80%, var(--color-ink));
+}
