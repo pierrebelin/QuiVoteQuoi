@@ -48,13 +48,16 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
                 .groups
                 .iter()
                 .filter(|group| group.has_actions())
-                .map(|group| group.uid.clone())
+                .map(|group| group.uid.to_string())
                 .collect();
-            let stored = self.summaries.summaries_for(&facts.dossier_uid).await?;
+            let stored = self
+                .summaries
+                .summaries_for(facts.dossier_uid.as_str())
+                .await?;
             let already_ready = !expected.is_empty()
                 && expected.iter().all(|uid| {
                     stored.iter().any(|summary| {
-                        summary.group_uid == *uid
+                        summary.group_uid.as_str() == uid
                             && summary.is_up_to_date(
                                 &fingerprint,
                                 self.generator.model(),
@@ -68,7 +71,7 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
             }
 
             self.summaries
-                .mark_pending(&facts.dossier_uid, &expected, fingerprint.as_str())
+                .mark_pending(facts.dossier_uid.as_str(), &expected, fingerprint.as_str())
                 .await?;
             report.dossiers_refreshed += 1;
 
@@ -81,7 +84,7 @@ impl<'a> RefreshDossierGroupSummaries<'a> {
                     report.summaries_ready += generated.len();
                     self.summaries
                         .save_ready(
-                            &facts.dossier_uid,
+                            facts.dossier_uid.as_str(),
                             fingerprint.as_str(),
                             self.generator.model(),
                             self.generator.prompt_version(),
@@ -108,20 +111,22 @@ mod tests {
 
     use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
     use crate::application::ports::dossier_summary_generator::SummaryGeneratorError;
+    use crate::domain::actor::GroupUid;
+    use crate::domain::dossier::DossierUid;
     use crate::domain::dossier_group_facts::{DossierGroupFacts, FinalVoteFact, GroupFacts};
     use crate::domain::dossier_summary::{StoredGroupSummary, SummarySource, SummaryStatus};
-    use crate::domain::scrutin::VoteTally;
+    use crate::domain::scrutin::{ScrutinUid, VoteTally};
 
     fn facts(with_vote: bool) -> DossierGroupFacts {
         DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Dossier".into(),
             official_url: None,
             legislature: 17,
             period_start: None,
             period_end: None,
             groups: vec![GroupFacts {
-                uid: "G1".into(),
+                uid: GroupUid::new("G1".to_string()).unwrap(),
                 abbrev: "G".into(),
                 label: "Groupe".into(),
                 color: None,
@@ -129,7 +134,7 @@ mod tests {
                 end_date: None,
                 final_votes: if with_vote {
                     vec![FinalVoteFact {
-                        scrutin_uid: "S1".into(),
+                        scrutin_uid: ScrutinUid::new("S1".to_string()).unwrap(),
                         number: "1".into(),
                         date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
                         legislature: 17,
@@ -191,7 +196,7 @@ mod tests {
                 .lock()
                 .unwrap()
                 .extend(summaries.iter().map(|s| StoredGroupSummary {
-                    group_uid: s.group_uid.clone(),
+                    group_uid: GroupUid::new(s.group_uid.clone()).unwrap(),
                     status: SummaryStatus::Ready,
                     paragraph: Some(s.paragraph.clone()),
                     facts_fingerprint: "current".into(),

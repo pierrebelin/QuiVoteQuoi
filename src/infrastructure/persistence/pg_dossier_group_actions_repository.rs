@@ -8,12 +8,14 @@ use super::{db, FINAL_VOTE_PREDICATE};
 use crate::application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, RepositoryError,
 };
-use crate::domain::dossier::DossierPeriod;
+use crate::domain::actor::GroupUid;
+use crate::domain::amendment::AmendmentUid;
+use crate::domain::dossier::{DossierPeriod, DossierUid};
 use crate::domain::dossier_group_facts::{
     AmendmentFact, DossierGroupFacts, FinalVoteFact, GroupFacts,
 };
 use crate::domain::final_vote::reading_of;
-use crate::domain::scrutin::VoteTally;
+use crate::domain::scrutin::{ScrutinUid, VoteTally};
 
 pub struct PgDossierGroupActionsRepository {
     pool: PgPool,
@@ -83,10 +85,17 @@ impl PgDossierGroupActionsRepository {
 
         let mut groups: HashMap<String, GroupFacts> = group_rows
             .iter()
-            .map(|row| {
-                let uid: String = row.get("uid");
-                (
-                    uid.clone(),
+            .filter_map(|row| {
+                let raw_uid: String = row.get("uid");
+                let uid = match GroupUid::new(raw_uid.clone()) {
+                    Ok(uid) => uid,
+                    Err(error) => {
+                        tracing::warn!("Skipping a stored group with an unusable uid: {error}");
+                        return None;
+                    }
+                };
+                Some((
+                    raw_uid,
                     GroupFacts {
                         uid,
                         abbrev: row.get("abbrev"),
@@ -97,7 +106,7 @@ impl PgDossierGroupActionsRepository {
                         final_votes: Vec::new(),
                         amendments: Vec::new(),
                     },
-                )
+                ))
             })
             .collect();
 
@@ -125,10 +134,17 @@ impl PgDossierGroupActionsRepository {
             let Some(group) = groups.get_mut(&group_uid) else {
                 continue;
             };
+            let scrutin_uid = match ScrutinUid::new(row.get("uid")) {
+                Ok(uid) => uid,
+                Err(error) => {
+                    tracing::warn!("Skipping a stored final vote with an unusable uid: {error}");
+                    continue;
+                }
+            };
             let subject: String = row.get("subject");
             let text_label: String = row.get("text_label");
             group.final_votes.push(FinalVoteFact {
-                scrutin_uid: row.get("uid"),
+                scrutin_uid,
                 number: row.get("number"),
                 date: row.get("scrutin_date"),
                 legislature: row.get::<i16, _>("legislature") as u16,
@@ -170,8 +186,15 @@ impl PgDossierGroupActionsRepository {
             let Some(group) = groups.get_mut(&group_uid) else {
                 continue;
             };
+            let uid = match AmendmentUid::new(row.get("uid")) {
+                Ok(uid) => uid,
+                Err(error) => {
+                    tracing::warn!("Skipping a stored amendment with an unusable uid: {error}");
+                    continue;
+                }
+            };
             group.amendments.push(AmendmentFact {
-                uid: row.get("uid"),
+                uid,
                 number: row.get("number"),
                 target_title: row.get("target_title"),
                 target_kind: row.get("target_kind"),
@@ -190,8 +213,12 @@ impl PgDossierGroupActionsRepository {
                 .then_with(|| left.uid.cmp(&right.uid))
         });
 
+        let dossier_uid = DossierUid::new(dossier.get("uid")).map_err(|error| {
+            RepositoryError::Database(format!("stored dossier has an unusable uid: {error}"))
+        })?;
+
         Ok(Some(DossierGroupFacts {
-            dossier_uid: dossier.get("uid"),
+            dossier_uid,
             title: dossier.get("title"),
             official_url: dossier.get("url"),
             legislature: legislature as u16,

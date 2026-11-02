@@ -231,26 +231,29 @@ impl From<FinalVoteEntry> for FinalVoteDto {
     fn from(entry: FinalVoteEntry) -> Self {
         let vote = entry.vote;
         Self {
-            scrutin_uid: vote.scrutin_uid,
-            number: vote.number,
-            date: vote.date,
-            ballot_type_label: vote.ballot_type_label,
-            text_key: vote.text_key,
-            text_label: vote.text_label,
-            reading: vote.reading,
-            outcome_code: vote.outcome.code().to_string(),
-            outcome_label: vote.outcome.label().to_string(),
-            adopted: vote.outcome.is_adopted(),
-            dossier_uid: vote.dossier_uid,
-            dossier_label: vote.dossier_label,
-            official_text: vote.official_text.map(OfficialTextVersionDto::from),
-            synthesis: vote.synthesis.into(),
+            scrutin_uid: vote.scrutin_uid().to_string(),
+            number: vote.number().to_string(),
+            date: vote.date(),
+            ballot_type_label: vote.ballot_type_label().to_string(),
+            text_key: vote.text_key().to_string(),
+            text_label: vote.text_label().to_string(),
+            reading: vote.reading().map(str::to_string),
+            outcome_code: vote.outcome().code().to_string(),
+            outcome_label: vote.outcome().label().to_string(),
+            adopted: vote.outcome().is_adopted(),
+            dossier_uid: vote.dossier_uid().map(ToString::to_string),
+            dossier_label: vote.dossier_label().map(str::to_string),
+            official_text: vote
+                .official_text()
+                .cloned()
+                .map(OfficialTextVersionDto::from),
+            synthesis: (*vote.synthesis()).into(),
             families: entry
                 .families
                 .into_iter()
                 .map(AssignedFamilyDto::from)
                 .collect(),
-            stances: vote.stances.iter().map(StanceDto::from).collect(),
+            stances: vote.stances().iter().map(StanceDto::from).collect(),
         }
     }
 }

@@ -137,6 +137,7 @@ impl DossierSummaryGenerator for MistralDossierSummaryGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::dossier::DossierUid;
 
     #[test]
     fn request_uses_strict_schema_and_zero_temperature() {
@@ -146,7 +147,7 @@ mod tests {
             model: "mistral-test".into(),
         };
         let facts = DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Dossier".into(),
             official_url: None,
             legislature: 17,

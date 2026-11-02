@@ -33,6 +33,7 @@ fn status_of(error: BrowseFinalVotesError) -> ApiError {
     match error {
         BrowseFinalVotesError::Repository(_)
         | BrowseFinalVotesError::Scrutin(_)
+        | BrowseFinalVotesError::Dossier(_)
         | BrowseFinalVotesError::Actor(_) => ApiError::internal(error),
         BrowseFinalVotesError::TooManyGroups(_)
         | BrowseFinalVotesError::UnknownGroup(_)

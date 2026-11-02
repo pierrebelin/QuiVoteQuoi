@@ -171,7 +171,7 @@ fn source_catalog(facts: &DossierGroupFacts) -> HashMap<String, SummarySource> {
         SummarySource {
             source_id: dossier_id,
             kind: "dossier".into(),
-            uid: facts.dossier_uid.clone(),
+            uid: facts.dossier_uid.to_string(),
             label: "Dossier officiel".into(),
             official_url: dossier_url.clone(),
         },
@@ -184,7 +184,7 @@ fn source_catalog(facts: &DossierGroupFacts) -> HashMap<String, SummarySource> {
                 SummarySource {
                     source_id,
                     kind: "scrutin".into(),
-                    uid: vote.scrutin_uid.clone(),
+                    uid: vote.scrutin_uid.to_string(),
                     label: format!("Scrutin n°{}", vote.number),
                     official_url: Some(format!(
                         "https://www.assemblee-nationale.fr/dyn/{}/scrutins/{}",
@@ -200,7 +200,7 @@ fn source_catalog(facts: &DossierGroupFacts) -> HashMap<String, SummarySource> {
                 SummarySource {
                     source_id,
                     kind: "amendment".into(),
-                    uid: amendment.uid.clone(),
+                    uid: amendment.uid.to_string(),
                     label: format!("Amendement n°{} — dossier officiel", amendment.number),
                     // Le format d'une URL directe d'amendement n'est pas
                     // confirmé dans la source. Le dossier officiel reste la
@@ -356,19 +356,22 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::actor::GroupUid;
+    use crate::domain::amendment::AmendmentUid;
+    use crate::domain::dossier::DossierUid;
     use crate::domain::dossier_group_facts::{AmendmentFact, GroupFacts};
     use chrono::NaiveDate;
 
     fn facts() -> DossierGroupFacts {
         DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Dossier".into(),
             official_url: Some("https://example.test/dossier".into()),
             legislature: 17,
             period_start: Some(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
             period_end: None,
             groups: vec![GroupFacts {
-                uid: "G1".into(),
+                uid: GroupUid::new("G1".to_string()).unwrap(),
                 abbrev: "G".into(),
                 label: "Groupe".into(),
                 color: None,
@@ -376,7 +379,7 @@ mod tests {
                 end_date: None,
                 final_votes: vec![],
                 amendments: vec![AmendmentFact {
-                    uid: "A1".into(),
+                    uid: AmendmentUid::new("A1".to_string()).unwrap(),
                     number: "1".into(),
                     target_title: "Article".into(),
                     target_kind: None,

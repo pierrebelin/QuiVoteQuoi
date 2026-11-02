@@ -8,6 +8,7 @@ use crate::application::ports::scrutin_repository::{
 };
 use crate::domain::actor::{ActorUid, GroupUid};
 use crate::domain::dataset::{CodeCount, DatasetShape};
+use crate::domain::dossier::DossierUid;
 use crate::domain::scrutin::{
     BallotType, DossierReference, GroupTally, NewScrutin, NominalVote, NonVotingCause, Outcome,
     Scrutin, ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
@@ -439,7 +440,11 @@ impl ScrutinRepository for PgScrutinRepository {
                 row.get::<Option<String>, _>("dossier_label"),
             ) {
                 (Some(uid), label) => Some(DossierReference {
-                    uid,
+                    uid: DossierUid::new(uid).map_err(|e| {
+                        RepositoryError::Database(format!(
+                            "stored scrutin has an unusable dossier uid: {e}"
+                        ))
+                    })?,
                     label: label.unwrap_or_default(),
                 }),
                 (None, _) => None,

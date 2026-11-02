@@ -147,6 +147,7 @@ impl DossierSummaryGenerator for OpenAiDossierSummaryGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::dossier::DossierUid;
 
     #[test]
     fn request_uses_strict_structured_output_without_storage() {
@@ -156,7 +157,7 @@ mod tests {
             model: "gpt-test".into(),
         };
         let facts = DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Dossier".into(),
             official_url: None,
             legislature: 17,

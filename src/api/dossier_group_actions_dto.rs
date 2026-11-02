@@ -116,12 +116,12 @@ impl DossierGroupActionsResponse {
             .into_iter()
             .map(|group| {
                 let summary = summary_by_group.get(&group.uid);
-                group_dto(&dossier_uid, legislature, group, summary)
+                group_dto(dossier_uid.as_str(), legislature, group, summary)
             })
             .collect();
 
         Self {
-            dossier_uid,
+            dossier_uid: dossier_uid.to_string(),
             period_start,
             period_end,
             groups,
@@ -161,7 +161,7 @@ fn group_dto(
     );
 
     GroupActionsDto {
-        uid: group.uid.clone(),
+        uid: group.uid.to_string(),
         abbrev: group.abbrev,
         label: group.label,
         color: group.color,
@@ -194,7 +194,7 @@ impl From<&SummarySource> for SummarySourceDto {
 impl FinalVoteDto {
     fn from_fact(value: FinalVoteFact, legislature: u16) -> Self {
         Self {
-            scrutin_uid: value.scrutin_uid,
+            scrutin_uid: value.scrutin_uid.to_string(),
             number: value.number.clone(),
             date: value.date,
             subject: value.subject,

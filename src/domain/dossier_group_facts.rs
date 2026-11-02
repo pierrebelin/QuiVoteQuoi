@@ -9,11 +9,14 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use super::scrutin::VoteTally;
+use super::actor::GroupUid;
+use super::amendment::AmendmentUid;
+use super::dossier::DossierUid;
+use super::scrutin::{ScrutinUid, VoteTally};
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DossierGroupFacts {
-    pub dossier_uid: String,
+    pub dossier_uid: DossierUid,
     pub title: String,
     pub official_url: Option<String>,
     pub legislature: u16,
@@ -24,7 +27,7 @@ pub struct DossierGroupFacts {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupFacts {
-    pub uid: String,
+    pub uid: GroupUid,
     pub abbrev: String,
     pub label: String,
     pub color: Option<String>,
@@ -45,7 +48,7 @@ impl GroupFacts {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FinalVoteFact {
-    pub scrutin_uid: String,
+    pub scrutin_uid: ScrutinUid,
     pub number: String,
     pub date: NaiveDate,
     pub legislature: u16,
@@ -61,7 +64,7 @@ pub struct FinalVoteFact {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct AmendmentFact {
-    pub uid: String,
+    pub uid: AmendmentUid,
     pub number: String,
     pub target_title: String,
     pub target_kind: Option<String>,
@@ -77,7 +80,7 @@ mod tests {
 
     fn group(final_votes: Vec<FinalVoteFact>, amendments: Vec<AmendmentFact>) -> GroupFacts {
         GroupFacts {
-            uid: "G1".into(),
+            uid: GroupUid::new("G1".to_string()).unwrap(),
             abbrev: "G".into(),
             label: "Groupe".into(),
             color: None,
@@ -90,7 +93,7 @@ mod tests {
 
     fn final_vote() -> FinalVoteFact {
         FinalVoteFact {
-            scrutin_uid: "S1".into(),
+            scrutin_uid: ScrutinUid::new("S1".to_string()).unwrap(),
             number: "1".into(),
             date: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
             legislature: 17,
@@ -107,7 +110,7 @@ mod tests {
 
     fn amendment() -> AmendmentFact {
         AmendmentFact {
-            uid: "A1".into(),
+            uid: AmendmentUid::new("A1".to_string()).unwrap(),
             number: "1".into(),
             target_title: "Article".into(),
             target_kind: None,

@@ -4,12 +4,13 @@ use crate::application::ports::final_vote_repository::{
 };
 use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::actor::{ActorError, GroupUid};
-use crate::domain::final_vote::{reading_of, FinalVote, GroupIdentity, GroupStance};
+use crate::domain::dossier::{DossierError, DossierUid};
+use crate::domain::final_vote::{FinalVote, GroupIdentity, GroupStance, NewFinalVote};
 use crate::domain::group_lineage::{
     designates, displayed_group, group_by_lineage, same_group, uids_of,
 };
-use crate::domain::scrutin::{Outcome, ScrutinError, VotePosition};
-use crate::domain::theme::FamilyCode;
+use crate::domain::scrutin::{Outcome, ScrutinError, ScrutinUid, VotePosition};
+use crate::domain::theme::{FamilyCode, TextKey};
 
 /// Quatre groupes au plus. La comparaison reste une lecture cote a cote, ou
 /// chaque groupe garde ses chiffres bruts; au-dela, les colonnes se resserrent
@@ -38,6 +39,8 @@ pub enum BrowseFinalVotesError {
     UnknownFamily(String),
     #[error(transparent)]
     Scrutin(#[from] ScrutinError),
+    #[error(transparent)]
+    Dossier(#[from] DossierError),
     #[error(transparent)]
     Actor(#[from] ActorError),
     #[error(transparent)]
@@ -224,21 +227,21 @@ fn build_entry(
 
     let outcome = Outcome::new(record.outcome_code, record.outcome_label)?;
 
-    let vote = FinalVote {
-        reading: reading_of(&record.subject, &record.text_label),
-        scrutin_uid: record.scrutin_uid,
+    let vote = FinalVote::new(NewFinalVote {
+        scrutin_uid: ScrutinUid::new(record.scrutin_uid)?,
         number: record.number,
         date: record.date,
+        subject: record.subject,
         ballot_type_label: record.ballot_type_label,
         outcome,
-        text_key: record.text_key,
+        text_key: TextKey::from_raw(&record.text_key),
         text_label: record.text_label,
-        dossier_uid: record.dossier_uid,
+        dossier_uid: record.dossier_uid.map(DossierUid::new).transpose()?,
         dossier_label: record.dossier_label,
         official_text: record.official_text,
         synthesis: record.synthesis,
         stances,
-    };
+    });
 
     Ok(FinalVoteEntry {
         vote,
@@ -436,7 +439,7 @@ mod tests {
             .await
             .unwrap();
 
-        let stances = &view.items[0].vote.stances;
+        let stances = &view.items[0].vote.stances();
         assert_eq!(stances.len(), 2);
         assert_eq!(stances[0].group().abbrev, "SOC");
         assert_eq!(stances[1].group().abbrev, "RN");
@@ -469,7 +472,7 @@ mod tests {
             .await
             .unwrap();
 
-        let share = view.items[0].vote.stances[0].share().cloned().unwrap();
+        let share = view.items[0].vote.stances()[0].share().cloned().unwrap();
         assert_eq!(share.voters(), 86);
         assert_eq!(share.against_percent(), 98);
         assert_eq!(share.for_percent(), 2);
@@ -492,7 +495,7 @@ mod tests {
         // Le groupe est bien selectionne, mais le scrutin ne porte aucune ligne
         // pour lui: rien n'est invente, l'absence reste visible a l'affichage.
         assert_eq!(view.selected.len(), 1);
-        assert!(view.items[0].vote.stances.is_empty());
+        assert!(view.items[0].vote.stances().is_empty());
     }
 
     #[tokio::test]
@@ -581,7 +584,7 @@ mod tests {
         let stances: Vec<&str> = view
             .items
             .iter()
-            .flat_map(|entry| entry.vote.stances.iter())
+            .flat_map(|entry| entry.vote.stances().iter())
             .map(|stance| stance.group().abbrev.as_str())
             .collect();
         assert_eq!(stances, vec!["UDDPLR", "UDDPLR"]);
@@ -704,7 +707,7 @@ mod tests {
             .await
             .unwrap();
 
-        let text = view.items[0].vote.official_text.as_ref().unwrap();
+        let text = view.items[0].vote.official_text().unwrap();
         assert_eq!(text.document_uid, "PIONANR5L17B1560");
         assert_eq!(text.version_label, "Texte adopté en première lecture");
     }

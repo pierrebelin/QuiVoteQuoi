@@ -11,6 +11,7 @@ use chrono::NaiveDate;
 use serde::Serialize;
 
 use super::actor::{ActorDirectory, ActorUid, GroupUid};
+use super::dossier::DossierUid;
 
 /// Reference de groupe factice publiee par la source quand la ventilation par
 /// groupe est perdue. La repartition se reconstruit alors depuis les positions
@@ -314,7 +315,7 @@ pub struct VoteSynthesis {
 /// qui restent exposes (RM-10).
 #[derive(Debug, Clone, Serialize)]
 pub struct DossierReference {
-    pub uid: String,
+    pub uid: DossierUid,
     /// Libelle publie dans le scrutin. Conserve pour rester lisible meme quand
     /// le dossier n'est pas ingere.
     pub label: String,

@@ -282,7 +282,7 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
                     malfunction: c.malfunction,
                 })
                 .collect(),
-            dossier_uid: s.dossier().map(|d| d.uid.clone()),
+            dossier_uid: s.dossier().map(|d| d.uid.to_string()),
             dossier_label: s.dossier().map(|d| d.label.clone()),
             official_url: s.official_url(),
             unknown_actors: detail.unknown_actors,

@@ -70,27 +70,30 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
+    use crate::domain::actor::GroupUid;
+    use crate::domain::amendment::AmendmentUid;
+    use crate::domain::dossier::DossierUid;
     use crate::domain::dossier_group_facts::{AmendmentFact, FinalVoteFact, GroupFacts};
     use crate::domain::dossier_summary::{SummarySource, SummaryStatus};
-    use crate::domain::scrutin::VoteTally;
+    use crate::domain::scrutin::{ScrutinUid, VoteTally};
 
     fn facts() -> DossierGroupFacts {
         DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Texte".into(),
             official_url: Some("https://example.test/dossier".into()),
             legislature: 17,
             period_start: Some(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
             period_end: Some(NaiveDate::from_ymd_opt(2026, 2, 1).unwrap()),
             groups: vec![GroupFacts {
-                uid: "G1".into(),
+                uid: GroupUid::new("G1".to_string()).unwrap(),
                 abbrev: "G".into(),
                 label: "Groupe".into(),
                 color: None,
                 start_date: None,
                 end_date: None,
                 final_votes: vec![FinalVoteFact {
-                    scrutin_uid: "S1".into(),
+                    scrutin_uid: ScrutinUid::new("S1".to_string()).unwrap(),
                     number: "1".into(),
                     date: NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
                     legislature: 17,
@@ -113,7 +116,7 @@ mod tests {
     /// les syntheses stockees: la valeur attendue ci-dessous ne doit jamais bouger.
     fn stable_facts() -> DossierGroupFacts {
         DossierGroupFacts {
-            dossier_uid: "DLR5L17N50000".into(),
+            dossier_uid: DossierUid::new("DLR5L17N50000".to_string()).unwrap(),
             title: "Projet de loi de finances".into(),
             official_url: Some("https://example.test/dossier".into()),
             legislature: 17,
@@ -121,14 +124,14 @@ mod tests {
             period_end: None,
             groups: vec![
                 GroupFacts {
-                    uid: "PO800490".into(),
+                    uid: GroupUid::new("PO800490".to_string()).unwrap(),
                     abbrev: "GRP".into(),
                     label: "Groupe exemple".into(),
                     color: Some("#112233".into()),
                     start_date: Some(NaiveDate::from_ymd_opt(2024, 7, 18).unwrap()),
                     end_date: None,
                     final_votes: vec![FinalVoteFact {
-                        scrutin_uid: "VTANR5L17V100".into(),
+                        scrutin_uid: ScrutinUid::new("VTANR5L17V100".to_string()).unwrap(),
                         number: "100".into(),
                         date: NaiveDate::from_ymd_opt(2025, 12, 16).unwrap(),
                         legislature: 17,
@@ -148,7 +151,7 @@ mod tests {
                         },
                     }],
                     amendments: vec![AmendmentFact {
-                        uid: "AMANR5L17PO1".into(),
+                        uid: AmendmentUid::new("AMANR5L17PO1".to_string()).unwrap(),
                         number: "42".into(),
                         target_title: "Article 3".into(),
                         target_kind: None,
@@ -159,7 +162,7 @@ mod tests {
                     }],
                 },
                 GroupFacts {
-                    uid: "PO800491".into(),
+                    uid: GroupUid::new("PO800491".to_string()).unwrap(),
                     abbrev: "AUT".into(),
                     label: "Autre groupe".into(),
                     color: None,
@@ -221,7 +224,7 @@ mod tests {
     async fn hides_stale_summaries_but_keeps_raw_facts() {
         let facts = facts();
         let summaries = FakeSummaries(Mutex::new(vec![StoredGroupSummary {
-            group_uid: "G1".into(),
+            group_uid: GroupUid::new("G1".to_string()).unwrap(),
             status: SummaryStatus::Ready,
             paragraph: Some("Texte descriptif".into()),
             facts_fingerprint: "old".into(),

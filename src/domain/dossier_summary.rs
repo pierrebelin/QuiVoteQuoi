@@ -7,6 +7,8 @@
 
 use chrono::NaiveDateTime;
 
+use super::actor::GroupUid;
+
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum SummaryError {
     #[error("summary paragraph is empty")]
@@ -112,7 +114,7 @@ pub struct SummarySource {
 
 #[derive(Debug, Clone)]
 pub struct StoredGroupSummary {
-    pub group_uid: String,
+    pub group_uid: GroupUid,
     pub status: SummaryStatus,
     pub paragraph: Option<String>,
     pub facts_fingerprint: String,
@@ -227,7 +229,7 @@ mod tests {
 
     fn stored(status: SummaryStatus, facts_fingerprint: &str) -> StoredGroupSummary {
         StoredGroupSummary {
-            group_uid: "G1".into(),
+            group_uid: GroupUid::new("G1".to_string()).unwrap(),
             status,
             paragraph: Some("Texte descriptif".into()),
             facts_fingerprint: facts_fingerprint.into(),
