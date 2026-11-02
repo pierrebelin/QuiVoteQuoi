@@ -62,6 +62,12 @@ export interface FinalVoteDto {
   official_text: OfficialTextVersionDto | null
   synthesis: TallyDto
   families: AssignedFamilyDto[]
+  /**
+   * Positions des groupes comparés (`groupes=`), ou de tous les groupes du
+   * référentiel avec `tous_groupes=true` (exclusif avec `groupes`). Un groupe
+   * sans ligne publiée sur ce vote en est absent : rien n'est comblé par un
+   * zéro, et l'absence n'est ni une abstention ni une position.
+   */
   stances: StanceDto[]
 }
 

@@ -213,9 +213,12 @@ function segments(tally: TallyDto): Segment[] {
 export function VoteBar({
   tally,
   outOf,
+  label,
 }: {
   tally: TallyDto
   outOf?: number
+  /** Remplace la phrase par défaut, lue et affichée en infobulle. */
+  label?: string
 }) {
   const parts = segments(tally)
   const total = parts.reduce((sum, part) => sum + part.value, 0)
@@ -229,12 +232,16 @@ export function VoteBar({
         className="flex h-1.5 overflow-hidden rounded-full"
         style={{ width: `${scale * 100}%` }}
         role="img"
-        aria-label={parts
-          .filter((part) => part.value > 0)
-          .map(
-            (part) => `${part.value} ${part.label}${part.value > 1 ? 's' : ''}`,
-          )
-          .join(', ')}
+        title={label}
+        aria-label={
+          label ??
+          parts
+            .filter((part) => part.value > 0)
+            .map(
+              (part) => `${part.value} ${part.label}${part.value > 1 ? 's' : ''}`,
+            )
+            .join(', ')
+        }
       >
         {parts
           .filter((part) => part.value > 0)

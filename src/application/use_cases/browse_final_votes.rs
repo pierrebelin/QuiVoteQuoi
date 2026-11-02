@@ -25,6 +25,18 @@ pub struct BrowseFinalVotesCommand {
     pub family: Option<String>,
     /// Groupes demandes, par identifiant ou par sigle, dans l'ordre d'affichage.
     pub groups: Vec<String>,
+    /// Mode « tous les groupes »: une position par groupe du referentiel, dans
+    /// l'ordre de `FinalVoteView::groups`. Exclusif avec `groups`.
+    ///
+    /// La limite de `MAX_COMPARED_GROUPS` ne s'y applique pas, et cela ne
+    /// contredit pas README.md §6: ce mode sert la page d'accueil, qui montre
+    /// pour chaque groupe sa seule position majoritaire, telle que
+    /// l'Assemblee la publie, rangee dans l'ordre de l'hemicycle. Aucun
+    /// pourcentage, aucun agregat; les chiffres bruts restent sur chaque
+    /// tuile et dans le detail du vote. C'est une lecture cote a cote, pas un
+    /// classement. La comparaison detaillee, ou les pourcentages s'affichent,
+    /// reste bornee a `MAX_COMPARED_GROUPS` groupes choisis.
+    pub all_groups: bool,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -33,6 +45,8 @@ pub struct BrowseFinalVotesCommand {
 pub enum BrowseFinalVotesError {
     #[error("at most {MAX_COMPARED_GROUPS} groups can be compared, got {0}")]
     TooManyGroups(usize),
+    #[error("all_groups cannot be combined with an explicit group selection")]
+    ConflictingGroupSelection,
     #[error("unknown parliamentary group: {0}")]
     UnknownGroup(String),
     #[error("unknown theme family: {0}")]
@@ -89,6 +103,9 @@ impl<'a> BrowseFinalVotes<'a> {
         &self,
         command: BrowseFinalVotesCommand,
     ) -> Result<FinalVoteView, BrowseFinalVotesError> {
+        if command.all_groups && !command.groups.is_empty() {
+            return Err(BrowseFinalVotesError::ConflictingGroupSelection);
+        }
         if command.groups.len() > MAX_COMPARED_GROUPS {
             return Err(BrowseFinalVotesError::TooManyGroups(command.groups.len()));
         }
@@ -102,7 +119,11 @@ impl<'a> BrowseFinalVotes<'a> {
         };
 
         let groups = merge_renamed_groups(self.repository.groups().await?);
-        let selected = resolve_groups(&groups, &command.groups)?;
+        let selected = if command.all_groups {
+            groups.clone()
+        } else {
+            resolve_groups(&groups, &command.groups)?
+        };
 
         let filter = FinalVoteFilter {
             family,
@@ -534,6 +555,164 @@ mod tests {
             error,
             BrowseFinalVotesError::TooManyGroups(n) if n == MAX_COMPARED_GROUPS + 1
         ));
+    }
+
+    /// Cinq groupes, tous porteurs d'une ventilation sur le meme vote: de quoi
+    /// depasser `MAX_COMPARED_GROUPS`.
+    fn five_group_repository() -> InMemoryFinalVoteRepository {
+        let repository = InMemoryFinalVoteRepository::default();
+        *repository.groups.lock().unwrap() = vec![
+            group("PO1", "RN"),
+            group("PO2", "SOC"),
+            group("PO3", "UDR"),
+            group("PO4", "EPR"),
+            group("PO5", "LFI"),
+        ];
+        *repository.records.lock().unwrap() = vec![record(
+            "S1",
+            vec![
+                tally_record("PO1", "RN", 2, 84),
+                tally_record("PO2", "SOC", 60, 0),
+                tally_record("PO3", "UDR", 0, 16),
+                tally_record("PO4", "EPR", 90, 0),
+                tally_record("PO5", "LFI", 0, 70),
+            ],
+        )];
+        repository
+    }
+
+    #[tokio::test]
+    async fn all_groups_mode_returns_a_stance_for_every_listed_group() {
+        let repository = five_group_repository();
+
+        let view = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                all_groups: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        // Cinq groupes, au-dela de `MAX_COMPARED_GROUPS`: le mode ne subit pas la
+        // limite de la comparaison explicite.
+        assert!(view.groups.len() > MAX_COMPARED_GROUPS);
+        let stances = view.items[0].vote.stances();
+        let stance_abbrevs: Vec<&str> = stances
+            .iter()
+            .map(|stance| stance.group().abbrev.as_str())
+            .collect();
+        let group_abbrevs: Vec<&str> = view
+            .groups
+            .iter()
+            .map(|group| group.abbrev.as_str())
+            .collect();
+        assert_eq!(stance_abbrevs, group_abbrevs);
+        assert_eq!(view.selected.len(), view.groups.len());
+    }
+
+    #[tokio::test]
+    async fn all_groups_mode_asks_the_repository_for_every_group_identifier() {
+        let repository = five_group_repository();
+
+        BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                all_groups: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let filter = repository.last_filter.lock().unwrap().clone().unwrap();
+        for uid in ["PO1", "PO2", "PO3", "PO4", "PO5"] {
+            assert!(filter.group_uids.iter().any(|asked| asked == uid));
+        }
+    }
+
+    #[tokio::test]
+    async fn all_groups_mode_keeps_a_renamed_group_once() {
+        let repository = renamed_group_repository();
+
+        let view = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                all_groups: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        // Le groupe renomme repond sous ses deux identifiants: une seule
+        // position par vote, sous l'identite de la lignee.
+        for item in &view.items {
+            let renamed = item
+                .vote
+                .stances()
+                .iter()
+                .filter(|stance| stance.group().abbrev == "UDDPLR")
+                .count();
+            assert_eq!(renamed, 1);
+        }
+    }
+
+    #[tokio::test]
+    async fn all_groups_mode_does_not_invent_a_stance_for_a_group_absent_from_a_vote() {
+        let repository = five_group_repository();
+        repository.records.lock().unwrap()[0]
+            .tallies
+            .retain(|tally| tally.group_uid != "PO5");
+
+        let view = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                all_groups: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(view.items[0].vote.stances().len(), 4);
+    }
+
+    #[tokio::test]
+    async fn all_groups_combined_with_an_explicit_selection_is_refused() {
+        let repository = five_group_repository();
+
+        let error = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                groups: vec!["RN".to_string()],
+                all_groups: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            BrowseFinalVotesError::ConflictingGroupSelection
+        ));
+    }
+
+    #[tokio::test]
+    async fn the_explicit_comparison_stays_limited_to_four_groups() {
+        let repository = five_group_repository();
+        let five = ["RN", "SOC", "UDR", "EPR", "LFI"].map(str::to_string);
+
+        let four = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                groups: five[..MAX_COMPARED_GROUPS].to_vec(),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        let error = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                groups: five.to_vec(),
+                all_groups: false,
+                ..Default::default()
+            })
+            .await
+            .unwrap_err();
+
+        assert_eq!(four.items[0].vote.stances().len(), MAX_COMPARED_GROUPS);
+        assert!(matches!(error, BrowseFinalVotesError::TooManyGroups(5)));
     }
 
     /// Depot portant un groupe renomme: l'ancien identifiant sur un vote, le
