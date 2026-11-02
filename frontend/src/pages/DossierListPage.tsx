@@ -245,7 +245,7 @@ export default function DossierListPage() {
       */}
       {data && data.dossiers.length > 0 && (
         <div
-          className={`space-y-4 transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
+          className={`space-y-3 transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
         >
           {data.dossiers.map((d) => (
             <DossierCard

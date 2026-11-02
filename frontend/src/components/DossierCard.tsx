@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { FamilyIllustration } from './FamilyIllustration'
 import type { OutcomeDto } from '../types/dossiers'
@@ -33,6 +32,15 @@ function formatDate(iso: string) {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
+  })
+}
+
+/** Date sans l'année quand elle tombe dans l'année en cours. */
+function formatShortDate(iso: string, today: string) {
+  if (iso.slice(0, 4) !== today.slice(0, 4)) return formatDate(iso)
+  return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
   })
 }
 
@@ -97,20 +105,11 @@ function InitiatorTag({ initiator }: { initiator: DossierCardInitiatorDto }) {
   return null
 }
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-[11.5px] text-ink-faint">{label}</dt>
-      <dd className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13.5px] text-ink">
-        {children}
-      </dd>
-    </div>
-  )
-}
-
 /**
  * Carte d'un dossier dans la liste. Le titre porte le lien, étiré sur toute
  * la carte ; les thèmes restent des boutons à part, qui filtrent la liste.
+ * Le bandeau dit où en est le dossier, la rangée du bas qui l'a déposé :
+ * pas d'étiquettes, et le nombre de scrutins seulement s'il y en a.
  */
 export default function DossierCard({
   dossier,
@@ -125,18 +124,27 @@ export default function DossierCard({
   const state = banner(dossier)
   const [first, ...others] = dossier.initiators
   const upcoming = dossier.last_activity_date > today
+  const step = dossier.last_activity_label.replace(/\.$/, '')
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition-colors hover:border-line-strong">
       <div
-        className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-5 py-2 text-[13px] font-semibold ${state.tone}`}
+        className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-[18px] py-1.5 text-[13px] font-semibold ${state.tone}`}
       >
         <span>{state.text}</span>
-        <span className="text-xs font-medium text-ink-soft">{dossier.procedure}</span>
+        <span className="text-[12.5px] font-medium text-ink-soft">
+          {upcoming ? 'Prochaine étape' : 'Dernière étape'} : {step} ·{' '}
+          {formatShortDate(dossier.last_activity_date, today)}
+          {upcoming && (
+            <span className="ml-1.5 rounded bg-surface px-1.5 text-[11px] font-semibold text-info">
+              à venir
+            </span>
+          )}
+        </span>
       </div>
 
-      <div className="px-5 pt-4 pb-5">
-        <h2 className="text-[17px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
+      <div className="px-[18px] pt-3 pb-3.5">
+        <h2 className="text-[16.5px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
           <Link
             to={`/dossiers/${dossier.uid}`}
             className="after:absolute after:inset-0 focus:outline-none"
@@ -145,37 +153,37 @@ export default function DossierCard({
           </Link>
         </h2>
 
-        <div className="mt-3 flex flex-wrap gap-1.5">
-          {dossier.families.length > 0 ? (
-            dossier.families.map((family) => (
-              <button
-                key={family.code}
-                type="button"
-                onClick={() => onFamily(family.code)}
-                title={`Voir les dossiers du thème « ${family.label} »`}
-                className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition hover:ring-line-strong"
-              >
-                <FamilyIllustration
-                  code={family.code}
-                  className="size-6 rounded-md"
-                  glyphClassName="size-4"
-                />
-                {family.label}
-              </button>
-            ))
-          ) : (
-            <span className="text-xs text-ink-faint italic">
-              Aucun thème attribué pour l'instant.
-            </span>
-          )}
-        </div>
+        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <div className="flex flex-wrap gap-1.5">
+            {dossier.families.length > 0 ? (
+              dossier.families.map((family) => (
+                <button
+                  key={family.code}
+                  type="button"
+                  onClick={() => onFamily(family.code)}
+                  title={`Voir les dossiers du thème « ${family.label} »`}
+                  className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition hover:ring-line-strong"
+                >
+                  <FamilyIllustration
+                    code={family.code}
+                    className="size-[22px] rounded-md"
+                    glyphClassName="size-3.5"
+                  />
+                  {family.label}
+                </button>
+              ))
+            ) : (
+              <span className="text-xs text-ink-faint italic">
+                Aucun thème attribué pour l'instant.
+              </span>
+            )}
+          </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-line pt-3 lg:grid-cols-4">
-          <Fact label="Déposé par">
+          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-ink-soft">
             {first ? (
               <>
                 <InitiatorTag initiator={first} />
-                <span>{first.full_name}</span>
+                <span className="text-ink">{first.full_name}</span>
                 {others.length > 0 && (
                   <span className="text-ink-faint">
                     et {others.length} autre{others.length > 1 ? 's' : ''}
@@ -183,38 +191,25 @@ export default function DossierCard({
                 )}
               </>
             ) : (
-              <span className="text-ink-faint">Non publié</span>
+              <span className="text-ink-faint">Auteur non publié</span>
             )}
-          </Fact>
-          <Fact label="Déposé le">
-            {dossier.deposit_date ? (
-              formatDate(dossier.deposit_date)
-            ) : (
-              <span className="text-ink-faint">Non publié</span>
+            {dossier.deposit_date && (
+              <>
+                <span className="text-line-strong">·</span>
+                <span>déposé le {formatShortDate(dossier.deposit_date, today)}</span>
+              </>
             )}
-          </Fact>
-          <Fact label={upcoming ? 'Prochaine étape' : 'Dernière étape'}>
-            <span>
-              {dossier.last_activity_label} · {formatDate(dossier.last_activity_date)}
-            </span>
-            {upcoming && (
-              <span className="rounded bg-info-soft px-1.5 text-[11px] font-semibold text-info">
-                à venir
-              </span>
+            {dossier.scrutin_count > 0 && (
+              <>
+                <span className="text-line-strong">·</span>
+                <span className="font-semibold text-ink">
+                  {dossier.scrutin_count.toLocaleString('fr-FR')} scrutin
+                  {dossier.scrutin_count > 1 ? 's' : ''}
+                </span>
+              </>
             )}
-          </Fact>
-          <Fact label="Votes">
-            {dossier.scrutin_count > 0 ? (
-              <span>
-                {dossier.scrutin_count.toLocaleString('fr-FR')} scrutin
-                {dossier.scrutin_count > 1 ? 's' : ''} public
-                {dossier.scrutin_count > 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span className="text-ink-faint">Aucun scrutin public</span>
-            )}
-          </Fact>
-        </dl>
+          </div>
+        </div>
       </div>
     </article>
   )
