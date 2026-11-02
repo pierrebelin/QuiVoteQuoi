@@ -31,7 +31,30 @@ pub async fn list_scrutins(
     .await
     .map_err(ApiError::internal)?;
 
-    Ok(Json(ScrutinListResponse::from((page, offset))))
+    let mut response = ScrutinListResponse::from((page, offset));
+    attach_families(&state, &mut response.scrutins).await?;
+    Ok(Json(response))
+}
+
+/// Pose sur chaque scrutin ses familles, en une seule lecture pour la page.
+async fn attach_families(
+    state: &AppState,
+    scrutins: &mut [ScrutinSummaryDto],
+) -> Result<(), ApiError> {
+    let uids: Vec<String> = scrutins.iter().map(|s| s.uid.clone()).collect();
+    let mut families = BrowseThemes::new(state.theme_repository.as_ref())
+        .families_of_scrutins(&uids)
+        .await
+        .map_err(ApiError::internal)?;
+    for scrutin in scrutins.iter_mut() {
+        scrutin.families = families
+            .remove(&scrutin.uid)
+            .unwrap_or_default()
+            .into_iter()
+            .map(Into::into)
+            .collect();
+    }
+    Ok(())
 }
 
 /// CU-03 — Detail d'un scrutin.
@@ -83,11 +106,12 @@ pub async fn get_dossier_scrutins(
     .await
     .map_err(ApiError::internal)?;
 
-    let scrutins: Vec<ScrutinSummaryDto> = page
+    let mut scrutins: Vec<ScrutinSummaryDto> = page
         .items
         .into_iter()
         .map(ScrutinSummaryDto::from)
         .collect();
+    attach_families(&state, &mut scrutins).await?;
 
     Ok(Json(DossierScrutinsResponse {
         count: scrutins.len(),

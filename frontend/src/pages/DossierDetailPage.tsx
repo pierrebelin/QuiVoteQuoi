@@ -1,70 +1,237 @@
-import { useState } from 'react'
 import { useParams, Link, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import DossierAmendments from '../components/DossierAmendments'
 import DossierScrutins from '../components/DossierScrutins'
 import DossierGroupActions from '../components/DossierGroupActions'
 import DossierFinalScrutin from '../components/DossierFinalScrutin'
-import { OutcomePanel } from '../components/OutcomeBadge'
-import { Card, ErrorPanel, Loading, Pill, SectionTitle } from '../components/ui'
-import type { InitiatorDto, OutcomeDto } from '../types/dossiers'
-
-/** Actes visibles avant dépliage. Un dossier peut en porter des dizaines. */
-const VISIBLE_ACTS = 3
-
-interface ActeDto {
-  date: string
-  label: string
-}
+import DossierParcours, {
+  type ParcoursActDto,
+  type ParcoursDocumentDto,
+} from '../components/DossierParcours'
+import { FamilyIllustration } from '../components/FamilyIllustration'
+import { InfoBox, InitiatorBox, InitiatorsBox } from '../components/InitiatorBox'
+import PositionGlyph from '../components/entry/PositionGlyph'
+import { FOCUS_RING } from '../components/entry/styles'
+import { Card, ErrorPanel, Loading, Pill } from '../components/ui'
+import { fetchJson } from '../lib/fetchJson'
+import { typographic } from '../lib/entryFlow'
+import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 
 interface StageDto {
   label: string
   chamber: string
 }
 
-interface DocumentDto {
-  document_uid: string
-  title: string
-  short_title: string | null
-  doc_type: string
-  date: string | null
-  official_url: string | null
-  source_archive_url: string | null
-  source_license: string | null
-  source_retrieved_at: string | null
+interface FamilyDto {
+  code: string
+  label: string
 }
 
 interface DossierDetailDto {
   uid: string
   title: string
   procedure: string
+  url: string | null
+  deposit_date: string | null
   last_activity_date: string
   last_activity_label: string
-  acts: ActeDto[]
-  documents: DocumentDto[]
+  acts: ParcoursActDto[]
+  documents: ParcoursDocumentDto[]
   current_stage: StageDto | null
   initiators: InitiatorDto[]
   committee: string | null
   outcome: OutcomeDto
+  /** Absent d'un serveur antérieur à l'ajout : traité comme vide. */
+  families?: FamilyDto[]
+}
+
+/** Ce que les onglets lisent pour leur compteur : le total, rien d'autre. */
+interface TotalDto {
+  total: number
+}
+
+type Tab = 'groupes' | 'scrutins' | 'amendements'
+
+function formatDate(iso: string) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
 }
 
 /**
- * Fiche d'un dossier, en lecture seule. Sauvegarde et curation passent
- * désormais par l'API, jamais par cet écran : le navigateur d'un visiteur n'a
- * rien à écrire, et le jeton du jour n'a donc plus à y être collé.
+ * Onglet demandé par l'adresse. « tableaux » est l'ancien onglet commun aux
+ * scrutins et aux amendements ; un lien filtré sur un groupe ouvre ses
+ * amendements.
+ */
+function tabFrom(params: URLSearchParams): Tab {
+  const tab = params.get('tab')
+  if (tab === 'scrutins' || tab === 'amendements') return tab
+  if (tab === 'tableaux') return params.get('amendements_group') ? 'amendements' : 'scrutins'
+  return 'groupes'
+}
+
+/**
+ * Bandeau d'issue, comme sur les cartes de la liste : le sort quand la source
+ * l'atteste, l'étape publiée sinon. Rien n'est conclu à la place de la source.
+ */
+function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
+  const { outcome, current_stage: stage } = dossier
+  const step = dossier.last_activity_label.replace(/\.$/, '')
+  const lastStep = (
+    <span className="text-[12.5px] font-medium text-ink-soft">
+      Dernière étape : {step} · {formatDate(dossier.last_activity_date)}
+    </span>
+  )
+
+  if (outcome.kind === 'promulgated' || outcome.kind === 'rejected') {
+    const promulgated = outcome.kind === 'promulgated'
+    return (
+      <div
+        className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm font-semibold sm:px-6 ${promulgated ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'}`}
+      >
+        <span className="inline-flex items-center gap-1.5">
+          <PositionGlyph position={promulgated ? 'for' : 'against'} className="size-3.5" strokeWidth={3.2} />
+          {outcome.label}
+          {outcome.date && ` le ${formatDate(outcome.date)}`}
+          {outcome.law_code && ` · loi n° ${outcome.law_code}`}
+        </span>
+        {promulgated && (outcome.law_jo_date || outcome.legifrance_url) ? (
+          <span className="text-[12.5px] font-medium text-ink-soft">
+            {outcome.law_jo_date && `JO du ${formatDate(outcome.law_jo_date)}`}
+            {outcome.law_jo_date && outcome.legifrance_url && ' · '}
+            {outcome.legifrance_url && (
+              <a
+                href={outcome.legifrance_url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-accent hover:underline"
+              >
+                Légifrance ↗
+              </a>
+            )}
+          </span>
+        ) : (
+          lastStep
+        )}
+      </div>
+    )
+  }
+
+  const text =
+    outcome.kind !== 'no_recorded_conclusion'
+      ? `${outcome.label}${outcome.date ? ` le ${formatDate(outcome.date)}` : ''}`
+      : stage
+        ? `Étape : ${stage.label}${stage.chamber ? ` — ${stage.chamber}` : ''}`
+        : 'Sans conclusion enregistrée'
+  const tone =
+    outcome.kind === 'no_recorded_conclusion' && stage
+      ? 'bg-info-soft text-info'
+      : 'bg-surface-soft text-ink-soft'
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm font-semibold sm:px-6 ${tone}`}
+    >
+      <span>
+        {text}
+        {outcome.kind === 'merged_into' && outcome.merged_into_uid && (
+          <Link
+            to={`/dossiers/${outcome.merged_into_uid}`}
+            className="ml-2 font-medium text-accent hover:underline"
+          >
+            Voir le dossier →
+          </Link>
+        )}
+      </span>
+      {lastStep}
+    </div>
+  )
+}
+
+function CommitteeBox({ committee }: { committee: string }) {
+  return (
+    <InfoBox
+      visual={
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface text-ink-soft ring-1 ring-inset ring-line">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.8}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+            className="size-6"
+          >
+            <path d="M3 21h18M4 10h16M12 3l8 5H4zM6 10v8M10 10v8M14 10v8M18 10v8" />
+          </svg>
+        </span>
+      }
+    >
+      <p className="text-xs text-ink-faint">Commission saisie au fond</p>
+      <p className="font-semibold">{committee}</p>
+    </InfoBox>
+  )
+}
+
+function TabButton({
+  active,
+  count,
+  onClick,
+  children,
+}: {
+  active: boolean
+  count: number | undefined
+  onClick: () => void
+  children: string
+}) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onClick}
+      className={`inline-flex items-center gap-2 rounded-[9px] px-3.5 py-1.5 text-sm font-medium transition-colors ${FOCUS_RING} ${
+        active ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
+      }`}
+    >
+      {children}
+      {count !== undefined && (
+        <span
+          className={`rounded-full px-1.5 text-xs font-semibold tabular-nums ${active ? 'bg-ink text-canvas' : 'bg-line text-ink-soft'}`}
+        >
+          {count.toLocaleString('fr-FR')}
+        </span>
+      )}
+    </button>
+  )
+}
+
+/**
+ * Fiche d'un dossier, en lecture seule : l'issue et le titre en tête, les
+ * actes des groupes, scrutins et amendements en onglets, et dans la colonne de
+ * droite qui a déposé le texte et le chemin qu'il a suivi.
  */
 export default function DossierDetailPage() {
   const { uid } = useParams<{ uid: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [allActsShown, setAllActsShown] = useState(false)
 
   const { data, isLoading, isError, error } = useQuery<DossierDetailDto>({
     queryKey: ['dossier', uid],
-    queryFn: () =>
-      fetch(`/api/dossiers/${uid}`).then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
-      }),
+    queryFn: () => fetchJson(`/api/dossiers/${uid}`),
+    enabled: !!uid,
+  })
+
+  // Compteurs des onglets : une page d'un seul élément suffit à lire le total.
+  const { data: scrutinTotal } = useQuery<TotalDto>({
+    queryKey: ['dossier-scrutins-total', uid],
+    queryFn: () => fetchJson(`/api/dossiers/${uid}/scrutins?limit=1`),
+    enabled: !!uid,
+  })
+  const { data: amendmentTotal } = useQuery<TotalDto>({
+    queryKey: ['dossier-amendements-total', uid],
+    queryFn: () => fetchJson(`/api/dossiers/${uid}/amendements?limit=1`),
     enabled: !!uid,
   })
 
@@ -73,11 +240,8 @@ export default function DossierDetailPage() {
   if (isError) {
     return (
       <div>
-        <Link
-          to="/"
-          className="mb-4 inline-block text-sm font-medium text-accent hover:underline"
-        >
-          ← Retour à la liste
+        <Link to="/" className="mb-4 inline-block text-sm font-medium text-accent hover:underline">
+          ← Retour aux dossiers
         </Link>
         <ErrorPanel error={error} />
       </div>
@@ -86,289 +250,115 @@ export default function DossierDetailPage() {
 
   if (!data) return null
 
-  const activeTab = searchParams.get('tab') === 'tableaux' ? 'tableaux' : 'actes'
-  const selectTab = (tab: 'actes' | 'tableaux') => {
+  const activeTab = tabFrom(searchParams)
+  const selectTab = (tab: Tab) => {
     const next = new URLSearchParams(searchParams)
-    if (tab === 'actes') next.delete('tab')
+    if (tab === 'groupes') next.delete('tab')
     else next.set('tab', tab)
-    setSearchParams(next)
+    if (tab !== 'amendements') next.delete('amendements_group')
+    setSearchParams(next, { preventScrollReset: true })
   }
+  const families = data.families ?? []
+  const kind = textKind(data.procedure)
 
   return (
     <div>
-      <Link
-        to="/"
-        className="mb-4 inline-block text-sm font-medium text-accent hover:underline"
-      >
-        ← Retour à la liste
+      <Link to="/" className="mb-4 inline-block text-sm font-medium text-accent hover:underline">
+        ← Retour aux dossiers
       </Link>
 
-      <div className="mb-5 min-w-0">
-        <h2 className="max-w-4xl text-2xl font-semibold leading-tight tracking-tight">
-          {data.title}
-        </h2>
-        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-faint">
-          <span>{data.procedure}</span>
-          {data.current_stage && (
-            <Pill tone="info">
-              {data.current_stage.label}
-              {data.current_stage.chamber && ` — ${data.current_stage.chamber}`}
-            </Pill>
-          )}
-          <span>·</span>
-          <span className="text-ink-soft">{data.last_activity_label}</span>
-          <span>·</span>
-          <span>
-            {new Date(data.last_activity_date + 'T00:00:00').toLocaleDateString(
-              'fr-FR',
-              { day: 'numeric', month: 'long', year: 'numeric' },
-            )}
-          </span>
-          {data.committee && (
-            <>
-              <span>·</span>
-              <span>Commission : {data.committee}</span>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="mb-4">
-        <OutcomePanel
-          outcome={data.outcome}
-          lastActivityLabel={data.last_activity_label}
-          lastActivityDate={data.last_activity_date}
-        />
-      </div>
-
-      {/* Le groupe d'un initiateur n'est jamais affiché sans la date à laquelle
-          il a été lu : l'appartenance est datée (README.md §3). */}
-      {data.initiators.length > 0 && (
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 mb-4 text-xs">
-          <span className="text-ink-faint">
-            Initiateur{data.initiators.length > 1 ? 's' : ''} :
-          </span>
-          {data.initiators.map((init, i) => (
-            <span
-              key={i}
-              className="inline-flex items-center gap-1 rounded-md bg-surface px-1.5 py-0.5 text-ink-soft ring-1 ring-inset ring-line"
-            >
-              {init.official_url ? (
-                <a
-                  href={init.official_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="hover:text-accent hover:underline"
-                >
-                  {init.full_name}
-                </a>
-              ) : (
-                init.full_name
-              )}
-              {init.role && <span className="text-ink-faint">{init.role}</span>}
-              {init.group && init.reference_date && (
-                <span className="font-medium text-ink" title={init.group.label}>
-                  {init.group.abbrev}
-                  <span className="ml-1 font-normal text-ink-faint">
-                    (au{' '}
-                    {new Date(
-                      init.reference_date + 'T00:00:00',
-                    ).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                    )
-                  </span>
-                </span>
-              )}
-            </span>
-          ))}
-        </div>
-      )}
-
-      <DossierFinalScrutin uid={data.uid} />
-
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
-        <Card className="p-4">
-          <SectionTitle>Repères du dossier</SectionTitle>
-          <dl className="mt-3 grid gap-x-5 gap-y-3 text-sm sm:grid-cols-2">
-            <div>
-              <dt className="text-xs text-ink-faint">Procédure</dt>
-              <dd className="mt-0.5 font-medium text-ink">{data.procedure}</dd>
-            </div>
-            <div>
-              <dt className="text-xs text-ink-faint">Dernière activité</dt>
-              <dd className="mt-0.5 font-medium text-ink">
-                {new Date(data.last_activity_date + 'T00:00:00').toLocaleDateString(
-                  'fr-FR',
-                  { day: 'numeric', month: 'long', year: 'numeric' },
+      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0">
+          <Card className="mb-4 overflow-hidden">
+            <OutcomeBand dossier={data} />
+            <div className="px-4 py-4 sm:px-6 sm:py-5">
+              <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
+                <Pill tone="info">{data.procedure.replace(/ ordinaire$/, '')}</Pill>
+                {families.length > 0 ? (
+                  families.map((family) => (
+                    <Link
+                      key={family.code}
+                      to={`/themes/${family.code}`}
+                      className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
+                    >
+                      <FamilyIllustration
+                        code={family.code}
+                        className="size-6 shrink-0 rounded-full"
+                        glyphClassName="size-3.5"
+                      />
+                      {typographic(family.label)}
+                    </Link>
+                  ))
+                ) : (
+                  <span className="text-xs text-ink-faint italic">Aucun thème attribué pour l'instant.</span>
                 )}
-              </dd>
-              <dd className="text-xs text-ink-soft">{data.last_activity_label}</dd>
-            </div>
-            {data.current_stage && (
-              <div>
-                <dt className="text-xs text-ink-faint">Étape publiée</dt>
-                <dd className="mt-0.5 font-medium text-ink">
-                  {data.current_stage.label}
-                  {data.current_stage.chamber && ` — ${data.current_stage.chamber}`}
-                </dd>
               </div>
-            )}
-            <div>
-              <dt className="text-xs text-ink-faint">Actes enregistrés</dt>
-              <dd className="mt-0.5 font-medium text-ink">
-                {data.acts.length} acte{data.acts.length > 1 ? 's' : ''}
-              </dd>
+              <h2 className="mt-3 max-w-4xl text-2xl leading-tight font-semibold tracking-tight sm:text-[26px]">
+                {data.title}
+              </h2>
+              <a
+                href={data.url ?? `https://www.assemblee-nationale.fr/dyn/17/dossiers/${data.uid}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
+              >
+                Dossier sur assemblee-nationale.fr ↗
+              </a>
             </div>
-          </dl>
-        </Card>
+          </Card>
 
-        <Card className="p-4">
-          <SectionTitle>Déroulé</SectionTitle>
-          {data.acts.length === 0 ? (
-            <p className="text-ink-faint text-sm">Aucun acte enregistré</p>
-          ) : (
-            (() => {
-              // La source les rend du plus ancien au plus récent. On montre les
-              // derniers actes en premier: c'est l'état courant du dossier.
-              const recentFirst = [...data.acts].reverse()
-              const hidden = recentFirst.length - VISIBLE_ACTS
-              const shown = allActsShown
-                ? recentFirst
-                : recentFirst.slice(0, VISIBLE_ACTS)
+          <DossierFinalScrutin uid={data.uid} />
 
-              return (
-                <>
-                  <div
-                    className={`relative pl-4 border-l border-line space-y-2.5 ${
-                      allActsShown ? 'max-h-56 overflow-y-auto pr-2' : ''
-                    }`}
-                  >
-                    {shown.map((acte, i) => (
-                      <div key={`${acte.date}-${i}`} className="relative">
-                        <div className="absolute -left-[21px] top-1.5 w-2 h-2 rounded-full bg-accent border-2 border-surface" />
-                        <p className="text-sm leading-snug">{acte.label}</p>
-                        <p className="text-xs text-ink-faint">
-                          {new Date(
-                            acte.date + 'T00:00:00',
-                          ).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
+          <div
+            role="tablist"
+            aria-label="Contenu du dossier"
+            className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-surface-soft p-1 ring-1 ring-inset ring-line"
+          >
+            <TabButton active={activeTab === 'groupes'} count={undefined} onClick={() => selectTab('groupes')}>
+              Groupes
+            </TabButton>
+            <TabButton
+              active={activeTab === 'scrutins'}
+              count={scrutinTotal?.total}
+              onClick={() => selectTab('scrutins')}
+            >
+              Scrutins publics
+            </TabButton>
+            <TabButton
+              active={activeTab === 'amendements'}
+              count={amendmentTotal?.total}
+              onClick={() => selectTab('amendements')}
+            >
+              Amendements
+            </TabButton>
+          </div>
 
-                  {hidden > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setAllActsShown(!allActsShown)}
-                      aria-expanded={allActsShown}
-                      className="mt-3 text-xs text-accent hover:underline"
-                    >
-                      {allActsShown
-                        ? 'Masquer les actes antérieurs'
-                        : `Afficher les ${hidden} actes antérieurs`}
-                    </button>
-                  )}
-                </>
-              )
-            })()
+          {activeTab === 'groupes' && <DossierGroupActions uid={data.uid} />}
+          {activeTab === 'scrutins' && <DossierScrutins uid={data.uid} />}
+          {activeTab === 'amendements' && (
+            <DossierAmendments uid={data.uid} initialGroup={searchParams.get('amendements_group') ?? ''} />
           )}
-        </Card>
-      </div>
+        </div>
 
-      {data.documents.length > 0 && (
-        <Card className="mb-6 p-4">
-          <SectionTitle>Documents officiels du dossier</SectionTitle>
-          <p className="mt-1 text-xs leading-relaxed text-ink-faint">
-            Chaque lien ouvre le document identifié dans l’archive de l’Assemblée
-            nationale. Ces documents ne sont pas encore associés automatiquement à
-            un scrutin : plusieurs versions peuvent exister pour un même dossier.
-          </p>
-          <ul className="mt-3 divide-y divide-line">
-            {data.documents.map((document) => (
-              <li key={document.document_uid} className="py-2.5 first:pt-0 last:pb-0">
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                  {document.official_url ? (
-                    <a
-                      href={document.official_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-medium text-ink hover:text-accent hover:underline"
-                    >
-                      {document.title}
-                    </a>
-                  ) : (
-                    <span className="text-sm font-medium text-ink">{document.title}</span>
-                  )}
-                  <span className="text-xs text-ink-faint">{document.doc_type}</span>
-                  {document.date && (
-                    <span className="text-xs text-ink-faint">
-                      ·{' '}
-                      {new Date(document.date + 'T00:00:00').toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-1 text-xs text-ink-faint">
-                  Référence officielle : {document.document_uid}
-                  {document.source_license && ` · ${document.source_license}`}
-                  {document.source_retrieved_at &&
-                    ` · relevée le ${new Date(document.source_retrieved_at).toLocaleDateString('fr-FR')}`}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+        <aside className="space-y-4">
+          {(data.initiators.length > 0 || data.committee) && (
+            <Card className="space-y-1 p-2">
+              {data.initiators.length === 1 ? (
+                <InitiatorBox initiator={data.initiators[0]} kind={kind} />
+              ) : data.initiators.length > 1 ? (
+                <InitiatorsBox initiators={data.initiators} kind={kind} />
+              ) : null}
+              {data.committee && <CommitteeBox committee={data.committee} />}
+            </Card>
+          )}
 
-      <div className="mb-6 border-b border-line" role="tablist" aria-label="Contenu du dossier">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'actes'}
-          onClick={() => selectTab('actes')}
-          className={`mr-4 border-b-2 px-1 pb-2 text-sm font-medium ${activeTab === 'actes' ? 'border-accent text-ink' : 'border-transparent text-ink-faint hover:text-ink-soft'}`}
-        >
-          Avis des groupes
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === 'tableaux'}
-          onClick={() => selectTab('tableaux')}
-          className={`border-b-2 px-1 pb-2 text-sm font-medium ${activeTab === 'tableaux' ? 'border-accent text-ink' : 'border-transparent text-ink-faint hover:text-ink-soft'}`}
-        >
-          Scrutins et amendements
-        </button>
-      </div>
-
-      {activeTab === 'actes' ? (
-        <DossierGroupActions uid={data.uid} />
-      ) : (
-        <>
-          <DossierScrutins uid={data.uid} />
-          <DossierAmendments uid={data.uid} initialGroup={searchParams.get('amendements_group') ?? ''} />
-        </>
-      )}
-
-      <div className="text-center">
-        <a
-          href={`https://www.assemblee-nationale.fr/dyn/17/dossiers/${data.uid}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-ink-faint hover:text-accent underline"
-        >
-          Voir sur assemblee-nationale.fr ↗
-        </a>
+          <Card className="px-5 py-4">
+            <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+              Parcours du texte
+            </h3>
+            <DossierParcours acts={data.acts} documents={data.documents} />
+          </Card>
+        </aside>
       </div>
     </div>
   )

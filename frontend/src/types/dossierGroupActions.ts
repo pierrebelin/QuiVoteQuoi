@@ -19,7 +19,15 @@ export interface GroupActionsDto {
   summary: SummaryDto | null
   final_votes: FinalVoteDto[]
   amendment_count: number
+  /** Amendements du groupe par sort, libellé de la source, du plus fréquent au plus rare. */
+  amendment_fates?: FateCountDto[]
   amendments_url: string
+}
+
+export interface FateCountDto {
+  /** Vide quand la source ne publie aucun sort. */
+  label: string
+  count: number
 }
 
 export interface SummaryDto {

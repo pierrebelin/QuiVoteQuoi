@@ -38,6 +38,8 @@ export interface ScrutinSummaryDto {
   official_url: string
   /** Amendements rapprochés, dans l'ordre de citation ; vide si le scrutin n'est pas rapproché. */
   cited: CitedAmendmentDto[]
+  /** Familles rattachées ; absent d'un serveur antérieur à l'ajout. */
+  families?: AssignedFamilyDto[]
 }
 
 export interface ScrutinListResponse {

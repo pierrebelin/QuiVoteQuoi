@@ -42,3 +42,10 @@ export interface InitiatorDto {
   reference_date: string | null
   official_url: string | null
 }
+
+/** « Proposition de loi » ou « Projet de loi », lu sur la procédure ; « Texte » sinon. */
+export function textKind(procedure: string): string {
+  if (procedure.startsWith('Projet de loi')) return 'Projet de loi'
+  if (procedure.startsWith('Proposition de loi')) return 'Proposition de loi'
+  return 'Texte'
+}
