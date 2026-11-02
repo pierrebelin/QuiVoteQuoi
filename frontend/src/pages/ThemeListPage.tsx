@@ -39,8 +39,8 @@ export default function ThemeListPage() {
 
       <MethodNote note={families.data!.method_note} />
 
-      {/* Les familles tiennent en colonnes : une douzaine d'entrées courtes
-          empilées sur toute la largeur laissait la page presque vide. */}
+      {/* Les familles tiennent en colonnes : seize entrées courtes
+          empilées sur toute la largeur laissaient la page presque vide. */}
       <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {families.data!.families.map((family) => {
           const stats = coverage.get(family.code)

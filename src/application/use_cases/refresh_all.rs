@@ -599,10 +599,7 @@ mod tests {
         assert!(theme_classifier.calls.lock().unwrap().is_empty());
         assert_eq!(
             theme_repository.current_families(&SubjectRef::Text(awaiting.key().clone())),
-            vec![
-                FamilyCode::PouvoirAchatFiscalite,
-                FamilyCode::InstitutionsProcedure
-            ]
+            vec![FamilyCode::EconomieFinancesPubliques]
         );
     }
 

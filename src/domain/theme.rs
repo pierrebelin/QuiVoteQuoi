@@ -34,19 +34,32 @@ pub enum ThemeError {
 
 /// Referentiel ferme des familles (RM-08). Le modele n'en cree aucune.
 ///
-/// Treize familles depuis le 9 aout 2026. Les huit precedentes concentraient
-/// justice, securite, immigration, education et culture dans « societe /
-/// libertes », et n'accueillaient ni l'international ni la defense: un visiteur
-/// cherchant l'immigration ouvrait un bac contenant aussi l'ecole. Le
-/// decoupage porte sur l'objet des textes, jamais sur leur orientation
+/// Seize familles depuis le 2 novembre 2026, apres huit puis treize.
+///
+/// - Huit au depart, jusqu'au 9 aout 2026: elles concentraient justice,
+///   securite, immigration, education et culture dans « societe / libertes »,
+///   et n'accueillaient ni l'international ni la defense.
+/// - Treize ensuite: un visiteur cherchant l'immigration n'ouvre plus un bac
+///   contenant aussi l'ecole.
+/// - Seize depuis la relecture des 341 textes en base. « Pouvoir d'achat /
+///   fiscalite » melait le budget de l'Etat et la consommation des menages;
+///   « sante / social » melait les soins et la protection sociale, retraites
+///   comprises; « institutions / procedure » servait de fourre-tout, collectivites
+///   incluses. D'ou l'economie et les finances publiques separees du pouvoir
+///   d'achat, la protection sociale separee de la sante, et les collectivites et
+///   l'outre-mer separes des institutions.
+///
+/// Le decoupage porte sur l'objet des textes, jamais sur leur orientation
 /// (README.md §5, §6).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FamilyCode {
-    PouvoirAchatFiscalite,
+    PouvoirAchat,
+    EconomieFinancesPubliques,
     Logement,
     TravailEmploi,
-    SanteSocial,
+    ProtectionSocialeRetraites,
+    Sante,
     EnvironnementEnergie,
     AgricultureAlimentation,
     Numerique,
@@ -55,16 +68,19 @@ pub enum FamilyCode {
     EducationCulture,
     SocieteLibertes,
     InternationalDefense,
-    InstitutionsProcedure,
+    InstitutionsViePolitique,
+    CollectivitesOutreMer,
 }
 
 impl FamilyCode {
     /// Ordre d'affichage publie. Sert aussi d'ordre de presentation au modele.
-    pub const ALL: [FamilyCode; 13] = [
-        Self::PouvoirAchatFiscalite,
+    pub const ALL: [FamilyCode; 16] = [
+        Self::PouvoirAchat,
+        Self::EconomieFinancesPubliques,
         Self::Logement,
         Self::TravailEmploi,
-        Self::SanteSocial,
+        Self::ProtectionSocialeRetraites,
+        Self::Sante,
         Self::EnvironnementEnergie,
         Self::AgricultureAlimentation,
         Self::Numerique,
@@ -73,15 +89,18 @@ impl FamilyCode {
         Self::EducationCulture,
         Self::SocieteLibertes,
         Self::InternationalDefense,
-        Self::InstitutionsProcedure,
+        Self::InstitutionsViePolitique,
+        Self::CollectivitesOutreMer,
     ];
 
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::PouvoirAchatFiscalite => "pouvoir-achat-fiscalite",
+            Self::PouvoirAchat => "pouvoir-achat",
+            Self::EconomieFinancesPubliques => "economie-finances-publiques",
             Self::Logement => "logement",
             Self::TravailEmploi => "travail-emploi",
-            Self::SanteSocial => "sante-social",
+            Self::ProtectionSocialeRetraites => "protection-sociale-retraites",
+            Self::Sante => "sante",
             Self::EnvironnementEnergie => "environnement-energie",
             Self::AgricultureAlimentation => "agriculture-alimentation",
             Self::Numerique => "numerique",
@@ -90,17 +109,20 @@ impl FamilyCode {
             Self::EducationCulture => "education-culture",
             Self::SocieteLibertes => "societe-libertes",
             Self::InternationalDefense => "international-defense",
-            Self::InstitutionsProcedure => "institutions-procedure",
+            Self::InstitutionsViePolitique => "institutions-vie-politique",
+            Self::CollectivitesOutreMer => "collectivites-outre-mer",
         }
     }
 
     /// Libelle public, repris mot pour mot de README.md §5.
     pub fn label(&self) -> &'static str {
         match self {
-            Self::PouvoirAchatFiscalite => "Pouvoir d'achat / fiscalité",
-            Self::Logement => "Logement",
+            Self::PouvoirAchat => "Pouvoir d'achat",
+            Self::EconomieFinancesPubliques => "Économie / finances publiques",
+            Self::Logement => "Logement / urbanisme / foncier",
             Self::TravailEmploi => "Travail / emploi",
-            Self::SanteSocial => "Santé / social",
+            Self::ProtectionSocialeRetraites => "Protection sociale / retraites",
+            Self::Sante => "Santé",
             Self::EnvironnementEnergie => "Environnement / énergie",
             Self::AgricultureAlimentation => "Agriculture / alimentation",
             Self::Numerique => "Numérique",
@@ -109,26 +131,30 @@ impl FamilyCode {
             Self::EducationCulture => "Éducation / culture",
             Self::SocieteLibertes => "Société / libertés",
             Self::InternationalDefense => "International / défense",
-            Self::InstitutionsProcedure => "Institutions / procédure",
+            Self::InstitutionsViePolitique => "Institutions / vie politique",
+            Self::CollectivitesOutreMer => "Collectivités / outre-mer",
         }
     }
 
     /// Perimetre publie de la famille, affiche sur la page methode (CU-06).
     pub fn scope(&self) -> &'static str {
         match self {
-            Self::PouvoirAchatFiscalite => "Impôts, taxes, prestations monétaires, prix, budget de l'État.",
-            Self::Logement => "Loyers, accès à la propriété, construction, locations de courte durée, urbanisme.",
-            Self::TravailEmploi => "Droit du travail, chômage, retraites, indépendants, dialogue social.",
-            Self::SanteSocial => "Remboursements, accès aux soins, hôpital, handicap, action sociale, politique familiale.",
-            Self::EnvironnementEnergie => "Prix de l'énergie, transition, transports, eau, biodiversité, déchets.",
+            Self::PouvoirAchat => "Prix et tarifs, dont ceux de l'énergie, protection du consommateur, frais et services bancaires aux particuliers, impôts et taxes des ménages. Rattachement sur ce que fixe le dispositif, jamais sur l'effet annoncé.",
+            Self::EconomieFinancesPubliques => "Budget et comptes de l'État, lois de finances, fiscalité des entreprises, droit des sociétés, commerce, concurrence, banque et marchés financiers, commande publique, industrie.",
+            Self::Logement => "Loyers, accès à la propriété, construction, locations de courte durée, urbanisme, droit de la propriété immobilière.",
+            Self::TravailEmploi => "Droit du travail, chômage, formation professionnelle, fonction publique, dialogue social, indépendants.",
+            Self::ProtectionSocialeRetraites => "Retraites, prestations et minima sociaux, politique familiale, protection de l'enfance, handicap, dépendance, financement de la sécurité sociale.",
+            Self::Sante => "Accès aux soins, hôpital, médicament, professions de santé, prévention et santé publique.",
+            Self::EnvironnementEnergie => "Transition et production d'énergie, transports, eau, biodiversité, déchets.",
             Self::AgricultureAlimentation => "Revenu agricole, pêche, produits phytosanitaires, alimentation, foncier agricole.",
             Self::Numerique => "Données personnelles, intelligence artificielle, réseaux sociaux, fraude en ligne.",
-            Self::JusticeSecurite => "Droit pénal, police, gendarmerie, prisons, terrorisme, procédure judiciaire.",
+            Self::JusticeSecurite => "Droit pénal, police, gendarmerie, prisons, terrorisme, sécurité civile, organisation des juridictions ; procédure judiciaire lorsqu'elle est l'objet du texte.",
             Self::Immigration => "Entrée et séjour des étrangers, asile, éloignement, nationalité. Rattachement sur l'objet du texte, jamais sur son orientation.",
             Self::EducationCulture => "École, université, recherche, sport, culture, médias, audiovisuel.",
-            Self::SocieteLibertes => "Égalité, droits des personnes, fin de vie, bioéthique, laïcité, libertés publiques. Rattachement sur l'objet du texte, jamais sur son orientation.",
+            Self::SocieteLibertes => "Égalité, droits des personnes, fin de vie, bioéthique, laïcité, libertés publiques, mémoire et reconnaissance. Rattachement sur l'objet du texte, jamais sur son orientation.",
             Self::InternationalDefense => "Ratification de traités, armées, aide au développement, affaires européennes.",
-            Self::InstitutionsProcedure => "Motions de censure, révisions constitutionnelles, lois de finances dans leur volet procédural, collectivités, élections.",
+            Self::InstitutionsViePolitique => "Constitution, Parlement, motions de censure, élections, statut des élus, organisation de l'État.",
+            Self::CollectivitesOutreMer => "Décentralisation, organisation et finances des collectivités, statuts de l'outre-mer et de la Corse.",
         }
     }
 
@@ -654,10 +680,7 @@ mod tests {
         let proposal =
             ThemeProposal::new(subject, families, "modele".into(), "v1".into(), date()).unwrap();
         assert_eq!(proposal.families().len(), MAX_FAMILIES);
-        assert_eq!(
-            proposal.families()[0].family(),
-            FamilyCode::PouvoirAchatFiscalite
-        );
+        assert_eq!(proposal.families()[0].family(), FamilyCode::PouvoirAchat);
     }
 
     #[test]
@@ -666,7 +689,7 @@ mod tests {
         let families = vec![
             ProposedFamily::new(FamilyCode::Logement, "une".into()).unwrap(),
             ProposedFamily::new(FamilyCode::Logement, "deux".into()).unwrap(),
-            ProposedFamily::new(FamilyCode::SanteSocial, "trois".into()).unwrap(),
+            ProposedFamily::new(FamilyCode::Sante, "trois".into()).unwrap(),
         ];
         let proposal =
             ThemeProposal::new(subject, families, "modele".into(), "v1".into(), date()).unwrap();
@@ -757,6 +780,28 @@ mod tests {
             FamilyCode::parse("securite").unwrap_err(),
             ThemeError::UnknownFamily("securite".into())
         );
+    }
+
+    #[test]
+    fn the_codes_retired_on_the_move_to_sixteen_families_are_refused() {
+        for retired in [
+            "pouvoir-achat-fiscalite",
+            "sante-social",
+            "institutions-procedure",
+        ] {
+            assert_eq!(
+                FamilyCode::parse(retired).unwrap_err(),
+                ThemeError::UnknownFamily(retired.into())
+            );
+        }
+    }
+
+    #[test]
+    fn the_referential_holds_sixteen_distinct_families() {
+        let codes: std::collections::BTreeSet<&str> =
+            FamilyCode::ALL.iter().map(|f| f.as_str()).collect();
+        assert_eq!(FamilyCode::ALL.len(), 16);
+        assert_eq!(codes.len(), 16);
     }
 
     #[test]

@@ -89,27 +89,36 @@ Rattacher un texte à un ou plusieurs thèmes est **le seul endroit où un jugem
 
 Le texte est extrait de l'objet du scrutin par une règle déterministe : 8 428 scrutins sur 8 434 se regroupent en 322 textes. Un scrutin hérite des familles de son texte ; un dossier hérite du texte que ses propres scrutins nomment, et n'est classé directement que s'il n'a aucun scrutin.
 
-Familles cibles — **treize**, référentiel fermé :
+Familles cibles — **seize**, référentiel fermé :
 
-- Pouvoir d'achat / fiscalité (impôts, taxes, prestations, prix, budget de l'État)
-- Logement (loyers, accès propriété, locations courte durée, urbanisme)
-- Travail / emploi (droit du travail, chômage, retraites, indépendants)
-- Santé / social (remboursements, accès aux soins, hôpital, handicap, famille)
-- Environnement / énergie (prix de l'énergie, transition, transports, eau, biodiversité)
+- Pouvoir d'achat (prix et tarifs, dont ceux de l'énergie, protection du consommateur, frais bancaires des particuliers, impôts et taxes des ménages)
+- Économie / finances publiques (budget et comptes de l'État, lois de finances, fiscalité des entreprises, droit des sociétés, commerce, concurrence, banque et marchés financiers, commande publique, industrie)
+- Logement / urbanisme / foncier (loyers, accès à la propriété, construction, locations de courte durée, urbanisme, droit immobilier)
+- Travail / emploi (droit du travail, chômage, formation professionnelle, fonction publique, dialogue social, indépendants)
+- Protection sociale / retraites (retraites, prestations et minima sociaux, politique familiale, protection de l'enfance, handicap, dépendance, financement de la sécurité sociale)
+- Santé (accès aux soins, hôpital, médicament, professions de santé, prévention et santé publique)
+- Environnement / énergie (transition et production d'énergie, transports, eau, biodiversité, déchets)
 - Agriculture / alimentation (revenu agricole, pêche, phytosanitaires, foncier agricole)
 - Numérique (données, IA, réseaux sociaux, fraude en ligne)
-- Justice / sécurité (pénal, police, prisons, terrorisme, procédure judiciaire)
+- Justice / sécurité (pénal, police, gendarmerie, prisons, terrorisme, sécurité civile, organisation des juridictions ; procédure judiciaire lorsqu'elle est l'objet du texte)
 - Immigration (séjour, asile, éloignement, nationalité — **terrain sensible : factuel uniquement**)
 - Éducation / culture (école, université, recherche, sport, culture, médias)
-- Société / libertés (égalité, fin de vie, bioéthique, laïcité — **terrain sensible : factuel uniquement**)
+- Société / libertés (égalité, droits des personnes, fin de vie, bioéthique, laïcité, libertés publiques, mémoire et reconnaissance — **terrain sensible : factuel uniquement**)
 - International / défense (ratification de traités, armées, aide au développement, Europe)
-- Institutions / procédure (motions de censure, révisions, collectivités, élections)
+- Institutions / vie politique (Constitution, Parlement, motions de censure, élections, statut des élus, organisation de l'État)
+- Collectivités / outre-mer (décentralisation, organisation et finances des collectivités, statuts de l'outre-mer et de la Corse)
 
-Le référentiel est passé de huit à treize familles le 9 août 2026. Les huit précédentes concentraient justice, sécurité, immigration, éducation et culture dans « société / libertés » — les sujets les plus disputés de la législature dans le bac qu'on avait soi-même marqué sensible — et n'accueillaient ni l'international ni la défense. Le découpage porte sur l'**objet** des textes ; il ne dit rien de leur orientation (§6).
+Le référentiel est passé de huit à treize familles le 9 août 2026. Les huit précédentes concentraient justice, sécurité, immigration, éducation et culture dans « société / libertés » — les sujets les plus disputés de la législature dans le bac qu'on avait soi-même marqué sensible — et n'accueillaient ni l'international ni la défense.
+
+Il est passé de treize à seize le 2 novembre 2026, après relecture des 341 textes en base. Trois familles mêlaient des sujets qu'un lecteur cherche séparément : « pouvoir d'achat / fiscalité » réunissait le budget de l'État et la consommation des ménages ; « santé / social » réunissait les soins et la protection sociale, retraites comprises ; « institutions / procédure » servait de fourre-tout, collectivités et volet procédural des lois de finances compris. Elles deviennent « pouvoir d'achat » et « économie / finances publiques », « santé » et « protection sociale / retraites », « institutions / vie politique » et « collectivités / outre-mer ». Les rattachements existants ont d'abord été renommés sur leur historique (dates, auteurs et motifs conservés) ; le reclassement texte par texte se fait ensuite par arbitrage, famille par famille.
+
+Dans les deux cas, le découpage porte sur l'**objet** des textes ; il ne dit rien de leur orientation (§6).
 
 Règles :
 
 - Un texte peut appartenir à **plusieurs** familles, trois au plus ; on ne force pas l'unicité.
+- On rattache sur le **sujet du texte**, jamais sur le code qu'il modifie ni sur le public qu'il vise : un texte qui touche au code de la sécurité sociale ou qui s'adresse aux étudiants relève de ce qu'il fixe, pas de son véhicule ni de ses destinataires.
+- Une **résolution européenne** est rattachée sur son dispositif — ce qu'elle demande ou propose —, pas sur ses considérants.
 - Le rattachement est **révisable** et son historique conservé.
 - Un texte non rattaché reste **consultable** (liste dédiée), il n'est pas perdu.
 - La méthode de rattachement est publiée sur le site, table de règles comprise.

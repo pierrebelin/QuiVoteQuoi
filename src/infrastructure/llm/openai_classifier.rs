@@ -12,7 +12,7 @@ use super::openai_support::output_text;
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL: &str = "gpt-5.6-luna";
-const PROMPT_VERSION: &str = "thematisation-v2";
+const PROMPT_VERSION: &str = "thematisation-v3";
 const BATCH_SIZE: usize = 20;
 const MAX_ATTEMPTS: u32 = 3;
 const TOKENS_PER_LABEL: usize = 400;

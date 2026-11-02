@@ -4,7 +4,7 @@
 //! familles et du texte de justification (RM-10): la reponse est contrainte par
 //! un schema qui ne porte aucun nombre.
 //!
-//! Les libelles partent **par lot** (RM-14). Le cadrage — treize familles avec
+//! Les libelles partent **par lot** (RM-14). Le cadrage — seize familles avec
 //! leur perimetre, plus les regles de rattachement — pese bien plus lourd qu'un
 //! libelle de loi; l'envoyer une fois par texte revient a payer le cadrage 322
 //! fois. Un lot de vingt le paie seize fois en tout.
@@ -24,7 +24,7 @@ const DEFAULT_MODEL: &str = "claude-opus-5";
 
 /// Version de l'instruction, conservee avec chaque proposition pour la rendre
 /// inspectable. A incrementer des que le texte ci-dessous change.
-const PROMPT_VERSION: &str = "thematisation-v2";
+const PROMPT_VERSION: &str = "thematisation-v3";
 
 /// Libelles soumis en un appel.
 ///
@@ -137,8 +137,8 @@ pub(crate) fn system_prompt() -> String {
          - Pour chaque texte tu retiens de une à {MAX_FAMILIES} familles, de la plus centrale à \
          la moins centrale. N'en retiens plusieurs que si le texte porte réellement sur \
          plusieurs de ces domaines.\n\
-         - Tu rattaches sur l'objet du texte, jamais sur son orientation, ses effets supposés \
-         ou sa valeur.\n\
+         - Tu rattaches sur le sujet du texte, jamais sur son orientation, ses effets supposés \
+         ou sa valeur, ni sur le code qu'il modifie, ni sur le public qu'il vise.\n\
          - La justification dit ce que le libellé du texte porte, en une à deux phrases. \
          Aucun jugement, aucune évaluation, aucun chiffre, aucune estimation, aucun \
          qualificatif d'ampleur.\n\
@@ -148,10 +148,10 @@ pub(crate) fn system_prompt() -> String {
          avec `hors_referentiel` ou `libelle_insuffisant`.\n\
          - Ne rends pas une liste vide parce que le texte est juridique, transversal ou porte sur \
          plusieurs domaines : retiens alors la famille la plus centrale. Par exemple, une motion \
-         de censure relève des institutions ; une loi constitutionnelle relève des institutions \
-         et, s'il y en a un, du domaine qu'elle inscrit dans la Constitution ; un texte sur le \
-         chômage ou le dialogue social relève du travail ; un texte agricole relève de \
-         l'agriculture.\n\
+         de censure relève de `institutions-vie-politique` ; une loi constitutionnelle relève de \
+         `institutions-vie-politique` et, s'il y en a un, du domaine qu'elle inscrit dans la \
+         Constitution ; un texte sur le chômage ou le dialogue social relève du travail ; un \
+         texte agricole relève de l'agriculture.\n\
          - N'invente aucune famille : seuls les codes listés ci-dessus sont acceptés."
     )
 }
@@ -409,6 +409,13 @@ mod tests {
     }
 
     #[test]
+    fn the_prompt_attaches_on_the_subject_not_on_the_code_or_the_audience() {
+        let prompt = system_prompt();
+        assert!(prompt.contains("ni sur le code qu'il modifie"));
+        assert!(prompt.contains("ni sur le public qu'il vise"));
+    }
+
+    #[test]
     fn the_prompt_makes_an_unassigned_answer_exceptional() {
         let prompt = system_prompt();
         assert!(prompt.contains("Une liste vide est exceptionnelle"));
@@ -563,7 +570,7 @@ mod tests {
             &payload(
                 r#"{"textes":[{"numero":1,"familles":[
                     {"famille":"securite","justification":"hors référentiel"},
-                    {"famille":"sante-social","justification":"soins palliatifs"}
+                    {"famille":"sante","justification":"soins palliatifs"}
                 ]}]}"#,
             ),
             1,

@@ -9,13 +9,17 @@
 use quivotequoi::domain::theme::FamilyCode;
 use std::collections::BTreeSet;
 
-/// Codes inseres dans `theme_families` par l'ensemble des migrations.
+/// Codes presents dans `theme_families` une fois l'ensemble des migrations
+/// rejouees dans l'ordre: ceux que les `INSERT` ajoutent, moins ceux que les
+/// `DELETE` retirent (le passage a seize familles en supprime trois).
 ///
-/// Lecture volontairement litterale: dans un bloc `INSERT INTO theme_families`,
+/// Lecture volontairement litterale. Dans un bloc `INSERT INTO theme_families`,
 /// toute ligne ouvrant un tuple porte le code en tete, et le bloc s'arrete au
-/// point-virgule. Un `INSERT` ecrit autrement echapperait a ce test — c'est le
-/// prix d'un test qui ne parse pas du SQL.
-fn codes_inserted_by_migrations() -> BTreeSet<String> {
+/// point-virgule. Dans un bloc `DELETE FROM theme_families`, tout ce qui est
+/// entre apostrophes est un code, jusqu'au point-virgule. Une instruction
+/// ecrite autrement echapperait a ce test — c'est le prix d'un test qui ne
+/// parse pas du SQL.
+fn codes_held_by_migrations() -> BTreeSet<String> {
     let mut codes = BTreeSet::new();
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("migrations");
     let mut files: Vec<_> = std::fs::read_dir(&dir)
@@ -27,24 +31,36 @@ fn codes_inserted_by_migrations() -> BTreeSet<String> {
     for file in files {
         let sql = std::fs::read_to_string(&file).expect("migration lisible");
         let mut inserting = false;
+        let mut deleting = false;
         for line in sql.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with("INSERT INTO theme_families") {
                 inserting = true;
                 continue;
             }
-            if !inserting {
-                continue;
+            if trimmed.starts_with("DELETE FROM theme_families") {
+                deleting = true;
             }
-            // Les valeurs s'etalent sur plusieurs lignes: seule celle qui ouvre
-            // le tuple porte le code.
-            if let Some(rest) = trimmed.strip_prefix("('") {
-                if let Some(code) = rest.split('\'').next() {
-                    codes.insert(code.to_string());
+            if inserting {
+                // Les valeurs s'etalent sur plusieurs lignes: seule celle qui
+                // ouvre le tuple porte le code.
+                if let Some(rest) = trimmed.strip_prefix("('") {
+                    if let Some(code) = rest.split('\'').next() {
+                        codes.insert(code.to_string());
+                    }
+                }
+                if trimmed.ends_with(';') {
+                    inserting = false;
                 }
             }
-            if trimmed.ends_with(';') {
-                inserting = false;
+            if deleting {
+                // Entre deux apostrophes: indices impairs apres decoupage.
+                for code in trimmed.split('\'').skip(1).step_by(2) {
+                    codes.remove(code);
+                }
+                if trimmed.ends_with(';') {
+                    deleting = false;
+                }
             }
         }
     }
@@ -59,7 +75,7 @@ fn database_catalogue_holds_exactly_the_domain_families() {
         .collect();
 
     assert_eq!(
-        codes_inserted_by_migrations(),
+        codes_held_by_migrations(),
         expected,
         "le catalogue `theme_families` et `FamilyCode::ALL` ont divergé"
     );

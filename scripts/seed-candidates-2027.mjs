@@ -46,13 +46,13 @@ const candidates = [
     },
     proposals: [
       {
-        familyCode: 'institutions-procedure',
+        familyCode: 'institutions-vie-politique',
         excerpt: 'Inscrire dans la Constitution une règle d’or de maîtrise des déficits, et ramener le déficit de plus de 5 % à 2 % du PIB en fin de quinquennat, comme l’ont fait l’Allemagne ou les Pays-Bas.',
         sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere',
         sourceLabel: 'Avec Édouard 2027 — Pour une France plus prospère',
       },
       {
-        familyCode: 'pouvoir-achat-fiscalite',
+        familyCode: 'pouvoir-achat',
         excerpt: 'Sceller un moratoire normatif et fiscal : pas de nouvelle norme et de nouvel impôt sur le quinquennat.',
         sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere',
         sourceLabel: 'Avec Édouard 2027 — Pour une France plus prospère',
@@ -88,13 +88,13 @@ const candidates = [
     },
     proposals: [
       {
-        familyCode: 'institutions-procedure',
+        familyCode: 'institutions-vie-politique',
         excerpt: 'Convoquer une Constituante pour passer à la 6e République.',
         sourceUrl: 'https://melenchon2027.fr/programme2025/livre/chapitre1/s1/',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Réunir une Assemblée constituante pour passer à la 6e République',
       },
       {
-        familyCode: 'pouvoir-achat-fiscalite',
+        familyCode: 'pouvoir-achat',
         excerpt: 'Rendre l’impôt sur le revenu plus progressif avec un barème à 14 tranches contre 5 aujourd’hui.',
         sourceUrl: 'https://melenchon2027.fr/programme2025/livre/chapitre6/s5/',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Faire la révolution fiscale',
@@ -130,7 +130,7 @@ const candidates = [
     },
     proposals: [
       {
-        familyCode: 'pouvoir-achat-fiscalite',
+        familyCode: 'pouvoir-achat',
         excerpt: 'L’objectif est clair : zéro déficit en 10 ans maximum.',
         sourceUrl: 'https://attalpresident.fr/programme/dette-de-letat',
         sourceLabel: 'Attal Président — Dette de l’État',
@@ -189,7 +189,7 @@ const candidates = [
         sourceLabel: 'Les Écologistes — Congé climatique',
       },
       {
-        familyCode: 'institutions-procedure',
+        familyCode: 'institutions-vie-politique',
         excerpt: 'Nous ferons de la lutte contre la corruption une priorité, garantirons l’indépendance de la justice et des médias, et moderniserons nos institutions pour fonder la première république écologique et citoyenne, plus proche de la souveraineté populaire.',
         sourceUrl: 'https://yvelines.lesecologistes.fr/posts/6llZ3TixHP7gIKPL7zbPcx/programme-ecologiste-2027-le-futur-est-deja-la-que-serait-une-societe-ecologiste',
         sourceLabel: 'Les Écologistes — Programme écologiste 2027',
@@ -231,7 +231,7 @@ const candidates = [
         sourceLabel: 'Avec Retailleau — Déclaration de candidature',
       },
       {
-        familyCode: 'institutions-procedure',
+        familyCode: 'institutions-vie-politique',
         excerpt: 'Lorsque je serai élu, je vous soumettrai directement par référendum plusieurs grands textes de loi.',
         sourceUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
         sourceLabel: 'Avec Retailleau — Déclaration de candidature',

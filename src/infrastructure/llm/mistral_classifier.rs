@@ -16,7 +16,7 @@ use super::mistral_support::message_content;
 
 const API_URL: &str = "https://api.mistral.ai/v1/chat/completions";
 const DEFAULT_MODEL: &str = "mistral-small-latest";
-const PROMPT_VERSION: &str = "thematisation-v2";
+const PROMPT_VERSION: &str = "thematisation-v3";
 const BATCH_SIZE: usize = 20;
 const MAX_ATTEMPTS: u32 = 3;
 const TOKENS_PER_LABEL: usize = 400;

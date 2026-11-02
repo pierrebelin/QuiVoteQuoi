@@ -307,10 +307,7 @@ mod tests {
         let subject = SubjectRef::Text(plf.key().clone());
         assert_eq!(
             repository.current_families(&subject),
-            vec![
-                FamilyCode::PouvoirAchatFiscalite,
-                FamilyCode::InstitutionsProcedure
-            ]
+            vec![FamilyCode::EconomieFinancesPubliques]
         );
         let assignments = repository.assignments.lock().unwrap();
         assert_eq!(assignments[0].author(), "règle « loi de finances »");
@@ -343,7 +340,7 @@ mod tests {
         *repository.awaiting.lock().unwrap() = vec![first.clone(), second.clone()];
         let classifier = StubClassifier::new()
             .with_batch_size(10)
-            .answering(first.label(), vec![(FamilyCode::SanteSocial, "fin de vie")])
+            .answering(first.label(), vec![(FamilyCode::Sante, "fin de vie")])
             .answering(second.label(), vec![(FamilyCode::Logement, "meublés")]);
 
         let run = ProposeThemeFamilies::new(&repository, &classifier)
@@ -388,9 +385,9 @@ mod tests {
         let classifier = StubClassifier::new().answering(
             text.label(),
             vec![
-                (FamilyCode::PouvoirAchatFiscalite, "fiscalité"),
-                (FamilyCode::InstitutionsProcedure, "procédure"),
-                (FamilyCode::SanteSocial, "social"),
+                (FamilyCode::PouvoirAchat, "fiscalité"),
+                (FamilyCode::InstitutionsViePolitique, "procédure"),
+                (FamilyCode::Sante, "social"),
                 (FamilyCode::Logement, "logement"),
                 (FamilyCode::Numerique, "numérique"),
             ],
@@ -437,10 +434,7 @@ mod tests {
         *repository.awaiting.lock().unwrap() = vec![answered.clone(), skipped.clone()];
         let classifier = StubClassifier::new()
             .with_batch_size(10)
-            .answering(
-                answered.label(),
-                vec![(FamilyCode::SanteSocial, "fin de vie")],
-            )
+            .answering(answered.label(), vec![(FamilyCode::Sante, "fin de vie")])
             .skipping(skipped.label());
 
         let run = ProposeThemeFamilies::new(&repository, &classifier)
@@ -494,8 +488,8 @@ mod tests {
         let repository = InMemoryThemeRepository::default();
         let text = text("proposition de loi relative au droit à l'aide à mourir");
         *repository.awaiting.lock().unwrap() = vec![text.clone()];
-        let classifier = StubClassifier::new()
-            .answering(text.label(), vec![(FamilyCode::SanteSocial, "fin de vie")]);
+        let classifier =
+            StubClassifier::new().answering(text.label(), vec![(FamilyCode::Sante, "fin de vie")]);
 
         ProposeThemeFamilies::new(&repository, &classifier)
             .execute(10, today())
@@ -517,10 +511,7 @@ mod tests {
         }];
         let classifier = StubClassifier::new().answering(
             "Accès aux soins dans les zones rurales",
-            vec![(
-                FamilyCode::SanteSocial,
-                "Le dossier porte sur l'accès aux soins.",
-            )],
+            vec![(FamilyCode::Sante, "Le dossier porte sur l'accès aux soins.")],
         );
 
         let run = ProposeThemeFamilies::new(&repository, &classifier)
@@ -532,7 +523,7 @@ mod tests {
         let subject = SubjectRef::Dossier(DossierUid::new("DLR5L17N12345".into()).unwrap());
         assert_eq!(
             repository.current_families(&subject),
-            vec![FamilyCode::SanteSocial]
+            vec![FamilyCode::Sante]
         );
     }
 
