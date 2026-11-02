@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use chrono::NaiveDate;
 
+use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::dossier::{
     CurationStatus, DossierUid, Initiative, LegislativeDossier, StoredDossierState,
 };
+use crate::domain::theme::FamilyCode;
 
 pub use super::RepositoryError;
 
@@ -20,11 +22,16 @@ pub struct DossierCriteria {
     /// Sort du dossier, tel que `DossierOutcome::kind` l'écrit.
     pub outcome_kind: Option<String>,
     pub initiative: Option<Initiative>,
+    /// Famille courante du dossier, héritée de ses textes ou propre (RM-06).
+    pub family: Option<FamilyCode>,
 }
 
 impl DossierCriteria {
     pub fn is_empty(&self) -> bool {
-        self.search.is_none() && self.outcome_kind.is_none() && self.initiative.is_none()
+        self.search.is_none()
+            && self.outcome_kind.is_none()
+            && self.initiative.is_none()
+            && self.family.is_none()
     }
 }
 
@@ -35,8 +42,20 @@ impl DossierCriteria {
 /// ceux de sa page (README.md §2).
 #[derive(Debug, Clone)]
 pub struct DossierPage {
-    pub items: Vec<LegislativeDossier>,
+    pub items: Vec<DossierListing>,
     pub total: i64,
+}
+
+/// Ligne de la liste : le dossier avec ses initiateurs, mais sans actes ni
+/// documents, et ce que la liste montre en plus de l'agrégat.
+#[derive(Debug, Clone)]
+pub struct DossierListing {
+    pub dossier: LegislativeDossier,
+    /// Familles courantes, héritées des textes que ses scrutins nomment, à
+    /// défaut son propre rattachement (RM-06). Vide : aucune n'est ouverte.
+    pub families: Vec<AssignedFamily>,
+    /// Scrutins publics rattachés au dossier par la source.
+    pub scrutin_count: i64,
 }
 
 #[async_trait]
