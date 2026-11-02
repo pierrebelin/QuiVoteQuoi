@@ -11,6 +11,7 @@ use chrono::NaiveDate;
 use serde::Serialize;
 
 use super::actor::{ActorDirectory, ActorUid, GroupUid};
+use super::amendment::amendment_numbers_in_subject;
 use super::article::ArticleNumber;
 use super::dossier::DossierUid;
 
@@ -69,6 +70,18 @@ impl ShortLabel {
 
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+}
+
+/// Ce que l'objet d'un scrutin annonce sans le nommer (SPEC-sujet-amendements).
+pub struct SubjectMentions;
+
+impl SubjectMentions {
+    /// Vrai quand l'objet annonce des amendements identiques sans en donner un
+    /// seul numero.
+    pub fn unnumbered_identical_amendments(subject: &str) -> bool {
+        subject.to_lowercase().contains("amendements identiques")
+            && amendment_numbers_in_subject(subject).is_empty()
     }
 }
 
@@ -736,6 +749,19 @@ mod tests {
             dossier: None,
         })
         .unwrap()
+    }
+
+    #[test]
+    fn should_detect_unnumbered_identical_amendments_when_subject_announces_them() {
+        assert!(SubjectMentions::unnumbered_identical_amendments(
+            "les amendements identiques de M. Martin, Mme Durand et plusieurs de leurs collègues après l'article 3 du projet de loi"
+        ));
+        assert!(!SubjectMentions::unnumbered_identical_amendments(
+            "les amendements identiques n° 12 et 45 de M. Martin après l'article 3 du projet de loi"
+        ));
+        assert!(!SubjectMentions::unnumbered_identical_amendments(
+            "l'amendement n° 12 de M. Martin après l'article 3 du projet de loi"
+        ));
     }
 
     #[test]

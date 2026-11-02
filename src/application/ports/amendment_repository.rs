@@ -28,6 +28,7 @@ pub struct AmendmentPageRequest {
     pub search: Option<String>,
     pub fate_code: Option<String>,
     pub author_group_uid: Option<String>,
+    pub number: Option<String>,
 }
 
 /// Borne dure. Une requete qui demande davantage est ramenee ici plutot que
@@ -43,6 +44,7 @@ impl AmendmentPageRequest {
             search: None,
             fate_code: None,
             author_group_uid: None,
+            number: None,
         }
     }
 }

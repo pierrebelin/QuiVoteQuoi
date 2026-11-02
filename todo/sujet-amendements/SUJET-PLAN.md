@@ -20,7 +20,7 @@
 - [ ] 1. Une carte d'amendement montre son sort, son auteur aux couleurs de son groupe et l'aperçu de son exposé
 - [ ] 2. Un scrutin de la liste est intitulé par son libellé court
 
-### Batch F2 — Lot B : rapprochement et sujet des scrutins — ⬜
+### Batch F2 — Lot B : rapprochement et sujet des scrutins — ✅ DONE (2026-11-02)
 - [ ] 1. Un numéro cité désigne l'amendement unique de même numéro de référence, déposé au plus tard le jour du scrutin, départagé par l'article cité
 - [ ] 2. Chaque passe recalcule tous les liens et note la cause de chaque absence de lien
 - [ ] 3. La page méthode publie les compteurs du rapprochement

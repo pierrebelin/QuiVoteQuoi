@@ -1,6 +1,8 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
+use super::final_vote_dto::TallyDto;
+use crate::application::ports::amendment_citation_repository::AmendmentVote;
 use crate::application::ports::amendment_repository::AmendmentGroupOption;
 use crate::application::ports::amendment_repository::DossierAmendmentCoverage;
 use crate::application::use_cases::browse_dossier_amendments::{AmendmentView, DossierAmendments};
@@ -61,6 +63,27 @@ pub struct AmendmentDto {
     /// Expose sommaire entier. Jamais tronque cote serveur (RM-03).
     pub summary: Option<String>,
     pub cosignatory_count: i64,
+    /// Scrutins qui l'ont mis aux voix, chronologiques; vide = jamais rapproche (RM-08).
+    pub votes: Vec<AmendmentVoteDto>,
+}
+
+#[derive(Serialize)]
+pub struct AmendmentVoteDto {
+    pub scrutin_uid: String,
+    pub scrutin_number: String,
+    pub date: NaiveDate,
+    pub tally: TallyDto,
+}
+
+impl From<AmendmentVote> for AmendmentVoteDto {
+    fn from(vote: AmendmentVote) -> Self {
+        Self {
+            scrutin_uid: vote.scrutin_uid.as_str().to_string(),
+            scrutin_number: vote.scrutin_number,
+            date: vote.date,
+            tally: vote.tally.into(),
+        }
+    }
 }
 
 impl From<AmendmentView> for AmendmentDto {
@@ -94,6 +117,7 @@ impl From<AmendmentView> for AmendmentDto {
             deposited_on: summary.deposited_on,
             summary: summary.summary,
             cosignatory_count: summary.cosignatory_count,
+            votes: view.votes.into_iter().map(Into::into).collect(),
         }
     }
 }

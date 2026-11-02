@@ -2,9 +2,11 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::application::ports::scrutin_repository::ScrutinFilter;
+use crate::application::use_cases::browse_dossier_amendments::CitedAmendmentView;
+use crate::application::use_cases::get_scrutin_detail::{CitedNumberView, ScrutinDetail};
 use crate::application::use_cases::list_scrutins::{ScrutinListItem, ScrutinListPage};
-use crate::application::use_cases::get_scrutin_detail::ScrutinDetail;
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
+use crate::domain::amendment::SummaryPreview;
 use crate::domain::scrutin::{scrutin_official_url, VoteTally};
 
 /// RM-06: la lacune est servie avec les listes, pas enfouie ailleurs.
@@ -88,6 +90,9 @@ pub struct ScrutinSummaryDto {
     pub has_reconstructed_tallies: bool,
     /// RM-07: le lien source accompagne chaque scrutin, jusque dans la liste.
     pub official_url: String,
+    /// RM-05, RM-08: amendements rapproches, dans l'ordre de citation; vide
+    /// quand le scrutin n'est pas rapproche (la liste garde alors le libelle court).
+    pub cited: Vec<CitedAmendmentDto>,
 }
 
 impl From<ScrutinListItem> for ScrutinSummaryDto {
@@ -108,6 +113,11 @@ impl From<ScrutinListItem> for ScrutinSummaryDto {
             dossier_label: s.dossier_label,
             has_reconstructed_tallies: s.has_reconstructed_tallies,
             official_url,
+            cited: item
+                .cited
+                .into_iter()
+                .map(CitedAmendmentDto::from)
+                .collect(),
         }
     }
 }
@@ -194,6 +204,79 @@ pub struct SynthesisDto {
     pub tally: TallyDto,
 }
 
+/// Amendement mis aux voix: l'apercu de son expose dans la liste (RM-05), son
+/// expose entier sur le detail (RM-06, `summary`).
+#[derive(Serialize)]
+pub struct CitedAmendmentDto {
+    pub dossier_uid: String,
+    pub number: String,
+    pub target_title: String,
+    /// Expose entier, servi par le detail seulement.
+    pub summary: Option<String>,
+    /// Apercu (RM-05); `None` quand la source ne publie pas d'expose.
+    pub summary_preview: Option<String>,
+    pub summary_preview_truncated: bool,
+    pub author_name: Option<String>,
+    pub author_group_abbrev: Option<String>,
+    /// Couleur publiee du groupe au depot (RM-10); `None` quand il n'en publie pas.
+    pub author_group_color: Option<String>,
+    /// `white` ou `black`: ton du texte lisible sur la couleur du groupe.
+    pub author_text_tone: Option<String>,
+    pub cosignatory_count: i64,
+}
+
+impl From<CitedAmendmentView> for CitedAmendmentDto {
+    fn from(view: CitedAmendmentView) -> Self {
+        let (summary_preview, summary_preview_truncated) = match view.preview {
+            SummaryPreview::Unpublished => (None, false),
+            SummaryPreview::Text { text, truncated } => (Some(text), truncated),
+        };
+        Self {
+            dossier_uid: view.dossier_uid,
+            number: view.number,
+            target_title: view.target_title,
+            summary: view.summary,
+            summary_preview,
+            summary_preview_truncated,
+            author_name: view.author.name,
+            author_group_abbrev: view.author.group_abbrev,
+            author_group_color: view.author.group_color,
+            author_text_tone: view.author.text_tone.map(|tone| tone.as_str().to_string()),
+            cosignatory_count: view.cosignatory_count,
+        }
+    }
+}
+
+/// Un numero cite: l'amendement et la methode du lien, ou la cause de l'absence (RM-06, RM-08).
+#[derive(Serialize)]
+pub struct CitedNumberDto {
+    pub rank: u16,
+    pub cited_number: Option<String>,
+    pub amendment: Option<CitedAmendmentDto>,
+    pub method_labels: Vec<&'static str>,
+    pub cause_code: Option<&'static str>,
+    pub cause_label: Option<&'static str>,
+}
+
+impl From<CitedNumberView> for CitedNumberDto {
+    fn from(view: CitedNumberView) -> Self {
+        let method_labels = view
+            .amendment
+            .as_ref()
+            .and_then(|a| a.method)
+            .map(|m| m.labels())
+            .unwrap_or_default();
+        Self {
+            rank: view.rank,
+            cited_number: view.cited_number,
+            amendment: view.amendment.map(CitedAmendmentDto::from),
+            method_labels,
+            cause_code: view.cause.map(|c| c.as_str()),
+            cause_label: view.cause.map(|c| c.label()),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct ScrutinDetailDto {
     pub uid: String,
@@ -218,6 +301,9 @@ pub struct ScrutinDetailDto {
     pub dossier_label: Option<String>,
     pub official_url: String,
     pub unknown_actors: usize,
+    /// RM-06, RM-08: ce qui a ete mis aux voix, numero par numero.
+    pub cited: Vec<CitedNumberDto>,
+    pub unnumbered_identical_amendments: bool,
     pub coverage_note: &'static str,
 }
 
@@ -292,6 +378,8 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
             dossier_label: s.dossier().map(|d| d.label.clone()),
             official_url: s.official_url(),
             unknown_actors: detail.unknown_actors,
+            cited: detail.cited.into_iter().map(CitedNumberDto::from).collect(),
+            unnumbered_identical_amendments: detail.unnumbered_identical_amendments,
             coverage_note: SHOW_OF_HANDS_NOTE,
         }
     }
@@ -321,14 +409,21 @@ impl From<ScrutinsSummary> for ScrutinsRefreshResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::use_cases::browse_dossier_amendments::{
+        AuthorView, CitedAmendmentView,
+    };
     use crate::application::use_cases::list_scrutins::ScrutinListItem;
     use crate::application::use_cases::read_fakes::scrutin_row;
+    use crate::domain::actor::TextTone;
+    use crate::domain::amendment::SummaryPreview;
+    use crate::domain::amendment_citation::LinkMethod;
     use crate::domain::scrutin::ShortLabel;
 
     fn item(uid: &str, subject: &str) -> ScrutinListItem {
         ScrutinListItem {
             summary: scrutin_row(uid, subject),
             short_label: ShortLabel::from_subject(subject),
+            cited: Vec::new(),
         }
     }
 
@@ -346,6 +441,78 @@ mod tests {
             json["scrutins"][0]["subject"],
             "l'article 3 du projet de loi de finances"
         );
+    }
+
+    fn cited_view(rank: u16, number: &str) -> CitedAmendmentView {
+        CitedAmendmentView {
+            rank,
+            cited_number: Some(number.to_string()),
+            dossier_uid: "DLR5L17N1".to_string(),
+            number: number.to_string(),
+            target_title: "Article 3".to_string(),
+            author: AuthorView {
+                name: Some("Marie Dupont".to_string()),
+                official_url: None,
+                group_label: Some("Gauche democrate".to_string()),
+                group_abbrev: Some("GDR".to_string()),
+                group_color: Some("#8c1c13".to_string()),
+                text_tone: Some(TextTone::Light),
+            },
+            cosignatory_count: 3,
+            preview: SummaryPreview::Text {
+                text: "Supprime l'article.".to_string(),
+                truncated: false,
+            },
+            summary: None,
+            method: Some(LinkMethod {
+                by_cited_article: false,
+            }),
+            cause: None,
+        }
+    }
+
+    #[test]
+    fn should_serve_cited_amendments_with_preview_in_citation_order_when_scrutin_is_linked() {
+        let mut linked = item("S1", "l'amendement n° 12 de Mme Dupont a l'article 3");
+        linked.cited = vec![cited_view(0, "12"), cited_view(1, "14")];
+        let page = ScrutinListPage {
+            items: vec![linked, item("S2", "objet inconnu de la source")],
+            total: 2,
+        };
+
+        let json = serde_json::to_value(ScrutinListResponse::from((page, 0))).unwrap();
+
+        let cited = &json["scrutins"][0]["cited"];
+        assert_eq!(cited[0]["number"], "12");
+        assert_eq!(cited[1]["number"], "14");
+        assert_eq!(cited[0]["dossier_uid"], "DLR5L17N1");
+        assert_eq!(cited[0]["target_title"], "Article 3");
+        assert_eq!(cited[0]["author_name"], "Marie Dupont");
+        assert_eq!(cited[0]["author_group_abbrev"], "GDR");
+        assert_eq!(cited[0]["author_text_tone"], "white");
+        assert_eq!(cited[0]["cosignatory_count"], 3);
+        assert_eq!(cited[0]["summary_preview"], "Supprime l'article.");
+        assert_eq!(cited[0]["summary_preview_truncated"], false);
+        assert!(cited[0]["summary"].is_null());
+        assert_eq!(json["scrutins"][1]["cited"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn should_serve_no_preview_when_cited_amendment_has_no_published_summary() {
+        let mut view = cited_view(0, "12");
+        view.preview = SummaryPreview::Unpublished;
+        let mut linked = item("S1", "l'amendement n° 12");
+        linked.cited = vec![view];
+        let page = ScrutinListPage {
+            items: vec![linked],
+            total: 1,
+        };
+
+        let json = serde_json::to_value(ScrutinListResponse::from((page, 0))).unwrap();
+
+        let cited = &json["scrutins"][0]["cited"][0];
+        assert!(cited["summary_preview"].is_null());
+        assert_eq!(cited["summary_preview_truncated"], false);
     }
 
     #[test]

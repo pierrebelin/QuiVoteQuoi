@@ -1,5 +1,6 @@
 pub mod actor;
 pub mod amendment;
+pub mod amendment_citation;
 pub mod article;
 pub mod candidate;
 pub mod dataset;

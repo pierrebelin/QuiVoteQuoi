@@ -45,6 +45,7 @@ export default function ThemeMethodPage() {
     return <p className="text-no">{(method.error as Error).message}</p>
 
   const data = method.data!
+  const linking = data.amendment_linking
 
   return (
     <div className="space-y-3">
@@ -144,6 +145,26 @@ export default function ThemeMethodPage() {
             Un dossier relié à un texte voté reçoit les familles de ce texte : il
             n'est jamais soumis séparément. Seuls les dossiers qu'aucun scrutin ne
             relie à un texte sont classés sur leur propre titre.
+          </p>
+        </Block>
+
+        <Block title="Rapprochement scrutins–amendements">
+          <p className="mb-1.5 text-sm text-ink-soft">
+            L'objet d'un scrutin cite des numéros d'amendement. Chaque numéro
+            est cherché dans le dossier que la source rattache au scrutin : il
+            est relié à l'amendement unique qui le porte, ou reste sans lien,
+            avec sa cause.
+          </p>
+          <Row label="Numéros reliés à un amendement" value={linking.linked} />
+          <Row
+            label="dont départagés par l'article cité"
+            value={linking.linked_by_cited_article}
+          />
+          {linking.absences.map((absence) => (
+            <Row key={absence.code} label={absence.label} value={absence.count} />
+          ))}
+          <p className="mt-1.5 text-xs text-ink-faint">
+            {data.amendment_linking_note}
           </p>
         </Block>
       </div>

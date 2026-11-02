@@ -2,11 +2,13 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::application::ports::theme_repository::{
-    AssignedFamily, FamilyCoverage, MethodReport, TextPage, TextScrutin, TextSummary,
+    AssignedFamily, FamilyCoverage, TextPage, TextScrutin, TextSummary,
 };
 use crate::application::use_cases::browse_themes::{FamilyDescription, TextDetail};
+use crate::application::use_cases::describe_method::MethodOverview;
 use crate::application::use_cases::extract_debated_texts::ExtractionReport;
 use crate::application::use_cases::propose_theme_families::ProposalRun;
+use crate::domain::amendment_citation::{LinkingReport, UnlinkedCause};
 use crate::domain::theme::{ThemeAssignment, ThemeProposal, MAX_FAMILIES};
 use crate::domain::theme_rules::{ThemeRule, RULES};
 
@@ -275,10 +277,51 @@ pub struct MethodResponse {
     /// Dossiers qu'aucun scrutin ne relie à un texte : ils sont classés sur
     /// leur propre titre, et restent consultables en attendant (RM-01).
     pub dossiers_without_text: i64,
+    /// Rapprochement des scrutins et des amendements qu'ils citent (CU-01).
+    pub amendment_linking: AmendmentLinkingDto,
+    pub amendment_linking_note: &'static str,
     pub extraction_rule: &'static str,
     pub model_scope: &'static str,
     pub rule_scope: &'static str,
     pub method_note: &'static str,
+}
+
+/// Liens établis par méthode et absences de lien par cause, tels que la base
+/// les compte (RM-06). Un numéro cité compte pour un, lien ou absence.
+#[derive(Debug, Serialize)]
+pub struct AmendmentLinkingDto {
+    pub linked: i64,
+    /// Parmi les liens, ceux où l'article cité a départagé plusieurs candidats.
+    pub linked_by_cited_article: i64,
+    /// Une entrée par cause, libellé du domaine : le même que sur le détail d'un scrutin.
+    pub absences: Vec<LinkAbsenceDto>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct LinkAbsenceDto {
+    pub code: &'static str,
+    pub label: &'static str,
+    pub count: i64,
+}
+
+impl From<LinkingReport> for AmendmentLinkingDto {
+    fn from(report: LinkingReport) -> Self {
+        let absence = |cause: UnlinkedCause, count: i64| LinkAbsenceDto {
+            code: cause.as_str(),
+            label: cause.label(),
+            count,
+        };
+        Self {
+            linked: report.linked,
+            linked_by_cited_article: report.linked_by_cited_article,
+            absences: vec![
+                absence(UnlinkedCause::NoNumber, report.no_number),
+                absence(UnlinkedCause::NoDossier, report.no_dossier),
+                absence(UnlinkedCause::Unresolved, report.unresolved),
+                absence(UnlinkedCause::Ambiguous, report.ambiguous),
+            ],
+        }
+    }
 }
 
 /// Une règle du référentiel publié, servie telle que le domaine la porte.
@@ -331,8 +374,16 @@ const RULE_SCOPE: &str = "Certains textes portent leur famille dans leur nature 
      ci-dessous, sans passer par le modèle. Chaque règle porte sur l'objet du texte, jamais sur \
      son orientation, et reste révisable comme n'importe quel autre rattachement.";
 
-impl From<MethodReport> for MethodResponse {
-    fn from(report: MethodReport) -> Self {
+/// Ce que « non résolu » recouvre : le dire sous le compteur, pas dans une note
+/// de bas de page, pour que le chiffre ne se lise pas comme une erreur du site.
+const AMENDMENT_LINKING_NOTE: &str = "« Aucun amendement du dossier ne correspond » compte aussi \
+     les amendements de séance, que la source ne rattache pas au dossier, et ceux que le site \
+     n'a pas encore ingérés : l'ingestion des amendements est plafonnée à chaque passe. \
+     Aucun lien n'est deviné : un numéro qui ne désigne pas un amendement unique reste sans lien.";
+
+impl From<MethodOverview> for MethodResponse {
+    fn from(overview: MethodOverview) -> Self {
+        let report = overview.report;
         Self {
             families: report
                 .families
@@ -354,6 +405,8 @@ impl From<MethodReport> for MethodResponse {
             dossiers_linked_to_text: report.dossiers_linked_to_text,
             dossiers_assigned: report.dossiers_assigned,
             dossiers_without_text: report.dossiers_without_text,
+            amendment_linking: AmendmentLinkingDto::from(overview.linking),
+            amendment_linking_note: AMENDMENT_LINKING_NOTE,
             extraction_rule: EXTRACTION_RULE,
             model_scope: MODEL_SCOPE,
             rule_scope: RULE_SCOPE,
@@ -443,4 +496,85 @@ pub struct ArbitrationResponse {
     pub subject_kind: String,
     pub subject_id: String,
     pub families: Vec<AssignedFamilyDto>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::application::ports::theme_repository::MethodReport;
+    use crate::application::use_cases::describe_method::MethodOverview;
+    use crate::domain::amendment_citation::{LinkingReport, UnlinkedCause};
+
+    fn overview() -> MethodOverview {
+        MethodOverview {
+            report: MethodReport {
+                families: vec![],
+                texts_total: 322,
+                texts_assigned: 300,
+                texts_without_family: 10,
+                texts_attempt_failed: 2,
+                texts_never_attempted: 10,
+                scrutins_total: 8_434,
+                scrutins_with_text: 6_000,
+                scrutins_assigned: 5_900,
+                dossiers_total: 400,
+                dossiers_linked_to_text: 350,
+                dossiers_assigned: 340,
+                dossiers_without_text: 50,
+            },
+            linking: LinkingReport {
+                linked: 30,
+                linked_by_cited_article: 4,
+                no_number: 7,
+                no_dossier: 5,
+                unresolved: 9,
+                ambiguous: 2,
+            },
+        }
+    }
+
+    #[test]
+    fn should_publish_amendment_linking_counts_beside_theme_report_when_overview_is_served() {
+        let json = serde_json::to_value(MethodResponse::from(overview())).unwrap();
+
+        assert_eq!(json["texts_total"], 322);
+        assert_eq!(json["scrutins_without_text"], 2_434);
+        let linking = &json["amendment_linking"];
+        assert_eq!(linking["linked"], 30);
+        assert_eq!(linking["linked_by_cited_article"], 4);
+    }
+
+    #[test]
+    fn should_publish_each_absence_with_its_cause_label_when_linking_counts_are_served() {
+        let json = serde_json::to_value(MethodResponse::from(overview())).unwrap();
+
+        let absences: Vec<(&str, i64)> = json["amendment_linking"]["absences"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|a| (a["code"].as_str().unwrap(), a["count"].as_i64().unwrap()))
+            .collect();
+        assert_eq!(
+            absences,
+            vec![
+                ("no_number", 7),
+                ("no_dossier", 5),
+                ("unresolved", 9),
+                ("ambiguous", 2)
+            ]
+        );
+        assert_eq!(
+            json["amendment_linking"]["absences"][2]["label"],
+            UnlinkedCause::Unresolved.label()
+        );
+    }
+
+    #[test]
+    fn should_say_what_unresolved_counts_include_when_linking_counts_are_published() {
+        let json = serde_json::to_value(MethodResponse::from(overview())).unwrap();
+
+        let note = json["amendment_linking_note"].as_str().unwrap();
+        assert!(note.contains("séance"));
+        assert!(note.contains("ingér"));
+    }
 }

@@ -101,11 +101,17 @@ impl AmendmentRepository for FakeAmendments {
     async fn by_dossier(
         &self,
         _d: &str,
-        _p: &AmendmentPageRequest,
+        p: &AmendmentPageRequest,
     ) -> Result<AmendmentPage, RepositoryError> {
+        let items: Vec<AmendmentSummary> = self
+            .rows
+            .iter()
+            .filter(|row| p.number.as_ref().is_none_or(|n| &row.number == n))
+            .cloned()
+            .collect();
         Ok(AmendmentPage {
-            total: self.rows.len() as i64,
-            items: self.rows.clone(),
+            total: items.len() as i64,
+            items,
         })
     }
     async fn groups_by_dossier(

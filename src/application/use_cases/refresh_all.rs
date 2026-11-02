@@ -2,6 +2,7 @@ use chrono::NaiveDate;
 
 use crate::application::ports::actor_repository::{ActorRepository, RegistrySummary};
 use crate::application::ports::actor_source::ActorSource;
+use crate::application::ports::amendment_citation_repository::AmendmentCitationRepository;
 use crate::application::ports::amendment_repository::AmendmentRepository;
 use crate::application::ports::amendment_source::AmendmentSource;
 use crate::application::ports::assembly_source::AssemblySource;
@@ -10,8 +11,10 @@ use crate::application::ports::scrutin_repository::ScrutinRepository;
 use crate::application::ports::scrutin_source::ScrutinSource;
 use crate::application::ports::theme_classifier::ThemeClassifier;
 use crate::application::ports::theme_repository::ThemeRepository;
+use crate::domain::amendment_citation::LinkingReport;
 
 use super::extract_debated_texts::{ExtractDebatedTexts, ExtractionReport};
+use super::link_scrutins_to_amendments::LinkScrutinsToAmendments;
 use super::propose_theme_families::{ProposalRun, ProposeThemeFamilies};
 use super::refresh_actor_registry::RefreshActorRegistry;
 use super::refresh_amendments::{AmendmentsSummary, RefreshAmendments};
@@ -39,6 +42,9 @@ pub struct RefreshOutcome {
     /// coute jamais le reste du rafraichissement.
     pub amendments: Option<AmendmentsSummary>,
     pub amendments_anomaly: Option<String>,
+    /// Rapprochement des scrutins et des amendements qu'ils citent.
+    pub citations: Option<LinkingReport>,
+    pub citations_anomaly: Option<String>,
 }
 
 /// Rafraichissement complet, dans l'ordre impose: referentiel d'abord, dossiers
@@ -63,6 +69,7 @@ pub struct RefreshAll<'a> {
     scrutin_repository: &'a dyn ScrutinRepository,
     amendment_source: &'a dyn AmendmentSource,
     amendment_repository: &'a dyn AmendmentRepository,
+    citation_repository: &'a dyn AmendmentCitationRepository,
     theme_repository: &'a dyn ThemeRepository,
     theme_classifier: &'a dyn ThemeClassifier,
     /// Objets soumis au rattachement par passe. Plafond, pas objectif: le
@@ -83,6 +90,7 @@ impl<'a> RefreshAll<'a> {
         scrutin_repository: &'a dyn ScrutinRepository,
         amendment_source: &'a dyn AmendmentSource,
         amendment_repository: &'a dyn AmendmentRepository,
+        citation_repository: &'a dyn AmendmentCitationRepository,
         theme_repository: &'a dyn ThemeRepository,
         theme_classifier: &'a dyn ThemeClassifier,
         theme_batch: i64,
@@ -97,6 +105,7 @@ impl<'a> RefreshAll<'a> {
             scrutin_repository,
             amendment_source,
             amendment_repository,
+            citation_repository,
             theme_repository,
             theme_classifier,
             theme_batch,
@@ -205,6 +214,21 @@ impl<'a> RefreshAll<'a> {
             }
         };
 
+        // Le rapprochement relit les scrutins et amendements deja stockes: il
+        // tourne meme quand l'ingestion des amendements a echoue. Chaque passe
+        // recalcule tous les liens.
+        let (citations, citations_anomaly) =
+            match LinkScrutinsToAmendments::new(self.citation_repository)
+                .execute()
+                .await
+            {
+                Ok(report) => (Some(report), None),
+                Err(e) => {
+                    tracing::warn!("Scrutin amendment linking failed, keeping previous links: {e}");
+                    (None, Some(e.to_string()))
+                }
+            };
+
         Ok(RefreshOutcome {
             registry,
             registry_anomaly,
@@ -217,6 +241,8 @@ impl<'a> RefreshAll<'a> {
             themes_anomaly,
             amendments,
             amendments_anomaly,
+            citations,
+            citations_anomaly,
         })
     }
 }
@@ -242,9 +268,14 @@ mod tests {
     };
     use crate::application::ports::scrutin_source::SourceError as ScrutinSourceError;
     use crate::application::ports::theme_repository::ScrutinSubject;
+    use crate::application::ports::amendment_citation_repository::CitingScrutin;
+    use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
     use crate::application::use_cases::theme_fakes::{InMemoryThemeRepository, StubClassifier};
     use crate::domain::actor::{ActorRegistry, ActorUid};
-    use crate::domain::amendment::Amendment;
+    use crate::domain::amendment::{
+        Amendment, AmendmentNumber, AmendmentTarget, AmendmentUid,
+    };
+    use crate::domain::amendment_citation::CandidateAmendment;
     use crate::domain::dataset::DatasetShape;
     use crate::domain::dossier::{DossierUid, LegislativeDossier};
     use crate::domain::scrutin::{Scrutin, ScrutinUid};
@@ -368,6 +399,21 @@ mod tests {
         }
     }
 
+    struct FailingAmendmentSource;
+
+    #[async_trait]
+    impl AmendmentSource for FailingAmendmentSource {
+        async fn fetch_amendments(
+            &self,
+            _legislature: u16,
+            _batch_size: usize,
+        ) -> Result<AmendmentFeed, crate::application::ports::SourceError> {
+            Err(crate::application::ports::SourceError::Download(
+                "source unavailable".into(),
+            ))
+        }
+    }
+
     struct NoopAmendmentRepository;
 
     #[async_trait]
@@ -453,6 +499,23 @@ mod tests {
         ($actor_source:expr, $actor_repository:expr, $assembly_source:expr,
          $dossier_repository:expr, $scrutin_source:expr, $scrutin_repository:expr,
          $theme_repository:expr, $theme_classifier:expr) => {
+            refresh!(
+                $actor_source,
+                $actor_repository,
+                $assembly_source,
+                $dossier_repository,
+                $scrutin_source,
+                $scrutin_repository,
+                $theme_repository,
+                $theme_classifier,
+                &EmptyAmendmentSource,
+                &InMemoryCitationRepository::default()
+            )
+        };
+        ($actor_source:expr, $actor_repository:expr, $assembly_source:expr,
+         $dossier_repository:expr, $scrutin_source:expr, $scrutin_repository:expr,
+         $theme_repository:expr, $theme_classifier:expr,
+         $amendment_source:expr, $citation_repository:expr) => {
             RefreshAll::new(
                 $actor_source,
                 $actor_repository,
@@ -460,8 +523,9 @@ mod tests {
                 $dossier_repository,
                 $scrutin_source,
                 $scrutin_repository,
-                &EmptyAmendmentSource,
+                $amendment_source,
                 &NoopAmendmentRepository,
+                $citation_repository,
                 $theme_repository,
                 $theme_classifier,
                 50,
@@ -641,5 +705,96 @@ mod tests {
         assert_eq!(outcome.dossiers.written, 1);
         assert!(outcome.themes_anomaly.is_none());
         assert_eq!(outcome.themes.expect("passe produite").failed, 1);
+    }
+
+    fn citing_scrutin() -> CitingScrutin {
+        CitingScrutin {
+            uid: ScrutinUid::new("VTANR5L17V490".to_string()).unwrap(),
+            date: date(2026, 3, 12),
+            subject: "l'amendement n° 12 de M. Martin".to_string(),
+            published_dossier: Some(DossierUid::new("DLR5L17N1".to_string()).unwrap()),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_link_scrutins_to_amendments_when_amendment_ingestion_failed() {
+        let actor_source = RecordingActorSource {
+            available: true,
+            order: Mutex::new(vec![]),
+        };
+        let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
+        let assembly_source = FakeAssemblySource;
+        let dossier_repository = InMemoryDossierRepository::new();
+        let scrutin_source = FakeScrutinSource { available: true };
+        let scrutin_repository = InMemoryScrutinRepository {
+            saved: Mutex::new(0),
+        };
+        let theme_repository = InMemoryThemeRepository::default();
+        let theme_classifier = StubClassifier::new();
+        let citation_repository = InMemoryCitationRepository::default();
+        *citation_repository.scrutins.lock().unwrap() = vec![citing_scrutin()];
+        *citation_repository.amendments.lock().unwrap() = vec![CandidateAmendment::new(
+            AmendmentUid::new("AMANR1".to_string()).unwrap(),
+            DossierUid::new("DLR5L17N1".to_string()).unwrap(),
+            AmendmentNumber::new("12".to_string()).unwrap(),
+            &AmendmentTarget::new("ARTICLE 3".to_string(), None).unwrap(),
+            None,
+        )];
+
+        let outcome = refresh!(
+            &actor_source,
+            &actor_repository,
+            &assembly_source,
+            &dossier_repository,
+            &scrutin_source,
+            &scrutin_repository,
+            &theme_repository,
+            &theme_classifier,
+            &FailingAmendmentSource,
+            &citation_repository
+        );
+
+        assert!(outcome.amendments.is_none());
+        assert!(outcome.amendments_anomaly.is_some());
+        assert!(outcome.citations_anomaly.is_none());
+        assert_eq!(outcome.citations.expect("rapprochement produit").linked, 1);
+        assert_eq!(citation_repository.citations.lock().unwrap().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn should_report_linking_anomaly_without_failing_refresh_when_linking_fails() {
+        let actor_source = RecordingActorSource {
+            available: true,
+            order: Mutex::new(vec![]),
+        };
+        let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
+        let assembly_source = FakeAssemblySource;
+        let dossier_repository = InMemoryDossierRepository::new();
+        let scrutin_source = FakeScrutinSource { available: true };
+        let scrutin_repository = InMemoryScrutinRepository {
+            saved: Mutex::new(0),
+        };
+        let theme_repository = InMemoryThemeRepository::default();
+        let theme_classifier = StubClassifier::new();
+        let citation_repository = InMemoryCitationRepository::default();
+        *citation_repository.scrutins.lock().unwrap() = vec![citing_scrutin()];
+        *citation_repository.candidates_unreadable.lock().unwrap() = true;
+
+        let outcome = refresh!(
+            &actor_source,
+            &actor_repository,
+            &assembly_source,
+            &dossier_repository,
+            &scrutin_source,
+            &scrutin_repository,
+            &theme_repository,
+            &theme_classifier,
+            &EmptyAmendmentSource,
+            &citation_repository
+        );
+
+        assert_eq!(outcome.dossiers.written, 1);
+        assert!(outcome.citations.is_none());
+        assert!(outcome.citations_anomaly.is_some());
     }
 }

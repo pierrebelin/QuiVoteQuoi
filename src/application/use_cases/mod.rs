@@ -8,6 +8,7 @@ pub mod browse_themes;
 pub mod check_health;
 pub mod curate_dossier;
 pub mod describe_dataset;
+pub mod describe_method;
 pub mod extract_debated_texts;
 pub mod fetch_recent_dossiers;
 pub mod get_dossier_detail;
@@ -15,6 +16,7 @@ pub mod get_dossier_group_actions;
 pub mod get_group_detail;
 pub mod get_scrutin_detail;
 pub mod list_scrutins;
+pub mod link_scrutins_to_amendments;
 pub mod propose_theme_families;
 pub mod refresh_actor_registry;
 pub mod refresh_all;
@@ -28,3 +30,5 @@ pub mod suggest_dossiers;
 pub mod theme_fakes;
 #[cfg(test)]
 pub mod read_fakes;
+#[cfg(test)]
+pub mod citation_fakes;

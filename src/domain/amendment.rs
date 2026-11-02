@@ -87,6 +87,74 @@ impl AmendmentNumber {
     }
 }
 
+impl AmendmentNumber {
+    /// Numero de reference: partie de finances ou prefixe de commission, puis
+    /// numero entier; la rectification est ignoree (RM-01).
+    pub fn reference(&self) -> Option<ReferenceNumber> {
+        let lower = lowercase(&self.0);
+        let token = lower.split_whitespace().next()?;
+        let (prefix, digits) = if let Some(rest) = token.strip_prefix("ii-") {
+            (Some(ReferencePrefix::Second), rest)
+        } else if let Some(rest) = token.strip_prefix("i-") {
+            (Some(ReferencePrefix::First), rest)
+        } else {
+            let letters: String = token.chars().take_while(|c| c.is_alphabetic()).collect();
+            let rest = &token[letters.len()..];
+            if letters.is_empty() {
+                (None, rest)
+            } else {
+                (Some(ReferencePrefix::Commission(letters)), rest)
+            }
+        };
+        let digits = digits.trim_end_matches('.');
+        if digits.is_empty() || !digits.chars().all(|c| c.is_ascii_digit()) {
+            return None;
+        }
+        Some(ReferenceNumber::new(prefix, digits.parse().ok()?))
+    }
+
+    /// Vrai quand ce numero publie designe le meme amendement que `cited`.
+    pub fn answers(&self, cited: &AmendmentNumber) -> bool {
+        match (self.reference(), cited.reference()) {
+            (Some(stored), Some(cited)) => stored.answers(&cited),
+            _ => false,
+        }
+    }
+}
+
+/// Prefixe d'un numero de reference.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReferencePrefix {
+    First,
+    Second,
+    Commission(String),
+}
+
+/// Numero de reference d'un amendement, lu par une regle fixe (RM-01, RM-03).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ReferenceNumber {
+    prefix: Option<ReferencePrefix>,
+    number: u32,
+}
+
+impl ReferenceNumber {
+    pub fn new(prefix: Option<ReferencePrefix>, number: u32) -> Self {
+        Self { prefix, number }
+    }
+
+    /// Meme numero; la partie de finances citee est absente ou egale, tout
+    /// autre prefixe doit etre identique (RM-01).
+    pub fn answers(&self, cited: &ReferenceNumber) -> bool {
+        if self.number != cited.number {
+            return false;
+        }
+        match (&self.prefix, &cited.prefix) {
+            (stored, None) => !matches!(stored, Some(ReferencePrefix::Commission(_))),
+            (stored, cited) => stored == cited,
+        }
+    }
+}
+
 impl std::fmt::Display for AmendmentNumber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.0)
@@ -432,6 +500,11 @@ impl AmendmentTarget {
     pub fn kind(&self) -> Option<&str> {
         self.kind.as_deref()
     }
+
+    /// Article que le titre nomme, quand il en nomme un.
+    pub fn article(&self) -> Option<super::article::ArticleNumber> {
+        super::article::ArticleNumber::in_text(&self.title)
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -736,7 +809,11 @@ pub fn amendment_numbers_in_subject(subject: &str) -> Vec<AmendmentNumber> {
         if token.is_empty() {
             continue;
         }
-        if token.chars().all(|c| c.is_ascii_digit()) {
+        let digits = token
+            .strip_prefix("ii-")
+            .or_else(|| token.strip_prefix("i-"))
+            .unwrap_or(token);
+        if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
             if let Ok(number) = AmendmentNumber::new(token.to_string()) {
                 if !numbers.contains(&number) {
                     numbers.push(number);
@@ -1309,6 +1386,89 @@ mod tests {
         assert_eq!(
             AmendmentNumber::new("CF120".to_string()).unwrap().key(),
             "cf120"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // Numero de reference
+    // -----------------------------------------------------------------------
+
+    fn reference_of(raw: &str) -> Option<ReferenceNumber> {
+        AmendmentNumber::new(raw.to_string()).unwrap().reference()
+    }
+
+    fn number_of(raw: &str) -> AmendmentNumber {
+        AmendmentNumber::new(raw.to_string()).unwrap()
+    }
+
+    fn references(subject: &str) -> Vec<Option<ReferenceNumber>> {
+        amendment_numbers_in_subject(subject)
+            .iter()
+            .map(AmendmentNumber::reference)
+            .collect()
+    }
+
+    #[test]
+    fn should_drop_finance_part_from_reference_number_when_number_is_prefixed() {
+        assert_eq!(
+            reference_of("I-1376"),
+            Some(ReferenceNumber::new(Some(ReferencePrefix::First), 1376))
+        );
+        assert_eq!(
+            reference_of("II-243"),
+            Some(ReferenceNumber::new(Some(ReferencePrefix::Second), 243))
+        );
+    }
+
+    #[test]
+    fn should_drop_rectification_from_reference_number_when_number_is_rectified() {
+        let expected = Some(ReferenceNumber::new(None, 45));
+        assert_eq!(reference_of("45 rect."), expected);
+        assert_eq!(reference_of("45 rectifié"), expected);
+    }
+
+    #[test]
+    fn should_keep_commission_prefix_in_reference_number_when_number_is_a_commission_one() {
+        assert_eq!(
+            reference_of("CS1376"),
+            Some(ReferenceNumber::new(
+                Some(ReferencePrefix::Commission("cs".to_string())),
+                1376
+            ))
+        );
+        assert!(!number_of("CS1376").answers(&number_of("1376")));
+    }
+
+    #[test]
+    fn should_answer_cited_number_whatever_its_case_when_stored_number_is_upper_case() {
+        assert!(number_of("II-243").answers(&number_of("ii-243")));
+    }
+
+    #[test]
+    fn should_keep_cited_finance_part_when_subject_cites_a_prefixed_number() {
+        assert_eq!(
+            references("l'amendement n° II-243 de M. X après l'article 15 du projet de loi."),
+            vec![Some(ReferenceNumber::new(Some(ReferencePrefix::Second), 243))]
+        );
+    }
+
+    #[test]
+    fn should_keep_reading_number_run_when_it_holds_finance_parts() {
+        assert_eq!(
+            references("les amendements identiques n° I-12 et II-45 de M. X à l'article 3."),
+            vec![
+                Some(ReferenceNumber::new(Some(ReferencePrefix::First), 12)),
+                Some(ReferenceNumber::new(Some(ReferencePrefix::Second), 45)),
+            ]
+        );
+    }
+
+    #[test]
+    fn should_read_target_article_when_target_title_names_one() {
+        let target = AmendmentTarget::new("APRÈS L'ARTICLE 12".to_string(), None).unwrap();
+        assert_eq!(
+            target.article().map(|article| article.to_string()),
+            Some("12".to_string())
         );
     }
 
