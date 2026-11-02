@@ -144,8 +144,8 @@ mod tests {
     };
     use crate::domain::dataset::DatasetShape;
     use crate::domain::scrutin::{
-        BallotType, GroupTally, NominalVote, Outcome, ScrutinUid, TallyOrigin, VotePosition,
-        VoteSynthesis, VoteTally, MISSING_GROUP_SENTINEL,
+        BallotType, GroupTally, NewScrutin, NominalVote, Outcome, ScrutinUid, TallyOrigin,
+        VotePosition, VoteSynthesis, VoteTally, MISSING_GROUP_SENTINEL,
     };
 
     fn date() -> NaiveDate {
@@ -153,30 +153,30 @@ mod tests {
     }
 
     fn scrutin(uid: &str, tallies: Vec<GroupTally>, votes: Vec<NominalVote>) -> Scrutin {
-        Scrutin::new(
-            ScrutinUid::new(uid.into()).unwrap(),
-            "489".into(),
-            17,
-            date(),
-            None,
-            None,
-            None,
-            BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
-            Outcome::new("rejet\u{00e9}".into(), "rejet\u{00e9}".into()).unwrap(),
-            None,
-            "objet".into(),
-            VoteSynthesis {
+        Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new(uid.into()).unwrap(),
+            number: "489".into(),
+            legislature: 17,
+            date: date(),
+            session_ref: None,
+            sitting_ref: None,
+            place: None,
+            ballot_type: BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
+            outcome: Outcome::new("rejet\u{00e9}".into(), "rejet\u{00e9}".into()).unwrap(),
+            requester: None,
+            subject: "objet".into(),
+            synthesis: VoteSynthesis {
                 voters: 2,
                 expressed: 2,
                 required: 2,
                 announcement: "annonce".into(),
                 tally: VoteTally::default(),
             },
-            tallies,
-            votes,
-            vec![],
-            None,
-        )
+            group_tallies: tallies,
+            nominal_votes: votes,
+            corrections: vec![],
+            dossier: None,
+        })
         .unwrap()
     }
 

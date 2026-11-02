@@ -6,7 +6,7 @@ use super::actor::{
 };
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
-pub enum DomainError {
+pub enum DossierError {
     #[error("dossier uid must not be empty")]
     EmptyDossierUid,
     #[error("an initiator group must always carry its reference date")]
@@ -29,9 +29,9 @@ pub enum DomainError {
 pub struct DossierUid(String);
 
 impl DossierUid {
-    pub fn new(raw: String) -> Result<Self, DomainError> {
+    pub fn new(raw: String) -> Result<Self, DossierError> {
         if raw.is_empty() {
-            return Err(DomainError::EmptyDossierUid);
+            return Err(DossierError::EmptyDossierUid);
         }
         Ok(Self(raw))
     }
@@ -51,9 +51,9 @@ impl std::fmt::Display for DossierUid {
 pub struct Committee(String);
 
 impl Committee {
-    pub fn new(raw: String) -> Result<Self, DomainError> {
+    pub fn new(raw: String) -> Result<Self, DossierError> {
         if raw.is_empty() {
-            return Err(DomainError::EmptyCommittee);
+            return Err(DossierError::EmptyCommittee);
         }
         Ok(Self(raw))
     }
@@ -97,18 +97,18 @@ pub struct Score {
 }
 
 impl Score {
-    pub fn new(progress: u8, magnitude: u8, momentum: u8, total: u8) -> Result<Self, DomainError> {
+    pub fn new(progress: u8, magnitude: u8, momentum: u8, total: u8) -> Result<Self, DossierError> {
         if progress > 10 {
-            return Err(DomainError::InvalidProgress(progress));
+            return Err(DossierError::InvalidProgress(progress));
         }
         if magnitude > 10 {
-            return Err(DomainError::InvalidMagnitude(magnitude));
+            return Err(DossierError::InvalidMagnitude(magnitude));
         }
         if momentum > 10 {
-            return Err(DomainError::InvalidMomentum(momentum));
+            return Err(DossierError::InvalidMomentum(momentum));
         }
         if total > 100 {
-            return Err(DomainError::InvalidTotal(total));
+            return Err(DossierError::InvalidTotal(total));
         }
         Ok(Self {
             progress,
@@ -252,9 +252,9 @@ pub struct Initiator {
 impl Initiator {
     /// Initiateur non resolu: le nom brut est conserve, aucun groupe n'est
     /// devine (RM-04).
-    pub fn unresolved(full_name: String) -> Result<Self, DomainError> {
+    pub fn unresolved(full_name: String) -> Result<Self, DossierError> {
         if full_name.is_empty() {
-            return Err(DomainError::EmptyInitiatorName);
+            return Err(DossierError::EmptyInitiatorName);
         }
         Ok(Self {
             full_name,
@@ -276,12 +276,12 @@ impl Initiator {
         group: Option<InitiatorGroup>,
         reference_date: Option<NaiveDate>,
         official_url: Option<String>,
-    ) -> Result<Self, DomainError> {
+    ) -> Result<Self, DossierError> {
         if full_name.is_empty() {
-            return Err(DomainError::EmptyInitiatorName);
+            return Err(DossierError::EmptyInitiatorName);
         }
         if group.is_some() && reference_date.is_none() {
-            return Err(DomainError::GroupWithoutReferenceDate);
+            return Err(DossierError::GroupWithoutReferenceDate);
         }
         Ok(Self {
             full_name,
@@ -467,14 +467,34 @@ impl DossierOutcome {
         )
     }
 
+    /// Codes de sort tels que `kind()` les rend et que la base les stocke.
+    /// Partages entre `kind()` et `kind_is_final()`: une seule ecriture de
+    /// chaque code.
+    const KIND_PROMULGATED: &'static str = "promulgated";
+    const KIND_WITHDRAWN: &'static str = "withdrawn";
+    const KIND_MERGED_INTO: &'static str = "merged_into";
+    const KIND_REJECTED: &'static str = "rejected";
+    const KIND_NO_RECORDED_CONCLUSION: &'static str = "no_recorded_conclusion";
+
     pub fn kind(&self) -> &'static str {
         match self {
-            Self::Promulgated { .. } => "promulgated",
-            Self::Withdrawn { .. } => "withdrawn",
-            Self::MergedInto { .. } => "merged_into",
-            Self::Rejected { .. } => "rejected",
-            Self::NoRecordedConclusion => "no_recorded_conclusion",
+            Self::Promulgated { .. } => Self::KIND_PROMULGATED,
+            Self::Withdrawn { .. } => Self::KIND_WITHDRAWN,
+            Self::MergedInto { .. } => Self::KIND_MERGED_INTO,
+            Self::Rejected { .. } => Self::KIND_REJECTED,
+            Self::NoRecordedConclusion => Self::KIND_NO_RECORDED_CONCLUSION,
         }
+    }
+
+    /// Vrai quand le code de sort stocke, celui que rend `kind()`, designe un
+    /// sort definitif (voir `is_final`). Le contenu de la variante n'est pas
+    /// necessaire pour le savoir: un sort promulgue reste definitif meme si sa
+    /// date manque en base. Un code inconnu n'est pas definitif.
+    pub fn kind_is_final(kind: &str) -> bool {
+        matches!(
+            kind,
+            Self::KIND_PROMULGATED | Self::KIND_WITHDRAWN | Self::KIND_MERGED_INTO
+        )
     }
 
     pub fn date(&self) -> Option<NaiveDate> {
@@ -889,7 +909,7 @@ mod tests {
     fn dossier_uid_rejects_empty() {
         assert_eq!(
             DossierUid::new("".into()).unwrap_err(),
-            DomainError::EmptyDossierUid
+            DossierError::EmptyDossierUid
         );
     }
 
@@ -903,19 +923,19 @@ mod tests {
     fn score_rejects_out_of_range() {
         assert_eq!(
             Score::new(11, 5, 5, 50).unwrap_err(),
-            DomainError::InvalidProgress(11)
+            DossierError::InvalidProgress(11)
         );
         assert_eq!(
             Score::new(5, 11, 5, 50).unwrap_err(),
-            DomainError::InvalidMagnitude(11)
+            DossierError::InvalidMagnitude(11)
         );
         assert_eq!(
             Score::new(5, 5, 11, 50).unwrap_err(),
-            DomainError::InvalidMomentum(11)
+            DossierError::InvalidMomentum(11)
         );
         assert_eq!(
             Score::new(5, 5, 5, 101).unwrap_err(),
-            DomainError::InvalidTotal(101)
+            DossierError::InvalidTotal(101)
         );
     }
 
@@ -938,7 +958,7 @@ mod tests {
     fn initiator_rejects_empty_name() {
         assert_eq!(
             Initiator::unresolved("".into()).unwrap_err(),
-            DomainError::EmptyInitiatorName
+            DossierError::EmptyInitiatorName
         );
     }
 
@@ -1005,7 +1025,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(DomainError::GroupWithoutReferenceDate)
+            Err(DossierError::GroupWithoutReferenceDate)
         ));
     }
 
@@ -1029,7 +1049,7 @@ mod tests {
     fn committee_rejects_empty() {
         assert_eq!(
             Committee::new("".into()).unwrap_err(),
-            DomainError::EmptyCommittee
+            DossierError::EmptyCommittee
         );
     }
 
@@ -1081,6 +1101,46 @@ mod tests {
     #[test]
     fn an_absent_conclusion_is_not_final() {
         assert!(!DossierOutcome::NoRecordedConclusion.is_final());
+    }
+
+    #[test]
+    fn a_stored_kind_is_final_exactly_when_its_outcome_is() {
+        let outcomes = [
+            DossierOutcome::Promulgated {
+                date: outcome_date(),
+                publication: LawPublication {
+                    law_code: None,
+                    jo_date: None,
+                    legifrance_url: None,
+                },
+            },
+            DossierOutcome::Withdrawn {
+                date: outcome_date(),
+            },
+            DossierOutcome::MergedInto {
+                dossier_uid: DossierUid::new("DLR5L17N54344".into()).unwrap(),
+                cause: None,
+            },
+            DossierOutcome::Rejected {
+                date: outcome_date(),
+                label: "rejet\u{00e9}".into(),
+            },
+            DossierOutcome::NoRecordedConclusion,
+        ];
+
+        for outcome in outcomes {
+            assert_eq!(
+                DossierOutcome::kind_is_final(outcome.kind()),
+                outcome.is_final(),
+                "{}",
+                outcome.kind()
+            );
+        }
+    }
+
+    #[test]
+    fn an_unknown_stored_kind_is_not_final() {
+        assert!(!DossierOutcome::kind_is_final("unknown"));
     }
 
     #[test]

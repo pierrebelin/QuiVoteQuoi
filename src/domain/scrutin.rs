@@ -365,49 +365,57 @@ pub fn scrutin_official_url(legislature: u16, number: &str) -> String {
     format!("https://www.assemblee-nationale.fr/dyn/{legislature}/scrutins/{number}")
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Elements d'un scrutin, tels que lus dans la source.
+///
+/// Une struct plutot que seize parametres positionnels: le champ est nomme au
+/// site d'appel, et un oubli se voit a la compilation.
+#[derive(Debug, Clone)]
+pub struct NewScrutin {
+    pub uid: ScrutinUid,
+    pub number: String,
+    pub legislature: u16,
+    pub date: NaiveDate,
+    pub session_ref: Option<String>,
+    pub sitting_ref: Option<String>,
+    pub place: Option<String>,
+    pub ballot_type: BallotType,
+    pub outcome: Outcome,
+    pub requester: Option<String>,
+    pub subject: String,
+    pub synthesis: VoteSynthesis,
+    pub group_tallies: Vec<GroupTally>,
+    pub nominal_votes: Vec<NominalVote>,
+    pub corrections: Vec<VoteCorrection>,
+    pub dossier: Option<DossierReference>,
+}
+
 impl Scrutin {
-    pub fn new(
-        uid: ScrutinUid,
-        number: String,
-        legislature: u16,
-        date: NaiveDate,
-        session_ref: Option<String>,
-        sitting_ref: Option<String>,
-        place: Option<String>,
-        ballot_type: BallotType,
-        outcome: Outcome,
-        requester: Option<String>,
-        subject: String,
-        synthesis: VoteSynthesis,
-        group_tallies: Vec<GroupTally>,
-        nominal_votes: Vec<NominalVote>,
-        corrections: Vec<VoteCorrection>,
-        dossier: Option<DossierReference>,
-    ) -> Result<Self, ScrutinError> {
-        if number.trim().is_empty() {
+    /// Construit l'agregat et applique les invariants: le numero et l'objet du
+    /// scrutin ne sont jamais blancs.
+    pub fn new(parts: NewScrutin) -> Result<Self, ScrutinError> {
+        if parts.number.trim().is_empty() {
             return Err(ScrutinError::EmptyScrutinNumber);
         }
-        if subject.trim().is_empty() {
+        if parts.subject.trim().is_empty() {
             return Err(ScrutinError::EmptySubject);
         }
         Ok(Self {
-            uid,
-            number,
-            legislature,
-            date,
-            session_ref,
-            sitting_ref,
-            place,
-            ballot_type,
-            outcome,
-            requester,
-            subject,
-            synthesis,
-            group_tallies,
-            nominal_votes,
-            corrections,
-            dossier,
+            uid: parts.uid,
+            number: parts.number,
+            legislature: parts.legislature,
+            date: parts.date,
+            session_ref: parts.session_ref,
+            sitting_ref: parts.sitting_ref,
+            place: parts.place,
+            ballot_type: parts.ballot_type,
+            outcome: parts.outcome,
+            requester: parts.requester,
+            subject: parts.subject,
+            synthesis: parts.synthesis,
+            group_tallies: parts.group_tallies,
+            nominal_votes: parts.nominal_votes,
+            corrections: parts.corrections,
+            dossier: parts.dossier,
         })
     }
 
@@ -634,28 +642,28 @@ mod tests {
     }
 
     fn scrutin(group_tallies: Vec<GroupTally>, nominal_votes: Vec<NominalVote>) -> Scrutin {
-        Scrutin::new(
-            ScrutinUid::new("VTANR5L17V489".into()).unwrap(),
-            "489".into(),
-            17,
-            date(),
-            Some("SCR5A2025O1".into()),
-            None,
-            Some("H\u{00e9}micycle".into()),
-            BallotType::new(
+        Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new("VTANR5L17V489".into()).unwrap(),
+            number: "489".into(),
+            legislature: 17,
+            date: date(),
+            session_ref: Some("SCR5A2025O1".into()),
+            sitting_ref: None,
+            place: Some("H\u{00e9}micycle".into()),
+            ballot_type: BallotType::new(
                 "SPO".into(),
                 "scrutin public ordinaire".into(),
                 Some("Majorit\u{00e9} absolue des suffrages exprim\u{00e9}s".into()),
             )
             .unwrap(),
-            Outcome::new(
+            outcome: Outcome::new(
                 "rejet\u{00e9}".into(),
                 "L'Assembl\u{00e9}e nationale n'a pas adopt\u{00e9}".into(),
             )
             .unwrap(),
-            None,
-            "l'amendement n\u{00b0} 1".into(),
-            VoteSynthesis {
+            requester: None,
+            subject: "l'amendement n\u{00b0} 1".into(),
+            synthesis: VoteSynthesis {
                 voters: 2,
                 expressed: 2,
                 required: 2,
@@ -664,9 +672,9 @@ mod tests {
             },
             group_tallies,
             nominal_votes,
-            vec![],
-            None,
-        )
+            corrections: vec![],
+            dossier: None,
+        })
         .unwrap()
     }
 
@@ -683,30 +691,30 @@ mod tests {
         let base = scrutin(vec![], vec![]);
         assert!(base.number() == "489");
 
-        let err = Scrutin::new(
-            ScrutinUid::new("V1".into()).unwrap(),
-            "  ".into(),
-            17,
-            date(),
-            None,
-            None,
-            None,
-            BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
-            Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
-            None,
-            "objet".into(),
-            VoteSynthesis {
+        let err = Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new("V1".into()).unwrap(),
+            number: "  ".into(),
+            legislature: 17,
+            date: date(),
+            session_ref: None,
+            sitting_ref: None,
+            place: None,
+            ballot_type: BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
+            outcome: Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
+            requester: None,
+            subject: "objet".into(),
+            synthesis: VoteSynthesis {
                 voters: 0,
                 expressed: 0,
                 required: 0,
                 announcement: String::new(),
                 tally: VoteTally::default(),
             },
-            vec![],
-            vec![],
-            vec![],
-            None,
-        );
+            group_tallies: vec![],
+            nominal_votes: vec![],
+            corrections: vec![],
+            dossier: None,
+        });
         assert_eq!(err.unwrap_err(), ScrutinError::EmptyScrutinNumber);
     }
 

@@ -224,23 +224,23 @@ mod tests {
     use crate::domain::actor::{Actor, ActorRegistry, ActorRole, GroupUid, ParliamentaryGroup};
     use crate::domain::dataset::DatasetShape;
     use crate::domain::scrutin::{
-        BallotType, NominalVote, Outcome, VoteCorrection, VoteSynthesis, VoteTally,
+        BallotType, NewScrutin, NominalVote, Outcome, VoteCorrection, VoteSynthesis, VoteTally,
     };
 
     fn scrutin() -> Scrutin {
-        Scrutin::new(
-            ScrutinUid::new("V1".into()).unwrap(),
-            "1".into(),
-            17,
-            NaiveDate::from_ymd_opt(2025, 3, 27).unwrap(),
-            None,
-            None,
-            None,
-            BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
-            Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
-            None,
-            "objet".into(),
-            VoteSynthesis {
+        Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new("V1".into()).unwrap(),
+            number: "1".into(),
+            legislature: 17,
+            date: NaiveDate::from_ymd_opt(2025, 3, 27).unwrap(),
+            session_ref: None,
+            sitting_ref: None,
+            place: None,
+            ballot_type: BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
+            outcome: Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
+            requester: None,
+            subject: "objet".into(),
+            synthesis: VoteSynthesis {
                 voters: 3,
                 expressed: 3,
                 required: 2,
@@ -251,7 +251,7 @@ mod tests {
                     ..VoteTally::default()
                 },
             },
-            vec![GroupTally {
+            group_tallies: vec![GroupTally {
                 group_uid: GroupUid::new("PO_A".into()).unwrap(),
                 member_count: Some(10),
                 majority_position: Some(VotePosition::For),
@@ -261,7 +261,7 @@ mod tests {
                 },
                 origin: TallyOrigin::Published,
             }],
-            vec![
+            nominal_votes: vec![
                 NominalVote {
                     actor_uid: ActorUid::new("PA1".into()).unwrap(),
                     group_uid: Some(GroupUid::new("PO_A".into()).unwrap()),
@@ -289,13 +289,13 @@ mod tests {
                     seat: None,
                 },
             ],
-            vec![VoteCorrection {
+            corrections: vec![VoteCorrection {
                 actor_uid: ActorUid::new("PA1".into()).unwrap(),
                 claimed_position: VotePosition::Against,
                 malfunction: false,
             }],
-            None,
-        )
+            dossier: None,
+        })
         .unwrap()
     }
 

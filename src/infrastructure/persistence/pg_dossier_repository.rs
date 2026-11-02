@@ -330,12 +330,7 @@ impl DossierRepository for PgDossierRepository {
         Ok(rows
             .into_iter()
             .map(|r| {
-                // Le sort est reconstruit avec des champs vides: seule la
-                // variante compte ici, pas son contenu.
-                let outcome_is_final = matches!(
-                    r.outcome_kind.as_str(),
-                    "promulgated" | "withdrawn" | "merged_into"
-                );
+                let outcome_is_final = DossierOutcome::kind_is_final(&r.outcome_kind);
                 (
                     r.uid,
                     StoredDossierState {

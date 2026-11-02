@@ -9,8 +9,8 @@ use crate::application::ports::scrutin_repository::{
 use crate::domain::actor::{ActorUid, GroupUid};
 use crate::domain::dataset::{CodeCount, DatasetShape};
 use crate::domain::scrutin::{
-    BallotType, DossierReference, GroupTally, NominalVote, NonVotingCause, Outcome, Scrutin,
-    ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
+    BallotType, DossierReference, GroupTally, NewScrutin, NominalVote, NonVotingCause, Outcome,
+    Scrutin, ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
 };
 
 /// Scrutins par transaction. Chaque lot supprime puis reecrit ses lignes filles:
@@ -404,27 +404,27 @@ impl ScrutinRepository for PgScrutinRepository {
             })
             .collect();
 
-        let scrutin = Scrutin::new(
-            ScrutinUid::new(row.get::<String, _>("uid")).map_err(|e| {
+        let scrutin = Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new(row.get::<String, _>("uid")).map_err(|e| {
                 RepositoryError::Database(format!("stored scrutin has an unusable uid: {e}"))
             })?,
-            row.get("number"),
-            row.get::<i16, _>("legislature") as u16,
-            row.get("scrutin_date"),
-            row.get("session_ref"),
-            row.get("sitting_ref"),
-            row.get("place"),
-            BallotType::new(
+            number: row.get("number"),
+            legislature: row.get::<i16, _>("legislature") as u16,
+            date: row.get("scrutin_date"),
+            session_ref: row.get("session_ref"),
+            sitting_ref: row.get("sitting_ref"),
+            place: row.get("place"),
+            ballot_type: BallotType::new(
                 row.get("ballot_type_code"),
                 row.get("ballot_type_label"),
                 row.get("majority_label"),
             )
             .map_err(|e| RepositoryError::Database(e.to_string()))?,
-            Outcome::new(row.get("outcome_code"), row.get("outcome_label"))
+            outcome: Outcome::new(row.get("outcome_code"), row.get("outcome_label"))
                 .map_err(|e| RepositoryError::Database(e.to_string()))?,
-            row.get("requester"),
-            row.get("subject"),
-            VoteSynthesis {
+            requester: row.get("requester"),
+            subject: row.get("subject"),
+            synthesis: VoteSynthesis {
                 voters: row.get::<i16, _>("voters") as u16,
                 expressed: row.get::<i16, _>("expressed") as u16,
                 required: row.get::<i16, _>("required") as u16,
@@ -434,7 +434,7 @@ impl ScrutinRepository for PgScrutinRepository {
             group_tallies,
             nominal_votes,
             corrections,
-            match (
+            dossier: match (
                 row.get::<Option<String>, _>("dossier_uid"),
                 row.get::<Option<String>, _>("dossier_label"),
             ) {
@@ -444,7 +444,7 @@ impl ScrutinRepository for PgScrutinRepository {
                 }),
                 (None, _) => None,
             },
-        )
+        })
         .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(Some(scrutin))
