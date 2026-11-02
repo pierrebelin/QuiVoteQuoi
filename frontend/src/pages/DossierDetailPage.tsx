@@ -7,7 +7,7 @@ import DossierGroupActions from '../components/DossierGroupActions'
 import DossierFinalScrutin from '../components/DossierFinalScrutin'
 import { OutcomePanel } from '../components/OutcomeBadge'
 import { Card, ErrorPanel, Loading, Pill, SectionTitle } from '../components/ui'
-import type { OutcomeDto } from '../types/dossiers'
+import type { InitiatorDto, OutcomeDto } from '../types/dossiers'
 
 /** Actes visibles avant dépliage. Un dossier peut en porter des dizaines. */
 const VISIBLE_ACTS = 3
@@ -20,23 +20,6 @@ interface ActeDto {
 interface StageDto {
   label: string
   chamber: string
-}
-
-interface InitiatorGroupDto {
-  uid: string
-  abbrev: string
-  label: string
-  quality: string | null
-}
-
-interface InitiatorDto {
-  full_name: string
-  actor_uid: string | null
-  role: string | null
-  group: InitiatorGroupDto | null
-  /** Date à laquelle le groupe a été lu. Toujours affichée avec le groupe. */
-  reference_date: string | null
-  official_url: string | null
 }
 
 interface DocumentDto {

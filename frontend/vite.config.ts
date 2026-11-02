@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       proxy: {
-        '/api': env.VITE_API_TARGET || 'http://localhost:3000',
+        // changeOrigin : un backend distant derrière un hôte virtuel attend
+        // son propre nom dans l'en-tête Host, pas « localhost ».
+        '/api': { target: env.VITE_API_TARGET || 'http://localhost:3000', changeOrigin: true },
       },
     },
   }
