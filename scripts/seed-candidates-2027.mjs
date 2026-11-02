@@ -1054,7 +1054,7 @@ const candidates = [
   },
 ]
 
-// Extraits relevés programme par programme (revue : todo/candidats-2027/REVUE-EXTRAITS.md).
+// Extraits relevés programme par programme, chacun retrouvé mot pour mot dans sa source.
 const extractedProposals = JSON.parse(readFileSync(new URL('./candidates-2027-proposals.json', import.meta.url), 'utf8'))
 const candidatesById = new Map(candidates.map((candidate) => [candidate.id, candidate]))
 for (const { candidateId, ...proposal } of extractedProposals) {
