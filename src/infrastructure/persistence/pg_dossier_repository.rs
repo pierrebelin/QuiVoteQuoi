@@ -4,14 +4,15 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder};
 
+use super::{db, invalid_row};
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierPage, DossierRepository, RepositoryError, StoredDossierState,
+    DossierCriteria, DossierPage, DossierRepository, RepositoryError,
 };
 use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
 use crate::domain::dossier::{
     Committee, CurationStatus, DossierOutcome, DossierUid, Initiator, InitiatorGroup,
     LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
-    Score,
+    NewLegislativeDossier, Score, StoredDossierState,
 };
 
 pub struct PgDossierRepository {
@@ -30,7 +31,7 @@ impl PgDossierRepository {
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -55,7 +56,7 @@ impl PgDossierRepository {
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
@@ -75,16 +76,12 @@ impl PgDossierRepository {
     }
 
     async fn save_batch(&self, dossiers: &[LegislativeDossier]) -> Result<(), RepositoryError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(db)?;
 
         for dossier in dossiers {
-            let stage_code = dossier.current_stage.map(|s| s.to_code().to_string());
+            let stage_code = dossier.current_stage().map(|s| s.to_code().to_string());
 
-            let outcome = &dossier.outcome;
+            let outcome = dossier.outcome();
             let (law_code, law_jo_date, law_url) = match outcome {
                 DossierOutcome::Promulgated { publication, .. } => (
                     publication.law_code.clone(),
@@ -132,22 +129,22 @@ impl PgDossierRepository {
                     summary = COALESCE(EXCLUDED.summary, legislative_dossiers.summary),
                     updated_at = NOW()",
             )
-            .bind(dossier.uid.as_str())
-            .bind(&dossier.title)
-            .bind(&dossier.procedure)
-            .bind(dossier.last_activity_date)
-            .bind(&dossier.last_activity_label)
-            .bind(dossier.score.progress() as i16)
-            .bind(dossier.score.magnitude() as i16)
-            .bind(dossier.score.momentum() as i16)
-            .bind(dossier.score.total() as i16)
+            .bind(dossier.uid().as_str())
+            .bind(dossier.title())
+            .bind(dossier.procedure())
+            .bind(dossier.last_activity_date())
+            .bind(dossier.last_activity_label())
+            .bind(dossier.score().progress() as i16)
+            .bind(dossier.score().magnitude() as i16)
+            .bind(dossier.score().momentum() as i16)
+            .bind(dossier.score().total() as i16)
             .bind(&stage_code)
-            .bind(dossier.committee.as_ref().map(|c| c.as_str()))
-            .bind(dossier.curation_status.as_str())
-            .bind(dossier.legislature as i16)
-            .bind(&dossier.url)
-            .bind(&dossier.summary)
-            .bind(dossier.deposit_date)
+            .bind(dossier.committee().map(|c| c.as_str()))
+            .bind(dossier.curation_status().as_str())
+            .bind(dossier.legislature() as i16)
+            .bind(dossier.url())
+            .bind(dossier.summary())
+            .bind(dossier.deposit_date())
             .bind(outcome.kind())
             .bind(outcome.date())
             .bind(&outcome_label)
@@ -158,40 +155,40 @@ impl PgDossierRepository {
             .bind(&merge_cause)
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
 
             sqlx::query("DELETE FROM legislative_acts WHERE dossier_uid = $1")
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
 
-            for act in &dossier.acts {
+            for act in dossier.acts() {
                 sqlx::query(
                     "INSERT INTO legislative_acts (dossier_uid, act_date, label, act_code) VALUES ($1, $2, $3, $4)",
                 )
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .bind(act.date)
                 .bind(&act.label)
                 .bind(&act.code)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
             }
 
             sqlx::query("DELETE FROM dossier_initiators WHERE dossier_uid = $1")
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
 
-            for initiator in &dossier.initiators {
+            for initiator in dossier.initiators() {
                 let group = initiator.group();
                 sqlx::query(
                     "INSERT INTO dossier_initiators (dossier_uid, full_name, actor_uid, actor_role, group_uid, group_abbrev, group_label, membership_quality, reference_date, official_url)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                 )
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .bind(initiator.full_name())
                 .bind(initiator.actor_uid().map(|u| u.as_str()))
                 .bind(initiator.role().map(|r| r.as_str()))
@@ -203,16 +200,16 @@ impl PgDossierRepository {
                 .bind(initiator.official_url())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
             }
 
             sqlx::query("DELETE FROM dossier_documents WHERE dossier_uid = $1")
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
 
-            for doc in &dossier.documents {
+            for doc in dossier.documents() {
                 sqlx::query(
                     "INSERT INTO dossier_documents (
                         dossier_uid, document_uid, title, short_title, doc_type, doc_date,
@@ -220,7 +217,7 @@ impl PgDossierRepository {
                         source_metadata_fingerprint, source_retrieved_at
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())",
                 )
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .bind(&doc.document_uid)
                 .bind(&doc.title)
                 .bind(&doc.short_title)
@@ -232,13 +229,11 @@ impl PgDossierRepository {
                 .bind(&doc.source_metadata_fingerprint)
                 .execute(&mut *tx)
                 .await
-                .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                .map_err(db)?;
             }
         }
 
-        tx.commit()
-            .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        tx.commit().await.map_err(db)?;
         Ok(())
     }
 
@@ -250,9 +245,9 @@ impl PgDossierRepository {
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
-        Ok(rows.into_iter().map(InitiatorRow::into_initiator).collect())
+        rows.into_iter().map(InitiatorRow::into_initiator).collect()
     }
 }
 
@@ -330,17 +325,12 @@ impl DossierRepository for PgDossierRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(rows
             .into_iter()
             .map(|r| {
-                // Le sort est reconstruit avec des champs vides: seule la
-                // variante compte ici, pas son contenu.
-                let outcome_is_final = matches!(
-                    r.outcome_kind.as_str(),
-                    "promulgated" | "withdrawn" | "merged_into"
-                );
+                let outcome_is_final = DossierOutcome::kind_is_final(&r.outcome_kind);
                 (
                     r.uid,
                     StoredDossierState {
@@ -372,12 +362,11 @@ impl DossierRepository for PgDossierRepository {
         .bind(since)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
-        Ok(rows
-            .into_iter()
+        rows.into_iter()
             .map(|r| r.into_dossier(vec![], vec![], vec![]))
-            .collect())
+            .collect()
     }
 
     async fn find_page(
@@ -394,7 +383,7 @@ impl DossierRepository for PgDossierRepository {
             .persistent(false)
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
 
         let mut query: QueryBuilder<Postgres> = QueryBuilder::new(PAGE_SELECT);
         push_criteria(&mut query, criteria);
@@ -410,13 +399,13 @@ impl DossierRepository for PgDossierRepository {
             .persistent(false)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(db)?;
 
         Ok(DossierPage {
             items: rows
                 .into_iter()
                 .map(|r| r.into_dossier(vec![], vec![], vec![]))
-                .collect(),
+                .collect::<Result<_, _>>()?,
             total,
         })
     }
@@ -439,7 +428,7 @@ impl DossierRepository for PgDossierRepository {
         .bind(uid.as_str())
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         match row {
             Some(r) => {
@@ -447,7 +436,7 @@ impl DossierRepository for PgDossierRepository {
                 let acts = self.fetch_acts(&uid_str).await?;
                 let initiators = self.fetch_initiators(&uid_str).await?;
                 let documents = self.fetch_documents(&uid_str).await?;
-                Ok(Some(r.into_dossier(acts, initiators, documents)))
+                r.into_dossier(acts, initiators, documents).map(Some)
             }
             None => Ok(None),
         }
@@ -473,12 +462,11 @@ impl DossierRepository for PgDossierRepository {
         .bind(count as i64)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
-        Ok(rows
-            .into_iter()
+        rows.into_iter()
             .map(|r| r.into_dossier(vec![], vec![], vec![]))
-            .collect())
+            .collect()
     }
 
     async fn update_curation_status(
@@ -493,7 +481,7 @@ impl DossierRepository for PgDossierRepository {
         .bind(uid.as_str())
         .execute(&self.pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(db)?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -578,10 +566,10 @@ impl DossierRow {
         acts: Vec<LegislativeAct>,
         initiators: Vec<Initiator>,
         documents: Vec<LegislativeDocument>,
-    ) -> LegislativeDossier {
+    ) -> Result<LegislativeDossier, RepositoryError> {
         let outcome = self.outcome();
-        LegislativeDossier {
-            uid: DossierUid::new(self.uid).expect("DB uid is non-empty"),
+        Ok(LegislativeDossier::new(NewLegislativeDossier {
+            uid: DossierUid::new(self.uid).map_err(invalid_row)?,
             title: self.title,
             procedure: self.procedure_label,
             legislature: self.legislature as u16,
@@ -598,7 +586,7 @@ impl DossierRow {
                 self.score_momentum as u8,
                 self.score_total as u8,
             )
-            .expect("DB scores are in valid range"),
+            .map_err(invalid_row)?,
             current_stage: self
                 .current_stage_code
                 .as_deref()
@@ -606,11 +594,13 @@ impl DossierRow {
             initiators,
             committee: self
                 .committee
-                .map(|c| Committee::new(c).expect("DB committee is non-empty")),
+                .map(Committee::new)
+                .transpose()
+                .map_err(invalid_row)?,
             curation_status: CurationStatus::parse(&self.curation_status)
                 .unwrap_or(CurationStatus::New),
             outcome,
-        }
+        }))
     }
 }
 
@@ -635,10 +625,9 @@ struct InitiatorRow {
 }
 
 impl InitiatorRow {
-    fn into_initiator(self) -> Initiator {
+    fn into_initiator(self) -> Result<Initiator, RepositoryError> {
         let name = self.full_name.clone();
-        let unresolved =
-            || Initiator::unresolved(name.clone()).expect("DB initiator name is non-empty");
+        let unresolved = || Initiator::unresolved(name.clone()).map_err(invalid_row);
 
         let Some(actor_uid) = self.actor_uid.and_then(|u| ActorUid::new(u).ok()) else {
             return unresolved();
@@ -673,7 +662,7 @@ impl InitiatorRow {
             self.reference_date,
             self.official_url,
         )
-        .unwrap_or_else(|_| unresolved())
+        .or_else(|_| unresolved())
     }
 }
 

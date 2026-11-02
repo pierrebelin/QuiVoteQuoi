@@ -40,7 +40,7 @@ impl<'a> SaveDossier<'a> {
             .await?
             .ok_or_else(|| SaveDossierError::NotFound(uid.as_str().to_string()))?;
 
-        if !refs.is_empty() && dossier.initiators.is_empty() {
+        if !refs.is_empty() && dossier.initiators().is_empty() {
             let uids: Vec<ActorUid> = refs
                 .into_iter()
                 .filter_map(|r| ActorUid::new(r).ok())
@@ -65,7 +65,9 @@ mod tests {
     use crate::application::ports::assembly_source::SourceError;
     use crate::application::ports::dossier_repository::RepositoryError;
     use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
-    use crate::domain::dossier::{CurationStatus, DossierOutcome, LegislativeDossier, Score};
+    use crate::domain::dossier::{
+        CurationStatus, DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
+    };
 
     struct FakeSource {
         dossiers: Mutex<HashMap<String, (LegislativeDossier, Vec<String>)>>,
@@ -75,14 +77,14 @@ mod tests {
     impl AssemblySource for FakeSource {
         async fn fetch_dossiers_since(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<LegislativeDossier>, SourceError> {
             unreachable!()
         }
 
         async fn fetch_dossiers_since_with_refs(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
             unreachable!()
         }
@@ -112,10 +114,7 @@ mod tests {
         async fn load_states(
             &self,
         ) -> Result<
-            std::collections::HashMap<
-                String,
-                crate::application::ports::dossier_repository::StoredDossierState,
-            >,
+            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
             RepositoryError,
         > {
             unreachable!()
@@ -126,7 +125,7 @@ mod tests {
         ) -> Result<usize, RepositoryError> {
             let mut store = self.dossiers.lock().unwrap();
             for d in dossiers {
-                store.insert(d.uid.as_str().to_string(), d.clone());
+                store.insert(d.uid().as_str().to_string(), d.clone());
             }
             Ok(dossiers.len())
         }
@@ -177,7 +176,7 @@ mod tests {
         source_map.insert(
             "D1".into(),
             (
-                LegislativeDossier {
+                LegislativeDossier::new(NewLegislativeDossier {
                     uid: DossierUid::new("D1".into()).unwrap(),
                     title: "Loi test".into(),
                     procedure: "PL".into(),
@@ -195,7 +194,7 @@ mod tests {
                     committee: None,
                     curation_status: CurationStatus::New,
                     outcome: DossierOutcome::NoRecordedConclusion,
-                },
+                }),
                 vec!["PA111111".into()],
             ),
         );
@@ -214,8 +213,8 @@ mod tests {
 
         let store = repo.dossiers.lock().unwrap();
         assert_eq!(store.len(), 1);
-        assert_eq!(store["D1"].initiators.len(), 1);
-        let initiator = &store["D1"].initiators[0];
+        assert_eq!(store["D1"].initiators().len(), 1);
+        let initiator = &store["D1"].initiators()[0];
         assert_eq!(initiator.full_name(), "Jean Dupont");
         assert_eq!(initiator.group().unwrap().abbrev, "A");
         assert_eq!(

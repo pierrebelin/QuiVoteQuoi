@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::NaiveDate;
 
 use crate::application::ports::dossier_repository::{DossierRepository, RepositoryError};
 use crate::domain::dossier::LegislativeDossier;
@@ -12,8 +12,12 @@ impl<'a> FetchRecentDossiers<'a> {
         Self { repository }
     }
 
-    pub async fn execute(&self, days: u32) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-        let since = Utc::now().date_naive() - chrono::Duration::days(days as i64);
+    pub async fn execute(
+        &self,
+        days: u32,
+        today: NaiveDate,
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        let since = today - chrono::Duration::days(days as i64);
         self.repository.find_recent(since).await
     }
 }
@@ -22,12 +26,13 @@ impl<'a> FetchRecentDossiers<'a> {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use chrono::NaiveDate;
     use std::collections::HashMap;
     use std::sync::Mutex;
 
     use crate::application::ports::dossier_repository::RepositoryError;
-    use crate::domain::dossier::{CurationStatus, DossierOutcome, DossierUid, LegislativeDossier};
+    use crate::domain::dossier::{
+        CurationStatus, DossierOutcome, DossierUid, LegislativeDossier, NewLegislativeDossier,
+    };
     use crate::domain::scoring::compute_score;
 
     struct InMemoryDossierRepository {
@@ -39,10 +44,7 @@ mod tests {
         async fn load_states(
             &self,
         ) -> Result<
-            std::collections::HashMap<
-                String,
-                crate::application::ports::dossier_repository::StoredDossierState,
-            >,
+            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
             RepositoryError,
         > {
             unreachable!()
@@ -61,10 +63,10 @@ mod tests {
             let store = self.dossiers.lock().unwrap();
             let mut result: Vec<_> = store
                 .values()
-                .filter(|d| d.last_activity_date >= since)
+                .filter(|d| d.last_activity_date() >= since)
                 .cloned()
                 .collect();
-            result.sort_by(|a, b| b.last_activity_date.cmp(&a.last_activity_date));
+            result.sort_by(|a, b| b.last_activity_date().cmp(&a.last_activity_date()));
             Ok(result)
         }
 
@@ -109,7 +111,7 @@ mod tests {
         label: &str,
     ) -> LegislativeDossier {
         let score = compute_score(title, label, 0);
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new(uid.into()).unwrap(),
             title: title.into(),
             procedure: procedure.into(),
@@ -127,7 +129,7 @@ mod tests {
             committee: None,
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     #[tokio::test]
@@ -154,9 +156,10 @@ mod tests {
             dossiers: Mutex::new(map),
         };
         let uc = FetchRecentDossiers::new(&repo);
-        let result = uc.execute(365).await.unwrap();
+        let today = NaiveDate::from_ymd_opt(2026, 6, 28).unwrap();
+        let result = uc.execute(365, today).await.unwrap();
 
-        assert_eq!(result[0].uid.as_str(), "D2");
-        assert_eq!(result[1].uid.as_str(), "D1");
+        assert_eq!(result[0].uid().as_str(), "D2");
+        assert_eq!(result[1].uid().as_str(), "D1");
     }
 }

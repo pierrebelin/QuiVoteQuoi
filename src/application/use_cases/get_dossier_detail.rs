@@ -48,7 +48,7 @@ impl<'a> GetDossierDetail<'a> {
         }
 
         if let Some((mut dossier, refs)) = self.source.fetch_dossier_by_uid_with_refs(uid).await? {
-            if !refs.is_empty() && dossier.initiators.is_empty() {
+            if !refs.is_empty() && dossier.initiators().is_empty() {
                 let uids: Vec<ActorUid> = refs
                     .into_iter()
                     .filter_map(|r| ActorUid::new(r).ok())
@@ -77,7 +77,9 @@ mod tests {
     use crate::application::ports::assembly_source::SourceError;
     use crate::application::ports::dossier_repository::RepositoryError;
     use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
-    use crate::domain::dossier::{CurationStatus, DossierOutcome, LegislativeAct, Score};
+    use crate::domain::dossier::{
+        CurationStatus, DossierOutcome, LegislativeAct, NewLegislativeDossier, Score,
+    };
 
     struct InMemoryDossierRepository {
         dossiers: Mutex<HashMap<String, LegislativeDossier>>,
@@ -88,10 +90,7 @@ mod tests {
         async fn load_states(
             &self,
         ) -> Result<
-            std::collections::HashMap<
-                String,
-                crate::application::ports::dossier_repository::StoredDossierState,
-            >,
+            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
             RepositoryError,
         > {
             unreachable!()
@@ -152,14 +151,14 @@ mod tests {
     impl AssemblySource for FakeSource {
         async fn fetch_dossiers_since(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<LegislativeDossier>, SourceError> {
             unreachable!()
         }
 
         async fn fetch_dossiers_since_with_refs(
             &self,
-            _since: NaiveDate,
+            _since: Option<NaiveDate>,
         ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
             unreachable!()
         }
@@ -182,7 +181,7 @@ mod tests {
     }
 
     fn sample_dossier() -> LegislativeDossier {
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new("DLR5L17N12345".into()).unwrap(),
             title: "Projet de loi de finances".into(),
             procedure: "PL".into(),
@@ -211,7 +210,7 @@ mod tests {
             committee: None,
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     #[tokio::test]
@@ -231,8 +230,8 @@ mod tests {
         let result = uc.execute(&uid).await.unwrap().unwrap();
 
         assert!(result.persisted);
-        assert_eq!(result.dossier.uid.as_str(), "DLR5L17N12345");
-        assert_eq!(result.dossier.acts.len(), 2);
+        assert_eq!(result.dossier.uid().as_str(), "DLR5L17N12345");
+        assert_eq!(result.dossier.acts().len(), 2);
     }
 
     #[tokio::test]
@@ -254,8 +253,8 @@ mod tests {
         let result = uc.execute(&uid).await.unwrap().unwrap();
 
         assert!(!result.persisted);
-        assert_eq!(result.dossier.initiators.len(), 1);
-        let initiator = &result.dossier.initiators[0];
+        assert_eq!(result.dossier.initiators().len(), 1);
+        let initiator = &result.dossier.initiators()[0];
         assert_eq!(initiator.full_name(), "Jean Dupont");
         assert_eq!(initiator.group().unwrap().abbrev, "A");
         assert_eq!(

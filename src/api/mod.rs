@@ -2,6 +2,7 @@ pub mod amendment_dto;
 pub mod candidate_dto;
 pub mod dossier_group_actions_dto;
 pub mod dto;
+pub mod error;
 pub mod final_vote_dto;
 pub mod group_dto;
 pub mod guide_dto;

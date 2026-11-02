@@ -8,7 +8,7 @@
 
 use bytes::{Bytes, BytesMut};
 
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
 use reqwest::header::{
@@ -95,7 +95,9 @@ struct CachedArchive {
 }
 
 pub struct ArchiveFetcher {
-    http: reqwest::Client,
+    /// Client HTTP, ou la raison pour laquelle il n'a pas pu etre construit:
+    /// le serveur demarre quand meme, et chaque telechargement le dit.
+    http: Result<reqwest::Client, String>,
     url: &'static str,
     /// Nom court pour les journaux: « dossiers », « scrutins »...
     label: &'static str,
@@ -115,12 +117,11 @@ impl ArchiveFetcher {
             // multiplexage n'apporte rien a une requete unique sur un fichier
             // statique; il n'apporte ici qu'une facon de plus d'echouer.
             .http1_only()
-            // Repris tel quel du code precedent. A reexaminer: desactiver la
-            // verification du certificat n'a de raison d'etre que si la chaine
-            // de la source est cassee, ce qui se verifie.
-            .danger_accept_invalid_certs(true)
             .build()
-            .expect("failed to build HTTP client");
+            .map_err(|e| e.to_string());
+        if let Err(error) = &http {
+            tracing::error!(%error, "{label}: HTTP client unavailable, archive downloads will fail");
+        }
 
         Self {
             http,
@@ -128,6 +129,18 @@ impl ArchiveFetcher {
             label,
             cache: Mutex::new(None),
         }
+    }
+
+    fn http(&self) -> Result<&reqwest::Client, SourceError> {
+        self.http.as_ref().map_err(|error| {
+            SourceError::Download(format!("{}: HTTP client unavailable: {error}", self.label))
+        })
+    }
+
+    /// Un verrou empoisonne garde une copie coherente: chaque ecriture du cache
+    /// est une affectation unique, qu'une panique ne peut pas laisser a moitie.
+    fn cache(&self) -> MutexGuard<'_, Option<CachedArchive>> {
+        self.cache.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
     fn decide(cached: Option<&CachedArchive>, now: Instant) -> Decision {
@@ -157,7 +170,7 @@ impl ArchiveFetcher {
     /// `None` quand rien n'est en cache, ou quand la source ne publie aucun
     /// validateur: l'appelant doit alors ingerer sans pouvoir se comparer.
     pub fn archive_id(&self) -> Option<String> {
-        let cache = self.cache.lock().unwrap();
+        let cache = self.cache();
         let cached = cache.as_ref()?;
         cached
             .validators
@@ -177,14 +190,14 @@ impl ArchiveFetcher {
     /// passage de reparser un ZIP identique.
     pub async fn fetch(&self) -> Result<Bytes, SourceError> {
         let decision = {
-            let cache = self.cache.lock().unwrap();
+            let cache = self.cache();
             Self::decide(cache.as_ref(), Instant::now())
         };
 
         let validators = match decision {
             Decision::ServeCached => {
                 tracing::debug!("Using cached {} archive", self.label);
-                let cache = self.cache.lock().unwrap();
+                let cache = self.cache();
                 // Seule la tache de rafraichissement ecrit ici, et jamais deux
                 // en parallele: la copie decidee juste au-dessus est encore la.
                 if let Some(cached) = cache.as_ref() {
@@ -196,7 +209,7 @@ impl ArchiveFetcher {
             Decision::Download => Validators::default(),
         };
 
-        let mut request = self.http.get(self.url);
+        let mut request = self.http()?.get(self.url);
         if let Some(etag) = &validators.etag {
             request = request.header(IF_NONE_MATCH, etag);
         }
@@ -216,7 +229,7 @@ impl ArchiveFetcher {
             .map_err(|e| SourceError::Download(e.to_string()))?;
 
         if response.status() == StatusCode::NOT_MODIFIED {
-            let cache = self.cache.lock().unwrap();
+            let cache = self.cache();
             let Some(cached) = cache.as_ref() else {
                 // La source repond « inchangee » a une question que seule une
                 // copie en cache permet de poser. Sans elle, il n'y a rien a
@@ -254,7 +267,7 @@ impl ArchiveFetcher {
         let data = self.download_body(response).await?;
 
         {
-            let mut cache = self.cache.lock().unwrap();
+            let mut cache = self.cache();
             *cache = Some(CachedArchive {
                 data: data.clone(),
                 fetched_at: Instant::now(),
@@ -381,7 +394,7 @@ impl ArchiveFetcher {
     /// produirait une archive corrompue, donc on refuse plutot que d'abimer.
     async fn request_from(&self, offset: u64) -> Result<reqwest::Response, SourceError> {
         let response = self
-            .http
+            .http()?
             .get(self.url)
             .header(RANGE, format!("bytes={offset}-"))
             .send()

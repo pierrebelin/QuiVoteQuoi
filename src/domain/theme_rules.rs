@@ -124,7 +124,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "financement de la sécurité sociale",
         marker: "financement de la sécurité sociale",
         whole_word: false,
-        families: &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite],
+        families: &[FamilyCode::ProtectionSocialeRetraites, FamilyCode::Sante],
         statement: "Un projet de loi de financement de la sécurité sociale fixe les recettes et \
                     les dépenses des régimes de sécurité sociale pour l'année.",
     },
@@ -132,7 +132,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "comptes de la sécurité sociale",
         marker: "approbation des comptes de la sécurité sociale",
         whole_word: false,
-        families: &[FamilyCode::SanteSocial, FamilyCode::InstitutionsProcedure],
+        families: &[FamilyCode::ProtectionSocialeRetraites, FamilyCode::Sante],
         statement: "Un projet de loi d'approbation des comptes de la sécurité sociale arrête les \
                     comptes de l'exercice écoulé des régimes de sécurité sociale.",
     },
@@ -140,10 +140,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "loi de finances",
         marker: "projet de loi de finances",
         whole_word: false,
-        families: &[
-            FamilyCode::PouvoirAchatFiscalite,
-            FamilyCode::InstitutionsProcedure,
-        ],
+        families: &[FamilyCode::EconomieFinancesPubliques],
         statement: "Un projet de loi de finances fixe les recettes et les charges de l'État pour \
                     l'année, et porte les dispositions fiscales qui s'y rattachent.",
     },
@@ -151,10 +148,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "règlement du budget",
         marker: "règlement du budget",
         whole_word: false,
-        families: &[
-            FamilyCode::PouvoirAchatFiscalite,
-            FamilyCode::InstitutionsProcedure,
-        ],
+        families: &[FamilyCode::EconomieFinancesPubliques],
         statement: "Un projet de loi de règlement du budget arrête les comptes de l'État pour \
                     l'exercice écoulé.",
     },
@@ -162,10 +156,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "programmation des finances publiques",
         marker: "programmation des finances publiques",
         whole_word: false,
-        families: &[
-            FamilyCode::PouvoirAchatFiscalite,
-            FamilyCode::InstitutionsProcedure,
-        ],
+        families: &[FamilyCode::EconomieFinancesPubliques],
         statement: "Une loi de programmation des finances publiques fixe la trajectoire \
                     pluriannuelle des recettes et des dépenses publiques.",
     },
@@ -197,7 +188,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "règlement de l'Assemblée",
         marker: "règlement de l'assemblée nationale",
         whole_word: false,
-        families: &[FamilyCode::InstitutionsProcedure],
+        families: &[FamilyCode::InstitutionsViePolitique],
         statement: "Une proposition de résolution modifiant le règlement de l'Assemblée nationale \
                     porte sur la procédure interne de l'Assemblée.",
     },
@@ -205,7 +196,7 @@ pub const RULES: [ThemeRule; 16] = [
         id: "motion de censure",
         marker: "motion de censure",
         whole_word: false,
-        families: &[FamilyCode::InstitutionsProcedure],
+        families: &[FamilyCode::InstitutionsViePolitique],
         statement: "Une motion de censure met en jeu la responsabilité du Gouvernement devant \
                     l'Assemblée nationale, selon une procédure constitutionnelle.",
     },
@@ -253,7 +244,10 @@ pub const RULES: [ThemeRule; 16] = [
         id: "fraudes sociales et fiscales",
         marker: "fraudes sociales et fiscales",
         whole_word: false,
-        families: &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite],
+        families: &[
+            FamilyCode::ProtectionSocialeRetraites,
+            FamilyCode::EconomieFinancesPubliques,
+        ],
         statement: "Un texte relatif aux fraudes sociales et fiscales porte à la fois sur les \
                     prestations sociales et sur les obligations fiscales.",
     },
@@ -283,13 +277,9 @@ mod tests {
     fn a_finance_bill_is_ruled_without_a_model() {
         let rule = rule_for(&key("projet de loi de finances pour 2026")).unwrap();
         assert_eq!(rule.id(), "loi de finances");
-        assert_eq!(
-            rule.families(),
-            [
-                FamilyCode::PouvoirAchatFiscalite,
-                FamilyCode::InstitutionsProcedure
-            ]
-        );
+        // Les finances publiques seules: la procedure budgetaire n'ajoute plus
+        // d'office une famille d'institutions.
+        assert_eq!(rule.families(), [FamilyCode::EconomieFinancesPubliques]);
     }
 
     #[test]
@@ -313,7 +303,76 @@ mod tests {
         assert_eq!(rule.id(), "financement de la sécurité sociale");
         assert_eq!(
             rule.families(),
-            [FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite]
+            [FamilyCode::ProtectionSocialeRetraites, FamilyCode::Sante]
+        );
+    }
+
+    #[test]
+    fn the_social_security_accounts_bill_goes_to_social_protection_and_health() {
+        let rule = rule_for(&key(
+            "projet de loi relatif à l'approbation des comptes de la sécurité sociale de l'année 2024",
+        ))
+        .unwrap();
+        assert_eq!(rule.id(), "comptes de la sécurité sociale");
+        assert_eq!(
+            rule.families(),
+            [FamilyCode::ProtectionSocialeRetraites, FamilyCode::Sante]
+        );
+    }
+
+    #[test]
+    fn a_budget_settlement_bill_goes_to_public_finances_alone() {
+        let rule = rule_for(&key(
+            "projet de loi de règlement du budget et d'approbation des comptes de l'année 2024",
+        ))
+        .unwrap();
+        assert_eq!(rule.id(), "règlement du budget");
+        assert_eq!(rule.families(), [FamilyCode::EconomieFinancesPubliques]);
+    }
+
+    #[test]
+    fn a_public_finances_programming_bill_goes_to_public_finances_alone() {
+        let rule = rule_for(&key(
+            "projet de loi de programmation des finances publiques pour les années 2023 à 2027",
+        ))
+        .unwrap();
+        assert_eq!(rule.id(), "programmation des finances publiques");
+        assert_eq!(rule.families(), [FamilyCode::EconomieFinancesPubliques]);
+    }
+
+    #[test]
+    fn an_assembly_rules_resolution_goes_to_institutions_and_political_life() {
+        let rule = rule_for(&key(
+            "proposition de résolution modifiant le règlement de l'Assemblée nationale",
+        ))
+        .unwrap();
+        assert_eq!(rule.id(), "règlement de l'Assemblée");
+        assert_eq!(rule.families(), [FamilyCode::InstitutionsViePolitique]);
+    }
+
+    #[test]
+    fn a_censure_motion_goes_to_institutions_and_political_life() {
+        let rule = rule_for(&key(
+            "motion de censure déposée en application de l'article 49, alinéa 3",
+        ))
+        .unwrap();
+        assert_eq!(rule.id(), "motion de censure");
+        assert_eq!(rule.families(), [FamilyCode::InstitutionsViePolitique]);
+    }
+
+    #[test]
+    fn social_and_tax_fraud_goes_to_social_protection_and_public_finances() {
+        let rule = rule_for(&key(
+            "projet de loi relatif à la lutte contre les fraudes sociales et fiscales",
+        ))
+        .unwrap();
+        assert_eq!(rule.id(), "fraudes sociales et fiscales");
+        assert_eq!(
+            rule.families(),
+            [
+                FamilyCode::ProtectionSocialeRetraites,
+                FamilyCode::EconomieFinancesPubliques
+            ]
         );
     }
 
@@ -335,7 +394,7 @@ mod tests {
         let cases = [
             (
                 "motion de censure déposée en application de l'article 49, alinéa 3",
-                &[FamilyCode::InstitutionsProcedure][..],
+                &[FamilyCode::InstitutionsViePolitique][..],
             ),
             (
                 "projet de loi relatif à l'enseignement supérieur et à la recherche",
@@ -355,7 +414,10 @@ mod tests {
             ),
             (
                 "projet de loi relatif à la lutte contre les fraudes sociales et fiscales",
-                &[FamilyCode::SanteSocial, FamilyCode::PouvoirAchatFiscalite][..],
+                &[
+                    FamilyCode::ProtectionSocialeRetraites,
+                    FamilyCode::EconomieFinancesPubliques,
+                ][..],
             ),
         ];
 
@@ -418,7 +480,7 @@ mod tests {
         let opened_on = NaiveDate::from_ymd_opt(2026, 8, 9).unwrap();
         let assignments = rule.assignments(&subject, opened_on).unwrap();
 
-        assert_eq!(assignments.len(), 2);
+        assert_eq!(assignments.len(), rule.families().len());
         for assignment in &assignments {
             assert_eq!(assignment.author(), "règle « loi de finances »");
             assert_eq!(assignment.motive(), Some(rule.statement()));

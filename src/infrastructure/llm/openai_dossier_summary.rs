@@ -3,19 +3,19 @@
 //! Le contrat est le meme que pour Claude: les faits et la validation sont
 //! partages, seul le transport fournisseur change.
 
-use std::time::Duration;
-
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
-use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupFacts, GeneratedGroupSummary,
-};
+use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
 use crate::application::ports::dossier_summary_generator::{
     DossierSummaryGenerator, SummaryGeneratorError,
 };
+use crate::domain::dossier_group_facts::DossierGroupFacts;
 
-use super::anthropic_dossier_summary::{facts_input, parse_text, response_schema, system_prompt};
+use super::anthropic_dossier_summary::{
+    facts_input, parse_text, response_schema, system_prompt, SUMMARY_MAX_OUTPUT_TOKENS,
+};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
 use super::openai_support::output_text;
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
@@ -44,7 +44,7 @@ impl OpenAiDossierSummaryGenerator {
             })
             .unwrap_or_else(|| DEFAULT_MODEL.to_string());
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(180))
+            .timeout(HTTP_TIMEOUT)
             .build()
             .ok()?;
         Some(Self {
@@ -58,7 +58,7 @@ impl OpenAiDossierSummaryGenerator {
         json!({
             "model": self.model,
             "store": false,
-            "max_output_tokens": 2400,
+            "max_output_tokens": SUMMARY_MAX_OUTPUT_TOKENS,
             "input": [
                 {
                     "role": "developer",
@@ -113,7 +113,7 @@ impl DossierSummaryGenerator for OpenAiDossierSummaryGenerator {
                 }
             };
             let status = response.status();
-            if status.as_u16() == 429 || status.is_server_error() {
+            if is_retryable(status) {
                 last_error = SummaryGeneratorError::Call(format!("HTTP {status}"));
                 backoff(attempt).await;
                 continue;
@@ -121,13 +121,7 @@ impl DossierSummaryGenerator for OpenAiDossierSummaryGenerator {
             if !status.is_success() {
                 return Err(SummaryGeneratorError::Call(format!(
                     "HTTP {status}: {}",
-                    response
-                        .text()
-                        .await
-                        .unwrap_or_default()
-                        .chars()
-                        .take(300)
-                        .collect::<String>()
+                    truncate_detail(&response.text().await.unwrap_or_default())
                 )));
             }
             let payload: Value = response
@@ -150,13 +144,10 @@ impl DossierSummaryGenerator for OpenAiDossierSummaryGenerator {
     }
 }
 
-async fn backoff(attempt: u32) {
-    tokio::time::sleep(Duration::from_millis(500 * 2u64.pow(attempt - 1))).await;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::dossier::DossierUid;
 
     #[test]
     fn request_uses_strict_structured_output_without_storage() {
@@ -166,7 +157,7 @@ mod tests {
             model: "gpt-test".into(),
         };
         let facts = DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Dossier".into(),
             official_url: None,
             legislature: 17,

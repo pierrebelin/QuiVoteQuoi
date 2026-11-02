@@ -1,12 +1,12 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::domain::actor::{
+use super::actor::{
     ActorDirectory, ActorRole, ActorUid, GroupUid, MembershipQuality, ParliamentaryGroup,
 };
 
-#[derive(Debug, thiserror::Error)]
-pub enum DomainError {
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum DossierError {
     #[error("dossier uid must not be empty")]
     EmptyDossierUid,
     #[error("an initiator group must always carry its reference date")]
@@ -29,9 +29,9 @@ pub enum DomainError {
 pub struct DossierUid(String);
 
 impl DossierUid {
-    pub fn new(raw: String) -> Result<Self, DomainError> {
-        if raw.is_empty() {
-            return Err(DomainError::EmptyDossierUid);
+    pub fn new(raw: String) -> Result<Self, DossierError> {
+        if raw.trim().is_empty() {
+            return Err(DossierError::EmptyDossierUid);
         }
         Ok(Self(raw))
     }
@@ -51,9 +51,9 @@ impl std::fmt::Display for DossierUid {
 pub struct Committee(String);
 
 impl Committee {
-    pub fn new(raw: String) -> Result<Self, DomainError> {
-        if raw.is_empty() {
-            return Err(DomainError::EmptyCommittee);
+    pub fn new(raw: String) -> Result<Self, DossierError> {
+        if raw.trim().is_empty() {
+            return Err(DossierError::EmptyCommittee);
         }
         Ok(Self(raw))
     }
@@ -97,18 +97,18 @@ pub struct Score {
 }
 
 impl Score {
-    pub fn new(progress: u8, magnitude: u8, momentum: u8, total: u8) -> Result<Self, DomainError> {
+    pub fn new(progress: u8, magnitude: u8, momentum: u8, total: u8) -> Result<Self, DossierError> {
         if progress > 10 {
-            return Err(DomainError::InvalidProgress(progress));
+            return Err(DossierError::InvalidProgress(progress));
         }
         if magnitude > 10 {
-            return Err(DomainError::InvalidMagnitude(magnitude));
+            return Err(DossierError::InvalidMagnitude(magnitude));
         }
         if momentum > 10 {
-            return Err(DomainError::InvalidMomentum(momentum));
+            return Err(DossierError::InvalidMomentum(momentum));
         }
         if total > 100 {
-            return Err(DomainError::InvalidTotal(total));
+            return Err(DossierError::InvalidTotal(total));
         }
         Ok(Self {
             progress,
@@ -252,9 +252,9 @@ pub struct Initiator {
 impl Initiator {
     /// Initiateur non resolu: le nom brut est conserve, aucun groupe n'est
     /// devine (RM-04).
-    pub fn unresolved(full_name: String) -> Result<Self, DomainError> {
-        if full_name.is_empty() {
-            return Err(DomainError::EmptyInitiatorName);
+    pub fn unresolved(full_name: String) -> Result<Self, DossierError> {
+        if full_name.trim().is_empty() {
+            return Err(DossierError::EmptyInitiatorName);
         }
         Ok(Self {
             full_name,
@@ -276,12 +276,12 @@ impl Initiator {
         group: Option<InitiatorGroup>,
         reference_date: Option<NaiveDate>,
         official_url: Option<String>,
-    ) -> Result<Self, DomainError> {
-        if full_name.is_empty() {
-            return Err(DomainError::EmptyInitiatorName);
+    ) -> Result<Self, DossierError> {
+        if full_name.trim().is_empty() {
+            return Err(DossierError::EmptyInitiatorName);
         }
         if group.is_some() && reference_date.is_none() {
-            return Err(DomainError::GroupWithoutReferenceDate);
+            return Err(DossierError::GroupWithoutReferenceDate);
         }
         Ok(Self {
             full_name,
@@ -318,7 +318,27 @@ impl Initiator {
     pub fn official_url(&self) -> Option<&str> {
         self.official_url.as_deref()
     }
+
+    /// Initiateur d'un dossier dont la source ne nomme aucun acteur.
+    ///
+    /// Un projet de loi vient du gouvernement: la source ne liste alors aucun
+    /// depute, et l'initiateur est le gouvernement lui-meme, sans acteur ni
+    /// groupe. Toute autre initiative, ou une initiative inconnue, ne donne
+    /// rien: l'initiateur absent n'est jamais devine.
+    pub fn default_for(initiative: Option<Initiative>, has_initiator_refs: bool) -> Vec<Self> {
+        if initiative == Some(Initiative::Government) && !has_initiator_refs {
+            Self::unresolved(GOVERNMENT_INITIATOR_NAME.to_string())
+                .into_iter()
+                .collect()
+        } else {
+            vec![]
+        }
+    }
 }
+
+/// Nom porte par l'initiateur d'un projet de loi que la source ne rattache a
+/// aucun acteur.
+pub const GOVERNMENT_INITIATOR_NAME: &str = "Gouvernement";
 
 /// Qui a depose le texte, lu dans le libelle de procedure de la source.
 ///
@@ -447,14 +467,34 @@ impl DossierOutcome {
         )
     }
 
+    /// Codes de sort tels que `kind()` les rend et que la base les stocke.
+    /// Partages entre `kind()` et `kind_is_final()`: une seule ecriture de
+    /// chaque code.
+    const KIND_PROMULGATED: &'static str = "promulgated";
+    const KIND_WITHDRAWN: &'static str = "withdrawn";
+    const KIND_MERGED_INTO: &'static str = "merged_into";
+    const KIND_REJECTED: &'static str = "rejected";
+    const KIND_NO_RECORDED_CONCLUSION: &'static str = "no_recorded_conclusion";
+
     pub fn kind(&self) -> &'static str {
         match self {
-            Self::Promulgated { .. } => "promulgated",
-            Self::Withdrawn { .. } => "withdrawn",
-            Self::MergedInto { .. } => "merged_into",
-            Self::Rejected { .. } => "rejected",
-            Self::NoRecordedConclusion => "no_recorded_conclusion",
+            Self::Promulgated { .. } => Self::KIND_PROMULGATED,
+            Self::Withdrawn { .. } => Self::KIND_WITHDRAWN,
+            Self::MergedInto { .. } => Self::KIND_MERGED_INTO,
+            Self::Rejected { .. } => Self::KIND_REJECTED,
+            Self::NoRecordedConclusion => Self::KIND_NO_RECORDED_CONCLUSION,
         }
+    }
+
+    /// Vrai quand le code de sort stocke, celui que rend `kind()`, designe un
+    /// sort definitif (voir `is_final`). Le contenu de la variante n'est pas
+    /// necessaire pour le savoir: un sort promulgue reste definitif meme si sa
+    /// date manque en base. Un code inconnu n'est pas definitif.
+    pub fn kind_is_final(kind: &str) -> bool {
+        matches!(
+            kind,
+            Self::KIND_PROMULGATED | Self::KIND_WITHDRAWN | Self::KIND_MERGED_INTO
+        )
     }
 
     pub fn date(&self) -> Option<NaiveDate> {
@@ -469,6 +509,33 @@ impl DossierOutcome {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LegislativeDossier {
+    uid: DossierUid,
+    title: String,
+    procedure: String,
+    legislature: u16,
+    url: Option<String>,
+    summary: Option<String>,
+    /// Date de depot du texte. Date de reference du rattachement des
+    /// initiateurs a leur groupe (RM-01).
+    deposit_date: Option<NaiveDate>,
+    last_activity_date: NaiveDate,
+    last_activity_label: String,
+    acts: Vec<LegislativeAct>,
+    documents: Vec<LegislativeDocument>,
+    score: Score,
+    current_stage: Option<LegislativeStage>,
+    initiators: Vec<Initiator>,
+    committee: Option<Committee>,
+    curation_status: CurationStatus,
+    outcome: DossierOutcome,
+}
+
+/// Elements d'un dossier legislatif, tels que lus dans la source ou en base.
+///
+/// Une struct plutot que dix-sept parametres positionnels: le champ est nomme
+/// au site d'appel, et un oubli se voit a la compilation.
+#[derive(Debug, Clone)]
+pub struct NewLegislativeDossier {
     pub uid: DossierUid,
     pub title: String,
     pub procedure: String,
@@ -505,7 +572,191 @@ pub struct InitiatorAttachment {
     pub missing_deposit_date: bool,
 }
 
+/// Ce que la base sait deja d'un dossier, lu avant toute reecriture.
+///
+/// Le rafraichissement compare cet etat a celui de la source pour n'ecrire
+/// que ce qui a bouge : reecrire les 3 035 dossiers coute une quinzaine
+/// d'allers-retours chacun sur la base PostgreSQL locale du VPS.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StoredDossierState {
+    pub last_activity_date: NaiveDate,
+    pub act_count: usize,
+    /// Sort qui ne peut plus changer (promulgation, retrait, fusion).
+    pub outcome_is_final: bool,
+}
+
+/// Ce qu'un rafraichissement fait d'un dossier lu dans la source.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WriteDecision {
+    /// Dossier absent de la base, ou dont la source a bouge: a reecrire.
+    Write,
+    /// Sort definitif deja stocke: plus rien ne peut changer.
+    SkipFinal,
+    /// Dernier acte et nombre d'actes inchanges depuis la derniere ingestion.
+    SkipUnchanged,
+}
+
+/// Periode qu'un dossier couvre, du premier fait date a la derniere activite.
+///
+/// Elle borne les groupes parlementaires dont l'existence recoupe le dossier.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DossierPeriod {
+    start: NaiveDate,
+    end: NaiveDate,
+}
+
+impl DossierPeriod {
+    /// Le debut est la plus ancienne des dates connues parmi le depot, le
+    /// premier document et le premier acte; sans aucune de ces dates, la
+    /// periode se resume a la derniere activite. La fin est toujours la
+    /// derniere activite.
+    ///
+    /// Une date absente n'est jamais devinee: elle est ignoree, et seule
+    /// l'absence de toutes ramene le debut a la derniere activite.
+    pub fn from_dates(
+        deposit_date: Option<NaiveDate>,
+        first_document_date: Option<NaiveDate>,
+        first_act_date: Option<NaiveDate>,
+        last_activity_date: NaiveDate,
+    ) -> Self {
+        let start = [deposit_date, first_document_date, first_act_date]
+            .into_iter()
+            .flatten()
+            .min()
+            .unwrap_or(last_activity_date);
+
+        Self {
+            start,
+            end: last_activity_date,
+        }
+    }
+
+    pub fn start(&self) -> NaiveDate {
+        self.start
+    }
+
+    pub fn end(&self) -> NaiveDate {
+        self.end
+    }
+}
+
 impl LegislativeDossier {
+    /// Assemble le dossier a partir de ses elements. Infaillible: chaque champ
+    /// est deja type, aucun invariant ne se cumule entre eux.
+    pub fn new(parts: NewLegislativeDossier) -> Self {
+        Self {
+            uid: parts.uid,
+            title: parts.title,
+            procedure: parts.procedure,
+            legislature: parts.legislature,
+            url: parts.url,
+            summary: parts.summary,
+            deposit_date: parts.deposit_date,
+            last_activity_date: parts.last_activity_date,
+            last_activity_label: parts.last_activity_label,
+            acts: parts.acts,
+            documents: parts.documents,
+            score: parts.score,
+            current_stage: parts.current_stage,
+            initiators: parts.initiators,
+            committee: parts.committee,
+            curation_status: parts.curation_status,
+            outcome: parts.outcome,
+        }
+    }
+
+    pub fn uid(&self) -> &DossierUid {
+        &self.uid
+    }
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+    pub fn procedure(&self) -> &str {
+        &self.procedure
+    }
+    pub fn legislature(&self) -> u16 {
+        self.legislature
+    }
+    pub fn url(&self) -> Option<&str> {
+        self.url.as_deref()
+    }
+    pub fn summary(&self) -> Option<&str> {
+        self.summary.as_deref()
+    }
+    pub fn deposit_date(&self) -> Option<NaiveDate> {
+        self.deposit_date
+    }
+    pub fn last_activity_date(&self) -> NaiveDate {
+        self.last_activity_date
+    }
+    pub fn last_activity_label(&self) -> &str {
+        &self.last_activity_label
+    }
+    pub fn acts(&self) -> &[LegislativeAct] {
+        &self.acts
+    }
+    pub fn documents(&self) -> &[LegislativeDocument] {
+        &self.documents
+    }
+    pub fn score(&self) -> &Score {
+        &self.score
+    }
+    pub fn current_stage(&self) -> Option<LegislativeStage> {
+        self.current_stage
+    }
+    pub fn initiators(&self) -> &[Initiator] {
+        &self.initiators
+    }
+    pub fn committee(&self) -> Option<&Committee> {
+        self.committee.as_ref()
+    }
+    pub fn curation_status(&self) -> CurationStatus {
+        self.curation_status
+    }
+    pub fn outcome(&self) -> &DossierOutcome {
+        &self.outcome
+    }
+
+    /// Remplace l'etat de curation du dossier (nouveau, retenu, ecarte, publie).
+    pub fn change_curation_status(&mut self, status: CurationStatus) {
+        self.curation_status = status;
+    }
+
+    /// Un dossier n'est reecrit que si la source a bouge.
+    ///
+    /// Deux raisons de sauter, dans cet ordre:
+    ///
+    /// 1. le sort stocke est definitif (promulgation, retrait, fusion) — il ne
+    ///    peut plus changer, quoi que la source republie;
+    /// 2. le dernier acte et le nombre d'actes sont identiques a ce qui est
+    ///    stocke — rien n'a bouge.
+    ///
+    /// L'anciennete n'est deliberement pas un critere: une proposition de loi
+    /// dormante depuis deux ans peut etre inscrite a l'ordre du jour du jour au
+    /// lendemain. La sauter sur son age figerait sa page au moment ou elle
+    /// redevient interessante, sans rien economiser de plus que la regle 2 —
+    /// qui la saute deja tant qu'elle dort.
+    ///
+    /// Limite connue: une correction de titre ou de resume qui ne toucherait
+    /// aucun acte n'est pas detectee. Une reecriture complete la rattrape.
+    pub fn write_decision(&self, stored: Option<&StoredDossierState>) -> WriteDecision {
+        let Some(stored) = stored else {
+            return WriteDecision::Write;
+        };
+
+        if stored.outcome_is_final {
+            return WriteDecision::SkipFinal;
+        }
+
+        if stored.last_activity_date == self.last_activity_date
+            && stored.act_count == self.acts.len()
+        {
+            return WriteDecision::SkipUnchanged;
+        }
+
+        WriteDecision::Write
+    }
+
     /// Rattache chaque initiateur au groupe qu'il avait a la date de depot.
     ///
     /// Sans date de depot, l'identite de l'acteur est conservee mais aucun
@@ -532,7 +783,7 @@ impl LegislativeDossier {
                     // groupe utilisable, seul l'acteur nous interesse ici.
                     directory
                         .actor(actor_ref)
-                        .map(|actor| crate::domain::actor::ActorAtDate {
+                        .map(|actor| super::actor::ActorAtDate {
                             actor,
                             group: None,
                             quality: None,
@@ -593,7 +844,7 @@ mod tests {
     use crate::domain::actor::{Actor, GroupMembership, MembershipPeriod};
 
     fn dossier_deposited_on(deposit_date: Option<NaiveDate>) -> LegislativeDossier {
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new("D1".into()).unwrap(),
             title: "Loi test".into(),
             procedure: "Proposition de loi".into(),
@@ -611,7 +862,7 @@ mod tests {
             committee: None,
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     fn directory_with_group_change() -> ActorDirectory {
@@ -764,7 +1015,18 @@ mod tests {
 
     #[test]
     fn dossier_uid_rejects_empty() {
-        assert!(DossierUid::new("".into()).is_err());
+        assert_eq!(
+            DossierUid::new("".into()).unwrap_err(),
+            DossierError::EmptyDossierUid
+        );
+    }
+
+    #[test]
+    fn dossier_uid_rejects_blank() {
+        assert_eq!(
+            DossierUid::new(" \t".into()).unwrap_err(),
+            DossierError::EmptyDossierUid
+        );
     }
 
     #[test]
@@ -775,10 +1037,22 @@ mod tests {
 
     #[test]
     fn score_rejects_out_of_range() {
-        assert!(Score::new(11, 5, 5, 50).is_err());
-        assert!(Score::new(5, 11, 5, 50).is_err());
-        assert!(Score::new(5, 5, 11, 50).is_err());
-        assert!(Score::new(5, 5, 5, 101).is_err());
+        assert_eq!(
+            Score::new(11, 5, 5, 50).unwrap_err(),
+            DossierError::InvalidProgress(11)
+        );
+        assert_eq!(
+            Score::new(5, 11, 5, 50).unwrap_err(),
+            DossierError::InvalidMagnitude(11)
+        );
+        assert_eq!(
+            Score::new(5, 5, 11, 50).unwrap_err(),
+            DossierError::InvalidMomentum(11)
+        );
+        assert_eq!(
+            Score::new(5, 5, 5, 101).unwrap_err(),
+            DossierError::InvalidTotal(101)
+        );
     }
 
     #[test]
@@ -798,7 +1072,34 @@ mod tests {
 
     #[test]
     fn initiator_rejects_empty_name() {
-        assert!(Initiator::unresolved("".into()).is_err());
+        assert_eq!(
+            Initiator::unresolved("".into()).unwrap_err(),
+            DossierError::EmptyInitiatorName
+        );
+    }
+
+    #[test]
+    fn initiator_rejects_blank_name() {
+        assert_eq!(
+            Initiator::unresolved(" \t".into()).unwrap_err(),
+            DossierError::EmptyInitiatorName
+        );
+    }
+
+    #[test]
+    fn resolved_initiator_rejects_blank_name() {
+        assert_eq!(
+            Initiator::resolved(
+                " \t".into(),
+                ActorUid::new("PA1".into()).unwrap(),
+                ActorRole::Deputy,
+                None,
+                None,
+                None,
+            )
+            .unwrap_err(),
+            DossierError::EmptyInitiatorName
+        );
     }
 
     #[test]
@@ -864,7 +1165,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(DomainError::GroupWithoutReferenceDate)
+            Err(DossierError::GroupWithoutReferenceDate)
         ));
     }
 
@@ -886,7 +1187,18 @@ mod tests {
 
     #[test]
     fn committee_rejects_empty() {
-        assert!(Committee::new("".into()).is_err());
+        assert_eq!(
+            Committee::new("".into()).unwrap_err(),
+            DossierError::EmptyCommittee
+        );
+    }
+
+    #[test]
+    fn committee_rejects_blank() {
+        assert_eq!(
+            Committee::new(" \t".into()).unwrap_err(),
+            DossierError::EmptyCommittee
+        );
     }
 
     #[test]
@@ -937,6 +1249,46 @@ mod tests {
     #[test]
     fn an_absent_conclusion_is_not_final() {
         assert!(!DossierOutcome::NoRecordedConclusion.is_final());
+    }
+
+    #[test]
+    fn a_stored_kind_is_final_exactly_when_its_outcome_is() {
+        let outcomes = [
+            DossierOutcome::Promulgated {
+                date: outcome_date(),
+                publication: LawPublication {
+                    law_code: None,
+                    jo_date: None,
+                    legifrance_url: None,
+                },
+            },
+            DossierOutcome::Withdrawn {
+                date: outcome_date(),
+            },
+            DossierOutcome::MergedInto {
+                dossier_uid: DossierUid::new("DLR5L17N54344".into()).unwrap(),
+                cause: None,
+            },
+            DossierOutcome::Rejected {
+                date: outcome_date(),
+                label: "rejet\u{00e9}".into(),
+            },
+            DossierOutcome::NoRecordedConclusion,
+        ];
+
+        for outcome in outcomes {
+            assert_eq!(
+                DossierOutcome::kind_is_final(outcome.kind()),
+                outcome.is_final(),
+                "{}",
+                outcome.kind()
+            );
+        }
+    }
+
+    #[test]
+    fn an_unknown_stored_kind_is_not_final() {
+        assert!(!DossierOutcome::kind_is_final("unknown"));
     }
 
     #[test]
@@ -1016,6 +1368,24 @@ mod tests {
     }
 
     #[test]
+    fn stage_round_trips_through_its_code() {
+        for stage in [
+            LegislativeStage::FirstReadingAN,
+            LegislativeStage::FirstReadingSenate,
+            LegislativeStage::SecondReadingAN,
+            LegislativeStage::SecondReadingSenate,
+            LegislativeStage::JointCommittee,
+            LegislativeStage::NewReadingAN,
+            LegislativeStage::NewReadingSenate,
+            LegislativeStage::FinalReading,
+            LegislativeStage::ConstitutionalReview,
+            LegislativeStage::Promulgation,
+        ] {
+            assert_eq!(LegislativeStage::from_code(stage.to_code()), Some(stage));
+        }
+    }
+
+    #[test]
     fn stage_from_unknown_code_returns_none() {
         assert_eq!(LegislativeStage::from_code("UNKNOWN"), None);
         assert_eq!(LegislativeStage::from_code("AN1-DEPOT"), None);
@@ -1028,7 +1398,7 @@ mod tests {
     }
 
     #[test]
-    fn chamber_assignment() {
+    fn each_stage_maps_to_the_chamber_that_holds_it() {
         assert_eq!(
             LegislativeStage::FirstReadingAN.chamber(),
             Chamber::AssembleeNationale
@@ -1039,5 +1409,267 @@ mod tests {
         );
         assert_eq!(LegislativeStage::JointCommittee.chamber(), Chamber::Joint);
         assert_eq!(LegislativeStage::Promulgation.chamber(), Chamber::None);
+    }
+
+    #[test]
+    fn government_bill_without_initiator_reference_defaults_to_the_government() {
+        let initiators = Initiator::default_for(Some(Initiative::Government), false);
+
+        assert_eq!(initiators.len(), 1);
+        assert_eq!(initiators[0].full_name(), GOVERNMENT_INITIATOR_NAME);
+        assert_eq!(initiators[0].full_name(), "Gouvernement");
+        assert!(initiators[0].actor_uid().is_none());
+        assert!(initiators[0].group().is_none());
+    }
+
+    #[test]
+    fn government_bill_with_initiator_references_gets_no_default_initiator() {
+        let initiators = Initiator::default_for(Some(Initiative::Government), true);
+
+        assert!(initiators.is_empty());
+    }
+
+    #[test]
+    fn parliamentary_bill_without_initiator_reference_gets_no_default_initiator() {
+        let initiators = Initiator::default_for(Some(Initiative::Parliamentary), false);
+
+        assert!(initiators.is_empty());
+    }
+
+    #[test]
+    fn procedure_without_known_initiative_gets_no_default_initiator() {
+        let initiators = Initiator::default_for(None, false);
+
+        assert!(initiators.is_empty());
+    }
+
+    fn date(year: i32, month: u32, day: u32) -> NaiveDate {
+        NaiveDate::from_ymd_opt(year, month, day).unwrap()
+    }
+
+    fn act_on(date: NaiveDate) -> LegislativeAct {
+        LegislativeAct {
+            date,
+            label: "Acte".into(),
+            code: None,
+        }
+    }
+
+    /// Dossier de la source: derniere activite le 13 mai 2025, deux actes.
+    fn source_dossier_with_two_acts() -> LegislativeDossier {
+        let mut dossier = dossier_deposited_on(None);
+        dossier.acts = vec![act_on(date(2025, 4, 1)), act_on(date(2025, 5, 13))];
+        dossier
+    }
+
+    fn stored_state(
+        last_activity_date: NaiveDate,
+        act_count: usize,
+        outcome_is_final: bool,
+    ) -> StoredDossierState {
+        StoredDossierState {
+            last_activity_date,
+            act_count,
+            outcome_is_final,
+        }
+    }
+
+    #[test]
+    fn dossier_absent_from_the_database_is_written() {
+        let dossier = source_dossier_with_two_acts();
+
+        assert_eq!(dossier.write_decision(None), WriteDecision::Write);
+    }
+
+    #[test]
+    fn dossier_with_a_final_outcome_is_skipped_even_when_the_source_moved() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2024, 1, 1), 1, true);
+
+        assert_eq!(
+            dossier.write_decision(Some(&stored)),
+            WriteDecision::SkipFinal
+        );
+    }
+
+    #[test]
+    fn dossier_with_a_final_outcome_and_unchanged_acts_is_counted_as_final_not_unchanged() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 13), 2, true);
+
+        assert_eq!(
+            dossier.write_decision(Some(&stored)),
+            WriteDecision::SkipFinal
+        );
+    }
+
+    #[test]
+    fn dossier_with_same_last_activity_and_act_count_is_skipped_as_unchanged() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 13), 2, false);
+
+        assert_eq!(
+            dossier.write_decision(Some(&stored)),
+            WriteDecision::SkipUnchanged
+        );
+    }
+
+    #[test]
+    fn dossier_with_an_inserted_act_on_the_same_date_is_written() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 13), 1, false);
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn dossier_with_a_different_last_activity_date_is_written() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = stored_state(date(2025, 5, 12), 2, false);
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn dormant_dossier_is_judged_on_its_acts_not_on_its_age() {
+        let mut dossier = source_dossier_with_two_acts();
+        dossier.last_activity_date = date(2022, 1, 1);
+        let unchanged = stored_state(date(2022, 1, 1), 2, false);
+        let revived = stored_state(date(2022, 1, 1), 1, false);
+
+        assert_eq!(
+            dossier.write_decision(Some(&unchanged)),
+            WriteDecision::SkipUnchanged
+        );
+        assert_eq!(dossier.write_decision(Some(&revived)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn period_starts_on_the_deposit_date_when_it_is_the_only_known_date() {
+        let period =
+            DossierPeriod::from_dates(Some(date(2024, 3, 1)), None, None, date(2025, 5, 13));
+
+        assert_eq!(period.start(), date(2024, 3, 1));
+        assert_eq!(period.end(), date(2025, 5, 13));
+    }
+
+    #[test]
+    fn period_starts_on_the_first_document_when_it_precedes_the_deposit() {
+        let period = DossierPeriod::from_dates(
+            Some(date(2024, 3, 1)),
+            Some(date(2024, 2, 10)),
+            Some(date(2024, 4, 1)),
+            date(2025, 5, 13),
+        );
+
+        assert_eq!(period.start(), date(2024, 2, 10));
+    }
+
+    #[test]
+    fn period_starts_on_the_oldest_act_when_it_precedes_every_other_date() {
+        let period = DossierPeriod::from_dates(
+            Some(date(2024, 3, 1)),
+            Some(date(2024, 2, 10)),
+            Some(date(2024, 1, 5)),
+            date(2025, 5, 13),
+        );
+
+        assert_eq!(period.start(), date(2024, 1, 5));
+    }
+
+    #[test]
+    fn period_without_any_known_date_collapses_onto_the_last_activity() {
+        let period = DossierPeriod::from_dates(None, None, None, date(2025, 5, 13));
+
+        assert_eq!(period.start(), date(2025, 5, 13));
+        assert_eq!(period.end(), date(2025, 5, 13));
+    }
+
+    #[test]
+    fn period_ignores_a_missing_deposit_date_instead_of_guessing_one() {
+        let period = DossierPeriod::from_dates(
+            None,
+            Some(date(2024, 6, 1)),
+            Some(date(2024, 7, 1)),
+            date(2025, 5, 13),
+        );
+
+        assert_eq!(period.start(), date(2024, 6, 1));
+    }
+
+    #[test]
+    fn new_dossier_exposes_every_given_part_through_its_getters() {
+        let document = LegislativeDocument {
+            document_uid: "PIONANR5L17B0001".into(),
+            title: "Proposition de loi".into(),
+            short_title: None,
+            doc_type: "Proposition de loi".into(),
+            date: Some(date(2025, 5, 13)),
+            official_url: None,
+            source_archive_url: None,
+            source_license: None,
+            source_metadata_fingerprint: None,
+            source_retrieved_at: None,
+        };
+        let initiator = Initiator::unresolved("Jean Dupont".into()).unwrap();
+
+        let dossier = LegislativeDossier::new(NewLegislativeDossier {
+            uid: DossierUid::new("DLR5L17N1".into()).unwrap(),
+            title: "Loi test".into(),
+            procedure: "Proposition de loi".into(),
+            legislature: 17,
+            url: Some("https://example.test/dossier".into()),
+            summary: Some("Resume".into()),
+            deposit_date: Some(date(2025, 5, 13)),
+            last_activity_date: date(2025, 6, 2),
+            last_activity_label: "Reunion".into(),
+            acts: vec![act_on(date(2025, 5, 13)), act_on(date(2025, 6, 2))],
+            documents: vec![document],
+            score: Score::new(2, 4, 2, 23).unwrap(),
+            current_stage: Some(LegislativeStage::FirstReadingAN),
+            initiators: vec![initiator],
+            committee: Some(Committee::new("Finances".into()).unwrap()),
+            curation_status: CurationStatus::Selected,
+            outcome: DossierOutcome::Withdrawn {
+                date: date(2025, 7, 1),
+            },
+        });
+
+        assert_eq!(dossier.uid().as_str(), "DLR5L17N1");
+        assert_eq!(dossier.title(), "Loi test");
+        assert_eq!(dossier.procedure(), "Proposition de loi");
+        assert_eq!(dossier.legislature(), 17);
+        assert_eq!(dossier.url(), Some("https://example.test/dossier"));
+        assert_eq!(dossier.summary(), Some("Resume"));
+        assert_eq!(dossier.deposit_date(), Some(date(2025, 5, 13)));
+        assert_eq!(dossier.last_activity_date(), date(2025, 6, 2));
+        assert_eq!(dossier.last_activity_label(), "Reunion");
+        assert_eq!(dossier.acts().len(), 2);
+        assert_eq!(dossier.documents()[0].document_uid, "PIONANR5L17B0001");
+        assert_eq!(dossier.score().total(), 23);
+        assert_eq!(
+            dossier.current_stage(),
+            Some(LegislativeStage::FirstReadingAN)
+        );
+        assert_eq!(dossier.initiators()[0].full_name(), "Jean Dupont");
+        assert_eq!(dossier.committee().map(Committee::as_str), Some("Finances"));
+        assert_eq!(dossier.curation_status(), CurationStatus::Selected);
+        assert_eq!(
+            *dossier.outcome(),
+            DossierOutcome::Withdrawn {
+                date: date(2025, 7, 1)
+            }
+        );
+    }
+
+    #[test]
+    fn changing_the_curation_status_replaces_it_and_leaves_the_rest_untouched() {
+        let mut dossier = dossier_deposited_on(Some(date(2025, 5, 13)));
+
+        dossier.change_curation_status(CurationStatus::Dismissed);
+
+        assert_eq!(dossier.curation_status(), CurationStatus::Dismissed);
+        assert_eq!(dossier.uid().as_str(), "D1");
+        assert_eq!(dossier.deposit_date(), Some(date(2025, 5, 13)));
     }
 }

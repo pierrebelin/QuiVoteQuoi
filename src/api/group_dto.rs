@@ -66,8 +66,8 @@ impl From<GroupSummary> for GroupSummaryDto {
     fn from(summary: GroupSummary) -> Self {
         Self {
             dissolved: summary.is_dissolved(),
-            first_scrutin_date: summary.window.map(|window| window.first),
-            last_scrutin_date: summary.window.map(|window| window.last),
+            first_scrutin_date: summary.window.map(|window| window.first()),
+            last_scrutin_date: summary.window.map(|window| window.last()),
             uid: summary.uid,
             abbrev: summary.abbrev,
             former_abbrevs: summary.former_abbrevs,
@@ -130,8 +130,8 @@ pub struct MemberCountRangeDto {
 impl From<MemberCountRange> for MemberCountRangeDto {
     fn from(range: MemberCountRange) -> Self {
         Self {
-            min: range.min,
-            max: range.max,
+            min: range.min(),
+            max: range.max(),
             stable: range.is_stable(),
         }
     }

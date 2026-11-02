@@ -1,10 +1,12 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
-use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupFacts, FinalVoteFact, GroupFacts, StoredGroupSummary, SummaryStatus,
-};
 use crate::application::use_cases::get_dossier_group_actions::DossierGroupActions;
+use crate::domain::dossier_group_facts::{DossierGroupFacts, FinalVoteFact, GroupFacts};
+use crate::domain::dossier_summary::{
+    GroupSummaryState, StoredGroupSummary, SummarySource, SummaryStatus,
+};
+use crate::domain::scrutin::scrutin_official_url;
 
 #[derive(Serialize)]
 pub struct DossierGroupActionsResponse {
@@ -114,12 +116,12 @@ impl DossierGroupActionsResponse {
             .into_iter()
             .map(|group| {
                 let summary = summary_by_group.get(&group.uid);
-                group_dto(&dossier_uid, legislature, group, summary)
+                group_dto(dossier_uid.as_str(), legislature, group, summary)
             })
             .collect();
 
         Self {
-            dossier_uid,
+            dossier_uid: dossier_uid.to_string(),
             period_start,
             period_end,
             groups,
@@ -138,7 +140,7 @@ fn group_dto(
     group: GroupFacts,
     stored: Option<&StoredGroupSummary>,
 ) -> GroupActionsDto {
-    let has_actions = !group.final_votes.is_empty() || !group.amendments.is_empty();
+    let has_actions = group.has_actions();
     let summary = stored
         .filter(|summary| summary.status == SummaryStatus::Ready)
         .and_then(|summary| {
@@ -152,24 +154,20 @@ fn group_dto(
                 sources: summary.sources.iter().map(SummarySourceDto::from).collect(),
             })
         });
-    let state = if !has_actions {
-        "no_data"
-    } else if summary.is_some() {
-        "ready"
-    } else if stored.is_some_and(|summary| summary.status == SummaryStatus::Pending) {
-        "summary_pending"
-    } else {
-        "summary_unavailable"
-    };
+    let state = GroupSummaryState::new(
+        has_actions,
+        summary.is_some(),
+        stored.map(|summary| &summary.status),
+    );
 
     GroupActionsDto {
-        uid: group.uid.clone(),
+        uid: group.uid.to_string(),
         abbrev: group.abbrev,
         label: group.label,
         color: group.color,
         start_date: group.start_date,
         end_date: group.end_date,
-        state,
+        state: state.as_str(),
         summary,
         final_votes: group
             .final_votes
@@ -181,12 +179,8 @@ fn group_dto(
     }
 }
 
-impl From<&crate::application::ports::dossier_group_actions_repository::SummarySource>
-    for SummarySourceDto
-{
-    fn from(
-        value: &crate::application::ports::dossier_group_actions_repository::SummarySource,
-    ) -> Self {
+impl From<&SummarySource> for SummarySourceDto {
+    fn from(value: &SummarySource) -> Self {
         Self {
             id: value.source_id.clone(),
             kind: value.kind.clone(),
@@ -200,7 +194,7 @@ impl From<&crate::application::ports::dossier_group_actions_repository::SummaryS
 impl FinalVoteDto {
     fn from_fact(value: FinalVoteFact, legislature: u16) -> Self {
         Self {
-            scrutin_uid: value.scrutin_uid,
+            scrutin_uid: value.scrutin_uid.to_string(),
             number: value.number.clone(),
             date: value.date,
             subject: value.subject,
@@ -211,10 +205,26 @@ impl FinalVoteDto {
             majority_position: value.majority_position,
             member_count: value.member_count,
             tally: value.tally.into(),
-            official_url: format!(
-                "https://www.assemblee-nationale.fr/dyn/{}/scrutins/{}",
-                legislature, value.number
-            ),
+            official_url: scrutin_official_url(legislature, &value.number),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn group_states_map_to_the_json_contract_strings() {
+        assert_eq!(GroupSummaryState::NoData.as_str(), "no_data");
+        assert_eq!(GroupSummaryState::Ready.as_str(), "ready");
+        assert_eq!(
+            GroupSummaryState::SummaryPending.as_str(),
+            "summary_pending"
+        );
+        assert_eq!(
+            GroupSummaryState::SummaryUnavailable.as_str(),
+            "summary_unavailable"
+        );
     }
 }

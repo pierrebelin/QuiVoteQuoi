@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::candidate_repository::{
     CandidateParliamentaryGroupRecord, CandidateProgramProposalRecord, CandidateRecord,
     CandidateRepository, PoliticalOrganizationRecord, RepositoryError,
@@ -18,10 +19,6 @@ impl PgCandidateRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn db(error: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(error.to_string())
 }
 
 fn candidate_id(raw: String) -> Result<CandidateId, RepositoryError> {

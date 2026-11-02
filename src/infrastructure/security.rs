@@ -117,7 +117,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_un_secret_vide() {
+    fn rejects_an_empty_secret() {
         assert_eq!(
             AdminTokenSecret::new("   ".to_string()).unwrap_err(),
             SecretError::Empty
@@ -125,7 +125,7 @@ mod tests {
     }
 
     #[test]
-    fn refuse_un_secret_trop_court() {
+    fn rejects_a_too_short_secret() {
         assert_eq!(
             AdminTokenSecret::new("court".to_string()).unwrap_err(),
             SecretError::TooShort { len: 5 }
@@ -133,28 +133,28 @@ mod tests {
     }
 
     #[test]
-    fn le_jeton_fait_32_caracteres_hexadecimaux() {
+    fn token_is_32_hexadecimal_characters() {
         let token = secret().token_for(day(2026, 8, 7));
         assert_eq!(token.len(), 32);
         assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
-    fn le_jeton_est_stable_pour_un_meme_jour() {
+    fn token_is_stable_for_the_same_day() {
         let first = secret().token_for(day(2026, 8, 7));
         let second = secret().token_for(day(2026, 8, 7));
         assert_eq!(first, second);
     }
 
     #[test]
-    fn le_jeton_change_d_un_jour_a_l_autre() {
+    fn token_changes_from_one_day_to_the_next() {
         let today = secret().token_for(day(2026, 8, 7));
         let tomorrow = secret().token_for(day(2026, 8, 8));
         assert_ne!(today, tomorrow);
     }
 
     #[test]
-    fn deux_secrets_differents_donnent_deux_jetons_differents() {
+    fn different_secrets_yield_different_tokens() {
         let other = AdminTokenSecret::new("fedcba9876543210fedcba9876543210".to_string()).unwrap();
         assert_ne!(
             secret().token_for(day(2026, 8, 7)),
@@ -163,7 +163,7 @@ mod tests {
     }
 
     #[test]
-    fn les_jetons_acceptes_sont_celui_du_jour_et_celui_de_la_veille() {
+    fn accepted_tokens_are_todays_and_yesterdays() {
         let secret = secret();
         let accepted = secret.accepted_at(day(2026, 8, 7));
 
@@ -177,7 +177,7 @@ mod tests {
     }
 
     #[test]
-    fn le_jeton_d_avant_hier_n_est_plus_accepte() {
+    fn token_of_two_days_ago_is_no_longer_accepted() {
         let secret = secret();
         let accepted = secret.accepted_at(day(2026, 8, 7));
         assert!(!accepted.contains(&secret.token_for(day(2026, 8, 5))));
@@ -189,7 +189,7 @@ mod tests {
     /// Si cette valeur change, le CRON du VPS tombe en 401 : ne la corriger
     /// qu'en connaissance de cause.
     #[test]
-    fn la_derivation_est_figee() {
+    fn derivation_is_frozen() {
         assert_eq!(
             secret().token_for(day(2026, 8, 7)),
             "823f2fef9241e4059bd3c4cf4be91472"
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn le_secret_ne_fuit_pas_dans_le_debug() {
+    fn secret_does_not_leak_in_debug_output() {
         let rendered = format!("{:?}", secret());
         assert!(!rendered.contains(SECRET));
     }

@@ -130,13 +130,13 @@ mod tests {
         seed_proposal(&repository, FamilyCode::Numerique).await;
 
         ArbitrateTheme::new(&repository)
-            .execute(command(vec![FamilyCode::PouvoirAchatFiscalite]), later())
+            .execute(command(vec![FamilyCode::PouvoirAchat]), later())
             .await
             .unwrap();
 
         assert_eq!(
             repository.current_families(&subject()),
-            vec![FamilyCode::PouvoirAchatFiscalite]
+            vec![FamilyCode::PouvoirAchat]
         );
         assert_eq!(repository.closed_count(&subject()), 1);
         let history = repository.assignment_history(&subject()).await.unwrap();
@@ -165,7 +165,7 @@ mod tests {
             .execute(
                 command(vec![
                     FamilyCode::Logement,
-                    FamilyCode::SanteSocial,
+                    FamilyCode::Sante,
                     FamilyCode::Numerique,
                     FamilyCode::TravailEmploi,
                 ]),
@@ -186,7 +186,7 @@ mod tests {
                 command(vec![
                     FamilyCode::Logement,
                     FamilyCode::Logement,
-                    FamilyCode::SanteSocial,
+                    FamilyCode::Sante,
                 ]),
                 today(),
             )

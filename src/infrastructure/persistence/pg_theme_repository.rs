@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::theme_repository::{
     AssignedFamily, AttemptOutcome, FamilyCoverage, MethodReport, PendingDossier, RepositoryError,
     ScrutinSubject, TextLink, TextPage, TextScrutin, TextSummary, ThemeRepository,
@@ -24,10 +25,6 @@ impl PgThemeRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn db(e: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(e.to_string())
 }
 
 /// Colonnes d'une ligne de liste de texte. Les agregats viennent de la base,

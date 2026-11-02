@@ -1,7 +1,7 @@
 use chrono::NaiveDate;
 
 use crate::application::ports::group_repository::{GroupRecord, GroupRepository, RepositoryError};
-use crate::domain::group_lineage::{lineage_of_uid, GroupLineage};
+use crate::domain::group_lineage::{designates, group_by_lineage, LineageGroup};
 use crate::domain::group_profile::VotingWindow;
 
 #[derive(Debug, Clone)]
@@ -59,12 +59,7 @@ impl GroupSummary {
     /// ancien ou courant. Le sigle rend l'adresse partageable, l'identifiant la
     /// rend stable (README.md §8.1).
     pub fn designated_by(&self, token: &str) -> bool {
-        self.uids.iter().any(|uid| uid == token)
-            || self.abbrev.eq_ignore_ascii_case(token)
-            || self
-                .former_abbrevs
-                .iter()
-                .any(|abbrev| abbrev.eq_ignore_ascii_case(token))
+        designates(&self.uid, &self.abbrev, token)
     }
 }
 
@@ -94,14 +89,6 @@ impl<'a> BrowseGroups<'a> {
     }
 }
 
-/// Etat de fusion d'une lignee en cours de construction.
-struct Accumulator {
-    summary: GroupSummary,
-    /// Faux tant que l'enregistrement canonique n'a pas ete vu: l'effectif et
-    /// les dates de dissolution viennent de lui seul.
-    canonical_seen: bool,
-}
-
 /// Rassemble en une seule entree les identifiants successifs d'un groupe
 /// renomme.
 ///
@@ -114,21 +101,10 @@ struct Accumulator {
 /// appartenances sous l'ancien identifiant sont toutes closes. Les sommer
 /// compterait deux fois un depute reste dans le groupe.
 pub fn merge_lineages(records: Vec<GroupRecord>) -> Vec<GroupSummary> {
-    let mut merged: Vec<Accumulator> = Vec::with_capacity(records.len());
-
-    for record in records {
-        let lineage = lineage_of_uid(&record.uid);
-        let key = lineage
-            .map_or(record.uid.as_str(), |lineage| lineage.canonical_uid)
-            .to_string();
-
-        match merged.iter_mut().find(|kept| kept.summary.uid == key) {
-            Some(kept) => absorb(kept, record, lineage),
-            None => merged.push(seed(key, record, lineage)),
-        }
-    }
-
-    let mut groups: Vec<GroupSummary> = merged.into_iter().map(|kept| kept.summary).collect();
+    let mut groups: Vec<GroupSummary> = group_by_lineage(records, |record| record.uid.as_str())
+        .iter()
+        .map(summarize)
+        .collect();
 
     // Groupes actifs d'abord, par effectif decroissant — l'ordre dont
     // l'Assemblee elle-meme se sert. Les groupes dissous suivent, du plus
@@ -138,86 +114,44 @@ pub fn merge_lineages(records: Vec<GroupRecord>) -> Vec<GroupSummary> {
         a.is_dissolved()
             .cmp(&b.is_dissolved())
             .then_with(|| b.member_count.cmp(&a.member_count))
-            .then_with(|| b.window.map(|w| w.last).cmp(&a.window.map(|w| w.last)))
+            .then_with(|| b.window.map(|w| w.last()).cmp(&a.window.map(|w| w.last())))
             .then_with(|| a.abbrev.cmp(&b.abbrev))
     });
     groups
 }
 
-fn seed(key: String, record: GroupRecord, lineage: Option<&GroupLineage>) -> Accumulator {
-    let canonical_seen = lineage.is_none_or(|lineage| lineage.canonical_uid == record.uid);
+fn summarize(group: &LineageGroup<GroupRecord>) -> GroupSummary {
+    let records = group.members();
+    // L'effectif, la dissolution et la date de reference sont ceux de la ligne
+    // representante, jamais une somme.
+    let current = group.representative();
+    let shown = group.displayed(&current.abbrev, &current.label);
 
-    let (abbrev, label, former_abbrevs) = match lineage {
-        Some(lineage) => (
-            lineage.abbrev.to_string(),
-            lineage.label.to_string(),
-            lineage
-                .former_abbrevs
-                .iter()
-                .map(|a| a.to_string())
-                .collect(),
-        ),
-        None => (record.abbrev, record.label, Vec::new()),
-    };
-
-    Accumulator {
-        summary: GroupSummary {
-            uid: key,
-            uids: vec![record.uid],
-            abbrev,
-            former_abbrevs,
-            label,
-            color: record.color,
-            legislature: record.legislature,
-            created_on: record.start_date,
-            dissolved_on: record.end_date,
-            reference_date: record.reference_date,
-            member_count: record.member_count,
-            scrutin_count: record.scrutin_count,
-            window: VotingWindow::new(record.first_scrutin_date, record.last_scrutin_date),
-        },
-        canonical_seen,
-    }
-}
-
-fn absorb(kept: &mut Accumulator, record: GroupRecord, lineage: Option<&GroupLineage>) {
-    let summary = &mut kept.summary;
-    summary.uids.push(record.uid.clone());
-    summary.scrutin_count += record.scrutin_count;
-    summary.color = summary.color.take().or(record.color);
-
-    // La creation du groupe est celle de son premier identifiant; sa
-    // dissolution, celle du dernier.
-    summary.created_on = min_date(summary.created_on, record.start_date);
-    summary.window = widen(
-        summary.window,
-        VotingWindow::new(record.first_scrutin_date, record.last_scrutin_date),
-    );
-
-    let is_canonical = lineage.is_some_and(|lineage| lineage.canonical_uid == record.uid);
-    if is_canonical || !kept.canonical_seen {
-        summary.legislature = record.legislature;
-        summary.dissolved_on = record.end_date;
-        summary.reference_date = record.reference_date;
-        summary.member_count = record.member_count;
-    }
-    kept.canonical_seen |= is_canonical;
-}
-
-fn min_date(left: Option<NaiveDate>, right: Option<NaiveDate>) -> Option<NaiveDate> {
-    match (left, right) {
-        (Some(left), Some(right)) => Some(left.min(right)),
-        (found, None) | (None, found) => found,
-    }
-}
-
-fn widen(left: Option<VotingWindow>, right: Option<VotingWindow>) -> Option<VotingWindow> {
-    match (left, right) {
-        (Some(left), Some(right)) => Some(VotingWindow {
-            first: left.first.min(right.first),
-            last: left.last.max(right.last),
-        }),
-        (found, None) | (None, found) => found,
+    GroupSummary {
+        uid: group.key().to_string(),
+        uids: records.iter().map(|record| record.uid.clone()).collect(),
+        abbrev: shown.abbrev.to_string(),
+        former_abbrevs: shown
+            .former_abbrevs
+            .iter()
+            .map(|abbrev| abbrev.to_string())
+            .collect(),
+        label: shown.label.to_string(),
+        color: records.iter().find_map(|record| record.color.clone()),
+        legislature: current.legislature,
+        // La creation du groupe est celle de son premier identifiant; sa
+        // dissolution, celle du dernier.
+        created_on: records.iter().filter_map(|record| record.start_date).min(),
+        dissolved_on: current.end_date,
+        reference_date: current.reference_date,
+        member_count: current.member_count,
+        scrutin_count: records.iter().map(|record| record.scrutin_count).sum(),
+        window: records
+            .iter()
+            .filter_map(|record| {
+                VotingWindow::new(record.first_scrutin_date, record.last_scrutin_date)
+            })
+            .reduce(VotingWindow::span),
     }
 }
 
@@ -326,8 +260,8 @@ pub(crate) mod tests {
         // 3 053 + 5 381 = 8 434, la legislature entiere.
         assert_eq!(group.scrutin_count, 8_434);
         let window = group.window.unwrap();
-        assert_eq!(window.first, date(2024, 10, 8));
-        assert_eq!(window.last, date(2026, 7, 21));
+        assert_eq!(window.first(), date(2024, 10, 8));
+        assert_eq!(window.last(), date(2026, 7, 21));
         assert_eq!(group.created_on, Some(date(2024, 7, 18)));
     }
 

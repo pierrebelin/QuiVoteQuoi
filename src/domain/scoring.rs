@@ -1,5 +1,15 @@
 use super::dossier::Score;
 
+/// Score heuristique d'un dossier: trois sous-notes de 0 a 10 ramenees a un
+/// total sur 100.
+///
+/// - avancement: lu dans le libelle de la derniere activite (promulgation = 10,
+///   vote solennel = 9, ... depot = 2, defaut = 1);
+/// - ampleur: lue dans les mots du titre (constitution ou finances = 10,
+///   ratification ou accord = 2, defaut = 4);
+/// - dynamique: croissante avec le nombre d'actes (0 ou 1 = 2, 10 et plus = 10).
+///
+/// Le total pondere avancement x3, ampleur x2, dynamique x1 sur un maximum de 60.
 pub fn compute_score(title: &str, last_activity_label: &str, act_count: usize) -> Score {
     let progress = score_progress(last_activity_label);
     let magnitude = score_magnitude(title);
@@ -101,7 +111,7 @@ mod tests {
     }
 
     #[test]
-    fn vote_solennel_scores_9() {
+    fn solemn_vote_label_gives_progress_9() {
         let score = compute_score("Texte", "Vote solennel", 1);
         assert_eq!(score.progress(), 9);
     }
@@ -184,13 +194,13 @@ mod tests {
     }
 
     #[test]
-    fn second_reading_scores_6() {
+    fn second_reading_label_gives_progress_6() {
         let score = compute_score("Texte", "2e lecture", 1);
         assert_eq!(score.progress(), 6);
     }
 
     #[test]
-    fn first_reading_scores_5() {
+    fn first_reading_label_gives_progress_5() {
         let score = compute_score("Texte", "1ère lecture", 1);
         assert_eq!(score.progress(), 5);
     }

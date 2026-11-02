@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 
-use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupFacts, GeneratedGroupSummary,
-};
+use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
 use crate::application::ports::dossier_summary_generator::{
     DossierSummaryGenerator, SummaryGeneratorError,
 };
+use crate::domain::dossier_group_facts::DossierGroupFacts;
 
 pub struct UnavailableDossierSummaryGenerator;
 

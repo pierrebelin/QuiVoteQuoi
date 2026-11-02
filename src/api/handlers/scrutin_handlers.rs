@@ -1,7 +1,7 @@
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
 use axum::Json;
 
+use crate::api::error::ApiError;
 use crate::api::scrutin_dto::{
     DossierScrutinsResponse, ScrutinDetailDto, ScrutinListQuery, ScrutinListResponse,
     ScrutinSummaryDto, ScrutinsRefreshResponse, SHOW_OF_HANDS_NOTE,
@@ -17,14 +17,14 @@ use crate::AppState;
 pub async fn list_scrutins(
     State(state): State<AppState>,
     Query(params): Query<ScrutinListQuery>,
-) -> Result<Json<ScrutinListResponse>, (StatusCode, String)> {
+) -> Result<Json<ScrutinListResponse>, ApiError> {
     let filter: ScrutinFilter = params.into();
     let offset = filter.offset.max(0);
 
     let page = ListScrutins::new(state.scrutin_repository.as_ref())
         .execute(filter)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(ApiError::internal)?;
 
     Ok(Json(ScrutinListResponse::from((page, offset))))
 }
@@ -33,8 +33,8 @@ pub async fn list_scrutins(
 pub async fn get_scrutin_detail(
     State(state): State<AppState>,
     Path(uid): Path<String>,
-) -> Result<Json<ScrutinDetailDto>, (StatusCode, String)> {
-    let uid = ScrutinUid::new(uid).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+) -> Result<Json<ScrutinDetailDto>, ApiError> {
+    let uid = ScrutinUid::new(uid).map_err(ApiError::bad_request)?;
 
     let detail = GetScrutinDetail::new(
         state.scrutin_repository.as_ref(),
@@ -42,8 +42,8 @@ pub async fn get_scrutin_detail(
     )
     .execute(&uid)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-    .ok_or((StatusCode::NOT_FOUND, "Scrutin not found".to_string()))?;
+    .map_err(ApiError::internal)?
+    .ok_or_else(|| ApiError::not_found("Scrutin not found"))?;
 
     Ok(Json(ScrutinDetailDto::from(detail)))
 }
@@ -55,14 +55,14 @@ pub async fn get_dossier_scrutins(
     State(state): State<AppState>,
     Path(uid): Path<String>,
     Query(params): Query<ScrutinListQuery>,
-) -> Result<Json<DossierScrutinsResponse>, (StatusCode, String)> {
+) -> Result<Json<DossierScrutinsResponse>, ApiError> {
     let mut filter: ScrutinFilter = params.into();
     filter.dossier_uid = Some(uid);
     let offset = filter.offset.max(0);
     let page = ListScrutins::new(state.scrutin_repository.as_ref())
         .execute(filter)
         .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(ApiError::internal)?;
 
     let scrutins: Vec<ScrutinSummaryDto> = page
         .items
@@ -86,7 +86,7 @@ pub async fn get_dossier_scrutins(
 /// `POST /api/refresh` enchaine les trois dans l'ordre.
 pub async fn refresh_scrutins(
     State(state): State<AppState>,
-) -> Result<Json<ScrutinsRefreshResponse>, (StatusCode, String)> {
+) -> Result<Json<ScrutinsRefreshResponse>, ApiError> {
     let summary = RefreshScrutins::new(
         state.scrutin_source.as_ref(),
         state.scrutin_repository.as_ref(),
@@ -94,7 +94,7 @@ pub async fn refresh_scrutins(
     )
     .execute()
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(ApiError::internal)?;
 
     Ok(Json(ScrutinsRefreshResponse::from(summary)))
 }

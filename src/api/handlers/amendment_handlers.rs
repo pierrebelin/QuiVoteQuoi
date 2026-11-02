@@ -1,9 +1,9 @@
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
 use axum::Json;
 use serde::Deserialize;
 
 use crate::api::amendment_dto::{AmendmentsRefreshResponse, DossierAmendmentsResponse};
+use crate::api::error::ApiError;
 use crate::application::ports::amendment_repository::AmendmentPageRequest;
 use crate::application::use_cases::browse_dossier_amendments::BrowseDossierAmendments;
 use crate::application::use_cases::refresh_amendments::RefreshAmendments;
@@ -29,7 +29,7 @@ pub async fn get_dossier_amendments(
     State(state): State<AppState>,
     Path(uid): Path<String>,
     Query(query): Query<AmendmentPageQuery>,
-) -> Result<Json<DossierAmendmentsResponse>, (StatusCode, String)> {
+) -> Result<Json<DossierAmendmentsResponse>, ApiError> {
     let page = AmendmentPageRequest::new(query.limit, query.offset);
     let page = AmendmentPageRequest {
         search: query.search.filter(|s| !s.trim().is_empty()),
@@ -44,7 +44,7 @@ pub async fn get_dossier_amendments(
     )
     .execute(&uid, &page)
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(ApiError::internal)?;
 
     Ok(Json(DossierAmendmentsResponse::new(
         amendments,
@@ -56,7 +56,7 @@ pub async fn get_dossier_amendments(
 /// CU-01 — Ingestion des amendements.
 pub async fn refresh_amendments(
     State(state): State<AppState>,
-) -> Result<Json<AmendmentsRefreshResponse>, (StatusCode, String)> {
+) -> Result<Json<AmendmentsRefreshResponse>, ApiError> {
     let summary = RefreshAmendments::new(
         state.amendment_source.as_ref(),
         state.amendment_repository.as_ref(),
@@ -65,7 +65,7 @@ pub async fn refresh_amendments(
     )
     .execute()
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    .map_err(ApiError::internal)?;
 
     let mut response = AmendmentsRefreshResponse::from(summary);
     match RefreshDossierGroupSummaries::new(

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::application::ports::dossier_repository::DossierCriteria;
 use crate::application::use_cases::browse_dossiers::DEFAULT_PER_PAGE;
+use crate::application::use_cases::check_health::HealthReport;
 use crate::domain::dossier::{CurationStatus, DossierOutcome, Initiative, LegislativeDossier};
 
 #[derive(Deserialize)]
@@ -95,19 +96,19 @@ impl From<&DossierOutcome> for OutcomeDto {
 impl From<LegislativeDossier> for DossierDto {
     fn from(d: LegislativeDossier) -> Self {
         Self {
-            outcome: OutcomeDto::from(&d.outcome),
-            uid: d.uid.as_str().to_string(),
-            title: d.title,
-            procedure: d.procedure,
-            legislature: d.legislature,
-            url: d.url,
-            deposit_date: d.deposit_date,
-            last_activity_date: d.last_activity_date,
-            last_activity_label: d.last_activity_label,
-            score_total: d.score.total(),
-            current_stage: d.current_stage.map(StageDto::from),
-            committee: d.committee.map(|c| c.as_str().to_string()),
-            curation_status: d.curation_status.as_str().to_string(),
+            outcome: OutcomeDto::from(d.outcome()),
+            uid: d.uid().as_str().to_string(),
+            title: d.title().to_string(),
+            procedure: d.procedure().to_string(),
+            legislature: d.legislature(),
+            url: d.url().map(str::to_string),
+            deposit_date: d.deposit_date(),
+            last_activity_date: d.last_activity_date(),
+            last_activity_label: d.last_activity_label().to_string(),
+            score_total: d.score().total(),
+            current_stage: d.current_stage().map(StageDto::from),
+            committee: d.committee().map(|c| c.as_str().to_string()),
+            curation_status: d.curation_status().as_str().to_string(),
         }
     }
 }
@@ -434,52 +435,57 @@ impl DossierDetailDto {
     ) -> Self {
         let d = result.dossier;
         Self {
-            outcome: OutcomeDto::from(&d.outcome),
-            uid: d.uid.as_str().to_string(),
-            title: d.title,
-            procedure: d.procedure,
-            legislature: d.legislature,
-            url: d.url,
-            summary: d.summary,
-            deposit_date: d.deposit_date,
-            last_activity_date: d.last_activity_date,
-            last_activity_label: d.last_activity_label,
+            outcome: OutcomeDto::from(d.outcome()),
+            uid: d.uid().as_str().to_string(),
+            title: d.title().to_string(),
+            procedure: d.procedure().to_string(),
+            legislature: d.legislature(),
+            url: d.url().map(str::to_string),
+            summary: d.summary().map(str::to_string),
+            deposit_date: d.deposit_date(),
+            last_activity_date: d.last_activity_date(),
+            last_activity_label: d.last_activity_label().to_string(),
             acts: d
-                .acts
-                .into_iter()
+                .acts()
+                .iter()
                 .map(|a| ActDto {
                     date: a.date,
-                    label: a.label,
-                    code: a.code,
+                    label: a.label.clone(),
+                    code: a.code.clone(),
                 })
                 .collect(),
             documents: d
-                .documents
-                .into_iter()
+                .documents()
+                .iter()
                 .map(|doc| DocumentDto {
-                    document_uid: doc.document_uid,
-                    title: doc.title,
-                    short_title: doc.short_title,
-                    doc_type: doc.doc_type,
+                    document_uid: doc.document_uid.clone(),
+                    title: doc.title.clone(),
+                    short_title: doc.short_title.clone(),
+                    doc_type: doc.doc_type.clone(),
                     date: doc.date,
-                    official_url: doc.official_url,
-                    source_archive_url: doc.source_archive_url,
-                    source_license: doc.source_license,
-                    source_metadata_fingerprint: doc.source_metadata_fingerprint,
+                    official_url: doc.official_url.clone(),
+                    source_archive_url: doc.source_archive_url.clone(),
+                    source_license: doc.source_license.clone(),
+                    source_metadata_fingerprint: doc.source_metadata_fingerprint.clone(),
                     source_retrieved_at: doc.source_retrieved_at,
                 })
                 .collect(),
             score: ScoreDto {
-                progress: d.score.progress(),
-                magnitude: d.score.magnitude(),
-                momentum: d.score.momentum(),
-                total: d.score.total(),
+                progress: d.score().progress(),
+                magnitude: d.score().magnitude(),
+                momentum: d.score().momentum(),
+                total: d.score().total(),
             },
             persisted: result.persisted,
-            current_stage: d.current_stage.map(StageDto::from),
-            initiators: d.initiators.into_iter().map(InitiatorDto::from).collect(),
-            committee: d.committee.map(|c| c.as_str().to_string()),
-            curation_status: d.curation_status.as_str().to_string(),
+            current_stage: d.current_stage().map(StageDto::from),
+            initiators: d
+                .initiators()
+                .iter()
+                .cloned()
+                .map(InitiatorDto::from)
+                .collect(),
+            committee: d.committee().map(|c| c.as_str().to_string()),
+            curation_status: d.curation_status().as_str().to_string(),
         }
     }
 }
@@ -503,4 +509,49 @@ pub struct SuggestionsResponse {
 #[derive(Deserialize)]
 pub struct CurateBody {
     pub status: CurationStatus,
+}
+
+/// Reponse du health check. Le serveur repond, donc `status` vaut toujours
+/// `ok`; l'etat de la base est rendu a part, sans faire echouer la requete.
+#[derive(Serialize)]
+pub struct HealthResponse {
+    pub status: &'static str,
+    pub database: &'static str,
+}
+
+impl From<HealthReport> for HealthResponse {
+    fn from(report: HealthReport) -> Self {
+        Self {
+            status: "ok",
+            database: if report.database_reachable {
+                "connected"
+            } else {
+                "disconnected"
+            },
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_unreachable_database_still_answers_ok() {
+        let response = HealthResponse::from(HealthReport {
+            database_reachable: false,
+        });
+
+        assert_eq!(response.status, "ok");
+        assert_eq!(response.database, "disconnected");
+    }
+
+    #[test]
+    fn a_reachable_database_reads_connected() {
+        let response = HealthResponse::from(HealthReport {
+            database_reachable: true,
+        });
+
+        assert_eq!(response.database, "connected");
+    }
 }

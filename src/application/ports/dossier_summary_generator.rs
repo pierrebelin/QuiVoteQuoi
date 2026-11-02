@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 
-use super::dossier_group_actions_repository::{DossierGroupFacts, GeneratedGroupSummary};
+use super::dossier_group_actions_repository::GeneratedGroupSummary;
+use crate::domain::dossier_group_facts::DossierGroupFacts;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SummaryGeneratorError {

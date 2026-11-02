@@ -15,6 +15,7 @@ use quivotequoi::application::ports::dossier_repository::DossierRepository;
 use quivotequoi::application::ports::dossier_summary_generator::DossierSummaryGenerator;
 use quivotequoi::application::ports::final_vote_repository::FinalVoteRepository;
 use quivotequoi::application::ports::group_repository::GroupRepository;
+use quivotequoi::application::ports::health_probe::HealthProbe;
 use quivotequoi::application::ports::scrutin_repository::ScrutinRepository;
 use quivotequoi::application::ports::scrutin_source::ScrutinSource;
 use quivotequoi::application::ports::theme_classifier::ThemeClassifier;
@@ -27,7 +28,7 @@ use quivotequoi::infrastructure::llm::mistral_dossier_summary::MistralDossierSum
 use quivotequoi::infrastructure::llm::openai_classifier::OpenAiThemeClassifier;
 use quivotequoi::infrastructure::llm::openai_dossier_summary::OpenAiDossierSummaryGenerator;
 use quivotequoi::infrastructure::llm::provider::LlmProvider;
-use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableClassifier;
+use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableThemeClassifier;
 use quivotequoi::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
 use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient;
 use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
@@ -41,6 +42,7 @@ use quivotequoi::infrastructure::persistence::pg_dossier_repository::PgDossierRe
 use quivotequoi::infrastructure::persistence::pg_dossier_summary_repository::PgDossierSummaryRepository;
 use quivotequoi::infrastructure::persistence::pg_final_vote_repository::PgFinalVoteRepository;
 use quivotequoi::infrastructure::persistence::pg_group_repository::PgGroupRepository;
+use quivotequoi::infrastructure::persistence::pg_health_probe::PgHealthProbe;
 use quivotequoi::infrastructure::persistence::pg_scrutin_repository::PgScrutinRepository;
 use quivotequoi::infrastructure::persistence::pg_theme_repository::PgThemeRepository;
 use quivotequoi::infrastructure::security::AdminTokenSecret;
@@ -77,6 +79,7 @@ async fn main() {
         Arc::new(PgFinalVoteRepository::new(db.clone()));
     let group_repository: Arc<dyn GroupRepository> = Arc::new(PgGroupRepository::new(db.clone()));
     let theme_repository: Arc<dyn ThemeRepository> = Arc::new(PgThemeRepository::new(db.clone()));
+    let health_probe: Arc<dyn HealthProbe> = Arc::new(PgHealthProbe::new(db.clone()));
 
     let llm_provider = match LlmProvider::from_env() {
         Ok(provider) => {
@@ -100,7 +103,7 @@ async fn main() {
             }
             None => {
                 tracing::warn!("ANTHROPIC_API_KEY absent: no theme proposal will be produced");
-                Arc::new(UnavailableClassifier)
+                Arc::new(UnavailableThemeClassifier)
             }
         },
         Some(LlmProvider::OpenAi) => match OpenAiThemeClassifier::from_env() {
@@ -110,7 +113,7 @@ async fn main() {
             }
             None => {
                 tracing::warn!("OPENAI_API_KEY absent: no theme proposal will be produced");
-                Arc::new(UnavailableClassifier)
+                Arc::new(UnavailableThemeClassifier)
             }
         },
         Some(LlmProvider::Mistral) => match MistralThemeClassifier::from_env() {
@@ -120,10 +123,10 @@ async fn main() {
             }
             None => {
                 tracing::warn!("MISTRAL_API_KEY absent: no theme proposal will be produced");
-                Arc::new(UnavailableClassifier)
+                Arc::new(UnavailableThemeClassifier)
             }
         },
-        None => Arc::new(UnavailableClassifier),
+        None => Arc::new(UnavailableThemeClassifier),
     };
 
     let dossier_summary_generator: Arc<dyn DossierSummaryGenerator> = match llm_provider {
@@ -182,7 +185,7 @@ async fn main() {
     };
 
     let state = AppState {
-        db,
+        health_probe,
         assembly_source,
         candidate_repository,
         dossier_repository,

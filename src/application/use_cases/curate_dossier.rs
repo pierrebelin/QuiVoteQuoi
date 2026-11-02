@@ -40,7 +40,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use crate::domain::dossier::LegislativeDossier;
+    use crate::domain::dossier::{LegislativeDossier, NewLegislativeDossier};
 
     struct InMemoryDossierRepository {
         dossiers: Mutex<HashMap<String, LegislativeDossier>>,
@@ -51,10 +51,7 @@ mod tests {
         async fn load_states(
             &self,
         ) -> Result<
-            std::collections::HashMap<
-                String,
-                crate::application::ports::dossier_repository::StoredDossierState,
-            >,
+            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
             RepositoryError,
         > {
             unreachable!()
@@ -104,7 +101,7 @@ mod tests {
         ) -> Result<bool, RepositoryError> {
             let mut store = self.dossiers.lock().unwrap();
             if let Some(d) = store.get_mut(uid.as_str()) {
-                d.curation_status = status;
+                d.change_curation_status(status);
                 Ok(true)
             } else {
                 Ok(false)
@@ -114,7 +111,7 @@ mod tests {
 
     fn make_dossier(uid: &str) -> LegislativeDossier {
         use crate::domain::dossier::Score;
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new(uid.into()).unwrap(),
             title: format!("Dossier {uid}"),
             procedure: "PL".into(),
@@ -132,7 +129,7 @@ mod tests {
             committee: None,
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     #[tokio::test]
@@ -148,7 +145,7 @@ mod tests {
         uc.execute(&uid, CurationStatus::Selected).await.unwrap();
 
         let store = repo.dossiers.lock().unwrap();
-        assert_eq!(store["D1"].curation_status, CurationStatus::Selected);
+        assert_eq!(store["D1"].curation_status(), CurationStatus::Selected);
     }
 
     #[tokio::test]

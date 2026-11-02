@@ -2,14 +2,16 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
+use super::db;
 use crate::application::ports::scrutin_repository::{
-    CodeCount, DatasetShape, RepositoryError, ScrutinFilter, ScrutinPage, ScrutinRepository,
-    ScrutinSummary,
+    RepositoryError, ScrutinFilter, ScrutinPage, ScrutinRepository, ScrutinSummary,
 };
 use crate::domain::actor::{ActorUid, GroupUid};
+use crate::domain::dataset::{CodeCount, DatasetShape};
+use crate::domain::dossier::DossierUid;
 use crate::domain::scrutin::{
-    BallotType, DossierReference, GroupTally, NominalVote, NonVotingCause, Outcome, Scrutin,
-    ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
+    BallotType, DossierReference, GroupTally, NewScrutin, NominalVote, NonVotingCause, Outcome,
+    Scrutin, ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
 };
 
 /// Scrutins par transaction. Chaque lot supprime puis reecrit ses lignes filles:
@@ -18,6 +20,9 @@ const SCRUTIN_BATCH: usize = 100;
 /// Lignes par instruction `UNNEST`. Un scrutin porte jusqu'a 574 positions
 /// nominales, un lot de 100 scrutins en porte donc jusqu'a 57 400.
 const ROW_BATCH: usize = 4000;
+/// Bornes de la taille de page d'une liste de scrutins.
+const PAGE_LIMIT_MIN: i64 = 1;
+const PAGE_LIMIT_MAX: i64 = 200;
 
 pub struct PgScrutinRepository {
     pool: PgPool,
@@ -57,10 +62,6 @@ impl PgScrutinRepository {
             })
             .collect())
     }
-}
-
-fn db(e: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(e.to_string())
 }
 
 #[async_trait]
@@ -292,7 +293,7 @@ impl ScrutinRepository for PgScrutinRepository {
         let mut query: QueryBuilder<Postgres> = QueryBuilder::new(SUMMARY_SELECT);
         push_conditions(&mut query, filter);
         query.push(" ORDER BY s.scrutin_date DESC, s.uid DESC LIMIT ");
-        query.push_bind(filter.limit.clamp(1, 200));
+        query.push_bind(filter.limit.clamp(PAGE_LIMIT_MIN, PAGE_LIMIT_MAX));
         query.push(" OFFSET ");
         query.push_bind(filter.offset.max(0));
 
@@ -404,27 +405,27 @@ impl ScrutinRepository for PgScrutinRepository {
             })
             .collect();
 
-        let scrutin = Scrutin::new(
-            ScrutinUid::new(row.get::<String, _>("uid")).map_err(|e| {
+        let scrutin = Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new(row.get::<String, _>("uid")).map_err(|e| {
                 RepositoryError::Database(format!("stored scrutin has an unusable uid: {e}"))
             })?,
-            row.get("number"),
-            row.get::<i16, _>("legislature") as u16,
-            row.get("scrutin_date"),
-            row.get("session_ref"),
-            row.get("sitting_ref"),
-            row.get("place"),
-            BallotType::new(
+            number: row.get("number"),
+            legislature: row.get::<i16, _>("legislature") as u16,
+            date: row.get("scrutin_date"),
+            session_ref: row.get("session_ref"),
+            sitting_ref: row.get("sitting_ref"),
+            place: row.get("place"),
+            ballot_type: BallotType::new(
                 row.get("ballot_type_code"),
                 row.get("ballot_type_label"),
                 row.get("majority_label"),
             )
             .map_err(|e| RepositoryError::Database(e.to_string()))?,
-            Outcome::new(row.get("outcome_code"), row.get("outcome_label"))
+            outcome: Outcome::new(row.get("outcome_code"), row.get("outcome_label"))
                 .map_err(|e| RepositoryError::Database(e.to_string()))?,
-            row.get("requester"),
-            row.get("subject"),
-            VoteSynthesis {
+            requester: row.get("requester"),
+            subject: row.get("subject"),
+            synthesis: VoteSynthesis {
                 voters: row.get::<i16, _>("voters") as u16,
                 expressed: row.get::<i16, _>("expressed") as u16,
                 required: row.get::<i16, _>("required") as u16,
@@ -434,17 +435,21 @@ impl ScrutinRepository for PgScrutinRepository {
             group_tallies,
             nominal_votes,
             corrections,
-            match (
+            dossier: match (
                 row.get::<Option<String>, _>("dossier_uid"),
                 row.get::<Option<String>, _>("dossier_label"),
             ) {
                 (Some(uid), label) => Some(DossierReference {
-                    uid,
+                    uid: DossierUid::new(uid).map_err(|e| {
+                        RepositoryError::Database(format!(
+                            "stored scrutin has an unusable dossier uid: {e}"
+                        ))
+                    })?,
                     label: label.unwrap_or_default(),
                 }),
                 (None, _) => None,
             },
-        )
+        })
         .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
         Ok(Some(scrutin))

@@ -18,7 +18,7 @@ use serde::Serialize;
 use super::actor::{ActorDirectory, ActorUid, GroupUid};
 use super::theme::{clean, lowercase};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum AmendmentError {
     #[error("amendment uid must not be empty")]
     EmptyAmendmentUid,
@@ -274,15 +274,15 @@ impl GroupOrigin {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Signatory {
-    pub actor_uid: ActorUid,
-    pub role: SignatoryRole,
+    actor_uid: ActorUid,
+    role: SignatoryRole,
     /// Rang publie. Sert a restituer l'ordre de la source, jamais a classer.
-    pub rank: u16,
-    pub group_uid: Option<GroupUid>,
-    pub group_origin: GroupOrigin,
+    rank: u16,
+    group_uid: Option<GroupUid>,
+    group_origin: GroupOrigin,
     /// Vrai quand deux groupes concurrents revendiquent l'acteur a cette date:
     /// aucun groupe n'est alors affiche (ACTEURS RM-04).
-    pub group_ambiguous: bool,
+    group_ambiguous: bool,
 }
 
 impl Signatory {
@@ -306,6 +306,30 @@ impl Signatory {
             group_origin,
             group_ambiguous: false,
         }
+    }
+
+    pub fn actor_uid(&self) -> &ActorUid {
+        &self.actor_uid
+    }
+
+    pub fn role(&self) -> SignatoryRole {
+        self.role
+    }
+
+    pub fn rank(&self) -> u16 {
+        self.rank
+    }
+
+    pub fn group_uid(&self) -> Option<&GroupUid> {
+        self.group_uid.as_ref()
+    }
+
+    pub fn group_origin(&self) -> GroupOrigin {
+        self.group_origin
+    }
+
+    pub fn group_ambiguous(&self) -> bool {
+        self.group_ambiguous
     }
 }
 
@@ -334,8 +358,8 @@ impl Author {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AmendmentTarget {
     /// « ARTICLE 3 », « APRÈS L'ARTICLE 12 » — libelle de la source.
-    pub title: String,
-    pub kind: Option<String>,
+    title: String,
+    kind: Option<String>,
 }
 
 impl AmendmentTarget {
@@ -345,6 +369,14 @@ impl AmendmentTarget {
             return Err(AmendmentError::EmptyTargetTitle);
         }
         Ok(Self { title, kind })
+    }
+
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn kind(&self) -> Option<&str> {
+        self.kind.as_deref()
     }
 }
 
@@ -742,10 +774,78 @@ mod tests {
 
     #[test]
     fn an_empty_uid_or_number_is_refused() {
-        assert!(AmendmentUid::new(String::new()).is_err());
-        assert!(AmendmentUid::new("   ".to_string()).is_err());
-        assert!(AmendmentNumber::new(String::new()).is_err());
-        assert!(LegislativeTextRef::new("  ".to_string()).is_err());
+        assert_eq!(
+            AmendmentUid::new(String::new()).unwrap_err(),
+            AmendmentError::EmptyAmendmentUid
+        );
+        assert_eq!(
+            AmendmentUid::new("   ".to_string()).unwrap_err(),
+            AmendmentError::EmptyAmendmentUid
+        );
+        assert_eq!(
+            AmendmentNumber::new(String::new()).unwrap_err(),
+            AmendmentError::EmptyAmendmentNumber
+        );
+        assert_eq!(
+            LegislativeTextRef::new("  ".to_string()).unwrap_err(),
+            AmendmentError::EmptyTextRef
+        );
+    }
+
+    #[test]
+    fn a_signatory_with_a_published_group_is_dated_by_the_source() {
+        let signatory = Signatory::new(
+            actor_uid("PA1"),
+            SignatoryRole::Author,
+            0,
+            Some(group_uid("PO1")),
+        );
+
+        assert_eq!(signatory.group_origin(), GroupOrigin::Published);
+        assert_eq!(signatory.group_uid(), Some(&group_uid("PO1")));
+        assert!(!signatory.group_ambiguous());
+    }
+
+    #[test]
+    fn a_signatory_without_a_published_group_has_an_unknown_origin() {
+        let signatory = Signatory::new(actor_uid("PA2"), SignatoryRole::Cosignatory, 4, None);
+
+        assert_eq!(signatory.group_origin(), GroupOrigin::Unknown);
+        assert_eq!(signatory.group_uid(), None);
+        assert!(!signatory.group_ambiguous());
+    }
+
+    #[test]
+    fn a_signatory_exposes_the_actor_role_and_rank_it_was_built_with() {
+        let signatory = Signatory::new(actor_uid("PA2"), SignatoryRole::Cosignatory, 4, None);
+
+        assert_eq!(signatory.actor_uid(), &actor_uid("PA2"));
+        assert_eq!(signatory.role(), SignatoryRole::Cosignatory);
+        assert_eq!(signatory.rank(), 4);
+    }
+
+    #[test]
+    fn a_target_with_a_blank_title_is_refused() {
+        assert_eq!(
+            AmendmentTarget::new("   ".to_string(), None).unwrap_err(),
+            AmendmentError::EmptyTargetTitle
+        );
+        assert_eq!(
+            AmendmentTarget::new(String::new(), Some("ARTICLE".to_string())).unwrap_err(),
+            AmendmentError::EmptyTargetTitle
+        );
+    }
+
+    #[test]
+    fn a_target_title_is_cleaned_of_superfluous_spaces() {
+        let target = AmendmentTarget::new(
+            "  APRÈS   L'ARTICLE\u{00A0}12 ".to_string(),
+            Some("ARTICLE_ADD".to_string()),
+        )
+        .unwrap();
+
+        assert_eq!(target.title(), "APRÈS L'ARTICLE 12");
+        assert_eq!(target.kind(), Some("ARTICLE_ADD"));
     }
 
     #[test]

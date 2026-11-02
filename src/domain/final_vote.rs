@@ -13,8 +13,10 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
-use crate::domain::actor::GroupUid;
-use crate::domain::scrutin::{Outcome, VotePosition, VoteTally};
+use super::actor::GroupUid;
+use super::dossier::DossierUid;
+use super::scrutin::{Outcome, ScrutinUid, VotePosition, VoteTally};
+use super::theme::TextKey;
 
 /// Debuts d'objet designant un vote sur l'ensemble d'un texte.
 ///
@@ -62,10 +64,10 @@ pub fn reading_of(subject: &str, text_label: &str) -> Option<String> {
 /// groupe qui a pourtant vote a l'unanimite des votants.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct VoterShare {
-    pub voters: u16,
-    pub for_percent: u8,
-    pub against_percent: u8,
-    pub abstention_percent: u8,
+    voters: u16,
+    for_percent: u8,
+    against_percent: u8,
+    abstention_percent: u8,
     /// Positions arrivant en tete, lues sur les comptes bruts et non sur les
     /// parts arrondies — 8 pour / 6 contre / 8 abstentions donne 37 / 27 / 36
     /// une fois arrondi, alors que l'egalite est bien reelle.
@@ -76,7 +78,7 @@ pub struct VoterShare {
     /// hasard. Distinct de la position majoritaire publiee par la source, qui
     /// n'est jamais recalculee (RM-02) et que l'affichage montre a part quand
     /// les deux different.
-    pub tied: Vec<VotePosition>,
+    tied: Vec<VotePosition>,
 }
 
 impl VoterShare {
@@ -120,6 +122,26 @@ impl VoterShare {
             abstention_percent: percents[2] as u8,
             tied: tied_positions(&counts),
         })
+    }
+
+    pub fn voters(&self) -> u16 {
+        self.voters
+    }
+
+    pub fn for_percent(&self) -> u8 {
+        self.for_percent
+    }
+
+    pub fn against_percent(&self) -> u8 {
+        self.against_percent
+    }
+
+    pub fn abstention_percent(&self) -> u8 {
+        self.abstention_percent
+    }
+
+    pub fn tied(&self) -> &[VotePosition] {
+        &self.tied
     }
 
     /// Position majoritaire chez les votants. `None` a egalite: annoncer une
@@ -176,13 +198,13 @@ pub struct GroupIdentity {
 /// Ce qu'un groupe a fait sur un vote donne.
 #[derive(Debug, Clone, Serialize)]
 pub struct GroupStance {
-    pub group: GroupIdentity,
+    group: GroupIdentity,
     /// Effectif publie du groupe au moment du scrutin (RM-08).
-    pub member_count: Option<u16>,
+    member_count: Option<u16>,
     /// Position majoritaire publiee par la source, jamais recalculee (RM-02).
-    pub published_majority: Option<VotePosition>,
-    pub tally: VoteTally,
-    pub share: Option<VoterShare>,
+    published_majority: Option<VotePosition>,
+    tally: VoteTally,
+    share: Option<VoterShare>,
 }
 
 impl GroupStance {
@@ -201,33 +223,78 @@ impl GroupStance {
             share,
         }
     }
+
+    pub fn group(&self) -> &GroupIdentity {
+        &self.group
+    }
+
+    pub fn member_count(&self) -> Option<u16> {
+        self.member_count
+    }
+
+    pub fn published_majority(&self) -> Option<VotePosition> {
+        self.published_majority
+    }
+
+    pub fn tally(&self) -> &VoteTally {
+        &self.tally
+    }
+
+    pub fn share(&self) -> Option<&VoterShare> {
+        self.share.as_ref()
+    }
+}
+
+/// Elements d'un vote sur l'ensemble, tels que lus en base.
+///
+/// Une struct plutot que treize parametres positionnels: le champ est nomme au
+/// site d'appel, et un oubli se voit a la compilation. Porte `subject` et non
+/// `reading`: la mention de lecture se derive de l'objet du scrutin, elle ne
+/// s'ecrit jamais de l'exterieur.
+#[derive(Debug, Clone)]
+pub struct NewFinalVote {
+    pub scrutin_uid: ScrutinUid,
+    pub number: String,
+    pub date: NaiveDate,
+    /// Objet du scrutin, dont la mention de lecture est tiree.
+    pub subject: String,
+    pub ballot_type_label: String,
+    pub outcome: Outcome,
+    pub text_key: TextKey,
+    pub text_label: String,
+    pub dossier_uid: Option<DossierUid>,
+    pub dossier_label: Option<String>,
+    pub official_text: Option<OfficialTextVersion>,
+    pub synthesis: VoteTally,
+    pub stances: Vec<GroupStance>,
 }
 
 /// Un vote sur l'ensemble d'un texte, avec la position des groupes demandes.
 #[derive(Debug, Clone, Serialize)]
 pub struct FinalVote {
-    pub scrutin_uid: String,
-    pub number: String,
-    pub date: NaiveDate,
-    pub ballot_type_label: String,
-    pub outcome: Outcome,
+    scrutin_uid: ScrutinUid,
+    number: String,
+    date: NaiveDate,
+    ballot_type_label: String,
+    outcome: Outcome,
     /// Cle du texte debattu: adresse de la fiche vers laquelle le titre pointe.
-    pub text_key: String,
-    pub text_label: String,
-    pub reading: Option<String>,
+    text_key: TextKey,
+    text_label: String,
+    /// Mention de lecture, derivee de l'objet du scrutin (`reading_of`).
+    reading: Option<String>,
     /// Dossier legislatif quand la source en rattache un. Absent sur 150 des
     /// 222 votes sur l'ensemble: le titre vient donc du texte, pas du dossier.
-    pub dossier_uid: Option<String>,
-    pub dossier_label: Option<String>,
+    dossier_uid: Option<DossierUid>,
+    dossier_label: Option<String>,
     /// Version exacte du texte dont une source officielle établit le lien avec
     /// ce scrutin. `None` signifie que ce lien n'a pas encore été vérifié : le
     /// titre du scrutin ne permet jamais de le déduire.
-    pub official_text: Option<OfficialTextVersion>,
+    official_text: Option<OfficialTextVersion>,
     /// Decompte officiel de l'ensemble de l'Assemblee, publie tel quel.
-    pub synthesis: VoteTally,
+    synthesis: VoteTally,
     /// Positions des groupes demandes, dans l'ordre de la demande. Un groupe
     /// absent de la liste n'avait pas de ligne dans ce scrutin.
-    pub stances: Vec<GroupStance>,
+    stances: Vec<GroupStance>,
 }
 
 /// Version officielle explicitement rattachée à un vote sur l'ensemble.
@@ -252,6 +319,82 @@ pub struct OfficialTextVersion {
 }
 
 impl FinalVote {
+    /// Construit le vote. La mention de lecture est calculee ici, depuis l'objet
+    /// du scrutin et le libelle du texte: elle ne peut pas diverger de l'objet.
+    ///
+    /// Infaillible: les identifiants arrivent deja types, et aucune autre regle
+    /// ne porte sur les champs.
+    pub fn new(parts: NewFinalVote) -> Self {
+        let reading = reading_of(&parts.subject, &parts.text_label);
+        Self {
+            scrutin_uid: parts.scrutin_uid,
+            number: parts.number,
+            date: parts.date,
+            ballot_type_label: parts.ballot_type_label,
+            outcome: parts.outcome,
+            text_key: parts.text_key,
+            text_label: parts.text_label,
+            reading,
+            dossier_uid: parts.dossier_uid,
+            dossier_label: parts.dossier_label,
+            official_text: parts.official_text,
+            synthesis: parts.synthesis,
+            stances: parts.stances,
+        }
+    }
+
+    pub fn scrutin_uid(&self) -> &ScrutinUid {
+        &self.scrutin_uid
+    }
+
+    pub fn number(&self) -> &str {
+        &self.number
+    }
+
+    pub fn date(&self) -> NaiveDate {
+        self.date
+    }
+
+    pub fn ballot_type_label(&self) -> &str {
+        &self.ballot_type_label
+    }
+
+    pub fn outcome(&self) -> &Outcome {
+        &self.outcome
+    }
+
+    pub fn text_key(&self) -> &TextKey {
+        &self.text_key
+    }
+
+    pub fn text_label(&self) -> &str {
+        &self.text_label
+    }
+
+    pub fn reading(&self) -> Option<&str> {
+        self.reading.as_deref()
+    }
+
+    pub fn dossier_uid(&self) -> Option<&DossierUid> {
+        self.dossier_uid.as_ref()
+    }
+
+    pub fn dossier_label(&self) -> Option<&str> {
+        self.dossier_label.as_deref()
+    }
+
+    pub fn official_text(&self) -> Option<&OfficialTextVersion> {
+        self.official_text.as_ref()
+    }
+
+    pub fn synthesis(&self) -> &VoteTally {
+        &self.synthesis
+    }
+
+    pub fn stances(&self) -> &[GroupStance] {
+        &self.stances
+    }
+
     /// Le texte est-il passe. Lu sur l'issue publiee du scrutin, qui porte sur
     /// cette lecture-la et non sur le sort final de la loi.
     pub fn adopted(&self) -> bool {
@@ -369,6 +512,13 @@ mod tests {
     }
 
     #[test]
+    fn a_voter_share_exposes_its_voters_and_tied_positions() {
+        let share = VoterShare::from_tally(&tally(15, 9, 6, 10)).unwrap();
+        assert_eq!(share.voters(), 30);
+        assert_eq!(share.tied(), &[VotePosition::For]);
+    }
+
+    #[test]
     fn the_leading_position_is_the_most_numerous_one() {
         // Cas reel du scrutin 8431: la source publie « contre » comme position
         // majoritaire du groupe alors que 14 votants sur 16 s'abstiennent.
@@ -407,5 +557,113 @@ mod tests {
         // arrondie ne sert qu'a l'affichage.
         let share = VoterShare::from_tally(&tally(50, 49, 0, 0)).unwrap();
         assert_eq!(share.leading(), Some(VotePosition::For));
+    }
+
+    fn identity() -> GroupIdentity {
+        GroupIdentity {
+            uid: GroupUid::new("PO800538".to_string()).unwrap(),
+            abbrev: "RN".to_string(),
+            label: "Rassemblement National".to_string(),
+            color: None,
+        }
+    }
+
+    #[test]
+    fn a_group_stance_derives_its_share_from_its_tally() {
+        let counts = tally(15, 9, 6, 10);
+        let stance = GroupStance::new(identity(), Some(40), Some(VotePosition::For), counts);
+
+        assert_eq!(stance.share(), VoterShare::from_tally(&counts).as_ref());
+        assert_eq!(stance.tally(), &counts);
+    }
+
+    #[test]
+    fn a_group_stance_without_a_single_voter_has_no_share() {
+        let stance = GroupStance::new(identity(), None, None, tally(0, 0, 0, 12));
+
+        assert_eq!(stance.share(), None);
+    }
+
+    #[test]
+    fn a_group_stance_exposes_what_the_source_published() {
+        let stance = GroupStance::new(
+            identity(),
+            Some(125),
+            Some(VotePosition::Against),
+            tally(1, 2, 0, 0),
+        );
+
+        assert_eq!(stance.group().abbrev, "RN");
+        assert_eq!(stance.member_count(), Some(125));
+        assert_eq!(stance.published_majority(), Some(VotePosition::Against));
+    }
+
+    fn new_final_vote(subject: &str, text_label: &str) -> FinalVote {
+        FinalVote::new(NewFinalVote {
+            scrutin_uid: ScrutinUid::new("VTANR5L17V5729".to_string()).unwrap(),
+            number: "5729".to_string(),
+            date: NaiveDate::from_ymd_opt(2026, 2, 3).unwrap(),
+            subject: subject.to_string(),
+            ballot_type_label: "Scrutin public solennel".to_string(),
+            outcome: Outcome::new(Outcome::ADOPTED.to_string(), "Adopté".to_string()).unwrap(),
+            text_key: TextKey::from_raw(text_label),
+            text_label: text_label.to_string(),
+            dossier_uid: Some(DossierUid::new("DLR5L17N51234".to_string()).unwrap()),
+            dossier_label: Some("Droit à l'aide à mourir".to_string()),
+            official_text: None,
+            synthesis: tally(300, 200, 20, 57),
+            stances: Vec::new(),
+        })
+    }
+
+    #[test]
+    fn a_final_vote_derives_its_reading_from_the_subject() {
+        let vote = new_final_vote(
+            "l'ensemble de la proposition de loi relative au droit à l'aide à mourir (première lecture).",
+            "proposition de loi relative au droit à l'aide à mourir",
+        );
+
+        assert_eq!(vote.reading(), Some("première lecture"));
+    }
+
+    #[test]
+    fn a_final_vote_has_no_reading_when_the_text_label_already_carries_it() {
+        let label = "proposition de loi pour une montagne vivante et souveraine (texte de la commission mixte paritaire)";
+        let vote = new_final_vote(
+            "l'ensemble de la proposition de loi pour une montagne vivante et souveraine (texte de la commission mixte paritaire).",
+            label,
+        );
+
+        assert_eq!(vote.reading(), None);
+    }
+
+    #[test]
+    fn a_final_vote_has_no_reading_when_the_subject_carries_none() {
+        let vote = new_final_vote("l'ensemble du projet de loi X.", "projet de loi X");
+
+        assert_eq!(vote.reading(), None);
+    }
+
+    #[test]
+    fn a_final_vote_exposes_the_identifiers_it_was_built_with() {
+        let vote = new_final_vote("l'ensemble du projet de loi X.", "projet de loi X");
+
+        assert_eq!(vote.scrutin_uid().as_str(), "VTANR5L17V5729");
+        assert_eq!(vote.text_key().as_str(), "projet de loi x");
+        assert_eq!(
+            vote.dossier_uid().map(DossierUid::as_str),
+            Some("DLR5L17N51234")
+        );
+        assert_eq!(vote.number(), "5729");
+        assert_eq!(vote.text_label(), "projet de loi X");
+        assert_eq!(vote.synthesis(), &tally(300, 200, 20, 57));
+    }
+
+    #[test]
+    fn a_final_vote_is_adopted_when_its_outcome_is() {
+        let vote = new_final_vote("l'ensemble du projet de loi X.", "projet de loi X");
+
+        assert!(vote.adopted());
+        assert_eq!(vote.outcome().code(), Outcome::ADOPTED);
     }
 }

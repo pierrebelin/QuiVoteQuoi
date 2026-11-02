@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use chrono::NaiveDate;
 use serde::Serialize;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ActorError {
     #[error("actor uid must not be empty")]
     EmptyActorUid,
@@ -26,7 +26,7 @@ pub struct ActorUid(String);
 
 impl ActorUid {
     pub fn new(raw: String) -> Result<Self, ActorError> {
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(ActorError::EmptyActorUid);
         }
         Ok(Self(raw))
@@ -48,7 +48,7 @@ pub struct GroupUid(String);
 
 impl GroupUid {
     pub fn new(raw: String) -> Result<Self, ActorError> {
-        if raw.is_empty() {
+        if raw.trim().is_empty() {
             return Err(ActorError::EmptyGroupUid);
         }
         Ok(Self(raw))
@@ -546,13 +546,47 @@ mod tests {
     }
 
     #[test]
+    fn actor_role_round_trips_through_its_string() {
+        for role in [
+            ActorRole::Deputy,
+            ActorRole::Minister,
+            ActorRole::Senator,
+            ActorRole::Other,
+        ] {
+            assert_eq!(ActorRole::parse(role.as_str()), Some(role));
+        }
+    }
+
+    #[test]
     fn actor_uid_rejects_empty() {
-        assert!(ActorUid::new("".into()).is_err());
+        assert_eq!(
+            ActorUid::new("".into()).unwrap_err(),
+            ActorError::EmptyActorUid
+        );
+    }
+
+    #[test]
+    fn actor_uid_rejects_blank() {
+        assert_eq!(
+            ActorUid::new(" \t".into()).unwrap_err(),
+            ActorError::EmptyActorUid
+        );
     }
 
     #[test]
     fn group_uid_rejects_empty() {
-        assert!(GroupUid::new("".into()).is_err());
+        assert_eq!(
+            GroupUid::new("".into()).unwrap_err(),
+            ActorError::EmptyGroupUid
+        );
+    }
+
+    #[test]
+    fn group_uid_rejects_blank() {
+        assert_eq!(
+            GroupUid::new(" \t".into()).unwrap_err(),
+            ActorError::EmptyGroupUid
+        );
     }
 
     #[test]
@@ -564,7 +598,7 @@ mod tests {
             "".into(),
             ActorRole::Deputy,
         );
-        assert!(result.is_err());
+        assert_eq!(result.unwrap_err(), ActorError::EmptyActorName);
     }
 
     #[test]
@@ -588,31 +622,40 @@ mod tests {
 
     #[test]
     fn group_rejects_empty_label_or_abbrev() {
-        assert!(ParliamentaryGroup::new(
-            GroupUid::new("PO1".into()).unwrap(),
-            17,
-            "".into(),
-            "GRP".into(),
-            None,
-            None,
-            None,
-        )
-        .is_err());
-        assert!(ParliamentaryGroup::new(
-            GroupUid::new("PO1".into()).unwrap(),
-            17,
-            "Groupe".into(),
-            " ".into(),
-            None,
-            None,
-            None,
-        )
-        .is_err());
+        assert_eq!(
+            ParliamentaryGroup::new(
+                GroupUid::new("PO1".into()).unwrap(),
+                17,
+                "".into(),
+                "GRP".into(),
+                None,
+                None,
+                None,
+            )
+            .unwrap_err(),
+            ActorError::EmptyGroupLabel
+        );
+        assert_eq!(
+            ParliamentaryGroup::new(
+                GroupUid::new("PO1".into()).unwrap(),
+                17,
+                "Groupe".into(),
+                " ".into(),
+                None,
+                None,
+                None,
+            )
+            .unwrap_err(),
+            ActorError::EmptyGroupAbbrev
+        );
     }
 
     #[test]
     fn membership_quality_rejects_empty() {
-        assert!(MembershipQuality::new("  ".into()).is_err());
+        assert_eq!(
+            MembershipQuality::new("  ".into()).unwrap_err(),
+            ActorError::EmptyMembershipQuality
+        );
     }
 
     #[test]
@@ -624,7 +667,13 @@ mod tests {
     #[test]
     fn period_rejects_end_before_start() {
         let result = MembershipPeriod::new(date(2024, 7, 18), Some(date(2024, 7, 17)));
-        assert!(result.is_err());
+        assert_eq!(
+            result.unwrap_err(),
+            ActorError::ReversedMembershipPeriod {
+                start: date(2024, 7, 18),
+                end: date(2024, 7, 17),
+            }
+        );
     }
 
     #[test]

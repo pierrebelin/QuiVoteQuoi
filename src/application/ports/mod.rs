@@ -9,6 +9,7 @@ pub mod dossier_repository;
 pub mod dossier_summary_generator;
 pub mod final_vote_repository;
 pub mod group_repository;
+pub mod health_probe;
 pub mod scrutin_repository;
 pub mod scrutin_source;
 pub mod theme_classifier;

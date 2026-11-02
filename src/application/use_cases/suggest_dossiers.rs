@@ -25,7 +25,8 @@ mod tests {
 
     use crate::application::ports::dossier_repository::RepositoryError;
     use crate::domain::dossier::{
-        CurationStatus, DossierOutcome, DossierUid, LegislativeDossier, Score,
+        CurationStatus, DossierOutcome, DossierUid, LegislativeDossier, NewLegislativeDossier,
+        Score,
     };
 
     struct InMemoryDossierRepository {
@@ -37,10 +38,7 @@ mod tests {
         async fn load_states(
             &self,
         ) -> Result<
-            std::collections::HashMap<
-                String,
-                crate::application::ports::dossier_repository::StoredDossierState,
-            >,
+            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
             RepositoryError,
         > {
             unreachable!()
@@ -83,10 +81,10 @@ mod tests {
             let store = self.dossiers.lock().unwrap();
             let mut new_dossiers: Vec<_> = store
                 .values()
-                .filter(|d| d.curation_status == CurationStatus::New)
+                .filter(|d| d.curation_status() == CurationStatus::New)
                 .cloned()
                 .collect();
-            new_dossiers.sort_by(|a, b| b.score.total().cmp(&a.score.total()));
+            new_dossiers.sort_by(|a, b| b.score().total().cmp(&a.score().total()));
             new_dossiers.truncate(count);
             Ok(new_dossiers)
         }
@@ -101,7 +99,7 @@ mod tests {
     }
 
     fn make_dossier(uid: &str, total: u8, status: CurationStatus) -> LegislativeDossier {
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new(uid.into()).unwrap(),
             title: format!("Dossier {uid}"),
             procedure: "PL".into(),
@@ -119,7 +117,7 @@ mod tests {
             committee: None,
             curation_status: status,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     #[tokio::test]
@@ -136,8 +134,8 @@ mod tests {
         let result = uc.execute(2).await.unwrap();
 
         assert_eq!(result.len(), 2);
-        assert_eq!(result[0].uid.as_str(), "D2");
-        assert_eq!(result[1].uid.as_str(), "D1");
+        assert_eq!(result[0].uid().as_str(), "D2");
+        assert_eq!(result[1].uid().as_str(), "D1");
     }
 
     #[tokio::test]
@@ -160,7 +158,7 @@ mod tests {
         let result = uc.execute(3).await.unwrap();
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].uid.as_str(), "D2");
+        assert_eq!(result[0].uid().as_str(), "D2");
     }
 
     #[tokio::test]

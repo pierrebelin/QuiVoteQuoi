@@ -133,8 +133,8 @@ impl ParticipationRates {
 /// serait un chiffre invente. Les deux bornes sont donc gardees.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct MemberCountRange {
-    pub min: u16,
-    pub max: u16,
+    min: u16,
+    max: u16,
 }
 
 impl MemberCountRange {
@@ -142,6 +142,14 @@ impl MemberCountRange {
     /// sont incoherentes: mieux vaut ne rien afficher qu'un intervalle inverse.
     pub fn new(min: u16, max: u16) -> Option<Self> {
         (min <= max).then_some(Self { min, max })
+    }
+
+    pub fn min(&self) -> u16 {
+        self.min
+    }
+
+    pub fn max(&self) -> u16 {
+        self.max
     }
 
     pub fn is_stable(&self) -> bool {
@@ -158,8 +166,8 @@ impl MemberCountRange {
 /// deux taux ne se comparent pas.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub struct VotingWindow {
-    pub first: NaiveDate,
-    pub last: NaiveDate,
+    first: NaiveDate,
+    last: NaiveDate,
 }
 
 impl VotingWindow {
@@ -167,6 +175,23 @@ impl VotingWindow {
         match (first, last) {
             (Some(first), Some(last)) if first <= last => Some(Self { first, last }),
             _ => None,
+        }
+    }
+
+    pub fn first(&self) -> NaiveDate {
+        self.first
+    }
+
+    pub fn last(&self) -> NaiveDate {
+        self.last
+    }
+
+    /// Plus petite fenetre qui couvre les deux: un groupe renomme est vu sur
+    /// l'ensemble de ses periodes, de la premiere a la derniere.
+    pub fn span(self, other: Self) -> Self {
+        Self {
+            first: self.first.min(other.first),
+            last: self.last.max(other.last),
         }
     }
 }
@@ -268,6 +293,12 @@ mod tests {
     }
 
     #[test]
+    fn a_headcount_range_exposes_its_two_bounds() {
+        let range = MemberCountRange::new(121, 125).unwrap();
+        assert_eq!((range.min(), range.max()), (121, 125));
+    }
+
+    #[test]
     fn a_group_that_never_appears_in_a_scrutin_has_no_window() {
         let date = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
         assert!(VotingWindow::new(None, None).is_none());
@@ -279,5 +310,68 @@ mod tests {
                 last: date
             })
         );
+    }
+
+    #[test]
+    fn a_window_missing_one_of_its_dates_is_refused() {
+        let date = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
+        assert!(VotingWindow::new(None, Some(date)).is_none());
+    }
+
+    #[test]
+    fn a_window_whose_first_date_follows_its_last_is_refused() {
+        let earlier = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
+        let later = NaiveDate::from_ymd_opt(2025, 4, 2).unwrap();
+        assert!(VotingWindow::new(Some(later), Some(earlier)).is_none());
+    }
+
+    #[test]
+    fn a_window_exposes_its_first_and_last_dates() {
+        let first = NaiveDate::from_ymd_opt(2025, 3, 27).unwrap();
+        let last = NaiveDate::from_ymd_opt(2025, 4, 2).unwrap();
+        let window = VotingWindow::new(Some(first), Some(last)).unwrap();
+        assert_eq!((window.first(), window.last()), (first, last));
+    }
+
+    fn window(first: (i32, u32, u32), last: (i32, u32, u32)) -> VotingWindow {
+        let date = |(y, m, d): (i32, u32, u32)| NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        VotingWindow {
+            first: date(first),
+            last: date(last),
+        }
+    }
+
+    #[test]
+    fn the_span_of_two_disjoint_windows_runs_from_the_first_start_to_the_last_end() {
+        let former = window((2024, 10, 8), (2025, 7, 10));
+        let current = window((2025, 10, 15), (2026, 7, 21));
+
+        let expected = window((2024, 10, 8), (2026, 7, 21));
+        assert_eq!(former.span(current), expected);
+        assert_eq!(current.span(former), expected);
+    }
+
+    #[test]
+    fn the_span_of_nested_windows_is_the_outer_one() {
+        let outer = window((2024, 10, 8), (2026, 7, 21));
+        let inner = window((2025, 1, 27), (2025, 7, 10));
+
+        assert_eq!(outer.span(inner), outer);
+        assert_eq!(inner.span(outer), outer);
+    }
+
+    #[test]
+    fn the_span_of_overlapping_windows_keeps_the_earliest_start_and_the_latest_end() {
+        let early = window((2024, 10, 8), (2025, 7, 10));
+        let late = window((2025, 1, 27), (2026, 7, 21));
+
+        assert_eq!(early.span(late), window((2024, 10, 8), (2026, 7, 21)));
+    }
+
+    #[test]
+    fn a_window_spanned_with_itself_is_unchanged() {
+        let only = window((2025, 1, 27), (2025, 7, 10));
+
+        assert_eq!(only.span(only), only);
     }
 }

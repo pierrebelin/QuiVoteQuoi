@@ -1,5 +1,6 @@
 pub mod anthropic_classifier;
 pub mod anthropic_dossier_summary;
+pub mod http_retry;
 pub mod mistral_classifier;
 pub mod mistral_dossier_summary;
 pub mod mistral_support;

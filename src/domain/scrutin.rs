@@ -10,14 +10,15 @@ use std::collections::BTreeMap;
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use super::actor::{ActorUid, GroupUid};
+use super::actor::{ActorDirectory, ActorUid, GroupUid};
+use super::dossier::DossierUid;
 
 /// Reference de groupe factice publiee par la source quand la ventilation par
 /// groupe est perdue. La repartition se reconstruit alors depuis les positions
 /// nominales (RM-03).
 pub const MISSING_GROUP_SENTINEL: &str = "PO0";
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
 pub enum ScrutinError {
     #[error("scrutin uid must not be empty")]
     EmptyScrutinUid,
@@ -314,7 +315,7 @@ pub struct VoteSynthesis {
 /// qui restent exposes (RM-10).
 #[derive(Debug, Clone, Serialize)]
 pub struct DossierReference {
-    pub uid: String,
+    pub uid: DossierUid,
     /// Libelle publie dans le scrutin. Conserve pour rester lisible meme quand
     /// le dossier n'est pas ingere.
     pub label: String,
@@ -359,49 +360,63 @@ impl ReconstructionReport {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
+/// Page officielle d'un scrutin sur le site de l'Assemblee (RM-07). Une seule
+/// forme d'adresse, partagee par le domaine et par les reponses de l'API.
+pub fn scrutin_official_url(legislature: u16, number: &str) -> String {
+    format!("https://www.assemblee-nationale.fr/dyn/{legislature}/scrutins/{number}")
+}
+
+/// Elements d'un scrutin, tels que lus dans la source.
+///
+/// Une struct plutot que seize parametres positionnels: le champ est nomme au
+/// site d'appel, et un oubli se voit a la compilation.
+#[derive(Debug, Clone)]
+pub struct NewScrutin {
+    pub uid: ScrutinUid,
+    pub number: String,
+    pub legislature: u16,
+    pub date: NaiveDate,
+    pub session_ref: Option<String>,
+    pub sitting_ref: Option<String>,
+    pub place: Option<String>,
+    pub ballot_type: BallotType,
+    pub outcome: Outcome,
+    pub requester: Option<String>,
+    pub subject: String,
+    pub synthesis: VoteSynthesis,
+    pub group_tallies: Vec<GroupTally>,
+    pub nominal_votes: Vec<NominalVote>,
+    pub corrections: Vec<VoteCorrection>,
+    pub dossier: Option<DossierReference>,
+}
+
 impl Scrutin {
-    pub fn new(
-        uid: ScrutinUid,
-        number: String,
-        legislature: u16,
-        date: NaiveDate,
-        session_ref: Option<String>,
-        sitting_ref: Option<String>,
-        place: Option<String>,
-        ballot_type: BallotType,
-        outcome: Outcome,
-        requester: Option<String>,
-        subject: String,
-        synthesis: VoteSynthesis,
-        group_tallies: Vec<GroupTally>,
-        nominal_votes: Vec<NominalVote>,
-        corrections: Vec<VoteCorrection>,
-        dossier: Option<DossierReference>,
-    ) -> Result<Self, ScrutinError> {
-        if number.trim().is_empty() {
+    /// Construit l'agregat et applique les invariants: le numero et l'objet du
+    /// scrutin ne sont jamais blancs.
+    pub fn new(parts: NewScrutin) -> Result<Self, ScrutinError> {
+        if parts.number.trim().is_empty() {
             return Err(ScrutinError::EmptyScrutinNumber);
         }
-        if subject.trim().is_empty() {
+        if parts.subject.trim().is_empty() {
             return Err(ScrutinError::EmptySubject);
         }
         Ok(Self {
-            uid,
-            number,
-            legislature,
-            date,
-            session_ref,
-            sitting_ref,
-            place,
-            ballot_type,
-            outcome,
-            requester,
-            subject,
-            synthesis,
-            group_tallies,
-            nominal_votes,
-            corrections,
-            dossier,
+            uid: parts.uid,
+            number: parts.number,
+            legislature: parts.legislature,
+            date: parts.date,
+            session_ref: parts.session_ref,
+            sitting_ref: parts.sitting_ref,
+            place: parts.place,
+            ballot_type: parts.ballot_type,
+            outcome: parts.outcome,
+            requester: parts.requester,
+            subject: parts.subject,
+            synthesis: parts.synthesis,
+            group_tallies: parts.group_tallies,
+            nominal_votes: parts.nominal_votes,
+            corrections: parts.corrections,
+            dossier: parts.dossier,
         })
     }
 
@@ -447,9 +462,6 @@ impl Scrutin {
     pub fn nominal_votes(&self) -> &[NominalVote] {
         &self.nominal_votes
     }
-    pub fn nominal_votes_mut(&mut self) -> &mut [NominalVote] {
-        &mut self.nominal_votes
-    }
     pub fn corrections(&self) -> &[VoteCorrection] {
         &self.corrections
     }
@@ -459,10 +471,7 @@ impl Scrutin {
 
     /// Page officielle du scrutin (RM-07).
     pub fn official_url(&self) -> String {
-        format!(
-            "https://www.assemblee-nationale.fr/dyn/{}/scrutins/{}",
-            self.legislature, self.number
-        )
+        scrutin_official_url(self.legislature, &self.number)
     }
 
     /// Vrai quand au moins une ligne de groupe a ete reconstruite: declenche la
@@ -480,7 +489,7 @@ impl Scrutin {
 
     /// Acteurs dont le groupe reste a resoudre parce qu'ils votent sous la
     /// sentinelle. L'appelant leur cherche leur appartenance a la date du
-    /// scrutin, puis appelle `reconstruct_sentinel_groups`.
+    /// scrutin, puis appelle `attach_groups`.
     pub fn actors_under_sentinel(&self) -> Vec<ActorUid> {
         let mut uids: Vec<ActorUid> = self
             .nominal_votes
@@ -497,11 +506,40 @@ impl Scrutin {
         uids
     }
 
+    /// Rattache chaque position nominale sans groupe au groupe que le repertoire
+    /// donne a son votant a la date du scrutin, puis reconstruit la repartition
+    /// (RM-03, RM-04 de la spec ACTEURS).
+    ///
+    /// Acteur inconnu du repertoire, sans appartenance ou en appartenance
+    /// ambigue a cette date: rien n'est devine, la position reste sans groupe et
+    /// le rapport la compte comme non resolue.
+    ///
+    /// Une position qui porte deja un groupe n'est jamais touchee, la sentinelle
+    /// `PO0` comprise. Cas limite connu: une position rangee explicitement sous
+    /// `PO0` par la source reste sous `PO0` et compte comme non resolue, meme si
+    /// le repertoire connait son groupe.
+    ///
+    /// A n'appeler que sur un scrutin qui porte des lignes factices
+    /// (`has_sentinel_tallies`): sans elles il n'y a rien a reconstruire, et les
+    /// positions sans groupe n'ont pas a etre rattachees.
+    pub fn attach_groups(&mut self, directory: &ActorDirectory) -> ReconstructionReport {
+        let date = self.date;
+        for vote in &mut self.nominal_votes {
+            if vote.group_uid.is_some() {
+                continue;
+            }
+            vote.group_uid = directory
+                .resolve_at(&vote.actor_uid, date)
+                .and_then(|resolved| resolved.group.map(|group| group.uid().clone()));
+        }
+        self.reconstruct_sentinel_groups()
+    }
+
     /// Remplace les lignes de groupe factices par une repartition reconstruite
     /// depuis les positions nominales (RM-03).
     ///
     /// Prerequis: les positions concernees portent deja leur vrai groupe, resolu
-    /// par l'appelant sur l'appartenance a la date du scrutin. Une position
+    /// par l'appelant (`attach_groups`) sur l'appartenance a la date du scrutin. Une position
     /// laissee sans groupe n'est comptee nulle part et remonte dans le rapport:
     /// mieux vaut un decompte visiblement incomplet qu'un chiffre invente.
     pub fn reconstruct_sentinel_groups(&mut self) -> ReconstructionReport {
@@ -563,6 +601,9 @@ impl Scrutin {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::actor::{
+        Actor, ActorRole, GroupMembership, MembershipPeriod, MembershipQuality, ParliamentaryGroup,
+    };
 
     fn date() -> NaiveDate {
         NaiveDate::from_ymd_opt(2024, 12, 2).unwrap()
@@ -602,28 +643,28 @@ mod tests {
     }
 
     fn scrutin(group_tallies: Vec<GroupTally>, nominal_votes: Vec<NominalVote>) -> Scrutin {
-        Scrutin::new(
-            ScrutinUid::new("VTANR5L17V489".into()).unwrap(),
-            "489".into(),
-            17,
-            date(),
-            Some("SCR5A2025O1".into()),
-            None,
-            Some("H\u{00e9}micycle".into()),
-            BallotType::new(
+        Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new("VTANR5L17V489".into()).unwrap(),
+            number: "489".into(),
+            legislature: 17,
+            date: date(),
+            session_ref: Some("SCR5A2025O1".into()),
+            sitting_ref: None,
+            place: Some("H\u{00e9}micycle".into()),
+            ballot_type: BallotType::new(
                 "SPO".into(),
                 "scrutin public ordinaire".into(),
                 Some("Majorit\u{00e9} absolue des suffrages exprim\u{00e9}s".into()),
             )
             .unwrap(),
-            Outcome::new(
+            outcome: Outcome::new(
                 "rejet\u{00e9}".into(),
                 "L'Assembl\u{00e9}e nationale n'a pas adopt\u{00e9}".into(),
             )
             .unwrap(),
-            None,
-            "l'amendement n\u{00b0} 1".into(),
-            VoteSynthesis {
+            requester: None,
+            subject: "l'amendement n\u{00b0} 1".into(),
+            synthesis: VoteSynthesis {
                 voters: 2,
                 expressed: 2,
                 required: 2,
@@ -632,15 +673,18 @@ mod tests {
             },
             group_tallies,
             nominal_votes,
-            vec![],
-            None,
-        )
+            corrections: vec![],
+            dossier: None,
+        })
         .unwrap()
     }
 
     #[test]
     fn scrutin_uid_rejects_empty() {
-        assert!(ScrutinUid::new("  ".into()).is_err());
+        assert_eq!(
+            ScrutinUid::new("  ".into()).unwrap_err(),
+            ScrutinError::EmptyScrutinUid
+        );
     }
 
     #[test]
@@ -648,31 +692,50 @@ mod tests {
         let base = scrutin(vec![], vec![]);
         assert!(base.number() == "489");
 
-        let err = Scrutin::new(
-            ScrutinUid::new("V1".into()).unwrap(),
-            "  ".into(),
-            17,
-            date(),
-            None,
-            None,
-            None,
-            BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
-            Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
-            None,
-            "objet".into(),
-            VoteSynthesis {
+        let err = Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new("V1".into()).unwrap(),
+            number: "  ".into(),
+            legislature: 17,
+            date: date(),
+            session_ref: None,
+            sitting_ref: None,
+            place: None,
+            ballot_type: BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
+            outcome: Outcome::new("adopt\u{00e9}".into(), "adopt\u{00e9}".into()).unwrap(),
+            requester: None,
+            subject: "objet".into(),
+            synthesis: VoteSynthesis {
                 voters: 0,
                 expressed: 0,
                 required: 0,
                 announcement: String::new(),
                 tally: VoteTally::default(),
             },
-            vec![],
-            vec![],
-            vec![],
-            None,
-        );
-        assert!(err.is_err());
+            group_tallies: vec![],
+            nominal_votes: vec![],
+            corrections: vec![],
+            dossier: None,
+        });
+        assert_eq!(err.unwrap_err(), ScrutinError::EmptyScrutinNumber);
+    }
+
+    #[test]
+    fn vote_position_round_trips_through_its_string() {
+        for position in [
+            VotePosition::For,
+            VotePosition::Against,
+            VotePosition::Abstention,
+            VotePosition::NotVoting,
+        ] {
+            assert_eq!(VotePosition::parse(position.as_str()), Some(position));
+        }
+    }
+
+    #[test]
+    fn tally_origin_round_trips_through_its_string() {
+        for origin in [TallyOrigin::Published, TallyOrigin::Reconstructed] {
+            assert_eq!(TallyOrigin::parse(origin.as_str()), Some(origin));
+        }
     }
 
     #[test]
@@ -689,7 +752,10 @@ mod tests {
             VotePosition::from_source("abstention").unwrap(),
             VotePosition::Abstention
         );
-        assert!(VotePosition::from_source("favorable").is_err());
+        assert_eq!(
+            VotePosition::from_source("favorable").unwrap_err(),
+            ScrutinError::UnknownVotePosition("favorable".into())
+        );
     }
 
     #[test]
@@ -698,6 +764,18 @@ mod tests {
         assert_eq!(
             s.official_url(),
             "https://www.assemblee-nationale.fr/dyn/17/scrutins/489"
+        );
+    }
+
+    #[test]
+    fn scrutin_official_url_is_built_from_the_legislature_and_the_number() {
+        assert_eq!(
+            scrutin_official_url(17, "489"),
+            "https://www.assemblee-nationale.fr/dyn/17/scrutins/489"
+        );
+        assert_eq!(
+            scrutin_official_url(16, "1"),
+            "https://www.assemblee-nationale.fr/dyn/16/scrutins/1"
         );
     }
 
@@ -861,6 +939,145 @@ mod tests {
             .map(|u| u.as_str().to_string())
             .collect();
         assert_eq!(uids, vec!["PA1".to_string(), "PA2".to_string()]);
+    }
+
+    fn sentinel_line() -> GroupTally {
+        GroupTally {
+            group_uid: group(MISSING_GROUP_SENTINEL),
+            member_count: Some(122),
+            majority_position: None,
+            tally: VoteTally::default(),
+            origin: TallyOrigin::Published,
+        }
+    }
+
+    /// PA1 siege dans PO_A jusqu'au 30 juin 2025, puis dans PO_B. PA2 est
+    /// absent du repertoire.
+    fn directory_with_a_group_change() -> ActorDirectory {
+        let deputy = Actor::new(
+            actor("PA1"),
+            Some("M.".into()),
+            "Jean".into(),
+            "Dupont".into(),
+            ActorRole::Deputy,
+        )
+        .unwrap();
+        let parliamentary_group = |uid: &str, abbrev: &str| {
+            ParliamentaryGroup::new(
+                group(uid),
+                17,
+                format!("Groupe {abbrev}"),
+                abbrev.into(),
+                None,
+                None,
+                None,
+            )
+            .unwrap()
+        };
+        let membership = |source: &str, group_uid: &str, start, end| {
+            GroupMembership::new(
+                source.into(),
+                actor("PA1"),
+                group(group_uid),
+                17,
+                MembershipPeriod::new(start, end).unwrap(),
+                MembershipQuality::new("Membre".into()).unwrap(),
+            )
+        };
+
+        ActorDirectory::new(
+            vec![deputy],
+            vec![
+                parliamentary_group("PO_A", "A"),
+                parliamentary_group("PO_B", "B"),
+            ],
+            vec![
+                membership(
+                    "PM1",
+                    "PO_A",
+                    NaiveDate::from_ymd_opt(2024, 7, 19).unwrap(),
+                    Some(NaiveDate::from_ymd_opt(2025, 6, 30).unwrap()),
+                ),
+                membership(
+                    "PM2",
+                    "PO_B",
+                    NaiveDate::from_ymd_opt(2025, 7, 1).unwrap(),
+                    None,
+                ),
+            ],
+        )
+    }
+
+    #[test]
+    fn attach_groups_gives_a_vote_without_group_the_directory_group_at_the_scrutin_date() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![vote("PA1", None, VotePosition::For)],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        // Le scrutin date de decembre 2024: PA1 siegeait alors dans PO_A, pas
+        // dans PO_B, son groupe actuel.
+        assert_eq!(s.nominal_votes()[0].group_uid, Some(group("PO_A")));
+        assert_eq!(report.sentinel_lines, 1);
+        assert_eq!(report.rebuilt_lines, 1);
+        assert_eq!(report.unresolved_votes, 0);
+        assert!(!s.has_sentinel_tallies());
+        assert_eq!(s.group_tallies()[0].group_uid, group("PO_A"));
+        assert_eq!(s.group_tallies()[0].origin, TallyOrigin::Reconstructed);
+        assert_eq!(s.group_tallies()[0].tally.votes_for, 1);
+    }
+
+    #[test]
+    fn attach_groups_leaves_an_unknown_actor_without_group_and_counts_it_unresolved() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![
+                vote("PA1", None, VotePosition::For),
+                vote("PA2", None, VotePosition::For),
+            ],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        assert_eq!(s.nominal_votes()[1].group_uid, None);
+        assert_eq!(report.unresolved_votes, 1);
+        assert_eq!(s.group_tallies().len(), 1);
+        assert_eq!(s.group_tallies()[0].tally.votes_for, 1);
+    }
+
+    #[test]
+    fn attach_groups_does_not_touch_a_vote_that_already_has_a_group() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![vote("PA1", Some("PO_B"), VotePosition::For)],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        // Le repertoire donnerait PO_A a cette date: le groupe porte par la
+        // position l'emporte.
+        assert_eq!(s.nominal_votes()[0].group_uid, Some(group("PO_B")));
+        assert_eq!(report.unresolved_votes, 0);
+        assert_eq!(s.group_tallies()[0].group_uid, group("PO_B"));
+    }
+
+    #[test]
+    fn attach_groups_keeps_an_explicit_sentinel_vote_under_the_sentinel() {
+        let mut s = scrutin(
+            vec![sentinel_line()],
+            vec![vote("PA1", Some(MISSING_GROUP_SENTINEL), VotePosition::For)],
+        );
+
+        let report = s.attach_groups(&directory_with_a_group_change());
+
+        assert_eq!(
+            s.nominal_votes()[0].group_uid,
+            Some(group(MISSING_GROUP_SENTINEL))
+        );
+        assert_eq!(report.unresolved_votes, 1);
+        assert!(s.group_tallies().is_empty());
     }
 
     #[test]

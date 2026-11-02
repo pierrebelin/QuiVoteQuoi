@@ -5,9 +5,10 @@ use chrono::NaiveDate;
 
 use crate::application::ports::scrutin_source::{ScrutinSource, SourceError};
 use crate::domain::actor::{ActorUid, GroupUid};
+use crate::domain::dossier::DossierUid;
 use crate::domain::scrutin::{
-    BallotType, DossierReference, GroupTally, NominalVote, NonVotingCause, Outcome, Scrutin,
-    ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
+    BallotType, DossierReference, GroupTally, NewScrutin, NominalVote, NonVotingCause, Outcome,
+    Scrutin, ScrutinUid, TallyOrigin, VoteCorrection, VotePosition, VoteSynthesis, VoteTally,
     MISSING_GROUP_SENTINEL,
 };
 
@@ -144,16 +145,17 @@ impl ScrutinClient {
             .and_then(|o| o.libelle.clone())
             .unwrap_or_default();
 
-        let dossier = objet.and_then(|o| o.dossier_legislatif).and_then(|d| {
-            match (non_empty(d.dossier_ref), d.libelle) {
+        let dossier = match objet.and_then(|o| o.dossier_legislatif) {
+            Some(d) => match (non_empty(d.dossier_ref), d.libelle) {
                 (Some(uid), label) => Some(DossierReference {
-                    uid,
+                    uid: DossierUid::new(uid).map_err(|e| e.to_string())?,
                     label: label.unwrap_or_default(),
                 }),
                 // RM-10: pas de dossier, le scrutin passe quand meme.
                 (None, _) => None,
-            }
-        });
+            },
+            None => None,
+        };
 
         let raw_synthese = raw
             .synthese_vote
@@ -182,17 +184,18 @@ impl ScrutinClient {
             nominal_votes.extend(votes);
         }
 
-        Scrutin::new(
+        Scrutin::new(NewScrutin {
             uid,
-            raw.numero,
-            raw_legislature.unwrap_or(legislature),
+            number: raw.numero,
+            legislature: raw_legislature.unwrap_or(legislature),
             date,
-            non_empty(raw.session_ref),
-            non_empty(raw.seance_ref),
-            non_empty(raw.lieu_vote),
+            session_ref: non_empty(raw.session_ref),
+            sitting_ref: non_empty(raw.seance_ref),
+            place: non_empty(raw.lieu_vote),
             ballot_type,
             outcome,
-            raw.demandeur
+            requester: raw
+                .demandeur
                 .and_then(|d| non_empty(d.texte))
                 // Le XML colle plusieurs demandeurs sur une ligne separee par
                 // des retours chariot: on les rend lisibles sans les fusionner.
@@ -203,7 +206,7 @@ impl ScrutinClient {
             nominal_votes,
             corrections,
             dossier,
-        )
+        })
         .map(Some)
         .map_err(|e| e.to_string())
     }
@@ -470,7 +473,7 @@ mod tests {
         assert!(s.outcome().is_adopted());
         assert_eq!(s.synthesis().voters, 81);
         assert_eq!(s.synthesis().tally.votes_for, 72);
-        assert_eq!(s.dossier().unwrap().uid, "DLR5L17N50579");
+        assert_eq!(s.dossier().unwrap().uid.as_str(), "DLR5L17N50579");
         assert_eq!(
             s.official_url(),
             "https://www.assemblee-nationale.fr/dyn/17/scrutins/1191"

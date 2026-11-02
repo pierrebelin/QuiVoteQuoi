@@ -90,14 +90,14 @@ impl From<VoterShare> for ShareDto {
     fn from(share: VoterShare) -> Self {
         let leading = share.leading();
         Self {
-            voters: share.voters,
-            for_percent: share.for_percent,
-            against_percent: share.against_percent,
-            abstention_percent: share.abstention_percent,
+            voters: share.voters(),
+            for_percent: share.for_percent(),
+            against_percent: share.against_percent(),
+            abstention_percent: share.abstention_percent(),
             leading: leading.map(|p| p.as_str().to_string()),
             leading_label: leading.map(position_label),
             leading_percent: share.leading_percent(),
-            tied_labels: share.tied.iter().copied().map(position_label).collect(),
+            tied_labels: share.tied().iter().copied().map(position_label).collect(),
         }
     }
 }
@@ -144,15 +144,15 @@ pub struct StanceDto {
 impl From<&GroupStance> for StanceDto {
     fn from(stance: &GroupStance) -> Self {
         Self {
-            group_uid: stance.group.uid.as_str().to_string(),
-            abbrev: stance.group.abbrev.clone(),
-            label: stance.group.label.clone(),
-            color: stance.group.color.clone(),
-            member_count: stance.member_count,
-            majority: stance.published_majority.map(|p| p.as_str().to_string()),
-            majority_label: stance.published_majority.map(position_label),
-            tally: stance.tally.into(),
-            share: stance.share.clone().map(ShareDto::from),
+            group_uid: stance.group().uid.as_str().to_string(),
+            abbrev: stance.group().abbrev.clone(),
+            label: stance.group().label.clone(),
+            color: stance.group().color.clone(),
+            member_count: stance.member_count(),
+            majority: stance.published_majority().map(|p| p.as_str().to_string()),
+            majority_label: stance.published_majority().map(position_label),
+            tally: (*stance.tally()).into(),
+            share: stance.share().cloned().map(ShareDto::from),
         }
     }
 }
@@ -231,26 +231,29 @@ impl From<FinalVoteEntry> for FinalVoteDto {
     fn from(entry: FinalVoteEntry) -> Self {
         let vote = entry.vote;
         Self {
-            scrutin_uid: vote.scrutin_uid,
-            number: vote.number,
-            date: vote.date,
-            ballot_type_label: vote.ballot_type_label,
-            text_key: vote.text_key,
-            text_label: vote.text_label,
-            reading: vote.reading,
-            outcome_code: vote.outcome.code().to_string(),
-            outcome_label: vote.outcome.label().to_string(),
-            adopted: vote.outcome.is_adopted(),
-            dossier_uid: vote.dossier_uid,
-            dossier_label: vote.dossier_label,
-            official_text: vote.official_text.map(OfficialTextVersionDto::from),
-            synthesis: vote.synthesis.into(),
+            scrutin_uid: vote.scrutin_uid().to_string(),
+            number: vote.number().to_string(),
+            date: vote.date(),
+            ballot_type_label: vote.ballot_type_label().to_string(),
+            text_key: vote.text_key().to_string(),
+            text_label: vote.text_label().to_string(),
+            reading: vote.reading().map(str::to_string),
+            outcome_code: vote.outcome().code().to_string(),
+            outcome_label: vote.outcome().label().to_string(),
+            adopted: vote.outcome().is_adopted(),
+            dossier_uid: vote.dossier_uid().map(ToString::to_string),
+            dossier_label: vote.dossier_label().map(str::to_string),
+            official_text: vote
+                .official_text()
+                .cloned()
+                .map(OfficialTextVersionDto::from),
+            synthesis: (*vote.synthesis()).into(),
             families: entry
                 .families
                 .into_iter()
                 .map(AssignedFamilyDto::from)
                 .collect(),
-            stances: vote.stances.iter().map(StanceDto::from).collect(),
+            stances: vote.stances().iter().map(StanceDto::from).collect(),
         }
     }
 }

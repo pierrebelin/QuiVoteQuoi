@@ -1,8 +1,6 @@
 use crate::application::ports::actor_repository::{ActorRepository, RegistrySummary};
 use crate::application::ports::actor_source::ActorSource;
-
-/// Legislature couverte par le site (RM-07).
-pub const CURRENT_LEGISLATURE: u16 = 17;
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefreshRegistryError {

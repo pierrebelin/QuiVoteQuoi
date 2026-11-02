@@ -26,7 +26,7 @@ L’actuel accueil devient la page **« À propos du site »**. Il conserve la p
 
 ### 2.2 Parcours lecteur
 
-1. Le lecteur choisit une famille parmi les treize thèmes publiés.
+1. Le lecteur choisit une famille parmi les seize thèmes publiés.
 2. Il choisit un groupe parlementaire avec son nom complet ; aucun groupe n’est présélectionné.
 3. Il peut ajouter un groupe pour comparer, sans dépasser quatre groupes.
 4. Il lit les cinq actes les plus récents du thème.

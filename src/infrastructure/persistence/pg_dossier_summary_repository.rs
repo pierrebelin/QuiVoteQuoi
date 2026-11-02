@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use sqlx::{PgPool, Row};
 
+use super::db;
 use crate::application::ports::dossier_group_actions_repository::{
-    DossierSummaryRepository, GeneratedGroupSummary, RepositoryError, StoredGroupSummary,
-    SummarySource, SummaryStatus,
+    DossierSummaryRepository, GeneratedGroupSummary, RepositoryError,
 };
+use crate::domain::actor::GroupUid;
+use crate::domain::dossier_summary::{StoredGroupSummary, SummarySource, SummaryStatus};
 
 pub struct PgDossierSummaryRepository {
     pool: PgPool,
@@ -14,10 +16,6 @@ impl PgDossierSummaryRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn db(error: sqlx::Error) -> RepositoryError {
-    RepositoryError::Database(error.to_string())
 }
 
 #[async_trait]
@@ -69,20 +67,32 @@ impl DossierSummaryRepository for PgDossierSummaryRepository {
 
         Ok(rows
             .into_iter()
-            .map(|row| StoredGroupSummary {
-                group_uid: row.get("group_uid"),
-                status: match row.get::<String, _>("status").as_str() {
-                    "ready" => SummaryStatus::Ready,
-                    _ => SummaryStatus::Pending,
-                },
-                paragraph: row.get("paragraph"),
-                facts_fingerprint: row.get("facts_fingerprint"),
-                model: row.get("model"),
-                prompt_version: row.get("prompt_version"),
-                generated_at: row.get("generated_at"),
-                sources: by_group
-                    .remove(&row.get::<String, _>("group_uid"))
-                    .unwrap_or_default(),
+            .filter_map(|row| {
+                let raw_group_uid: String = row.get("group_uid");
+                // Une synthese ecartee est simplement regeneree: elle n'est
+                // jamais reputee a jour.
+                let group_uid = match GroupUid::new(raw_group_uid.clone()) {
+                    Ok(group_uid) => group_uid,
+                    Err(error) => {
+                        tracing::warn!(
+                            "Skipping a stored summary with an unusable group uid: {error}"
+                        );
+                        return None;
+                    }
+                };
+                Some(StoredGroupSummary {
+                    group_uid,
+                    status: match row.get::<String, _>("status").as_str() {
+                        "ready" => SummaryStatus::Ready,
+                        _ => SummaryStatus::Pending,
+                    },
+                    paragraph: row.get("paragraph"),
+                    facts_fingerprint: row.get("facts_fingerprint"),
+                    model: row.get("model"),
+                    prompt_version: row.get("prompt_version"),
+                    generated_at: row.get("generated_at"),
+                    sources: by_group.remove(&raw_group_uid).unwrap_or_default(),
+                })
             })
             .collect())
     }

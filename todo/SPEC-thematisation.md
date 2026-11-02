@@ -14,7 +14,7 @@ Le porteur retenu est donc le **texte débattu**, nommé dans l'objet de chaque 
 
 | Terme | Définition |
 |---|---|
-| Famille thématique | Une des 13 familles de README.md §5. Référentiel fermé |
+| Famille thématique | Une des 16 familles de README.md §5. Référentiel fermé |
 | Règle de rattachement | Énoncé publié rattachant un texte sur sa nature juridique, sans modèle |
 | Texte débattu | Texte que l'objet du scrutin nomme : « projet de loi de finances pour 2026 ». Porteur du rattachement |
 | Clé de texte | Forme normalisée du libellé du texte. Deux objets qui nomment le même texte donnent la même clé |
@@ -90,7 +90,7 @@ Le porteur retenu est donc le **texte débattu**, nommé dans l'objet de chaque 
 
 **Scénario nominal :**
 1. Visiteur ouvre la page méthode depuis toute page de thème.
-2. Page décrit : les 13 familles avec leur périmètre, la règle d'extraction du texte, la table des règles de rattachement (RM-13), le rôle exact du modèle, la limite de trois familles, le compte des non rattachés.
+2. Page décrit : les 16 familles avec leur périmètre, la règle d'extraction du texte, la table des règles de rattachement (RM-13), le rôle exact du modèle, la limite de trois familles, le compte des non rattachés.
 3. Page dit ce que le modèle ne fait pas : aucun chiffre, aucune lecture des votes (RM-04, RM-10).
 4. Page dit ce qui ne lui est jamais soumis : les scrutins et les dossiers reliés à un texte, qui en héritent (RM-06), et les objets déjà rattachés (RM-14).
 
@@ -120,7 +120,7 @@ Le porteur retenu est donc le **texte débattu**, nommé dans l'objet de chaque 
 - **Énoncé** : réviser un rattachement clôt l'ancien à la date de la révision et en ouvre un nouveau. Aucune suppression. L'état d'un objet à une date passée reste reconstituable. · **Origine** : README.md §5, §9 · **Sévérité** : bloquant · **Applies to** : CU-03
 
 ### RM-08 — Référentiel de familles fermé
-- **Énoncé** : les 13 familles de README.md §5 sont le seul jeu de valeurs. Toute famille rendue hors référentiel est écartée et journalisée. Aucune famille créée par le modèle. · **Origine** : README.md §5 · **Sévérité** : bloquant · **Applies to** : CU-02
+- **Énoncé** : les 16 familles de README.md §5 sont le seul jeu de valeurs. Toute famille rendue hors référentiel est écartée et journalisée. Aucune famille créée par le modèle. · **Origine** : README.md §5 · **Sévérité** : bloquant · **Applies to** : CU-02
 
 ### RM-09 — *(retirée le 9 août 2026)*
 - La règle imposait d'afficher, à côté de chaque famille, si le rattachement venait d'une règle, du modèle ou d'un humain. Elle est retirée : la distinction ne dit rien au lecteur sur le vote qu'il vient consulter, et occupait la place au plus près de l'information utile. La traçabilité reste entière — l'auteur de chaque ligne est conservé en clair et l'historique n'efface rien (RM-07, README.md §9). Le numéro n'est pas réattribué, les règles suivantes gardant le leur.
@@ -136,7 +136,7 @@ Le porteur retenu est donc le **texte débattu**, nommé dans l'objet de chaque 
 
 ### RM-13 — Règle publiée avant modèle
 - **Énoncé** : un texte dont la **nature juridique** porte sa famille est rattaché par une règle publiée, sans appel au modèle. Chaque règle nomme le fragment qu'elle cherche, les familles qu'elle ouvre et son énoncé ; la table entière est publiée sur la page méthode. Une règle porte sur l'objet du texte, jamais sur son orientation. Le rattachement qu'elle produit nomme la règle comme auteur et reste révisable par arbitrage humain comme n'importe quel autre. · **Origine** : README.md §5, §8 · **Sévérité** : bloquant · **Applies to** : CU-02, CU-06
-- **Conforme** : « projet de loi de finances pour 2026 » → pouvoir d'achat / fiscalité + institutions / procédure, parce qu'une loi de finances fixe les recettes et les charges de l'État.
+- **Conforme** : « projet de loi de finances pour 2026 » → économie / finances publiques, parce qu'une loi de finances fixe les recettes et les charges de l'État.
 - **Non conforme** : une règle qui rattacherait sur un mot du titre sans que la nature du texte le commande — « sécurité » dans un intitulé ne fait pas un texte de justice / sécurité. Le doute laisse le texte au modèle.
 
 ### RM-14 — Un objet n'est soumis qu'une fois

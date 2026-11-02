@@ -1,8 +1,8 @@
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
 use axum::Json;
 use chrono::Utc;
 
+use crate::api::error::ApiError;
 use crate::api::theme_dto::{
     ArbitrationRequest, ArbitrationResponse, AssignedFamilyDto, ExtractionResponse,
     FamiliesResponse, MethodResponse, ProposalRequest, ProposalRunResponse, TextDetailResponse,
@@ -18,12 +18,6 @@ use crate::application::use_cases::propose_theme_families::ProposeThemeFamilies;
 use crate::domain::theme::{FamilyCode, TextKey};
 use crate::AppState;
 
-type ApiError = (StatusCode, String);
-
-fn server_error(e: impl std::fmt::Display) -> ApiError {
-    (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-}
-
 /// CU-06 — Referentiel des familles, servi tel quel.
 pub async fn list_families(State(state): State<AppState>) -> Json<FamiliesResponse> {
     let families = BrowseThemes::new(state.theme_repository.as_ref()).families();
@@ -35,7 +29,7 @@ pub async fn get_method(State(state): State<AppState>) -> Result<Json<MethodResp
     let report = BrowseThemes::new(state.theme_repository.as_ref())
         .method()
         .await
-        .map_err(server_error)?;
+        .map_err(ApiError::internal)?;
     Ok(Json(MethodResponse::from(report)))
 }
 
@@ -48,7 +42,7 @@ pub async fn list_unassigned_texts(
     let page = BrowseThemes::new(state.theme_repository.as_ref())
         .unassigned_texts(limit, offset)
         .await
-        .map_err(server_error)?;
+        .map_err(ApiError::internal)?;
     Ok(Json(TextListResponse::new(page, offset)))
 }
 
@@ -58,12 +52,12 @@ pub async fn list_family_texts(
     Path(code): Path<String>,
     Query(query): Query<TextListQuery>,
 ) -> Result<Json<TextListResponse>, ApiError> {
-    let family = FamilyCode::parse(&code).map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let family = FamilyCode::parse(&code).map_err(ApiError::not_found)?;
     let (limit, offset) = query.bounds();
     let page = BrowseThemes::new(state.theme_repository.as_ref())
         .texts_of_family(family, limit, offset)
         .await
-        .map_err(server_error)?;
+        .map_err(ApiError::internal)?;
     Ok(Json(TextListResponse::new(page, offset)))
 }
 
@@ -79,15 +73,15 @@ pub async fn get_text_detail(
     let detail = browse
         .text_detail(&key)
         .await
-        .map_err(server_error)?
-        .ok_or((StatusCode::NOT_FOUND, "texte inconnu".to_string()))?;
+        .map_err(ApiError::internal)?
+        .ok_or_else(|| ApiError::not_found("texte inconnu"))?;
 
     let (limit, offset) = query.bounds();
     let scrutins = state
         .theme_repository
         .scrutins_of_text(&key, limit, offset)
         .await
-        .map_err(server_error)?;
+        .map_err(ApiError::internal)?;
 
     Ok(Json(TextDetailResponse::new(detail, scrutins)))
 }
@@ -99,7 +93,7 @@ pub async fn extract_texts(
     let report = ExtractDebatedTexts::new(state.theme_repository.as_ref())
         .execute()
         .await
-        .map_err(server_error)?;
+        .map_err(ApiError::internal)?;
     Ok(Json(ExtractionResponse::from(report)))
 }
 
@@ -119,7 +113,7 @@ pub async fn propose_families(
     )
     .execute(batch, Utc::now().date_naive())
     .await
-    .map_err(server_error)?;
+    .map_err(ApiError::internal)?;
 
     Ok(Json(ProposalRunResponse::from(run)))
 }
@@ -131,8 +125,7 @@ pub async fn arbitrate(
 ) -> Result<Json<ArbitrationResponse>, ApiError> {
     let mut families = Vec::with_capacity(request.families.len());
     for code in &request.families {
-        families
-            .push(FamilyCode::parse(code).map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?);
+        families.push(FamilyCode::parse(code).map_err(ApiError::bad_request)?);
     }
 
     let command = ArbitrationCommand {
@@ -147,8 +140,8 @@ pub async fn arbitrate(
         .execute(command, Utc::now().date_naive())
         .await
         .map_err(|e| match e {
-            ArbitrationError::Repository(error) => server_error(error),
-            other => (StatusCode::BAD_REQUEST, other.to_string()),
+            ArbitrationError::Repository(error) => ApiError::internal(error),
+            other => ApiError::bad_request(other),
         })?;
 
     Ok(Json(ArbitrationResponse {

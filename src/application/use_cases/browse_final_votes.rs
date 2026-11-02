@@ -3,11 +3,14 @@ use crate::application::ports::final_vote_repository::{
     RepositoryError,
 };
 use crate::application::ports::theme_repository::AssignedFamily;
-use crate::domain::actor::GroupUid;
-use crate::domain::final_vote::{reading_of, FinalVote, GroupIdentity, GroupStance};
-use crate::domain::group_lineage::{lineage_of_uid, GroupLineage};
-use crate::domain::scrutin::{Outcome, VotePosition};
-use crate::domain::theme::FamilyCode;
+use crate::domain::actor::{ActorError, GroupUid};
+use crate::domain::dossier::{DossierError, DossierUid};
+use crate::domain::final_vote::{FinalVote, GroupIdentity, GroupStance, NewFinalVote};
+use crate::domain::group_lineage::{
+    designates, displayed_group, group_by_lineage, same_group, uids_of,
+};
+use crate::domain::scrutin::{Outcome, ScrutinError, ScrutinUid, VotePosition};
+use crate::domain::theme::{FamilyCode, TextKey};
 
 /// Quatre groupes au plus. La comparaison reste une lecture cote a cote, ou
 /// chaque groupe garde ses chiffres bruts; au-dela, les colonnes se resserrent
@@ -34,6 +37,12 @@ pub enum BrowseFinalVotesError {
     UnknownGroup(String),
     #[error("unknown theme family: {0}")]
     UnknownFamily(String),
+    #[error(transparent)]
+    Scrutin(#[from] ScrutinError),
+    #[error(transparent)]
+    Dossier(#[from] DossierError),
+    #[error(transparent)]
+    Actor(#[from] ActorError),
     #[error(transparent)]
     Repository(#[from] RepositoryError),
 }
@@ -100,7 +109,11 @@ impl<'a> BrowseFinalVotes<'a> {
             // Un groupe renomme repond a plusieurs identifiants: les demander
             // tous evite que ses votes d'avant le changement de nom
             // disparaissent de la comparaison (README.md §2).
-            group_uids: selected.iter().flat_map(uids_of).collect(),
+            group_uids: selected
+                .iter()
+                .flat_map(|group| uids_of(&group.uid))
+                .map(str::to_string)
+                .collect(),
             limit: command
                 .limit
                 .unwrap_or(DEFAULT_PAGE_SIZE)
@@ -115,7 +128,7 @@ impl<'a> BrowseFinalVotes<'a> {
             .items
             .into_iter()
             .map(|record| build_entry(record, &selected))
-            .collect();
+            .collect::<Result<_, _>>()?;
 
         Ok(FinalVoteView {
             items,
@@ -136,31 +149,22 @@ impl<'a> BrowseFinalVotes<'a> {
 /// le groupe n'a pas vote. La couverture affichee est la somme des periodes,
 /// pas celle de la derniere.
 fn merge_renamed_groups(groups: Vec<GroupOption>) -> Vec<GroupOption> {
-    let mut merged: Vec<GroupOption> = Vec::with_capacity(groups.len());
+    let mut merged: Vec<GroupOption> = group_by_lineage(groups, |group| group.uid.as_str())
+        .iter()
+        .map(|group| {
+            let options = group.members();
+            let own = group.representative();
+            let shown = group.displayed(&own.abbrev, &own.label);
 
-    for group in groups {
-        let Some(lineage) = lineage_of_uid(&group.uid) else {
-            merged.push(group);
-            continue;
-        };
-
-        match merged
-            .iter_mut()
-            .find(|kept| kept.uid == lineage.canonical_uid)
-        {
-            Some(kept) => {
-                kept.final_vote_count += group.final_vote_count;
-                kept.color = kept.color.take().or(group.color);
+            GroupOption {
+                uid: shown.uid.to_string(),
+                abbrev: shown.abbrev.to_string(),
+                label: shown.label.to_string(),
+                color: options.iter().find_map(|option| option.color.clone()),
+                final_vote_count: options.iter().map(|option| option.final_vote_count).sum(),
             }
-            None => merged.push(GroupOption {
-                uid: lineage.canonical_uid.to_string(),
-                abbrev: lineage.abbrev.to_string(),
-                label: lineage.label.to_string(),
-                color: group.color,
-                final_vote_count: group.final_vote_count,
-            }),
-        }
-    }
+        })
+        .collect();
 
     // Le depot trie par couverture decroissante; la fusion additionne des
     // comptes et defait ce tri.
@@ -170,14 +174,6 @@ fn merge_renamed_groups(groups: Vec<GroupOption>) -> Vec<GroupOption> {
             .then_with(|| a.abbrev.cmp(&b.abbrev))
     });
     merged
-}
-
-/// Identifiants sous lesquels les ventilations d'un groupe sont enregistrees.
-fn uids_of(group: &GroupOption) -> Vec<String> {
-    match lineage_of_uid(&group.uid) {
-        Some(lineage) => lineage.uids.iter().map(|uid| uid.to_string()).collect(),
-        None => vec![group.uid.clone()],
-    }
 }
 
 /// Un groupe est designe par son identifiant ou par son sigle. Le sigle rend
@@ -197,7 +193,7 @@ fn resolve_groups(
 
         let group = known
             .iter()
-            .find(|group| designates(group, token))
+            .find(|group| designates(&group.uid, &group.abbrev, token))
             .cloned()
             .ok_or_else(|| BrowseFinalVotesError::UnknownGroup(token.to_string()))?;
 
@@ -212,79 +208,61 @@ fn resolve_groups(
     Ok(resolved)
 }
 
-fn designates(group: &GroupOption, token: &str) -> bool {
-    group.uid == token
-        || group.abbrev.eq_ignore_ascii_case(token)
-        || lineage_of_uid(&group.uid).is_some_and(|lineage| lineage.matches(token))
-}
-
-fn build_entry(record: FinalVoteRecord, selected: &[GroupOption]) -> FinalVoteEntry {
+fn build_entry(
+    record: FinalVoteRecord,
+    selected: &[GroupOption],
+) -> Result<FinalVoteEntry, BrowseFinalVotesError> {
     // L'ordre des positions suit l'ordre demande, pas celui de la base: la
     // colonne de gauche doit rester le groupe choisi en premier.
     let stances = selected
         .iter()
         .filter_map(|group| {
-            let lineage = lineage_of_uid(&group.uid);
             record
                 .tallies
                 .iter()
-                .find(|tally| match lineage {
-                    Some(lineage) => lineage.contains_uid(&tally.group_uid),
-                    None => tally.group_uid == group.uid,
-                })
-                .map(|tally| build_stance(tally, lineage))
+                .find(|tally| same_group(&group.uid, &tally.group_uid))
+                .map(build_stance)
         })
-        .collect();
+        .collect::<Result<_, _>>()?;
 
-    let outcome = Outcome::new(record.outcome_code, record.outcome_label)
-        .expect("outcome codes come from the database, never empty");
+    let outcome = Outcome::new(record.outcome_code, record.outcome_label)?;
 
-    let vote = FinalVote {
-        reading: reading_of(&record.subject, &record.text_label),
-        scrutin_uid: record.scrutin_uid,
+    let vote = FinalVote::new(NewFinalVote {
+        scrutin_uid: ScrutinUid::new(record.scrutin_uid)?,
         number: record.number,
         date: record.date,
+        subject: record.subject,
         ballot_type_label: record.ballot_type_label,
         outcome,
-        text_key: record.text_key,
+        text_key: TextKey::from_raw(&record.text_key),
         text_label: record.text_label,
-        dossier_uid: record.dossier_uid,
+        dossier_uid: record.dossier_uid.map(DossierUid::new).transpose()?,
         dossier_label: record.dossier_label,
         official_text: record.official_text,
         synthesis: record.synthesis,
         stances,
-    };
+    });
 
-    FinalVoteEntry {
+    Ok(FinalVoteEntry {
         vote,
         families: record.families,
-    }
+    })
 }
 
 /// Position d'un groupe sur un vote.
 ///
 /// Sous une lignee, l'identite affichee est celle de la lignee et non celle que
-/// la ventilation porte: sinon la meme colonne changerait de sigle au milieu de
-/// la liste, au vote ou le groupe a ete renomme.
-fn build_stance(record: &GroupTallyRecord, lineage: Option<&GroupLineage>) -> GroupStance {
-    let identity = match lineage {
-        Some(lineage) => GroupIdentity {
-            uid: GroupUid::new(lineage.canonical_uid.to_string())
-                .expect("lineage uids are never empty"),
-            abbrev: lineage.abbrev.to_string(),
-            label: lineage.label.to_string(),
-            color: record.color.clone(),
-        },
-        None => GroupIdentity {
-            uid: GroupUid::new(record.group_uid.clone())
-                .expect("group uids come from the referential, never empty"),
-            abbrev: record.abbrev.clone(),
-            label: record.label.clone(),
-            color: record.color.clone(),
-        },
+/// la ventilation porte (`displayed_group`).
+fn build_stance(record: &GroupTallyRecord) -> Result<GroupStance, ActorError> {
+    let shown = displayed_group(&record.group_uid, &record.abbrev, &record.label);
+    let identity = GroupIdentity {
+        uid: GroupUid::new(shown.uid.to_string())?,
+        abbrev: shown.abbrev.to_string(),
+        label: shown.label.to_string(),
+        color: record.color.clone(),
     };
 
-    GroupStance::new(
+    Ok(GroupStance::new(
         identity,
         record.member_count,
         record
@@ -292,7 +270,7 @@ fn build_stance(record: &GroupTallyRecord, lineage: Option<&GroupLineage>) -> Gr
             .as_deref()
             .and_then(VotePosition::parse),
         record.tally.clone(),
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -434,6 +412,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_record_without_outcome_code_is_reported_not_panicked_on() {
+        let repository = repository();
+        repository.records.lock().unwrap()[0].outcome_code = String::new();
+
+        let error = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand::default())
+            .await
+            .unwrap_err();
+
+        assert!(matches!(
+            error,
+            BrowseFinalVotesError::Scrutin(ScrutinError::EmptyOutcomeCode)
+        ));
+    }
+
+    #[tokio::test]
     async fn two_groups_are_returned_in_the_requested_order() {
         let repository = repository();
 
@@ -445,10 +439,10 @@ mod tests {
             .await
             .unwrap();
 
-        let stances = &view.items[0].vote.stances;
+        let stances = &view.items[0].vote.stances();
         assert_eq!(stances.len(), 2);
-        assert_eq!(stances[0].group.abbrev, "SOC");
-        assert_eq!(stances[1].group.abbrev, "RN");
+        assert_eq!(stances[0].group().abbrev, "SOC");
+        assert_eq!(stances[1].group().abbrev, "RN");
     }
 
     #[tokio::test]
@@ -478,10 +472,10 @@ mod tests {
             .await
             .unwrap();
 
-        let share = view.items[0].vote.stances[0].share.clone().unwrap();
-        assert_eq!(share.voters, 86);
-        assert_eq!(share.against_percent, 98);
-        assert_eq!(share.for_percent, 2);
+        let share = view.items[0].vote.stances()[0].share().cloned().unwrap();
+        assert_eq!(share.voters(), 86);
+        assert_eq!(share.against_percent(), 98);
+        assert_eq!(share.for_percent(), 2);
     }
 
     #[tokio::test]
@@ -501,7 +495,7 @@ mod tests {
         // Le groupe est bien selectionne, mais le scrutin ne porte aucune ligne
         // pour lui: rien n'est invente, l'absence reste visible a l'affichage.
         assert_eq!(view.selected.len(), 1);
-        assert!(view.items[0].vote.stances.is_empty());
+        assert!(view.items[0].vote.stances().is_empty());
     }
 
     #[tokio::test]
@@ -590,8 +584,8 @@ mod tests {
         let stances: Vec<&str> = view
             .items
             .iter()
-            .flat_map(|entry| entry.vote.stances.iter())
-            .map(|stance| stance.group.abbrev.as_str())
+            .flat_map(|entry| entry.vote.stances().iter())
+            .map(|stance| stance.group().abbrev.as_str())
             .collect();
         assert_eq!(stances, vec!["UDDPLR", "UDDPLR"]);
     }
@@ -713,7 +707,7 @@ mod tests {
             .await
             .unwrap();
 
-        let text = view.items[0].vote.official_text.as_ref().unwrap();
+        let text = view.items[0].vote.official_text().unwrap();
         assert_eq!(text.document_uid, "PIONANR5L17B1560");
         assert_eq!(text.version_label, "Texte adopté en première lecture");
     }

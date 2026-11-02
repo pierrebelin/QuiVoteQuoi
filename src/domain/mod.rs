@@ -1,11 +1,14 @@
 pub mod actor;
 pub mod amendment;
 pub mod candidate;
+pub mod dataset;
 pub mod dossier;
+pub mod dossier_group_facts;
 pub mod dossier_summary;
 pub mod final_vote;
 pub mod group_lineage;
 pub mod group_profile;
+pub mod legislature;
 pub mod scoring;
 pub mod scrutin;
 pub mod theme;

@@ -1,25 +1,28 @@
 //! Generateur de paragraphes descriptifs, strictement borne par des faits.
 
 use std::collections::{HashMap, HashSet};
-use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupFacts, GeneratedGroupSummary, SummarySource,
-};
+use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
 use crate::application::ports::dossier_summary_generator::{
     DossierSummaryGenerator, SummaryGeneratorError,
 };
-use crate::domain::dossier_summary::SummaryParagraph;
+use crate::domain::dossier_group_facts::DossierGroupFacts;
+use crate::domain::dossier_summary::{SummaryParagraph, SummarySource};
+
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
 
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
 const DEFAULT_MODEL: &str = "claude-opus-5";
 const PROMPT_VERSION: &str = "dossier-group-summary-v1";
 const MAX_ATTEMPTS: u32 = 3;
+
+/// Plafond de jetons de sortie d'une synthèse, commun aux trois fournisseurs.
+pub(crate) const SUMMARY_MAX_OUTPUT_TOKENS: u32 = 2_400;
 
 pub struct AnthropicDossierSummaryGenerator {
     http: reqwest::Client,
@@ -42,7 +45,7 @@ impl AnthropicDossierSummaryGenerator {
             })
             .unwrap_or_else(|| DEFAULT_MODEL.to_string());
         let http = reqwest::Client::builder()
-            .timeout(Duration::from_secs(180))
+            .timeout(HTTP_TIMEOUT)
             .build()
             .ok()?;
         Some(Self {
@@ -55,7 +58,7 @@ impl AnthropicDossierSummaryGenerator {
     fn request_body(&self, facts: &DossierGroupFacts) -> Value {
         json!({
             "model": self.model,
-            "max_tokens": 2400,
+            "max_tokens": SUMMARY_MAX_OUTPUT_TOKENS,
             "output_config": {
                 "effort": "low",
                 "format": { "type": "json_schema", "schema": response_schema() }
@@ -168,7 +171,7 @@ fn source_catalog(facts: &DossierGroupFacts) -> HashMap<String, SummarySource> {
         SummarySource {
             source_id: dossier_id,
             kind: "dossier".into(),
-            uid: facts.dossier_uid.clone(),
+            uid: facts.dossier_uid.to_string(),
             label: "Dossier officiel".into(),
             official_url: dossier_url.clone(),
         },
@@ -181,7 +184,7 @@ fn source_catalog(facts: &DossierGroupFacts) -> HashMap<String, SummarySource> {
                 SummarySource {
                     source_id,
                     kind: "scrutin".into(),
-                    uid: vote.scrutin_uid.clone(),
+                    uid: vote.scrutin_uid.to_string(),
                     label: format!("Scrutin n°{}", vote.number),
                     official_url: Some(format!(
                         "https://www.assemblee-nationale.fr/dyn/{}/scrutins/{}",
@@ -197,7 +200,7 @@ fn source_catalog(facts: &DossierGroupFacts) -> HashMap<String, SummarySource> {
                 SummarySource {
                     source_id,
                     kind: "amendment".into(),
-                    uid: amendment.uid.clone(),
+                    uid: amendment.uid.to_string(),
                     label: format!("Amendement n°{} — dossier officiel", amendment.number),
                     // Le format d'une URL directe d'amendement n'est pas
                     // confirmé dans la source. Le dossier officiel reste la
@@ -322,7 +325,7 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
                 }
             };
             let status = response.status();
-            if status.as_u16() == 429 || status.is_server_error() {
+            if is_retryable(status) {
                 last_error = SummaryGeneratorError::Call(format!("HTTP {status}"));
                 backoff(attempt).await;
                 continue;
@@ -330,13 +333,7 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
             if !status.is_success() {
                 return Err(SummaryGeneratorError::Call(format!(
                     "HTTP {status}: {}",
-                    response
-                        .text()
-                        .await
-                        .unwrap_or_default()
-                        .chars()
-                        .take(300)
-                        .collect::<String>()
+                    truncate_detail(&response.text().await.unwrap_or_default())
                 )));
             }
             let payload: Value = response
@@ -356,44 +353,41 @@ impl DossierSummaryGenerator for AnthropicDossierSummaryGenerator {
     }
 }
 
-async fn backoff(attempt: u32) {
-    tokio::time::sleep(Duration::from_millis(500 * 2u64.pow(attempt - 1))).await;
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::ports::dossier_group_actions_repository::GroupFacts;
+    use crate::domain::actor::GroupUid;
+    use crate::domain::amendment::AmendmentUid;
+    use crate::domain::dossier::DossierUid;
+    use crate::domain::dossier_group_facts::{AmendmentFact, GroupFacts};
     use chrono::NaiveDate;
 
     fn facts() -> DossierGroupFacts {
         DossierGroupFacts {
-            dossier_uid: "D1".into(),
+            dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
             title: "Dossier".into(),
             official_url: Some("https://example.test/dossier".into()),
             legislature: 17,
             period_start: Some(NaiveDate::from_ymd_opt(2026, 1, 1).unwrap()),
             period_end: None,
             groups: vec![GroupFacts {
-                uid: "G1".into(),
+                uid: GroupUid::new("G1".to_string()).unwrap(),
                 abbrev: "G".into(),
                 label: "Groupe".into(),
                 color: None,
                 start_date: None,
                 end_date: None,
                 final_votes: vec![],
-                amendments: vec![
-                    crate::application::ports::dossier_group_actions_repository::AmendmentFact {
-                        uid: "A1".into(),
-                        number: "1".into(),
-                        target_title: "Article".into(),
-                        target_kind: None,
-                        fate_code: "adopted".into(),
-                        fate_label: "Adopte".into(),
-                        deposited_on: None,
-                        summary_available: true,
-                    },
-                ],
+                amendments: vec![AmendmentFact {
+                    uid: AmendmentUid::new("A1".to_string()).unwrap(),
+                    number: "1".into(),
+                    target_title: "Article".into(),
+                    target_kind: None,
+                    fate_code: "adopted".into(),
+                    fate_label: "Adopte".into(),
+                    deposited_on: None,
+                    summary_available: true,
+                }],
             }],
         }
     }
