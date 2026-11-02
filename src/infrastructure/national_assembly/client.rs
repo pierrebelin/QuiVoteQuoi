@@ -8,7 +8,7 @@ use sha2::{Digest, Sha256};
 use crate::application::ports::assembly_source::{AssemblySource, SourceError};
 use crate::domain::dossier::{
     Committee, CurationStatus, DossierUid, Initiative, Initiator, LegislativeAct,
-    LegislativeDocument, LegislativeDossier,
+    LegislativeDocument, LegislativeDossier, NewLegislativeDossier,
 };
 use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scoring::compute_score;
@@ -127,7 +127,7 @@ impl NationalAssemblyClient {
         );
 
         Some((
-            LegislativeDossier {
+            LegislativeDossier::new(NewLegislativeDossier {
                 uid,
                 title: raw.dossier_title.titre.clone(),
                 procedure: raw.parliamentary_procedure.libelle.clone(),
@@ -145,7 +145,7 @@ impl NationalAssemblyClient {
                 committee,
                 curation_status: CurationStatus::New,
                 outcome,
-            },
+            }),
             initiator_refs,
         ))
     }
@@ -264,7 +264,7 @@ impl NationalAssemblyClient {
                     None => continue,
                 };
 
-            if since.is_some_and(|since| dossier.last_activity_date < since) {
+            if since.is_some_and(|since| dossier.last_activity_date() < since) {
                 continue;
             }
 

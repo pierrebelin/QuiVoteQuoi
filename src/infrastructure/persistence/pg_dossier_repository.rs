@@ -12,7 +12,7 @@ use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
 use crate::domain::dossier::{
     Committee, CurationStatus, DossierOutcome, DossierUid, Initiator, InitiatorGroup,
     LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
-    Score, StoredDossierState,
+    NewLegislativeDossier, Score, StoredDossierState,
 };
 
 pub struct PgDossierRepository {
@@ -79,9 +79,9 @@ impl PgDossierRepository {
         let mut tx = self.pool.begin().await.map_err(db)?;
 
         for dossier in dossiers {
-            let stage_code = dossier.current_stage.map(|s| s.to_code().to_string());
+            let stage_code = dossier.current_stage().map(|s| s.to_code().to_string());
 
-            let outcome = &dossier.outcome;
+            let outcome = dossier.outcome();
             let (law_code, law_jo_date, law_url) = match outcome {
                 DossierOutcome::Promulgated { publication, .. } => (
                     publication.law_code.clone(),
@@ -129,22 +129,22 @@ impl PgDossierRepository {
                     summary = COALESCE(EXCLUDED.summary, legislative_dossiers.summary),
                     updated_at = NOW()",
             )
-            .bind(dossier.uid.as_str())
-            .bind(&dossier.title)
-            .bind(&dossier.procedure)
-            .bind(dossier.last_activity_date)
-            .bind(&dossier.last_activity_label)
-            .bind(dossier.score.progress() as i16)
-            .bind(dossier.score.magnitude() as i16)
-            .bind(dossier.score.momentum() as i16)
-            .bind(dossier.score.total() as i16)
+            .bind(dossier.uid().as_str())
+            .bind(dossier.title())
+            .bind(dossier.procedure())
+            .bind(dossier.last_activity_date())
+            .bind(dossier.last_activity_label())
+            .bind(dossier.score().progress() as i16)
+            .bind(dossier.score().magnitude() as i16)
+            .bind(dossier.score().momentum() as i16)
+            .bind(dossier.score().total() as i16)
             .bind(&stage_code)
-            .bind(dossier.committee.as_ref().map(|c| c.as_str()))
-            .bind(dossier.curation_status.as_str())
-            .bind(dossier.legislature as i16)
-            .bind(&dossier.url)
-            .bind(&dossier.summary)
-            .bind(dossier.deposit_date)
+            .bind(dossier.committee().map(|c| c.as_str()))
+            .bind(dossier.curation_status().as_str())
+            .bind(dossier.legislature() as i16)
+            .bind(dossier.url())
+            .bind(dossier.summary())
+            .bind(dossier.deposit_date())
             .bind(outcome.kind())
             .bind(outcome.date())
             .bind(&outcome_label)
@@ -158,16 +158,16 @@ impl PgDossierRepository {
             .map_err(db)?;
 
             sqlx::query("DELETE FROM legislative_acts WHERE dossier_uid = $1")
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
 
-            for act in &dossier.acts {
+            for act in dossier.acts() {
                 sqlx::query(
                     "INSERT INTO legislative_acts (dossier_uid, act_date, label, act_code) VALUES ($1, $2, $3, $4)",
                 )
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .bind(act.date)
                 .bind(&act.label)
                 .bind(&act.code)
@@ -177,18 +177,18 @@ impl PgDossierRepository {
             }
 
             sqlx::query("DELETE FROM dossier_initiators WHERE dossier_uid = $1")
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
 
-            for initiator in &dossier.initiators {
+            for initiator in dossier.initiators() {
                 let group = initiator.group();
                 sqlx::query(
                     "INSERT INTO dossier_initiators (dossier_uid, full_name, actor_uid, actor_role, group_uid, group_abbrev, group_label, membership_quality, reference_date, official_url)
                      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
                 )
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .bind(initiator.full_name())
                 .bind(initiator.actor_uid().map(|u| u.as_str()))
                 .bind(initiator.role().map(|r| r.as_str()))
@@ -204,12 +204,12 @@ impl PgDossierRepository {
             }
 
             sqlx::query("DELETE FROM dossier_documents WHERE dossier_uid = $1")
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
 
-            for doc in &dossier.documents {
+            for doc in dossier.documents() {
                 sqlx::query(
                     "INSERT INTO dossier_documents (
                         dossier_uid, document_uid, title, short_title, doc_type, doc_date,
@@ -217,7 +217,7 @@ impl PgDossierRepository {
                         source_metadata_fingerprint, source_retrieved_at
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())",
                 )
-                .bind(dossier.uid.as_str())
+                .bind(dossier.uid().as_str())
                 .bind(&doc.document_uid)
                 .bind(&doc.title)
                 .bind(&doc.short_title)
@@ -568,7 +568,7 @@ impl DossierRow {
         documents: Vec<LegislativeDocument>,
     ) -> Result<LegislativeDossier, RepositoryError> {
         let outcome = self.outcome();
-        Ok(LegislativeDossier {
+        Ok(LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new(self.uid).map_err(invalid_row)?,
             title: self.title,
             procedure: self.procedure_label,
@@ -600,7 +600,7 @@ impl DossierRow {
             curation_status: CurationStatus::parse(&self.curation_status)
                 .unwrap_or(CurationStatus::New),
             outcome,
-        })
+        }))
     }
 }
 

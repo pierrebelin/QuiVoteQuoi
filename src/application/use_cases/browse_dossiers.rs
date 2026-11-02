@@ -80,6 +80,7 @@ mod tests {
 
     use crate::domain::dossier::{
         CurationStatus, DossierOutcome, DossierUid, Initiative, LegislativeDossier,
+        NewLegislativeDossier,
     };
     use crate::domain::scoring::compute_score;
 
@@ -123,7 +124,7 @@ mod tests {
                 .filter(|d| matches(d, criteria))
                 .cloned()
                 .collect();
-            kept.sort_by(|a, b| b.last_activity_date.cmp(&a.last_activity_date));
+            kept.sort_by(|a, b| b.last_activity_date().cmp(&a.last_activity_date()));
             Ok(DossierPage {
                 total: kept.len() as i64,
                 items: kept
@@ -162,23 +163,25 @@ mod tests {
     fn matches(dossier: &LegislativeDossier, criteria: &DossierCriteria) -> bool {
         let title_matches = criteria.search.as_ref().is_none_or(|needle| {
             dossier
-                .title
+                .title()
                 .to_lowercase()
                 .contains(&needle.to_lowercase())
         });
         let outcome_matches = criteria
             .outcome_kind
             .as_ref()
-            .is_none_or(|kind| dossier.outcome.kind() == kind);
-        let initiative_matches = criteria
-            .initiative
-            .is_none_or(|initiative| dossier.procedure.starts_with(initiative.procedure_prefix()));
+            .is_none_or(|kind| dossier.outcome().kind() == kind);
+        let initiative_matches = criteria.initiative.is_none_or(|initiative| {
+            dossier
+                .procedure()
+                .starts_with(initiative.procedure_prefix())
+        });
 
         title_matches && outcome_matches && initiative_matches
     }
 
-    fn dossier(uid: &str, day: u32) -> LegislativeDossier {
-        LegislativeDossier {
+    fn dossier_parts(uid: &str, day: u32) -> NewLegislativeDossier {
+        NewLegislativeDossier {
             uid: DossierUid::new(uid.into()).unwrap(),
             title: uid.into(),
             procedure: "Projet de loi".into(),
@@ -197,6 +200,10 @@ mod tests {
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
         }
+    }
+
+    fn dossier(uid: &str, day: u32) -> LegislativeDossier {
+        LegislativeDossier::new(dossier_parts(uid, day))
     }
 
     fn repo(count: u32) -> InMemoryDossierRepository {
@@ -218,7 +225,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(page.total, 5);
-        let uids: Vec<_> = page.items.iter().map(|d| d.uid.as_str()).collect();
+        let uids: Vec<_> = page.items.iter().map(|d| d.uid().as_str()).collect();
         assert_eq!(uids, vec!["D5", "D4"]);
     }
 
@@ -230,7 +237,7 @@ mod tests {
             .await
             .unwrap();
 
-        let uids: Vec<_> = page.items.iter().map(|d| d.uid.as_str()).collect();
+        let uids: Vec<_> = page.items.iter().map(|d| d.uid().as_str()).collect();
         assert_eq!(uids, vec!["D3", "D2"]);
     }
 
@@ -256,7 +263,7 @@ mod tests {
     }
 
     fn mixed_repo() -> InMemoryDossierRepository {
-        let mut promulgated = dossier("Loi de finances", 1);
+        let mut promulgated = dossier_parts("Loi de finances", 1);
         promulgated.outcome = DossierOutcome::Promulgated {
             date: NaiveDate::from_ymd_opt(2026, 3, 2).unwrap(),
             publication: crate::domain::dossier::LawPublication {
@@ -266,11 +273,15 @@ mod tests {
             },
         };
 
-        let mut proposition = dossier("R\u{00e9}forme du logement", 2);
+        let mut proposition = dossier_parts("R\u{00e9}forme du logement", 2);
         proposition.procedure = "Proposition de loi ordinaire".into();
 
         InMemoryDossierRepository {
-            dossiers: Mutex::new(vec![promulgated, proposition, dossier("Loi agricole", 3)]),
+            dossiers: Mutex::new(vec![
+                LegislativeDossier::new(promulgated),
+                LegislativeDossier::new(proposition),
+                dossier("Loi agricole", 3),
+            ]),
         }
     }
 
@@ -288,7 +299,7 @@ mod tests {
             .await
             .unwrap();
 
-        let titles: Vec<_> = page.items.iter().map(|d| d.title.as_str()).collect();
+        let titles: Vec<_> = page.items.iter().map(|d| d.title()).collect();
         assert_eq!(titles, vec!["Loi agricole", "Loi de finances"]);
     }
 
@@ -306,7 +317,7 @@ mod tests {
             .await
             .unwrap();
 
-        let titles: Vec<_> = page.items.iter().map(|d| d.title.as_str()).collect();
+        let titles: Vec<_> = page.items.iter().map(|d| d.title()).collect();
         assert_eq!(titles, vec!["Loi de finances"]);
     }
 
@@ -324,7 +335,7 @@ mod tests {
             .await
             .unwrap();
 
-        let titles: Vec<_> = page.items.iter().map(|d| d.title.as_str()).collect();
+        let titles: Vec<_> = page.items.iter().map(|d| d.title()).collect();
         assert_eq!(titles, vec!["R\u{00e9}forme du logement"]);
     }
 

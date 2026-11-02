@@ -509,6 +509,33 @@ impl DossierOutcome {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct LegislativeDossier {
+    uid: DossierUid,
+    title: String,
+    procedure: String,
+    legislature: u16,
+    url: Option<String>,
+    summary: Option<String>,
+    /// Date de depot du texte. Date de reference du rattachement des
+    /// initiateurs a leur groupe (RM-01).
+    deposit_date: Option<NaiveDate>,
+    last_activity_date: NaiveDate,
+    last_activity_label: String,
+    acts: Vec<LegislativeAct>,
+    documents: Vec<LegislativeDocument>,
+    score: Score,
+    current_stage: Option<LegislativeStage>,
+    initiators: Vec<Initiator>,
+    committee: Option<Committee>,
+    curation_status: CurationStatus,
+    outcome: DossierOutcome,
+}
+
+/// Elements d'un dossier legislatif, tels que lus dans la source ou en base.
+///
+/// Une struct plutot que dix-sept parametres positionnels: le champ est nomme
+/// au site d'appel, et un oubli se voit a la compilation.
+#[derive(Debug, Clone)]
+pub struct NewLegislativeDossier {
     pub uid: DossierUid,
     pub title: String,
     pub procedure: String,
@@ -614,6 +641,87 @@ impl DossierPeriod {
 }
 
 impl LegislativeDossier {
+    /// Assemble le dossier a partir de ses elements. Infaillible: chaque champ
+    /// est deja type, aucun invariant ne se cumule entre eux.
+    pub fn new(parts: NewLegislativeDossier) -> Self {
+        Self {
+            uid: parts.uid,
+            title: parts.title,
+            procedure: parts.procedure,
+            legislature: parts.legislature,
+            url: parts.url,
+            summary: parts.summary,
+            deposit_date: parts.deposit_date,
+            last_activity_date: parts.last_activity_date,
+            last_activity_label: parts.last_activity_label,
+            acts: parts.acts,
+            documents: parts.documents,
+            score: parts.score,
+            current_stage: parts.current_stage,
+            initiators: parts.initiators,
+            committee: parts.committee,
+            curation_status: parts.curation_status,
+            outcome: parts.outcome,
+        }
+    }
+
+    pub fn uid(&self) -> &DossierUid {
+        &self.uid
+    }
+    pub fn title(&self) -> &str {
+        &self.title
+    }
+    pub fn procedure(&self) -> &str {
+        &self.procedure
+    }
+    pub fn legislature(&self) -> u16 {
+        self.legislature
+    }
+    pub fn url(&self) -> Option<&str> {
+        self.url.as_deref()
+    }
+    pub fn summary(&self) -> Option<&str> {
+        self.summary.as_deref()
+    }
+    pub fn deposit_date(&self) -> Option<NaiveDate> {
+        self.deposit_date
+    }
+    pub fn last_activity_date(&self) -> NaiveDate {
+        self.last_activity_date
+    }
+    pub fn last_activity_label(&self) -> &str {
+        &self.last_activity_label
+    }
+    pub fn acts(&self) -> &[LegislativeAct] {
+        &self.acts
+    }
+    pub fn documents(&self) -> &[LegislativeDocument] {
+        &self.documents
+    }
+    pub fn score(&self) -> &Score {
+        &self.score
+    }
+    pub fn current_stage(&self) -> Option<LegislativeStage> {
+        self.current_stage
+    }
+    pub fn initiators(&self) -> &[Initiator] {
+        &self.initiators
+    }
+    pub fn committee(&self) -> Option<&Committee> {
+        self.committee.as_ref()
+    }
+    pub fn curation_status(&self) -> CurationStatus {
+        self.curation_status
+    }
+    pub fn outcome(&self) -> &DossierOutcome {
+        &self.outcome
+    }
+
+    /// Remplace l'etat de curation du dossier (nouveau, retenu, ecarte, publie).
+    pub fn change_curation_status(&mut self, status: CurationStatus) {
+        self.curation_status = status;
+    }
+
     /// Un dossier n'est reecrit que si la source a bouge.
     ///
     /// Deux raisons de sauter, dans cet ordre:
@@ -736,7 +844,7 @@ mod tests {
     use crate::domain::actor::{Actor, GroupMembership, MembershipPeriod};
 
     fn dossier_deposited_on(deposit_date: Option<NaiveDate>) -> LegislativeDossier {
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new("D1".into()).unwrap(),
             title: "Loi test".into(),
             procedure: "Proposition de loi".into(),
@@ -754,7 +862,7 @@ mod tests {
             committee: None,
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     fn directory_with_group_change() -> ActorDirectory {
@@ -1487,5 +1595,81 @@ mod tests {
         );
 
         assert_eq!(period.start(), date(2024, 6, 1));
+    }
+
+    #[test]
+    fn new_dossier_exposes_every_given_part_through_its_getters() {
+        let document = LegislativeDocument {
+            document_uid: "PIONANR5L17B0001".into(),
+            title: "Proposition de loi".into(),
+            short_title: None,
+            doc_type: "Proposition de loi".into(),
+            date: Some(date(2025, 5, 13)),
+            official_url: None,
+            source_archive_url: None,
+            source_license: None,
+            source_metadata_fingerprint: None,
+            source_retrieved_at: None,
+        };
+        let initiator = Initiator::unresolved("Jean Dupont".into()).unwrap();
+
+        let dossier = LegislativeDossier::new(NewLegislativeDossier {
+            uid: DossierUid::new("DLR5L17N1".into()).unwrap(),
+            title: "Loi test".into(),
+            procedure: "Proposition de loi".into(),
+            legislature: 17,
+            url: Some("https://example.test/dossier".into()),
+            summary: Some("Resume".into()),
+            deposit_date: Some(date(2025, 5, 13)),
+            last_activity_date: date(2025, 6, 2),
+            last_activity_label: "Reunion".into(),
+            acts: vec![act_on(date(2025, 5, 13)), act_on(date(2025, 6, 2))],
+            documents: vec![document],
+            score: Score::new(2, 4, 2, 23).unwrap(),
+            current_stage: Some(LegislativeStage::FirstReadingAN),
+            initiators: vec![initiator],
+            committee: Some(Committee::new("Finances".into()).unwrap()),
+            curation_status: CurationStatus::Selected,
+            outcome: DossierOutcome::Withdrawn {
+                date: date(2025, 7, 1),
+            },
+        });
+
+        assert_eq!(dossier.uid().as_str(), "DLR5L17N1");
+        assert_eq!(dossier.title(), "Loi test");
+        assert_eq!(dossier.procedure(), "Proposition de loi");
+        assert_eq!(dossier.legislature(), 17);
+        assert_eq!(dossier.url(), Some("https://example.test/dossier"));
+        assert_eq!(dossier.summary(), Some("Resume"));
+        assert_eq!(dossier.deposit_date(), Some(date(2025, 5, 13)));
+        assert_eq!(dossier.last_activity_date(), date(2025, 6, 2));
+        assert_eq!(dossier.last_activity_label(), "Reunion");
+        assert_eq!(dossier.acts().len(), 2);
+        assert_eq!(dossier.documents()[0].document_uid, "PIONANR5L17B0001");
+        assert_eq!(dossier.score().total(), 23);
+        assert_eq!(
+            dossier.current_stage(),
+            Some(LegislativeStage::FirstReadingAN)
+        );
+        assert_eq!(dossier.initiators()[0].full_name(), "Jean Dupont");
+        assert_eq!(dossier.committee().map(Committee::as_str), Some("Finances"));
+        assert_eq!(dossier.curation_status(), CurationStatus::Selected);
+        assert_eq!(
+            *dossier.outcome(),
+            DossierOutcome::Withdrawn {
+                date: date(2025, 7, 1)
+            }
+        );
+    }
+
+    #[test]
+    fn changing_the_curation_status_replaces_it_and_leaves_the_rest_untouched() {
+        let mut dossier = dossier_deposited_on(Some(date(2025, 5, 13)));
+
+        dossier.change_curation_status(CurationStatus::Dismissed);
+
+        assert_eq!(dossier.curation_status(), CurationStatus::Dismissed);
+        assert_eq!(dossier.uid().as_str(), "D1");
+        assert_eq!(dossier.deposit_date(), Some(date(2025, 5, 13)));
     }
 }

@@ -30,7 +30,9 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::application::ports::dossier_repository::RepositoryError;
-    use crate::domain::dossier::{CurationStatus, DossierOutcome, DossierUid, LegislativeDossier};
+    use crate::domain::dossier::{
+        CurationStatus, DossierOutcome, DossierUid, LegislativeDossier, NewLegislativeDossier,
+    };
     use crate::domain::scoring::compute_score;
 
     struct InMemoryDossierRepository {
@@ -61,10 +63,10 @@ mod tests {
             let store = self.dossiers.lock().unwrap();
             let mut result: Vec<_> = store
                 .values()
-                .filter(|d| d.last_activity_date >= since)
+                .filter(|d| d.last_activity_date() >= since)
                 .cloned()
                 .collect();
-            result.sort_by(|a, b| b.last_activity_date.cmp(&a.last_activity_date));
+            result.sort_by(|a, b| b.last_activity_date().cmp(&a.last_activity_date()));
             Ok(result)
         }
 
@@ -109,7 +111,7 @@ mod tests {
         label: &str,
     ) -> LegislativeDossier {
         let score = compute_score(title, label, 0);
-        LegislativeDossier {
+        LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new(uid.into()).unwrap(),
             title: title.into(),
             procedure: procedure.into(),
@@ -127,7 +129,7 @@ mod tests {
             committee: None,
             curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
-        }
+        })
     }
 
     #[tokio::test]
@@ -157,7 +159,7 @@ mod tests {
         let today = NaiveDate::from_ymd_opt(2026, 6, 28).unwrap();
         let result = uc.execute(365, today).await.unwrap();
 
-        assert_eq!(result[0].uid.as_str(), "D2");
-        assert_eq!(result[1].uid.as_str(), "D1");
+        assert_eq!(result[0].uid().as_str(), "D2");
+        assert_eq!(result[1].uid().as_str(), "D1");
     }
 }

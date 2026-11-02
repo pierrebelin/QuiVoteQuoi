@@ -77,13 +77,29 @@ Fichiers ignorés par Git (`.gitignore` : `.claude/`, `**/AGENTS.md`) : la corre
   - `GroupFacts::has_actions` et `GroupSummaryState` (`as_str` donne les chaînes du contrat JSON).
   - Le hachage (`sha2`, `serde_json`) reste dans l'application, dans une seule fonction : `domain.md` n'autorise que `chrono`, `serde` et `thiserror`.
 
-### Lot 4 — Encapsulation du domaine (M/L)
+### Lot 4 — Encapsulation du domaine (M/L) — ✅ fait le 2026-11-02
 
-- Champs publics → privés + constructeur validant : `MemberCountRange`, `VotingWindow`, `Signatory`, `AmendmentTarget`, `VoterShare`, `GroupStance`, `FinalVote`.
-- Identifiants `String` bruts → newtypes existants (`ScrutinUid`, `TextKey`, `DossierUid`…) : 6 sites.
-- `is_empty()` sans `trim()` dans 6 constructeurs (**accepte aujourd'hui des blancs** : léger changement de comportement).
-- `DomainError` → `DossierError` ; `Scrutin::new` à 16 arguments → struct `NewScrutin` (comme `NewAmendment`).
-- `LegislativeDossier` (17 champs publics, construit en littéral dans 3 use cases) : sous-lot à part, le plus coûteux.
+`cargo test --locked` vert : lib 514 passés (+28), 3 ignorés ; intégration 7 + 3 + 2. `fingerprint_is_stable` vert, littérale inchangée : un newtype à un champ sérialise en chaîne nue. Seul changement de comportement voulu : le refus des blancs (4b). Un commit par sous-lot.
+
+- **4a — erreurs, `NewScrutin`, sort définitif.**
+  - `DomainError` → `DossierError`.
+  - `Scrutin::new(NewScrutin)` ; `#[allow(clippy::too_many_arguments)]` retiré.
+  - `DossierOutcome::kind_is_final(&str)`, les codes de sort étant partagés avec `kind()` ; `pg_dossier_repository.rs` ne recalcule plus `outcome_is_final` par chaînes (décision n° 6). Un test lie `kind_is_final(o.kind())` à `o.is_final()` pour chaque variante.
+- **4b — refus des blancs** (`trim().is_empty()`) dans `ActorUid`, `GroupUid`, `DossierUid`, `Committee`, `Initiator::unresolved` et `Initiator::resolved`. La valeur stockée n'est pas retaillée. `CandidateId` est exclu : sa liste blanche refusait déjà les blancs.
+  - Effets : `GET /api/dossiers/%20` et `curate` passent de 404 à 400, `save` de 500 à 400 ; un `acteurRef` blanc de la source ne crée plus d'initiateur « non résolu » au nom blanc.
+  - Une valeur blanche déjà en base ferait désormais échouer sa lecture (500 sur une liste) : voir la décision n° 9.
+- **4c — value objects.** Champs privés et getters : `MemberCountRange`, `VotingWindow`, `Signatory`, `AmendmentTarget`, `VoterShare`, `GroupStance`. Les constructeurs existants sont gardés (`Option` pour les bornes incohérentes) ; la part d'un `GroupStance` ne peut plus être fournie de l'extérieur.
+- **4d — `FinalVote` et identifiants typés.**
+  - `FinalVote::new(NewFinalVote)`, infaillible : il prend le `subject` et calcule `reading` lui-même.
+  - Identifiants typés : `FinalVote.{scrutin_uid, text_key, dossier_uid}`, `DossierGroupFacts.dossier_uid`, `GroupFacts.uid`, `FinalVoteFact.scrutin_uid`, `AmendmentFact.uid`, `DossierReference.uid`, `StoredGroupSummary.group_uid`.
+  - `TextKey::from_raw` est idempotent sur les clés stockées : la seule écriture de `debated_texts.text_key` passe par `DebatedText::key()`.
+  - Aux frontières, un identifiant illisible suit le motif du fichier : ligne écartée avec `tracing::warn!` (faits des synthèses, synthèses stockées), `RepositoryError` sinon, 500 dans `browse_final_votes` (nouvelle variante `Dossier`).
+  - Restent `String` faute de newtype : `document_uid`, `SummarySource.uid` (scrutin ou amendement selon `kind`), `session_ref`, `sitting_ref`, `examination_ref`.
+- **4e — `LegislativeDossier`.** `LegislativeDossier::new(NewLegislativeDossier)`, infaillible (aucun invariant inventé), 17 getters.
+  - Aucune écriture de champ en production hors `attach_initiators`.
+  - Les fixtures de test partent d'un `NewLegislativeDossier` (`dossier_parts`) qu'elles ajustent avant `new`.
+  - `change_curation_status` n'existe que pour le faux de `curate_dossier` : voir la décision n° 10.
+  - `.claude/rules/domain.md` ne cite plus `LegislativeDossier` comme dette.
 
 ### Lot 5 — Couche application (M/L)
 
@@ -120,6 +136,9 @@ Fichiers ignorés par Git (`.gitignore` : `.claude/`, `**/AGENTS.md`) : la corre
 | 3 | Ordre des lots | 0 → 1 → 2 → 3, puis 4–6 selon le temps |
 | 4 | Vote déjà sous la sentinelle `PO0` explicite : `Scrutin::attach_groups` ne le rattache pas et le compte non résolu (comportement d'avant le lot 3, documenté) | Le rattacher comme un vote sans groupe, si la source publie de tels votes |
 | 5 | `is_final_vote_subject` ignore casse et espaces de tête, `FINAL_VOTE_PREDICATE` (`LIKE`) non | Aligner la fonction du domaine sur le SQL, qui est ce que le site affiche (aucun appelant en production) |
-| 6 | `pg_dossier_repository.rs` recalcule `outcome_is_final` par chaînes (`promulgated`, `withdrawn`, `merged_into`), doublon de `DossierOutcome::is_final` | Passer par `DossierOutcome::parse(..).is_final()` (lot 4) |
+| 6 | `pg_dossier_repository.rs` recalcule `outcome_is_final` par chaînes (`promulgated`, `withdrawn`, `merged_into`), doublon de `DossierOutcome::is_final` | ✅ Tranché : `DossierOutcome::kind_is_final` (lot 4a) |
 | 7 | `infrastructure/llm/anthropic_dossier_summary.rs` construit encore l'URL AN d'un scrutin à la main | Utiliser `scrutin_official_url` |
 | 8 | `FactsFingerprint::new` est infaillible (valeur opaque), `StoredGroupSummary.facts_fingerprint` reste `String` | Garder ; contrôle 64 hex seulement si une empreinte d'une autre forme apparaît |
+| 9 | Depuis le lot 4b, un blanc déjà stocké dans `legislative_dossiers.uid`, `legislative_dossiers.committee`, `dossier_initiators.full_name` ou `scrutin_group_tallies.group_uid` fait échouer sa lecture | Avant de déployer, compter ces blancs en production (`WHERE col ~ '^\s+$'`) ; s'il y en a, les corriger d'abord |
+| 10 | `LegislativeDossier::change_curation_status` n'a pas d'appelant en production (seul le faux de `curate_dossier` s'en sert) | À supprimer avec la curation (lot 7) |
+| 11 | `document_uid` (`LegislativeDocument`, `OfficialTextVersion`) reste une `String` ; `LegislativeTextRef` désigne le même genre d'identifiant | Garder tant qu'aucun rapprochement document ↔ amendement n'est codé |

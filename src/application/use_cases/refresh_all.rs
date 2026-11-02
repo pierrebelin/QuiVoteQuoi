@@ -549,7 +549,7 @@ mod tests {
 
         // Le referentiel precedent a bien servi au rattachement.
         let store = dossier_repository.dossiers.lock().unwrap();
-        assert_eq!(store["D1"].initiators[0].group().unwrap().abbrev, "A");
+        assert_eq!(store["D1"].initiators()[0].group().unwrap().abbrev, "A");
     }
 
     #[tokio::test]
