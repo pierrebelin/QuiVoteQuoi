@@ -3,7 +3,9 @@ use std::collections::HashSet;
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::scrutin_repository::ScrutinRepository;
 use crate::application::ports::scrutin_source::ScrutinSource;
+use crate::application::use_cases::journaling::Journaling;
 use crate::domain::actor::ActorUid;
+use crate::domain::ingestion::IngestionSource;
 use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scrutin::Scrutin;
 
@@ -35,6 +37,7 @@ pub struct RefreshScrutins<'a> {
     source: &'a dyn ScrutinSource,
     repository: &'a dyn ScrutinRepository,
     actor_repository: &'a dyn ActorRepository,
+    journaling: Journaling<'a>,
 }
 
 impl<'a> RefreshScrutins<'a> {
@@ -42,15 +45,27 @@ impl<'a> RefreshScrutins<'a> {
         source: &'a dyn ScrutinSource,
         repository: &'a dyn ScrutinRepository,
         actor_repository: &'a dyn ActorRepository,
+        journaling: Journaling<'a>,
     ) -> Self {
         Self {
             source,
             repository,
             actor_repository,
+            journaling,
         }
     }
 
     pub async fn execute(&self) -> Result<ScrutinsSummary, RefreshScrutinsError> {
+        let result = self.refresh().await;
+        self.journaling
+            .record(IngestionSource::Scrutins, &result, |summary| {
+                summary.scrutins as u64
+            })
+            .await;
+        result
+    }
+
+    async fn refresh(&self) -> Result<ScrutinsSummary, RefreshScrutinsError> {
         let mut scrutins = self.source.fetch_scrutins(CURRENT_LEGISLATURE).await?;
 
         let mut summary = self.reconstruct_missing_groups(&mut scrutins).await?;
@@ -130,8 +145,11 @@ impl<'a> RefreshScrutins<'a> {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use chrono::NaiveDate;
+    use chrono::{DateTime, NaiveDate, TimeZone, Utc};
     use std::sync::Mutex;
+
+    use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
+    use crate::domain::ingestion::{CheckOutcome, IngestionSource};
 
     use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
     use crate::application::ports::scrutin_repository::{
@@ -338,7 +356,7 @@ mod tests {
             requested: Mutex::new(vec![]),
         };
 
-        let summary = RefreshScrutins::new(&source, &repository, &actors)
+        let summary = RefreshScrutins::new(&source, &repository, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -444,11 +462,114 @@ mod tests {
             requested: Mutex::new(vec![]),
         };
 
-        let result = RefreshScrutins::new(&source, &repository, &actors)
+        let result = RefreshScrutins::new(&source, &repository, &actors, Journaling::off())
             .execute()
             .await;
 
         assert!(matches!(result, Err(RefreshScrutinsError::Source(_))));
         assert!(repository.stored.lock().unwrap().is_empty());
+    }
+
+    fn attempted_at() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 3, 8, 30, 0).unwrap()
+    }
+
+    fn quiet_actors() -> StubActorRepository {
+        StubActorRepository {
+            empty: false,
+            requested: Mutex::new(vec![]),
+        }
+    }
+
+    fn empty_repository() -> InMemoryScrutinRepository {
+        InMemoryScrutinRepository {
+            stored: Mutex::new(vec![]),
+        }
+    }
+
+    #[tokio::test]
+    async fn should_record_succeeded_check_with_scrutins_read_when_refresh_succeeds() {
+        let source = FakeScrutinSource {
+            scrutins: Mutex::new(Some(vec![
+                scrutin("V1", vec![], vec![]),
+                scrutin("V2", vec![], vec![]),
+            ])),
+        };
+        let repository = empty_repository();
+        let actors = quiet_actors();
+        let journal = InMemoryIngestionJournal::default();
+
+        RefreshScrutins::new(
+            &source,
+            &repository,
+            &actors,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await
+        .unwrap();
+
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Scrutins);
+        assert_eq!(recorded[0].attempted_at(), attempted_at());
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Succeeded { items_read: 2 }
+        );
+    }
+
+    #[tokio::test]
+    async fn should_record_failed_check_with_source_error_when_scrutin_source_fails() {
+        let source = FakeScrutinSource {
+            scrutins: Mutex::new(None),
+        };
+        let repository = empty_repository();
+        let actors = quiet_actors();
+        let journal = InMemoryIngestionJournal::default();
+
+        let result = RefreshScrutins::new(
+            &source,
+            &repository,
+            &actors,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await;
+
+        assert!(matches!(result, Err(RefreshScrutinsError::Source(_))));
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Scrutins);
+        assert_eq!(recorded[0].attempted_at(), attempted_at());
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Failed {
+                reason: "download failed: source unavailable".to_string()
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn should_return_refresh_summary_when_journal_write_fails() {
+        let source = FakeScrutinSource {
+            scrutins: Mutex::new(Some(vec![scrutin("V1", vec![], vec![])])),
+        };
+        let repository = empty_repository();
+        let actors = quiet_actors();
+        let journal = InMemoryIngestionJournal::failing();
+
+        let summary = RefreshScrutins::new(
+            &source,
+            &repository,
+            &actors,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await
+        .unwrap();
+
+        assert_eq!(summary.scrutins, 1);
+        assert_eq!(journal.recorded().len(), 1);
     }
 }

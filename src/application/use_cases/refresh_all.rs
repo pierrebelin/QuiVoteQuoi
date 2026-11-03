@@ -13,6 +13,7 @@ use crate::application::ports::theme_classifier::ThemeClassifier;
 use crate::application::ports::theme_repository::ThemeRepository;
 use crate::domain::amendment_citation::LinkingReport;
 
+use super::journaling::Journaling;
 use super::extract_debated_texts::{ExtractDebatedTexts, ExtractionReport};
 use super::link_scrutins_to_amendments::LinkScrutinsToAmendments;
 use super::propose_theme_families::{ProposalRun, ProposeThemeFamilies};
@@ -77,6 +78,7 @@ pub struct RefreshAll<'a> {
     theme_batch: i64,
     /// Amendements ecrits par passe. Meme regle: un plafond, pas un objectif.
     amendment_batch: usize,
+    journaling: Journaling<'a>,
 }
 
 impl<'a> RefreshAll<'a> {
@@ -95,6 +97,7 @@ impl<'a> RefreshAll<'a> {
         theme_classifier: &'a dyn ThemeClassifier,
         theme_batch: i64,
         amendment_batch: usize,
+        journaling: Journaling<'a>,
     ) -> Self {
         Self {
             actor_source,
@@ -110,6 +113,7 @@ impl<'a> RefreshAll<'a> {
             theme_classifier,
             theme_batch,
             amendment_batch,
+            journaling,
         }
     }
 
@@ -122,9 +126,13 @@ impl<'a> RefreshAll<'a> {
         scope: RefreshScope,
         today: NaiveDate,
     ) -> Result<RefreshOutcome, RefreshError> {
-        let registry_result = RefreshActorRegistry::new(self.actor_source, self.actor_repository)
-            .execute()
-            .await;
+        let registry_result = RefreshActorRegistry::new(
+            self.actor_source,
+            self.actor_repository,
+            self.journaling,
+        )
+        .execute()
+        .await;
 
         // CU-01: source indisponible, le referentiel precedent est conserve et
         // le rafraichissement des dossiers continue.
@@ -140,6 +148,7 @@ impl<'a> RefreshAll<'a> {
             self.assembly_source,
             self.dossier_repository,
             self.actor_repository,
+            self.journaling,
         )
         .execute_with(scope)
         .await?;
@@ -150,6 +159,7 @@ impl<'a> RefreshAll<'a> {
             self.scrutin_source,
             self.scrutin_repository,
             self.actor_repository,
+            self.journaling,
         )
         .execute()
         .await
@@ -203,6 +213,7 @@ impl<'a> RefreshAll<'a> {
             self.amendment_repository,
             self.actor_repository,
             self.amendment_batch,
+            self.journaling,
         )
         .execute()
         .await
@@ -270,6 +281,7 @@ mod tests {
     use crate::application::ports::theme_repository::ScrutinSubject;
     use crate::application::ports::amendment_citation_repository::CitingScrutin;
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
+    use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::application::use_cases::theme_fakes::{InMemoryThemeRepository, StubClassifier};
     use crate::domain::actor::{ActorRegistry, ActorUid};
     use crate::domain::amendment::{
@@ -277,6 +289,8 @@ mod tests {
     };
     use crate::domain::amendment_citation::CandidateAmendment;
     use crate::domain::dataset::DatasetShape;
+    use crate::domain::ingestion::{CheckOutcome, IngestionSource};
+    use chrono::{TimeZone, Utc};
     use crate::domain::dossier::{DossierUid, LegislativeDossier};
     use crate::domain::scrutin::{Scrutin, ScrutinUid};
     use crate::domain::theme::{DebatedText, FamilyCode, SubjectRef};
@@ -530,6 +544,7 @@ mod tests {
                 $theme_classifier,
                 50,
                 0,
+                Journaling::off(),
             )
             .execute(date(2026, 8, 9))
             .await
@@ -796,5 +811,161 @@ mod tests {
         assert_eq!(outcome.dossiers.written, 1);
         assert!(outcome.citations.is_none());
         assert!(outcome.citations_anomaly.is_some());
+    }
+
+    struct FailingAssemblySource;
+
+    #[async_trait]
+    impl AssemblySource for FailingAssemblySource {
+        async fn fetch_dossiers_since(
+            &self,
+            _since: Option<NaiveDate>,
+        ) -> Result<Vec<LegislativeDossier>, SourceError> {
+            unreachable!()
+        }
+
+        async fn fetch_dossiers_since_with_refs(
+            &self,
+            _since: Option<NaiveDate>,
+        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
+            Err(SourceError::Download("assembly unavailable".into()))
+        }
+
+        async fn fetch_dossier_by_uid(
+            &self,
+            _uid: &DossierUid,
+        ) -> Result<Option<LegislativeDossier>, SourceError> {
+            unreachable!()
+        }
+
+        async fn fetch_dossier_by_uid_with_refs(
+            &self,
+            _uid: &DossierUid,
+        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
+            unreachable!()
+        }
+    }
+
+    /// Rafraichissement complet journalise; rend le resultat brut, l'abandon
+    /// des dossiers en est un.
+    async fn journaled_refresh(
+        assembly_source: &dyn AssemblySource,
+        scrutin_available: bool,
+        amendment_source: &dyn AmendmentSource,
+        journal: &InMemoryIngestionJournal,
+    ) -> Result<RefreshOutcome, RefreshError> {
+        let actor_source = RecordingActorSource {
+            available: true,
+            order: Mutex::new(vec![]),
+        };
+        let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
+        let dossier_repository = InMemoryDossierRepository::new();
+        let scrutin_source = FakeScrutinSource {
+            available: scrutin_available,
+        };
+        let scrutin_repository = InMemoryScrutinRepository {
+            saved: Mutex::new(0),
+        };
+        let theme_repository = InMemoryThemeRepository::default();
+        *theme_repository.awaiting.lock().unwrap() =
+            vec![DebatedText::new("projet de loi de finances pour 2026".into()).unwrap()];
+        let theme_classifier = StubClassifier::new();
+        let citation_repository = InMemoryCitationRepository::default();
+        *citation_repository.scrutins.lock().unwrap() = vec![citing_scrutin()];
+        let attempted_at = Utc.with_ymd_and_hms(2026, 8, 9, 6, 0, 0).unwrap();
+
+        RefreshAll::new(
+            &actor_source,
+            &actor_repository,
+            assembly_source,
+            &dossier_repository,
+            &scrutin_source,
+            &scrutin_repository,
+            amendment_source,
+            &NoopAmendmentRepository,
+            &citation_repository,
+            &theme_repository,
+            &theme_classifier,
+            50,
+            0,
+            Journaling::to(journal, attempted_at),
+        )
+        .execute(date(2026, 8, 9))
+        .await
+    }
+
+    fn sources_of(journal: &InMemoryIngestionJournal) -> Vec<IngestionSource> {
+        journal.recorded().iter().map(|c| c.source()).collect()
+    }
+
+    #[tokio::test]
+    async fn should_record_one_check_per_source_in_refresh_order_when_full_refresh_succeeds() {
+        let journal = InMemoryIngestionJournal::default();
+
+        let outcome = journaled_refresh(&FakeAssemblySource, true, &EmptyAmendmentSource, &journal)
+            .await
+            .unwrap();
+
+        let checks = journal.recorded();
+        assert_eq!(sources_of(&journal), IngestionSource::ALL.to_vec());
+        assert!(checks
+            .iter()
+            .all(|c| matches!(c.outcome(), CheckOutcome::Succeeded { .. })));
+        let expected_at = Utc.with_ymd_and_hms(2026, 8, 9, 6, 0, 0).unwrap();
+        assert!(checks.iter().all(|c| c.attempted_at() == expected_at));
+        assert_eq!(outcome.dossiers.written, 1);
+    }
+
+    #[tokio::test]
+    async fn should_record_failed_scrutins_check_and_keep_refreshing_when_scrutin_source_fails() {
+        let journal = InMemoryIngestionJournal::default();
+
+        let outcome = journaled_refresh(&FakeAssemblySource, false, &EmptyAmendmentSource, &journal)
+            .await
+            .unwrap();
+
+        assert_eq!(sources_of(&journal), IngestionSource::ALL.to_vec());
+        let scrutins = &journal.recorded()[2];
+        assert_eq!(scrutins.source(), IngestionSource::Scrutins);
+        assert!(matches!(
+            scrutins.outcome(),
+            CheckOutcome::Failed { reason } if reason.contains("source unavailable")
+        ));
+        assert!(outcome.scrutins_anomaly.is_some());
+        assert!(outcome.amendments.is_some());
+    }
+
+    #[tokio::test]
+    async fn should_record_no_scrutins_nor_amendments_check_when_dossier_refresh_aborts() {
+        let journal = InMemoryIngestionJournal::default();
+
+        let result =
+            journaled_refresh(&FailingAssemblySource, true, &EmptyAmendmentSource, &journal).await;
+
+        assert!(result.is_err());
+        assert_eq!(
+            sources_of(&journal),
+            vec![IngestionSource::ActorRegistry, IngestionSource::Dossiers]
+        );
+        assert!(matches!(
+            journal.recorded()[1].outcome(),
+            CheckOutcome::Failed { reason } if reason.contains("assembly unavailable")
+        ));
+    }
+
+    #[tokio::test]
+    async fn should_record_no_check_for_extraction_themes_nor_citations_when_full_refresh_runs() {
+        let journal = InMemoryIngestionJournal::default();
+
+        let outcome =
+            journaled_refresh(&FakeAssemblySource, true, &FailingAmendmentSource, &journal)
+                .await
+                .unwrap();
+
+        assert!(outcome.extraction.is_some());
+        assert!(outcome.themes.is_some());
+        assert!(outcome.citations.is_some());
+        assert_eq!(journal.recorded().len(), IngestionSource::ALL.len());
+        assert_eq!(sources_of(&journal), IngestionSource::ALL.to_vec());
     }
 }

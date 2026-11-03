@@ -87,6 +87,9 @@ fn state() -> AppState {
         amendment_citation_repository: Arc::new(
             quivotequoi::infrastructure::persistence::pg_amendment_citation_repository::PgAmendmentCitationRepository::new(db.clone()),
         ),
+        ingestion_journal: Arc::new(
+            quivotequoi::infrastructure::persistence::pg_ingestion_journal::PgIngestionJournal::new(db.clone()),
+        ),
         final_vote_repository: Arc::new(PgFinalVoteRepository::new(db.clone())),
         group_repository: Arc::new(PgGroupRepository::new(db.clone())),
         theme_repository: Arc::new(PgThemeRepository::new(db)),

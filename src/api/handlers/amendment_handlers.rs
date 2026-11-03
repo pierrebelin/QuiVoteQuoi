@@ -66,6 +66,10 @@ pub async fn refresh_amendments(
         state.amendment_repository.as_ref(),
         state.actor_repository.as_ref(),
         config::amendment_batch_per_refresh(),
+        crate::application::use_cases::journaling::Journaling::to(
+            state.ingestion_journal.as_ref(),
+            chrono::Utc::now(),
+        ),
     )
     .execute()
     .await

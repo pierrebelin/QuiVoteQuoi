@@ -18,6 +18,7 @@ use crate::application::use_cases::curate_dossier::CurateDossier;
 use crate::application::use_cases::fetch_recent_dossiers::FetchRecentDossiers;
 use crate::application::use_cases::get_dossier_detail::GetDossierDetail;
 use crate::application::use_cases::get_dossier_group_actions::GetDossierGroupActions;
+use crate::application::use_cases::journaling::Journaling;
 use crate::application::use_cases::refresh_actor_registry::RefreshActorRegistry;
 use crate::application::use_cases::refresh_all::RefreshAll;
 use crate::application::use_cases::refresh_dossier_group_summaries::RefreshDossierGroupSummaries;
@@ -202,6 +203,7 @@ pub async fn refresh_dossiers(
         state.theme_classifier.as_ref(),
         config::theme_batch_per_refresh(),
         config::amendment_batch_per_refresh(),
+        Journaling::to(state.ingestion_journal.as_ref(), Utc::now()),
     );
 
     let outcome = uc
@@ -224,8 +226,11 @@ pub async fn refresh_dossiers(
 pub async fn refresh_actor_registry(
     State(state): State<AppState>,
 ) -> Result<Json<RegistryResponse>, ApiError> {
-    let uc =
-        RefreshActorRegistry::new(state.actor_source.as_ref(), state.actor_repository.as_ref());
+    let uc = RefreshActorRegistry::new(
+        state.actor_source.as_ref(),
+        state.actor_repository.as_ref(),
+        Journaling::to(state.ingestion_journal.as_ref(), Utc::now()),
+    );
 
     let summary = uc.execute().await.map_err(ApiError::internal)?;
 

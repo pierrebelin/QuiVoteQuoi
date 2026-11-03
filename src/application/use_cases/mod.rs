@@ -15,6 +15,7 @@ pub mod get_dossier_detail;
 pub mod get_dossier_group_actions;
 pub mod get_group_detail;
 pub mod get_scrutin_detail;
+pub mod journaling;
 pub mod list_scrutins;
 pub mod link_scrutins_to_amendments;
 pub mod propose_theme_families;
@@ -32,3 +33,5 @@ pub mod theme_fakes;
 pub mod read_fakes;
 #[cfg(test)]
 pub mod citation_fakes;
+#[cfg(test)]
+pub mod journal_fakes;

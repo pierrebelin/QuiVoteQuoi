@@ -3,7 +3,9 @@ use std::collections::BTreeMap;
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::amendment_repository::AmendmentRepository;
 use crate::application::ports::amendment_source::{AmendmentBatch, AmendmentSource, ArchiveScan};
+use crate::application::use_cases::journaling::Journaling;
 use crate::domain::amendment::GroupResolutionReport;
+use crate::domain::ingestion::IngestionSource;
 use crate::domain::legislature::CURRENT_LEGISLATURE;
 
 /// Nom de la source dans `source_archives`.
@@ -60,6 +62,7 @@ pub struct RefreshAmendments<'a> {
     /// repris a la passe suivante. `0` leve la borne, pour un premier
     /// chargement lance a la main hors cadence.
     ceiling: usize,
+    journaling: Journaling<'a>,
 }
 
 impl<'a> RefreshAmendments<'a> {
@@ -68,16 +71,28 @@ impl<'a> RefreshAmendments<'a> {
         repository: &'a dyn AmendmentRepository,
         actor_repository: &'a dyn ActorRepository,
         ceiling: usize,
+        journaling: Journaling<'a>,
     ) -> Self {
         Self {
             source,
             repository,
             actor_repository,
             ceiling,
+            journaling,
         }
     }
 
     pub async fn execute(&self) -> Result<AmendmentsSummary, RefreshAmendmentsError> {
+        let result = self.refresh().await;
+        self.journaling
+            .record(IngestionSource::Amendments, &result, |summary| {
+                summary.parsed as u64
+            })
+            .await;
+        result
+    }
+
+    async fn refresh(&self) -> Result<AmendmentsSummary, RefreshAmendmentsError> {
         let mut summary = AmendmentsSummary::default();
 
         let feed = self
@@ -218,9 +233,11 @@ mod tests {
     use std::sync::Mutex;
 
     use async_trait::async_trait;
-    use chrono::NaiveDate;
+    use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 
     use super::*;
+    use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
+    use crate::domain::ingestion::{CheckOutcome, IngestionSource};
     use crate::application::ports::actor_repository::RegistrySummary;
     use crate::application::ports::amendment_repository::{
         AmendmentGroupOption, AmendmentPage, AmendmentPageRequest, DossierAmendmentCoverage,
@@ -442,7 +459,7 @@ mod tests {
             ..Default::default()
         };
 
-        let summary = RefreshAmendments::new(&source, &repository, &actors, 0)
+        let summary = RefreshAmendments::new(&source, &repository, &actors, 0, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -480,7 +497,7 @@ mod tests {
             ..Default::default()
         };
 
-        let summary = RefreshAmendments::new(&source, &repository, &actors, 0)
+        let summary = RefreshAmendments::new(&source, &repository, &actors, 0, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -514,7 +531,7 @@ mod tests {
         let repository = FakeRepository::default();
         let actors = FakeActorRepository::default();
 
-        let summary = RefreshAmendments::new(&source, &repository, &actors, 0)
+        let summary = RefreshAmendments::new(&source, &repository, &actors, 0, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -544,7 +561,7 @@ mod tests {
         };
         let actors = FakeActorRepository::default();
 
-        let summary = RefreshAmendments::new(&source, &repository, &actors, 0)
+        let summary = RefreshAmendments::new(&source, &repository, &actors, 0, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -581,6 +598,7 @@ mod tests {
             &complete,
             &FakeActorRepository::default(),
             0,
+            Journaling::off(),
         )
         .execute()
         .await
@@ -597,6 +615,7 @@ mod tests {
             &truncated,
             &FakeActorRepository::default(),
             1,
+            Journaling::off(),
         )
         .execute()
         .await
@@ -623,6 +642,7 @@ mod tests {
             &repository,
             &FakeActorRepository::default(),
             0,
+            Journaling::off(),
         )
         .execute()
         .await
@@ -638,7 +658,7 @@ mod tests {
         // Le flux est consomme une premiere fois, la seconde echoue.
         let repository = FakeRepository::default();
         let actors = FakeActorRepository::default();
-        let use_case = RefreshAmendments::new(&source, &repository, &actors, 0);
+        let use_case = RefreshAmendments::new(&source, &repository, &actors, 0, Journaling::off());
 
         assert!(use_case.execute().await.is_ok());
         assert!(matches!(
@@ -646,5 +666,113 @@ mod tests {
             Err(RefreshAmendmentsError::Source(_))
         ));
         assert!(repository.saved.lock().unwrap().is_empty());
+    }
+
+    fn attempted_at() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 3, 8, 30, 0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn should_record_succeeded_check_with_amendments_parsed_when_amendment_refresh_succeeds()
+    {
+        let source = FakeSource::with(
+            Some("etag-1"),
+            vec![
+                Ok(AmendmentBatch::Items(vec![
+                    amendment("AM1", "PA1", Some(date(2025, 3, 12))),
+                    amendment("AM2", "PA1", Some(date(2025, 3, 13))),
+                ])),
+                Ok(AmendmentBatch::Done(ArchiveScan {
+                    parsed: 2,
+                    ..Default::default()
+                })),
+            ],
+        );
+        let repository = FakeRepository::default();
+        let actors = FakeActorRepository::default();
+        let journal = InMemoryIngestionJournal::default();
+
+        RefreshAmendments::new(
+            &source,
+            &repository,
+            &actors,
+            0,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await
+        .unwrap();
+
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Amendments);
+        assert_eq!(recorded[0].attempted_at(), attempted_at());
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Succeeded { items_read: 2 }
+        );
+    }
+
+    #[tokio::test]
+    async fn should_record_succeeded_check_with_nothing_read_when_archive_is_unchanged() {
+        let source = FakeSource::with(Some("etag-1"), Vec::new());
+        let repository = FakeRepository {
+            known_archive: Mutex::new(Some("etag-1".to_string())),
+            ..Default::default()
+        };
+        let actors = FakeActorRepository::default();
+        let journal = InMemoryIngestionJournal::default();
+
+        let summary = RefreshAmendments::new(
+            &source,
+            &repository,
+            &actors,
+            0,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await
+        .unwrap();
+
+        assert!(summary.skipped_unchanged);
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Amendments);
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Succeeded { items_read: 0 }
+        );
+    }
+
+    #[tokio::test]
+    async fn should_record_failed_check_when_amendment_source_fails() {
+        let source = FakeSource {
+            feed: Mutex::new(None),
+        };
+        let repository = FakeRepository::default();
+        let actors = FakeActorRepository::default();
+        let journal = InMemoryIngestionJournal::default();
+
+        let result = RefreshAmendments::new(
+            &source,
+            &repository,
+            &actors,
+            0,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await;
+
+        assert!(matches!(result, Err(RefreshAmendmentsError::Source(_))));
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Amendments);
+        assert_eq!(recorded[0].attempted_at(), attempted_at());
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Failed {
+                reason: "download failed: source unavailable".to_string()
+            }
+        );
     }
 }
