@@ -6,6 +6,8 @@ mod archive_fetcher;
 pub mod client;
 pub mod committees;
 pub mod html_text;
+mod law_text_parsing;
 mod parsing;
 pub mod scrutin_client;
 mod scrutin_parsing;
+pub mod text_version_client;

@@ -11,6 +11,8 @@ use application::ports::amendment_citation_repository::AmendmentCitationReposito
 use application::ports::amendment_repository::AmendmentRepository;
 use application::ports::amendment_source::AmendmentSource;
 use application::ports::assembly_source::AssemblySource;
+use application::ports::brief_generator::BriefGenerator;
+use application::ports::brief_line_repository::BriefLineRepository;
 use application::ports::candidate_repository::CandidateRepository;
 use application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, DossierSummaryRepository,
@@ -20,8 +22,11 @@ use application::ports::dossier_summary_generator::DossierSummaryGenerator;
 use application::ports::final_vote_repository::FinalVoteRepository;
 use application::ports::group_repository::GroupRepository;
 use application::ports::health_probe::HealthProbe;
+use application::ports::legal_text_source::LegalTextSource;
 use application::ports::scrutin_repository::ScrutinRepository;
 use application::ports::scrutin_source::ScrutinSource;
+use application::ports::text_version_repository::TextVersionRepository;
+use application::ports::text_version_source::TextVersionSource;
 use application::ports::theme_classifier::ThemeClassifier;
 use application::ports::theme_repository::ThemeRepository;
 
@@ -46,4 +51,9 @@ pub struct AppState {
     pub group_repository: Arc<dyn GroupRepository>,
     pub theme_repository: Arc<dyn ThemeRepository>,
     pub theme_classifier: Arc<dyn ThemeClassifier>,
+    pub text_version_source: Arc<dyn TextVersionSource>,
+    pub text_version_repository: Arc<dyn TextVersionRepository>,
+    pub legal_text_source: Arc<dyn LegalTextSource>,
+    pub brief_generator: Arc<dyn BriefGenerator>,
+    pub brief_line_repository: Arc<dyn BriefLineRepository>,
 }

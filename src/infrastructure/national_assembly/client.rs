@@ -12,6 +12,9 @@ use crate::domain::dossier::{
 };
 use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scoring::compute_score;
+// Le lecteur peut ouvrir la version précise dont la notice est publiée par
+// l'Assemblée : le format du lien est celui de `TextVersion::official_url`.
+use crate::domain::text_version::official_document_url;
 
 use super::archive_fetcher::ArchiveFetcher;
 use super::committees::resolve_committee;
@@ -21,15 +24,8 @@ use super::parsing::{
     RawDossierWrapper,
 };
 
-const DOSSIERS_URL: &str = "https://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip";
+pub(crate) const DOSSIERS_URL: &str = "https://data.assemblee-nationale.fr/static/openData/repository/17/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip";
 const OPEN_LICENSE: &str = "Licence Ouverte / Open Licence (Etalab)";
-
-/// Le lecteur peut ouvrir la version précise dont la notice est publiée par
-/// l'Assemblée. Le suffixe `.raw` est celui utilisé par les pages dynamiques
-/// de l'Assemblée pour embarquer le document, quel que soit son type.
-fn official_document_url(document_uid: &str) -> String {
-    format!("https://www.assemblee-nationale.fr/dyn/docs/{document_uid}.raw")
-}
 
 struct DocumentMeta {
     title: String,
@@ -41,6 +37,12 @@ struct DocumentMeta {
 
 pub struct NationalAssemblyClient {
     archive: ArchiveFetcher,
+}
+
+impl Default for NationalAssemblyClient {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NationalAssemblyClient {

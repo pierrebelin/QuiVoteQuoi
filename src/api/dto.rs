@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::dossier_repository::DossierCriteria;
 use crate::application::use_cases::browse_dossiers::{
-    DEFAULT_PER_PAGE, DossierCard, InitiatorView,
+    DossierCard, InitiatorView, DEFAULT_PER_PAGE,
 };
 use crate::application::use_cases::check_health::HealthReport;
 use crate::domain::dossier::{CurationStatus, DossierOutcome, Initiative, LegislativeDossier};
@@ -411,6 +411,48 @@ pub struct RefreshResponse {
     /// stockes restent en place.
     pub amendments_anomaly: Option<String>,
     pub dossier_summaries: Option<DossierSummaryRefreshResponse>,
+    /// Passe « En bref » : versions enregistrées, textes lus et lignes écrites
+    /// (SPEC-en-bref CU-01, CU-02). Sa défaillance est dans
+    /// `text_briefs.anomaly`, jamais un échec de la route (RM-18).
+    pub text_briefs: Option<TextBriefRefreshResponse>,
+}
+
+#[derive(Serialize)]
+pub struct TextBriefRefreshResponse {
+    pub versions_seen: usize,
+    pub dossiers_read: usize,
+    pub texts_read: usize,
+    pub texts_missing: usize,
+    /// Articles dont l'empreinte avait déjà une ligne publiable.
+    pub lines_reused: usize,
+    /// Lignes publiables écrites, lignes fixes des articles supprimés comprises.
+    pub lines_written: usize,
+    /// Refus écrits, avec leur motif.
+    pub lines_rejected: usize,
+    /// Articles sans ligne à la fin de la passe : source manquante ou modèle en
+    /// échec.
+    pub articles_pending: usize,
+    pub anomaly: Option<String>,
+}
+
+impl From<crate::application::use_cases::refresh_text_briefs::TextBriefRefreshReport>
+    for TextBriefRefreshResponse
+{
+    fn from(
+        report: crate::application::use_cases::refresh_text_briefs::TextBriefRefreshReport,
+    ) -> Self {
+        Self {
+            versions_seen: report.versions_seen,
+            dossiers_read: report.dossiers_read,
+            texts_read: report.texts_read,
+            texts_missing: report.texts_missing,
+            lines_reused: report.lines_reused,
+            lines_written: report.lines_written,
+            lines_rejected: report.lines_rejected,
+            articles_pending: report.articles_pending,
+            anomaly: report.anomaly,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -446,6 +488,7 @@ impl From<crate::application::use_cases::refresh_all::RefreshOutcome> for Refres
                 .map(crate::api::amendment_dto::AmendmentsRefreshResponse::from),
             amendments_anomaly: o.amendments_anomaly,
             dossier_summaries: None,
+            text_briefs: None,
         }
     }
 }
@@ -454,13 +497,15 @@ impl
     From<(
         crate::application::use_cases::refresh_all::RefreshOutcome,
         crate::application::use_cases::refresh_dossier_group_summaries::DossierSummaryRefreshReport,
+        crate::application::use_cases::refresh_text_briefs::TextBriefRefreshReport,
     )> for RefreshResponse
 {
     fn from(
-        (o, summaries): (
-        crate::application::use_cases::refresh_all::RefreshOutcome,
-        crate::application::use_cases::refresh_dossier_group_summaries::DossierSummaryRefreshReport,
-    ),
+        (o, summaries, text_briefs): (
+            crate::application::use_cases::refresh_all::RefreshOutcome,
+            crate::application::use_cases::refresh_dossier_group_summaries::DossierSummaryRefreshReport,
+            crate::application::use_cases::refresh_text_briefs::TextBriefRefreshReport,
+        ),
     ) -> Self {
         let mut response = RefreshResponse::from(o);
         response.dossier_summaries = Some(DossierSummaryRefreshResponse {
@@ -470,6 +515,7 @@ impl
             summaries_pending: summaries.summaries_pending,
             anomaly: summaries.anomaly,
         });
+        response.text_briefs = Some(TextBriefRefreshResponse::from(text_briefs));
         response
     }
 }

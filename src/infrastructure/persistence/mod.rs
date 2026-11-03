@@ -1,6 +1,7 @@
 pub mod pg_actor_repository;
 pub mod pg_amendment_repository;
 pub mod pg_amendment_citation_repository;
+pub mod pg_brief_line_repository;
 pub mod pg_candidate_repository;
 pub mod pg_dossier_group_actions_repository;
 pub mod pg_dossier_repository;
@@ -10,6 +11,7 @@ pub mod pg_group_repository;
 pub mod pg_health_probe;
 pub mod pg_ingestion_journal;
 pub mod pg_scrutin_repository;
+pub mod pg_text_version_repository;
 pub mod pg_theme_repository;
 
 use crate::application::ports::RepositoryError;

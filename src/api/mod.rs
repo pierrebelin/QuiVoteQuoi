@@ -11,4 +11,5 @@ pub mod handlers;
 pub mod routes;
 pub mod scrutin_dto;
 pub mod security;
+pub mod text_brief_dto;
 pub mod theme_dto;
