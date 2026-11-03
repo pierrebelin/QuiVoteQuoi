@@ -73,6 +73,8 @@ fn read_routes() -> Router<AppState> {
         )
         // Guide de lecture: chiffres de la page « Comprendre ».
         .route("/api/dataset", get(guide_handlers::get_dataset))
+        // Fraicheur des sources: pied de page, bandeau et workflow de controle.
+        .route("/api/freshness", get(guide_handlers::get_freshness))
         // Thematisation (todo/SPEC-thematisation.md).
         .route("/api/themes", get(theme_handlers::list_families))
         .route("/api/themes/method", get(theme_handlers::get_method))

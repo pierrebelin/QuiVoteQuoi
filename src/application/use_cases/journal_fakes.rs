@@ -6,12 +6,13 @@ use async_trait::async_trait;
 
 use crate::application::ports::ingestion_journal::IngestionJournal;
 use crate::application::ports::RepositoryError;
-use crate::domain::ingestion::SourceCheck;
+use crate::domain::ingestion::{SourceCheck, SourceHistory};
 
 #[derive(Default)]
 pub struct InMemoryIngestionJournal {
     checks: Mutex<Vec<SourceCheck>>,
     failing: bool,
+    histories: Vec<SourceHistory>,
 }
 
 impl InMemoryIngestionJournal {
@@ -20,6 +21,15 @@ impl InMemoryIngestionJournal {
         Self {
             checks: Mutex::new(vec![]),
             failing: true,
+            histories: vec![],
+        }
+    }
+
+    /// Journal dont la lecture rend ces historiques.
+    pub fn with_histories(histories: Vec<SourceHistory>) -> Self {
+        Self {
+            histories,
+            ..Self::default()
         }
     }
 
@@ -38,5 +48,9 @@ impl IngestionJournal for InMemoryIngestionJournal {
             ));
         }
         Ok(())
+    }
+
+    async fn histories(&self) -> Result<Vec<SourceHistory>, RepositoryError> {
+        Ok(self.histories.clone())
     }
 }

@@ -1,0 +1,57 @@
+name: Freshness
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check:
+    name: Fraîcheur des sources
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lire l'état public
+        id: read
+        env:
+          PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
+        run: |
+          set +e
+          code=$(curl -s -o response.json -w '%{http_code}' --max-time 30 "$PUBLIC_BASE_URL/api/freshness")
+          if [ "$code" != "200" ] || ! jq -e '.stale_sources and .sources' response.json >/dev/null 2>&1; then
+            echo "unreachable=true" >> "$GITHUB_OUTPUT"
+            printf 'Le point d’accès de fraîcheur est injoignable ou illisible.\n' > body.md
+          else
+            echo "unreachable=false" >> "$GITHUB_OUTPUT"
+            count=$(jq '.stale_sources | length' response.json)
+            echo "stale=$count" >> "$GITHUB_OUTPUT"
+            {
+              echo "Sources en retard ou jamais synchronisées :"
+              echo
+              jq -r '.sources[] | select(.status != "up_to_date") | "- `\(.source)` (\(.label)) : \(.status_label), dernière réussite : \(.last_success_at // "aucune")"' response.json
+            } > body.md
+          fi
+          rm -f response.json
+
+      - name: Ouvrir, commenter ou fermer l'issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          UNREACHABLE: ${{ steps.read.outputs.unreachable }}
+          STALE: ${{ steps.read.outputs.stale }}
+        run: |
+          gh label create fraicheur --force --description "Retard de synchronisation des sources" >/dev/null
+          existing=$(gh issue list --label fraicheur --state open --json number --jq '.[0].number // empty')
+          if [ "$UNREACHABLE" = "true" ] || [ "${STALE:-0}" -gt 0 ]; then
+            if [ -n "$existing" ]; then
+              gh issue comment "$existing" --body-file body.md
+            else
+              gh issue create --label fraicheur --title "Données en retard" --body-file body.md
+            fi
+          elif [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Retour à la normale : toutes les sources sont à jour."
+            gh issue close "$existing"
+          fi

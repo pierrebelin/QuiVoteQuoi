@@ -114,6 +114,7 @@ mod tests {
         amendment_row, scrutin_row, FakeActors, FakeScrutins,
     };
     use crate::domain::amendment::SummaryPreview;
+    use crate::domain::dataset::DatasetShape;
     use crate::domain::amendment_citation::{LinkMethod, UnlinkedCause};
     use crate::domain::dossier::DossierUid;
     use crate::domain::scrutin::ScrutinUid;
@@ -167,7 +168,11 @@ mod tests {
         cited: Vec<CitationRow>,
     ) -> ScrutinListPage {
         let total = rows.len() as i64;
-        let repository = FakeScrutins { rows, total };
+        let repository = FakeScrutins {
+            rows,
+            total,
+            shape: DatasetShape::default(),
+        };
         let citations = citations(cited);
         ListScrutins::new(&repository, &citations, &actors())
             .execute(ScrutinFilter::default())
@@ -207,6 +212,7 @@ mod tests {
                 scrutin_row("S2", "l'ensemble du projet de loi"),
             ],
             total: 7,
+            shape: DatasetShape::default(),
         };
 
         let page = ListScrutins::new(&repository, &citations(vec![]), &actors())

@@ -209,6 +209,25 @@ async fn read_routes_stay_open() {
     }
 }
 
+/// La fraicheur des sources est une lecture publique cablee (RM-F6, RM-F7) :
+/// le pied de page et le workflow l'interrogent. Le pool ne mene nulle part, la
+/// requete atteint le handler et echoue en base ; ce qui compte est qu'elle ne
+/// soit ni un 404 (route absente) ni refusee par la garde.
+#[tokio::test]
+async fn the_freshness_route_is_wired_and_open() {
+    let request = Request::builder()
+        .method("GET")
+        .uri("/api/freshness")
+        .body(Body::empty())
+        .unwrap();
+
+    let status = status_of(guarded_router(), request).await;
+
+    assert_ne!(status, StatusCode::NOT_FOUND, "route non câblée");
+    assert_ne!(status, StatusCode::UNAUTHORIZED, "lecture fermée");
+    assert_ne!(status, StatusCode::FORBIDDEN, "lecture fermée");
+}
+
 /// Une methode inconnue sur un chemin d'ecriture est refusee par la garde
 /// avant meme le controle de methode : 401, pas 405. C'est le comportement
 /// voulu — un client anonyme n'apprend pas quelles methodes le chemin accepte.
