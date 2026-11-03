@@ -3,8 +3,10 @@ use std::collections::{BTreeSet, HashMap};
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::assembly_source::AssemblySource;
 use crate::application::ports::dossier_repository::DossierRepository;
+use crate::application::use_cases::journaling::Journaling;
 use crate::domain::actor::ActorUid;
 use crate::domain::dossier::{InitiatorAttachment, WriteDecision};
+use crate::domain::ingestion::IngestionSource;
 
 /// Ce qu'un rafraichissement a ecrit, et ce qu'il a volontairement laisse de
 /// cote. Les deux sont comptes: un dossier saute doit rester explicable
@@ -44,6 +46,7 @@ pub struct RefreshDossiers<'a> {
     source: &'a dyn AssemblySource,
     repository: &'a dyn DossierRepository,
     actor_repository: &'a dyn ActorRepository,
+    journaling: Journaling<'a>,
 }
 
 impl<'a> RefreshDossiers<'a> {
@@ -51,11 +54,13 @@ impl<'a> RefreshDossiers<'a> {
         source: &'a dyn AssemblySource,
         repository: &'a dyn DossierRepository,
         actor_repository: &'a dyn ActorRepository,
+        journaling: Journaling<'a>,
     ) -> Self {
         Self {
             source,
             repository,
             actor_repository,
+            journaling,
         }
     }
 
@@ -64,6 +69,16 @@ impl<'a> RefreshDossiers<'a> {
     }
 
     pub async fn execute_with(&self, scope: RefreshScope) -> Result<DossiersSummary, RefreshError> {
+        let result = self.refresh(scope).await;
+        self.journaling
+            .record(IngestionSource::Dossiers, &result, |summary| {
+                summary.seen as u64
+            })
+            .await;
+        result
+    }
+
+    async fn refresh(&self, scope: RefreshScope) -> Result<DossiersSummary, RefreshError> {
         let dossiers_with_refs = self.source.fetch_dossiers_since_with_refs(None).await?;
 
         let mut summary = DossiersSummary {
@@ -178,9 +193,12 @@ impl<'a> RefreshDossiers<'a> {
 pub(crate) mod tests {
     use super::*;
     use async_trait::async_trait;
-    use chrono::NaiveDate;
+    use chrono::{DateTime, NaiveDate, TimeZone, Utc};
     use std::collections::HashMap;
     use std::sync::Mutex;
+
+    use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
+    use crate::domain::ingestion::{CheckOutcome, IngestionSource};
 
     use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
     use crate::application::ports::assembly_source::SourceError;
@@ -501,7 +519,7 @@ pub(crate) mod tests {
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let count = RefreshDossiers::new(&source, &repo, &actors)
+        let count = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -538,7 +556,7 @@ pub(crate) mod tests {
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        RefreshDossiers::new(&source, &repo, &actors)
+        RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -558,7 +576,7 @@ pub(crate) mod tests {
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        RefreshDossiers::new(&source, &repo, &actors)
+        RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -579,7 +597,7 @@ pub(crate) mod tests {
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        RefreshDossiers::new(&source, &repo, &actors)
+        RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -602,7 +620,7 @@ pub(crate) mod tests {
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        RefreshDossiers::new(&source, &repo, &actors)
+        RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -612,6 +630,110 @@ pub(crate) mod tests {
         assert_eq!(initiator.full_name(), "Jean Dupont");
         assert!(initiator.group().is_none());
         assert!(initiator.reference_date().is_none());
+    }
+
+    // Local: seul ce test a besoin d'une source de dossiers indisponible.
+    struct DownSource;
+
+    #[async_trait]
+    impl AssemblySource for DownSource {
+        async fn fetch_dossiers_since(
+            &self,
+            _since: Option<NaiveDate>,
+        ) -> Result<Vec<LegislativeDossier>, SourceError> {
+            unreachable!()
+        }
+
+        async fn fetch_dossiers_since_with_refs(
+            &self,
+            _since: Option<NaiveDate>,
+        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
+            Err(SourceError::Download("source unavailable".into()))
+        }
+
+        async fn fetch_dossier_by_uid(
+            &self,
+            _uid: &DossierUid,
+        ) -> Result<Option<LegislativeDossier>, SourceError> {
+            unreachable!()
+        }
+
+        async fn fetch_dossier_by_uid_with_refs(
+            &self,
+            _uid: &DossierUid,
+        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
+            unreachable!()
+        }
+    }
+
+    fn attempted_at() -> DateTime<Utc> {
+        Utc.with_ymd_and_hms(2026, 11, 3, 8, 30, 0).unwrap()
+    }
+
+    #[tokio::test]
+    async fn should_record_succeeded_check_with_dossiers_seen_when_dossier_refresh_succeeds() {
+        let source = FakeSource {
+            dossiers_with_refs: vec![
+                (
+                    dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+                    vec![],
+                ),
+                (
+                    dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
+                    vec![],
+                ),
+            ],
+        };
+        let repo = InMemoryDossierRepository::new();
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let journal = InMemoryIngestionJournal::default();
+
+        RefreshDossiers::new(
+            &source,
+            &repo,
+            &actors,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await
+        .unwrap();
+
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Dossiers);
+        assert_eq!(recorded[0].attempted_at(), attempted_at());
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Succeeded { items_read: 2 }
+        );
+    }
+
+    #[tokio::test]
+    async fn should_record_failed_check_when_assembly_source_fails() {
+        let repo = InMemoryDossierRepository::new();
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let journal = InMemoryIngestionJournal::default();
+
+        let result = RefreshDossiers::new(
+            &DownSource,
+            &repo,
+            &actors,
+            Journaling::to(&journal, attempted_at()),
+        )
+        .execute()
+        .await;
+
+        assert!(matches!(result, Err(RefreshError::Source(_))));
+        let recorded = journal.recorded();
+        assert_eq!(recorded.len(), 1);
+        assert_eq!(recorded[0].source(), IngestionSource::Dossiers);
+        assert_eq!(recorded[0].attempted_at(), attempted_at());
+        assert_eq!(
+            recorded[0].outcome(),
+            &CheckOutcome::Failed {
+                reason: "download failed: source unavailable".to_string()
+            }
+        );
     }
 }
 
@@ -713,7 +835,7 @@ mod incremental_tests {
             ],
         };
 
-        let summary = RefreshDossiers::new(&source, &repo, &actors)
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -743,7 +865,7 @@ mod incremental_tests {
             dossiers: vec![LegislativeDossier::new(backdated)],
         };
 
-        let summary = RefreshDossiers::new(&source, &repo, &actors)
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -775,7 +897,7 @@ mod incremental_tests {
             ))],
         };
 
-        let summary = RefreshDossiers::new(&source, &repo, &actors)
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -804,7 +926,7 @@ mod incremental_tests {
             ))],
         };
 
-        let summary = RefreshDossiers::new(&source, &repo, &actors)
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -824,7 +946,7 @@ mod incremental_tests {
         let still_asleep = FakeSource {
             dossiers: vec![LegislativeDossier::new(dormant.clone())],
         };
-        let summary = RefreshDossiers::new(&still_asleep, &repo, &actors)
+        let summary = RefreshDossiers::new(&still_asleep, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -837,7 +959,7 @@ mod incremental_tests {
                 date(2026, 8, 5),
             ))],
         };
-        let summary = RefreshDossiers::new(&scheduled, &repo, &actors)
+        let summary = RefreshDossiers::new(&scheduled, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -853,7 +975,7 @@ mod incremental_tests {
             dossiers: vec![dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13))],
         };
 
-        let summary = RefreshDossiers::new(&source, &repo, &actors)
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
             .await
             .unwrap();
@@ -885,7 +1007,7 @@ mod incremental_tests {
             dossiers: vec![promulgated, unchanged],
         };
 
-        let summary = RefreshDossiers::new(&source, &repo, &actors)
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute_with(RefreshScope::Full)
             .await
             .unwrap();

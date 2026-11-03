@@ -41,6 +41,7 @@ pub struct AppState {
     pub scrutin_repository: Arc<dyn ScrutinRepository>,
     pub amendment_repository: Arc<dyn AmendmentRepository>,
     pub amendment_citation_repository: Arc<dyn AmendmentCitationRepository>,
+    pub ingestion_journal: Arc<dyn application::ports::ingestion_journal::IngestionJournal>,
     pub final_vote_repository: Arc<dyn FinalVoteRepository>,
     pub group_repository: Arc<dyn GroupRepository>,
     pub theme_repository: Arc<dyn ThemeRepository>,

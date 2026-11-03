@@ -9,6 +9,7 @@ use crate::api::scrutin_dto::{
 use crate::application::ports::scrutin_repository::ScrutinFilter;
 use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::get_scrutin_detail::GetScrutinDetail;
+use crate::application::use_cases::journaling::Journaling;
 use crate::application::use_cases::list_scrutins::ListScrutins;
 use crate::application::use_cases::refresh_scrutins::RefreshScrutins;
 use crate::domain::scrutin::ScrutinUid;
@@ -134,6 +135,7 @@ pub async fn refresh_scrutins(
         state.scrutin_source.as_ref(),
         state.scrutin_repository.as_ref(),
         state.actor_repository.as_ref(),
+        Journaling::to(state.ingestion_journal.as_ref(), chrono::Utc::now()),
     )
     .execute()
     .await

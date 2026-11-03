@@ -43,6 +43,7 @@ pub fn scrutin_row(uid: &str, subject: &str) -> ScrutinSummary {
 pub struct FakeScrutins {
     pub rows: Vec<ScrutinSummary>,
     pub total: i64,
+    pub shape: DatasetShape,
 }
 
 #[async_trait]
@@ -63,7 +64,7 @@ impl ScrutinRepository for FakeScrutins {
         unreachable!()
     }
     async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
-        unreachable!()
+        Ok(self.shape.clone())
     }
 }
 

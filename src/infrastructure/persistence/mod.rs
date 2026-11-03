@@ -8,6 +8,7 @@ pub mod pg_dossier_summary_repository;
 pub mod pg_final_vote_repository;
 pub mod pg_group_repository;
 pub mod pg_health_probe;
+pub mod pg_ingestion_journal;
 pub mod pg_scrutin_repository;
 pub mod pg_theme_repository;
 

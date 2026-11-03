@@ -75,6 +75,8 @@ async fn main() {
     let amendment_source: Arc<dyn AmendmentSource> = Arc::new(AmendmentClient::new());
     let amendment_repository: Arc<dyn AmendmentRepository> =
         Arc::new(PgAmendmentRepository::new(db.clone()));
+    let ingestion_journal: Arc<dyn quivotequoi::application::ports::ingestion_journal::IngestionJournal> =
+        Arc::new(quivotequoi::infrastructure::persistence::pg_ingestion_journal::PgIngestionJournal::new(db.clone()));
     let amendment_citation_repository: Arc<dyn quivotequoi::application::ports::amendment_citation_repository::AmendmentCitationRepository> =
         Arc::new(quivotequoi::infrastructure::persistence::pg_amendment_citation_repository::PgAmendmentCitationRepository::new(db.clone()));
     let final_vote_repository: Arc<dyn FinalVoteRepository> =
@@ -201,6 +203,7 @@ async fn main() {
         scrutin_repository,
         amendment_repository,
         amendment_citation_repository,
+        ingestion_journal,
         final_vote_repository,
         group_repository,
         theme_repository,

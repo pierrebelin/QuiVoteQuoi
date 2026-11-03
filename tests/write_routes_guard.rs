@@ -87,6 +87,9 @@ fn state() -> AppState {
         amendment_citation_repository: Arc::new(
             quivotequoi::infrastructure::persistence::pg_amendment_citation_repository::PgAmendmentCitationRepository::new(db.clone()),
         ),
+        ingestion_journal: Arc::new(
+            quivotequoi::infrastructure::persistence::pg_ingestion_journal::PgIngestionJournal::new(db.clone()),
+        ),
         final_vote_repository: Arc::new(PgFinalVoteRepository::new(db.clone())),
         group_repository: Arc::new(PgGroupRepository::new(db.clone())),
         theme_repository: Arc::new(PgThemeRepository::new(db)),
@@ -204,6 +207,25 @@ async fn read_routes_stay_open() {
         assert_ne!(status, StatusCode::UNAUTHORIZED, "lecture fermée : {path}");
         assert_ne!(status, StatusCode::FORBIDDEN, "lecture fermée : {path}");
     }
+}
+
+/// La fraicheur des sources est une lecture publique cablee (RM-F6, RM-F7) :
+/// le pied de page et le workflow l'interrogent. Le pool ne mene nulle part, la
+/// requete atteint le handler et echoue en base ; ce qui compte est qu'elle ne
+/// soit ni un 404 (route absente) ni refusee par la garde.
+#[tokio::test]
+async fn the_freshness_route_is_wired_and_open() {
+    let request = Request::builder()
+        .method("GET")
+        .uri("/api/freshness")
+        .body(Body::empty())
+        .unwrap();
+
+    let status = status_of(guarded_router(), request).await;
+
+    assert_ne!(status, StatusCode::NOT_FOUND, "route non câblée");
+    assert_ne!(status, StatusCode::UNAUTHORIZED, "lecture fermée");
+    assert_ne!(status, StatusCode::FORBIDDEN, "lecture fermée");
 }
 
 /// Une methode inconnue sur un chemin d'ecriture est refusee par la garde

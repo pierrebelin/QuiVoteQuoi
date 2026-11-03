@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { FreshnessSection } from '../components/Freshness'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import {
   QUESTIONS,
@@ -298,6 +299,8 @@ export default function ComprendrePage() {
           — procédure, cas particuliers, limites des données.
         </p>
       )}
+
+      <FreshnessSection />
 
       <p className="border-t border-line pt-3 text-sm text-ink-soft">
         La méthode de rattachement aux thèmes est publiée à part :{' '}

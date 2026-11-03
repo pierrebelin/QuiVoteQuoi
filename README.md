@@ -83,7 +83,7 @@ Ingestion continue AN (dossiers + scrutins + députés + appartenances)
 
 ## 5. Thématisation
 
-Rattacher un texte à un ou plusieurs thèmes est **le seul endroit où un jugement entre dans le produit**. Il est donc traité comme tel : critères explicites, résultat inspectable, correction possible.
+Un jugement n'entre dans le produit qu'à **deux endroits** : rattacher un texte à un ou plusieurs thèmes, et simplifier chaque article en une ligne dans le résumé « En bref » (§8.1). Les deux sont traités comme tels : critères explicites, résultat inspectable, correction possible. Ni l'un ni l'autre ne porte sur un vote ou un groupe.
 
 **Le porteur du thème est le texte débattu, pas le dossier.** La source publie le lien vers le dossier de façon irrégulière *à l'intérieur d'un même texte* : la proposition de loi relative au droit à l'aide à mourir porte 297 scrutins avec dossier et 541 sans. Thématiser le dossier laisserait 541 votes du même texte hors thème — exactement la sélection éditoriale que §2 interdit.
 
@@ -172,6 +172,49 @@ Cette synthèse ne remplace donc jamais le verbatim des exposés sommaires. Les
 déclarations externes de partis ou de groupes restent hors périmètre, sauf les
 sources primaires explicitement publiées dans la page de programme décrite ci-dessous.
 
+#### Ce que prévoit le texte
+
+**« En bref »** dit, en mots de tous les jours, ce que change chaque article du
+texte débattu (le porteur du thème, §5). Le lien vers le texte officiel suit
+toujours. Labellisé « Synthèse automatique ».
+
+- **Une ligne par article**, 25 mots au plus, rangées sous les titres du texte.
+  Aucun article n'est omis : rien à choisir entre les articles (§2). Un article
+  de pure forme est dit comme tel (« date d'entrée en vigueur »). Un texte long
+  s'affiche replié par grande partie.
+- **La version est affichée** : la dernière version officielle publiée
+  (déposée, adoptée par une chambre, définitive), avec sa date. Les lignes des
+  versions précédentes restent consultables.
+- **Sources du modèle** : les articles de cette version et le texte des
+  articles de loi qu'ils modifient, dans leur rédaction en vigueur à la date de
+  la version (Légifrance). Ni exposé des motifs, ni intitulés rédigés par les
+  auteurs, ni presse.
+- **Avant / après** quand l'article modifie une règle existante. Pas
+  d'intention (« vise à »), pas de jugement, pas de jargon.
+- **Contrôles du code**, ligne rejetée sinon : 25 mots au plus ; chaque nombre
+  figure avec son unité dans les sources, en chiffres ou en lettres ; aucun
+  calcul, arrondi ni conversion.
+- **Ligne rejetée** : « Article N — résumé indisponible » et lien vers
+  l'article. Jamais d'omission silencieuse.
+- **Traçabilité** (§9) : chaque ligne garde l'empreinte de son article, le
+  modèle et la version du prompt. Une erreur signalée est corrigée et inscrite
+  au journal des corrections.
+
+**Régénération — seulement ce qui a changé.**
+
+- **Déclencheur** : la publication d'une nouvelle version officielle du texte.
+  Une ingestion sans nouvelle version ne produit aucun appel.
+- **Empreinte par article**, calculée sur le texte normalisé : marqueurs de
+  navette (« (nouveau) », « (Supprimé) »), numéros d'alinéa, espaces et
+  guillemets retirés. Un article dont l'empreinte est connue garde sa ligne,
+  même renuméroté. Seuls les articles nouveaux ou modifiés sont envoyés au
+  modèle, en un appel par version.
+- **Changement de prompt** : les lignes existantes restent. Le nouveau prompt
+  ne s'applique qu'aux versions publiées ensuite, sauf décision explicite de
+  régénérer.
+- **Plafond par passage** : un nombre maximal de textes traités par refresh,
+  les textes votés le plus récemment en premier.
+
 ### 8.2 Programmes déclarés 2027
 
 La page « Programmes et votes associés — 2027 » recense les candidatures dont une déclaration publique primaire est disponible. Pour chaque candidat, elle publie la déclaration, les organisations ou soutiens explicitement sourcés, le lien vers le programme et des extraits attribués à celui-ci, rattachés au référentiel fermé des thèmes.
@@ -250,6 +293,7 @@ API officielle : textes promulgués, droit en vigueur, Journal officiel. Auth OA
 - [x] **Phase 4** — **Thématisation** : textes débattus, familles, méthode publiée (§5).
 - [x] **Phase 4bis** — **Amendements** : ingestion, rattachement au dossier, exposé sommaire verbatim sur la page dossier.
 - [x] **Phase 4ter** — **Actes par groupe** : votes finaux par lecture, amendements associés et synthèse automatique descriptive pré-calculée.
+- [ ] **Phase 4quater** — **En bref** (§8.1) : ingestion des versions du texte et des articles modifiés (Légifrance), une ligne par article, chiffres et longueur vérifiés, régénération par empreinte d'article.
 - [ ] **Phase 5** — Pages publiques thème × groupe × période.
 - [ ] **Phase 5bis** — Programmes déclarés 2027 : candidatures, extraits sourcés et accès séparé aux votes des groupes associés.
 - [ ] **Phase 6** — Chat de routage (§8.2).

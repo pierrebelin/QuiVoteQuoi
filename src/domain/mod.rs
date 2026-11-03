@@ -10,6 +10,7 @@ pub mod dossier_summary;
 pub mod final_vote;
 pub mod group_lineage;
 pub mod group_profile;
+pub mod ingestion;
 pub mod legislature;
 pub mod scoring;
 pub mod scrutin;
