@@ -32,40 +32,7 @@ const formatDateTime = (iso: string | null) =>
 const lateSources = (data: FreshnessResponse): SourceFreshness[] =>
   data.sources.filter((source) => source.status !== 'up_to_date')
 
-/** Bandeau sous l'en-tête, tant qu'une source est en retard. Rien si l'état est inconnu. */
-export function FreshnessBanner() {
-  const { data } = useFreshness()
-  if (!data) return null
-  const late = lateSources(data)
-  if (late.length === 0) return null
-
-  return (
-    <div
-      role="status"
-      className="border-b border-line bg-info-soft px-6 py-3 text-sm text-info"
-    >
-      <p className="mx-auto max-w-7xl">
-        {late.map((source) => (
-          <span key={source.source}>
-            <strong>
-              {source.label} : dernière synchronisation réussie{' '}
-              {source.last_success_at
-                ? `le ${formatDateTime(source.last_success_at)}`
-                : 'inexistante'}
-              .
-            </strong>{' '}
-          </span>
-        ))}
-        Les éléments votés depuis ne sont pas encore affichés.{' '}
-        <Link to="/comprendre#fraicheur" className="font-semibold underline">
-          Détail
-        </Link>
-      </p>
-    </div>
-  )
-}
-
-/** Ligne de pied de page : à jour, en retard, ou indisponible sans rien supposer. */
+/** Ligne de pied de page : à jour, en retard (source et dernière réussite), ou indisponible sans rien supposer. */
 export function FreshnessFooterLine() {
   const { data, isError } = useFreshness()
   if (isError || !data) {
@@ -77,14 +44,37 @@ export function FreshnessFooterLine() {
   }
   const late = lateSources(data)
   const lastScrutin = data.last_scrutin_date
-    ? ` · dernier scrutin publié le ${dateOnly.format(new Date(data.last_scrutin_date))}`
+    ? `dernier scrutin publié le ${dateOnly.format(new Date(data.last_scrutin_date))}`
     : ''
+  if (late.length === 0) {
+    return (
+      <span className="text-ink-soft">
+        {['Données synchronisées', ...(lastScrutin ? [lastScrutin] : [])].join(' · ')} ·{' '}
+        <Link to="/comprendre#fraicheur" className="text-accent">
+          détail
+        </Link>
+      </span>
+    )
+  }
+  const delayed = late.filter((source) => source.last_success_at)
+  const never = late.filter((source) => !source.last_success_at)
+  const parts = [
+    ...delayed.map(
+      (source) => `${source.label} : dernière réussite le ${formatDateTime(source.last_success_at)}`,
+    ),
+    ...(delayed.length > 0 ? ['les éléments votés depuis ne sont pas encore affichés'] : []),
+    ...(never.length > 0
+      ? [
+          `${never.length === 1 ? 'Jamais synchronisée' : 'Jamais synchronisées'} : ${never
+            .map((source) => source.label)
+            .join(', ')}`,
+        ]
+      : []),
+    ...(lastScrutin ? [lastScrutin] : []),
+  ]
   return (
-    <span className="text-ink-soft">
-      {late.length === 0
-        ? `Données synchronisées${lastScrutin}`
-        : `${late.map((s) => s.label).join(', ')} : synchronisation en retard${lastScrutin}`}{' '}
-      ·{' '}
+    <span role="status" className="text-info">
+      {parts.join(' · ')} ·{' '}
       <Link to="/comprendre#fraicheur" className="text-accent">
         détail
       </Link>

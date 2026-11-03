@@ -1,7 +1,7 @@
 import { Outlet, Link, NavLink } from 'react-router'
 import Logo from './components/Logo'
 import ThemeToggle from './components/ThemeToggle'
-import { FreshnessBanner, FreshnessFooterLine } from './components/Freshness'
+import { FreshnessFooterLine } from './components/Freshness'
 import { GITHUB_REPOSITORY_URL } from './lib/repository'
 
 /*
@@ -100,8 +100,6 @@ export default function App() {
           </nav>
         </div>
       </header>
-
-      <FreshnessBanner />
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
         <Outlet />
