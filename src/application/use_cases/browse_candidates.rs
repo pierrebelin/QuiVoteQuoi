@@ -109,12 +109,20 @@ mod tests {
     use chrono::NaiveDate;
 
     use super::*;
-    use crate::application::ports::candidate_repository::PoliticalOrganizationRecord;
+    use crate::application::ports::candidate_repository::{
+        ChangedSourceRecord, PoliticalOrganizationRecord,
+    };
 
     struct InMemoryCandidateRepository;
 
     #[async_trait]
     impl CandidateRepository for InMemoryCandidateRepository {
+        async fn changed_sources(
+            &self,
+            _: chrono::DateTime<chrono::Utc>,
+        ) -> Result<Vec<ChangedSourceRecord>, RepositoryError> {
+            Ok(Vec::new())
+        }
         async fn list_candidates(&self) -> Result<Vec<CandidateRecord>, RepositoryError> {
             Ok(vec![CandidateRecord {
                 id: CandidateId::new("candidate-a".into()).unwrap(),

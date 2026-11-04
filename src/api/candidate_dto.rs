@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::application::ports::candidate_repository::{
     CandidateParliamentaryGroupRecord, CandidateProgramProposalRecord, CandidateRecord,
-    PoliticalOrganizationRecord,
+    ChangedSourceRecord, PoliticalOrganizationRecord,
 };
 use crate::application::use_cases::browse_candidates::{
     BrowseCandidatesCommand, CandidateComparisonView, MAX_COMPARED_CANDIDATES,
@@ -172,6 +172,39 @@ impl From<CandidateComparisonView> for CandidateComparisonResponse {
             declaration_note: DECLARATION_NOTE,
             proposals_note: PROPOSALS_NOTE,
             groups_note: GROUPS_NOTE,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ChangedSourcesQuery {
+    /// Fenêtre de recherche en jours (7 par défaut, 90 au plus).
+    pub jours: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChangedSourceDto {
+    pub source_url: String,
+    pub changed_at: chrono::DateTime<chrono::Utc>,
+    pub candidates: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ChangedSourcesResponse {
+    pub changed_sources: Vec<ChangedSourceDto>,
+}
+
+impl From<Vec<ChangedSourceRecord>> for ChangedSourcesResponse {
+    fn from(records: Vec<ChangedSourceRecord>) -> Self {
+        Self {
+            changed_sources: records
+                .into_iter()
+                .map(|record| ChangedSourceDto {
+                    source_url: record.source_url,
+                    changed_at: record.changed_at,
+                    candidates: record.candidate_names,
+                })
+                .collect(),
         }
     }
 }
