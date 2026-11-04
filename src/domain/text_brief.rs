@@ -57,6 +57,10 @@ pub struct StoredBriefLine {
     pub line: Option<String>,
     /// Code du motif de refus, quand elle est refusée.
     pub rejection: Option<String>,
+    /// Ce que le contrôle a refusé, quand il le précise (RM-13).
+    pub rejection_detail: Option<String>,
+    /// La ligne écartée, quand le modèle en a rendu une (RM-13).
+    pub rejected_line: Option<String>,
     /// Modèle qui l'a produite, ou `rule` quand c'est le code (RM-06).
     pub model: String,
     pub prompt_version: String,
@@ -268,6 +272,8 @@ mod tests {
             line: (status == BriefStatus::Ready)
                 .then(|| "Fixe un délai de trois mois.".to_string()),
             rejection: (status == BriefStatus::Rejected).then(|| "too_long".to_string()),
+            rejection_detail: None,
+            rejected_line: None,
             model: "modele".to_string(),
             prompt_version: prompt_version.to_string(),
             generated_at: day(2026, 11, 3).and_hms_opt(0, 0, 0).unwrap(),

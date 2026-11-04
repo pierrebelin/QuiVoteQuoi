@@ -415,6 +415,8 @@ mod tests {
             status,
             line: (status == BriefStatus::Ready).then(|| format!("Ligne de {fingerprint}.")),
             rejection: (status == BriefStatus::Rejected).then(|| "too_long".to_string()),
+            rejection_detail: None,
+            rejected_line: None,
             model: model.to_string(),
             prompt_version: prompt_version.to_string(),
             generated_at,

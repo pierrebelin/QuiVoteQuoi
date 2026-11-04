@@ -420,7 +420,7 @@ impl<'a> RefreshTextBriefs<'a> {
                     self.stored_line(
                         s.article.fingerprint(),
                         self.generator.model(),
-                        Err(GENERATION_FAILED),
+                        Err(Refusal::without_line(GENERATION_FAILED)),
                         s.cited_sources.clone(),
                         today,
                     )
@@ -453,13 +453,17 @@ impl<'a> RefreshTextBriefs<'a> {
             .iter()
             .map(|sourced| {
                 let outcome = match first.get(sourced.request.key.as_str()) {
-                    None => Err(MISSING_LINE),
+                    None => Err(Refusal::without_line(MISSING_LINE)),
                     Some(raw) => {
                         let sources: Vec<&str> =
                             sourced.sources.iter().map(String::as_str).collect();
                         BriefLine::check(raw, &sources)
                             .map(|line| line.as_str().to_string())
-                            .map_err(|error| error.as_str())
+                            .map_err(|error| Refusal {
+                                code: error.as_str(),
+                                detail: error.detail(),
+                                line: Some((*raw).to_string()),
+                            })
                     }
                 };
                 self.stored_line(
@@ -474,29 +478,52 @@ impl<'a> RefreshTextBriefs<'a> {
     }
 
     /// RM-16 : une ligne enregistrée avec le modèle, la version du prompt, la
-    /// date de la passe et les articles cités transmis. `Err` : le code du
-    /// motif de refus.
+    /// date de la passe et les articles cités transmis. `Err` : le refus.
     fn stored_line(
         &self,
         fingerprint: &ArticleFingerprint,
         model: &str,
-        outcome: Result<String, &str>,
+        outcome: Result<String, Refusal>,
         cited_sources: Vec<String>,
         today: NaiveDate,
     ) -> StoredBriefLine {
-        let (status, line, rejection) = match outcome {
+        let (status, line, refusal) = match outcome {
             Ok(line) => (BriefStatus::Ready, Some(line), None),
-            Err(code) => (BriefStatus::Rejected, None, Some(code.to_string())),
+            Err(refusal) => (BriefStatus::Rejected, None, Some(refusal)),
+        };
+        let (rejection, rejection_detail, rejected_line) = match refusal {
+            Some(refusal) => (Some(refusal.code.to_string()), refusal.detail, refusal.line),
+            None => (None, None, None),
         };
         StoredBriefLine {
             fingerprint: fingerprint.clone(),
             status,
             line,
             rejection,
+            rejection_detail,
+            rejected_line,
             model: model.to_string(),
             prompt_version: self.generator.prompt_version().to_string(),
             generated_at: NaiveDateTime::new(today, NaiveTime::MIN),
             cited_sources,
+        }
+    }
+}
+
+/// Pourquoi un article n'a pas de ligne publiable (RM-13).
+struct Refusal {
+    code: &'static str,
+    detail: Option<String>,
+    /// La ligne écartée, quand le modèle en a rendu une.
+    line: Option<String>,
+}
+
+impl Refusal {
+    fn without_line(code: &'static str) -> Self {
+        Self {
+            code,
+            detail: None,
+            line: None,
         }
     }
 }
@@ -732,6 +759,8 @@ mod tests {
             status: BriefStatus::Ready,
             line: Some(line.to_string()),
             rejection: None,
+            rejection_detail: None,
+            rejected_line: None,
             model: "autre-modele".to_string(),
             prompt_version: "ancien-prompt".to_string(),
             generated_at: day(2026, 10, 1).and_hms_opt(0, 0, 0).unwrap(),
@@ -1183,6 +1212,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn should_keep_the_refused_line_and_what_was_refused_for_the_diagnosis() {
+        let rig = single(vec![text_article("1er", "Contenu A.")]);
+        rig.generator
+            .answer("sha256:1er", "Vise à réduire le délai de recours.");
+
+        rig.run(5).await;
+
+        let stored = rig.lines.line("sha256:1er").unwrap();
+        assert_eq!(stored.rejection_detail.as_deref(), Some("vise à"));
+        assert_eq!(
+            stored.rejected_line.as_deref(),
+            Some("Vise à réduire le délai de recours.")
+        );
+    }
+
+    #[tokio::test]
     async fn should_refuse_article_when_answer_has_no_line_for_it() {
         let rig = single(vec![
             text_article("a", "Contenu A."),
@@ -1199,6 +1244,7 @@ mod tests {
         let missing = rig.lines.line("sha256:b").unwrap();
         assert_eq!(missing.status, BriefStatus::Rejected);
         assert_eq!(missing.rejection.as_deref(), Some("missing_line"));
+        assert_eq!(missing.rejected_line, None);
         assert_eq!(report.lines_rejected, 1);
     }
 

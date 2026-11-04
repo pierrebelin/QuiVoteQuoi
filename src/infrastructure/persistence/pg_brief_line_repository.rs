@@ -37,8 +37,8 @@ impl BriefLineRepository for PgBriefLineRepository {
             .map(ArticleFingerprint::as_str)
             .collect();
         let rows = sqlx::query(
-            "SELECT fingerprint, status, line, rejection, model, prompt_version,
-                    generated_at, cited_sources::text AS cited_sources
+            "SELECT fingerprint, status, line, rejection, rejection_detail, rejected_line,
+                    model, prompt_version, generated_at, cited_sources::text AS cited_sources
                FROM brief_lines
               WHERE fingerprint = ANY($1)",
         )
@@ -57,6 +57,8 @@ impl BriefLineRepository for PgBriefLineRepository {
                         .ok_or_else(|| invalid_row(format!("brief status {status}")))?,
                     line: row.get("line"),
                     rejection: row.get("rejection"),
+                    rejection_detail: row.get("rejection_detail"),
+                    rejected_line: row.get("rejected_line"),
                     model: row.get("model"),
                     prompt_version: row.get("prompt_version"),
                     generated_at: row.get::<DateTime<Utc>, _>("generated_at").naive_utc(),
@@ -75,6 +77,10 @@ impl BriefLineRepository for PgBriefLineRepository {
             let texts: Vec<Option<&str>> = batch.iter().map(|l| l.line.as_deref()).collect();
             let rejections: Vec<Option<&str>> =
                 batch.iter().map(|l| l.rejection.as_deref()).collect();
+            let details: Vec<Option<&str>> =
+                batch.iter().map(|l| l.rejection_detail.as_deref()).collect();
+            let rejected: Vec<Option<&str>> =
+                batch.iter().map(|l| l.rejected_line.as_deref()).collect();
             let models: Vec<&str> = batch.iter().map(|l| l.model.as_str()).collect();
             let prompts: Vec<&str> = batch.iter().map(|l| l.prompt_version.as_str()).collect();
             let generated: Vec<DateTime<Utc>> = batch
@@ -93,14 +99,14 @@ impl BriefLineRepository for PgBriefLineRepository {
             sqlx::query(
                 "INSERT INTO brief_lines
                     (fingerprint, status, line, rejection, model, prompt_version,
-                     generated_at, cited_sources)
+                     generated_at, cited_sources, rejection_detail, rejected_line)
                  SELECT fingerprint, status, line, rejection, model, prompt_version,
-                        generated_at, cited_sources::jsonb
+                        generated_at, cited_sources::jsonb, rejection_detail, rejected_line
                    FROM UNNEST(
                         $1::text[], $2::text[], $3::text[], $4::text[], $5::text[],
-                        $6::text[], $7::timestamptz[], $8::text[])
+                        $6::text[], $7::timestamptz[], $8::text[], $9::text[], $10::text[])
                         AS t(fingerprint, status, line, rejection, model, prompt_version,
-                             generated_at, cited_sources)
+                             generated_at, cited_sources, rejection_detail, rejected_line)
                  ON CONFLICT (fingerprint) DO UPDATE SET
                     status = EXCLUDED.status,
                     line = EXCLUDED.line,
@@ -108,7 +114,9 @@ impl BriefLineRepository for PgBriefLineRepository {
                     model = EXCLUDED.model,
                     prompt_version = EXCLUDED.prompt_version,
                     generated_at = EXCLUDED.generated_at,
-                    cited_sources = EXCLUDED.cited_sources
+                    cited_sources = EXCLUDED.cited_sources,
+                    rejection_detail = EXCLUDED.rejection_detail,
+                    rejected_line = EXCLUDED.rejected_line
                   WHERE brief_lines.status <> 'ready'",
             )
             .bind(&fingerprints)
@@ -119,6 +127,8 @@ impl BriefLineRepository for PgBriefLineRepository {
             .bind(&prompts)
             .bind(&generated)
             .bind(&cited)
+            .bind(&details)
+            .bind(&rejected)
             .execute(&mut *transaction)
             .await
             .map_err(db)?;

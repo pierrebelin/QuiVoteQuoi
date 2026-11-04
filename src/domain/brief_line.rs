@@ -116,6 +116,17 @@ impl BriefLineError {
             Self::UnsourcedNumber(_) => "unsourced_number",
         }
     }
+
+    /// Ce qui a été refusé, pour le diagnostic : jamais affiché sur le site
+    /// (RM-13).
+    pub fn detail(&self) -> Option<String> {
+        match self {
+            Self::Empty | Self::MultipleParagraphs => None,
+            Self::TooLong(words) => Some(format!("{words} mots")),
+            Self::ForbiddenWording(term) => Some(term.clone()),
+            Self::UnsourcedNumber(quantity) => Some(quantity.clone()),
+        }
+    }
 }
 
 /// Ligne « En bref » conforme : seule porte d'entrée d'une ligne publiée.
@@ -1084,5 +1095,20 @@ mod tests {
                 qualifier: "euro".to_string(),
             }]
         );
+    }
+
+    #[test]
+    fn should_describe_what_was_refused_when_the_error_has_a_detail() {
+        assert_eq!(BriefLineError::TooLong(31).detail(), Some("31 mots".to_string()));
+        assert_eq!(
+            BriefLineError::UnsourcedNumber("13 jour".to_string()).detail(),
+            Some("13 jour".to_string())
+        );
+        assert_eq!(
+            BriefLineError::ForbiddenWording("vise à".to_string()).detail(),
+            Some("vise à".to_string())
+        );
+        assert_eq!(BriefLineError::Empty.detail(), None);
+        assert_eq!(BriefLineError::MultipleParagraphs.detail(), None);
     }
 }

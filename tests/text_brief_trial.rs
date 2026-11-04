@@ -138,12 +138,11 @@ impl BriefGenerator for CountedCalls {
     }
 }
 
-/// Article, statut, ligne, motif du refus, modèle, prompt, sources citées.
+/// Article, statut, ligne ou refus, modèle, prompt, sources citées.
 type BriefRow = (
     String,
     String,
-    Option<String>,
-    Option<String>,
+    String,
     String,
     String,
     serde_json::Value,
@@ -233,7 +232,10 @@ async fn brief_trial_on_one_dossier() {
     );
 
     let rows: Vec<BriefRow> = sqlx::query_as(
-        "SELECT a.label, COALESCE(b.status, 'pending'), b.line, b.rejection, \
+        "SELECT a.label, COALESCE(b.status, 'pending'), \
+                    COALESCE(b.line, b.rejection \
+                        || COALESCE(' (' || b.rejection_detail || ')', '') \
+                        || COALESCE(' : « ' || b.rejected_line || ' »', ''), ''), \
                     COALESCE(b.model, ''), COALESCE(b.prompt_version, ''), \
                     COALESCE(b.cited_sources, '[]'::jsonb) \
              FROM dossier_brief_progress p \
@@ -246,8 +248,7 @@ async fn brief_trial_on_one_dossier() {
     .fetch_all(&db)
     .await
     .expect("brief lines readable");
-    for (label, status, line, rejection, model, prompt, cited) in rows {
-        let text = line.or(rejection).unwrap_or_default();
+    for (label, status, text, model, prompt, cited) in rows {
         println!("art. {label} [{status}] {text} — {model} {prompt} {cited}");
     }
 }
