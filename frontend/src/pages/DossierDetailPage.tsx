@@ -2,6 +2,7 @@ import { useParams, Link, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import DossierAmendments from '../components/DossierAmendments'
 import DossierScrutins from '../components/DossierScrutins'
+import DossierBrief from '../components/DossierBrief'
 import DossierGroupActions from '../components/DossierGroupActions'
 import DossierFinalScrutin from '../components/DossierFinalScrutin'
 import DossierParcours, {
@@ -306,6 +307,8 @@ export default function DossierDetailPage() {
               </a>
             </div>
           </Card>
+
+          <DossierBrief uid={data.uid} />
 
           <DossierFinalScrutin uid={data.uid} />
 

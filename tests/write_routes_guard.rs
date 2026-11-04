@@ -21,19 +21,24 @@ use tower::ServiceExt;
 
 use quivotequoi::api::routes::create_router;
 use quivotequoi::api::security::AdminGuard;
+use quivotequoi::infrastructure::legifrance::unavailable::UnavailableLegalTextSource;
+use quivotequoi::infrastructure::llm::unavailable_brief_generator::UnavailableBriefGenerator;
 use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableThemeClassifier;
 use quivotequoi::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
 use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient;
 use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
 use quivotequoi::infrastructure::national_assembly::client::NationalAssemblyClient;
 use quivotequoi::infrastructure::national_assembly::scrutin_client::ScrutinClient;
+use quivotequoi::infrastructure::national_assembly::text_version_client::TextVersionClient;
 use quivotequoi::infrastructure::persistence::pg_actor_repository::PgActorRepository;
 use quivotequoi::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
+use quivotequoi::infrastructure::persistence::pg_brief_line_repository::PgBriefLineRepository;
 use quivotequoi::infrastructure::persistence::pg_candidate_repository::PgCandidateRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_repository::PgDossierRepository;
 use quivotequoi::infrastructure::persistence::pg_final_vote_repository::PgFinalVoteRepository;
 use quivotequoi::infrastructure::persistence::pg_group_repository::PgGroupRepository;
 use quivotequoi::infrastructure::persistence::pg_scrutin_repository::PgScrutinRepository;
+use quivotequoi::infrastructure::persistence::pg_text_version_repository::PgTextVersionRepository;
 use quivotequoi::infrastructure::persistence::pg_theme_repository::PgThemeRepository;
 use quivotequoi::infrastructure::security::AdminTokenSecret;
 use quivotequoi::AppState;
@@ -92,8 +97,13 @@ fn state() -> AppState {
         ),
         final_vote_repository: Arc::new(PgFinalVoteRepository::new(db.clone())),
         group_repository: Arc::new(PgGroupRepository::new(db.clone())),
-        theme_repository: Arc::new(PgThemeRepository::new(db)),
+        theme_repository: Arc::new(PgThemeRepository::new(db.clone())),
         theme_classifier: Arc::new(UnavailableThemeClassifier),
+        text_version_source: Arc::new(TextVersionClient::new()),
+        text_version_repository: Arc::new(PgTextVersionRepository::new(db.clone())),
+        legal_text_source: Arc::new(UnavailableLegalTextSource),
+        brief_generator: Arc::new(UnavailableBriefGenerator),
+        brief_line_repository: Arc::new(PgBriefLineRepository::new(db)),
     }
 }
 
@@ -194,6 +204,7 @@ async fn read_routes_stay_open() {
         "/api/groupes",
         "/api/dossiers",
         "/api/dossiers/D1/lecture-groupes",
+        "/api/dossiers/D1/en-bref",
         "/api/themes",
         "/api/votes-finaux",
     ] {

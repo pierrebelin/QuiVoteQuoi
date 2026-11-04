@@ -43,6 +43,12 @@ fn read_routes() -> Router<AppState> {
             "/api/dossiers/{uid}/lecture-groupes",
             get(dossier_handlers::get_dossier_group_actions),
         )
+        // « En bref » : route fille, chargée à l'affichage de la section
+        // (SPEC-en-bref CU-03).
+        .route(
+            "/api/dossiers/{uid}/en-bref",
+            get(dossier_handlers::get_dossier_brief),
+        )
         .route("/api/suggestions", get(dossier_handlers::get_suggestions))
         .route(
             "/api/dossiers/{uid}/scrutins",

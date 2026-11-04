@@ -14,6 +14,12 @@ const DOSSIER_SUMMARY_BATCH_DEFAULT: usize = 10;
 /// Bornes acceptées pour `DOSSIER_SUMMARY_BATCH_PER_REFRESH`.
 const DOSSIER_SUMMARY_BATCH_MIN: usize = 1;
 const DOSSIER_SUMMARY_BATCH_MAX: usize = 100;
+/// Dossiers dont les textes sont lus par rafraîchissement quand la variable
+/// n'est pas posée.
+const TEXT_BRIEF_DOSSIERS_DEFAULT: usize = 5;
+/// Bornes acceptées pour `TEXT_BRIEF_DOSSIERS_PER_REFRESH`.
+const TEXT_BRIEF_DOSSIERS_MIN: usize = 1;
+const TEXT_BRIEF_DOSSIERS_MAX: usize = 50;
 
 /// Connexions maximales du pool PostgreSQL.
 const DB_MAX_CONNECTIONS: u32 = 5;
@@ -57,6 +63,27 @@ pub fn dossier_summary_batch_per_refresh() -> usize {
         .and_then(|raw| raw.parse().ok())
         .unwrap_or(DOSSIER_SUMMARY_BATCH_DEFAULT)
         .clamp(DOSSIER_SUMMARY_BATCH_MIN, DOSSIER_SUMMARY_BATCH_MAX)
+}
+
+/// Dossiers votés dont les textes sont lus à chaque rafraîchissement
+/// (SPEC-en-bref RM-15).
+///
+/// Plafond, pas objectif : les dossiers restants sont repris à la passe
+/// suivante. Chaque version lue coûte un téléchargement du texte intégral, et
+/// le projet de loi de finances pèse plusieurs mégaoctets. Absent ou illisible :
+/// 5 ; borné à 1..=50.
+pub fn text_brief_dossiers_per_refresh() -> usize {
+    parse_text_brief_dossiers(
+        std::env::var("TEXT_BRIEF_DOSSIERS_PER_REFRESH")
+            .ok()
+            .as_deref(),
+    )
+}
+
+fn parse_text_brief_dossiers(raw: Option<&str>) -> usize {
+    raw.and_then(|value| value.trim().parse::<usize>().ok())
+        .unwrap_or(TEXT_BRIEF_DOSSIERS_DEFAULT)
+        .clamp(TEXT_BRIEF_DOSSIERS_MIN, TEXT_BRIEF_DOSSIERS_MAX)
 }
 
 /// Origines tierces autorisees par CORS: `ALLOWED_ORIGINS`, liste separee par
@@ -108,5 +135,19 @@ mod tests {
     #[test]
     fn an_empty_list_allows_no_origin() {
         assert!(parse_origin_list("").is_empty());
+    }
+
+    #[test]
+    fn text_brief_cap_defaults_to_five_when_absent_or_unreadable() {
+        assert_eq!(parse_text_brief_dossiers(None), 5);
+        assert_eq!(parse_text_brief_dossiers(Some("beaucoup")), 5);
+        assert_eq!(parse_text_brief_dossiers(Some("")), 5);
+    }
+
+    #[test]
+    fn text_brief_cap_is_trimmed_and_kept_within_bounds() {
+        assert_eq!(parse_text_brief_dossiers(Some(" 8 ")), 8);
+        assert_eq!(parse_text_brief_dossiers(Some("0")), 1);
+        assert_eq!(parse_text_brief_dossiers(Some("500")), 50);
     }
 }

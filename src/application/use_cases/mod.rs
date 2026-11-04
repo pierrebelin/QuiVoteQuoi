@@ -12,6 +12,7 @@ pub mod describe_freshness;
 pub mod describe_method;
 pub mod extract_debated_texts;
 pub mod fetch_recent_dossiers;
+pub mod get_dossier_brief;
 pub mod get_dossier_detail;
 pub mod get_dossier_group_actions;
 pub mod get_group_detail;
@@ -26,6 +27,7 @@ pub mod refresh_amendments;
 pub mod refresh_dossier_group_summaries;
 pub mod refresh_dossiers;
 pub mod refresh_scrutins;
+pub mod refresh_text_briefs;
 pub mod save_dossier;
 pub mod suggest_dossiers;
 #[cfg(test)]
@@ -36,3 +38,5 @@ pub mod read_fakes;
 pub mod citation_fakes;
 #[cfg(test)]
 pub mod journal_fakes;
+#[cfg(test)]
+pub mod brief_fakes;

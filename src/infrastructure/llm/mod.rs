@@ -1,12 +1,17 @@
+pub mod anthropic_brief_generator;
 pub mod anthropic_classifier;
 pub mod anthropic_dossier_summary;
+pub mod brief_prompt;
 pub mod http_retry;
+pub mod mistral_brief_generator;
 pub mod mistral_classifier;
 pub mod mistral_dossier_summary;
 pub mod mistral_support;
+pub mod openai_brief_generator;
 pub mod openai_classifier;
 pub mod openai_dossier_summary;
 pub mod openai_support;
 pub mod provider;
+pub mod unavailable_brief_generator;
 pub mod unavailable_classifier;
 pub mod unavailable_dossier_summary;

@@ -7,6 +7,8 @@ use quivotequoi::application::ports::actor_source::ActorSource;
 use quivotequoi::application::ports::amendment_repository::AmendmentRepository;
 use quivotequoi::application::ports::amendment_source::AmendmentSource;
 use quivotequoi::application::ports::assembly_source::AssemblySource;
+use quivotequoi::application::ports::brief_generator::BriefGenerator;
+use quivotequoi::application::ports::brief_line_repository::BriefLineRepository;
 use quivotequoi::application::ports::candidate_repository::CandidateRepository;
 use quivotequoi::application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, DossierSummaryRepository,
@@ -16,26 +18,37 @@ use quivotequoi::application::ports::dossier_summary_generator::DossierSummaryGe
 use quivotequoi::application::ports::final_vote_repository::FinalVoteRepository;
 use quivotequoi::application::ports::group_repository::GroupRepository;
 use quivotequoi::application::ports::health_probe::HealthProbe;
+use quivotequoi::application::ports::legal_text_source::LegalTextSource;
 use quivotequoi::application::ports::scrutin_repository::ScrutinRepository;
 use quivotequoi::application::ports::scrutin_source::ScrutinSource;
+use quivotequoi::application::ports::text_version_repository::TextVersionRepository;
+use quivotequoi::application::ports::text_version_source::TextVersionSource;
 use quivotequoi::application::ports::theme_classifier::ThemeClassifier;
 use quivotequoi::application::ports::theme_repository::ThemeRepository;
 use quivotequoi::infrastructure::config;
+use quivotequoi::infrastructure::legifrance::client::LegifranceClient;
+use quivotequoi::infrastructure::legifrance::unavailable::UnavailableLegalTextSource;
+use quivotequoi::infrastructure::llm::anthropic_brief_generator::AnthropicBriefGenerator;
 use quivotequoi::infrastructure::llm::anthropic_classifier::AnthropicThemeClassifier;
 use quivotequoi::infrastructure::llm::anthropic_dossier_summary::AnthropicDossierSummaryGenerator;
+use quivotequoi::infrastructure::llm::mistral_brief_generator::MistralBriefGenerator;
 use quivotequoi::infrastructure::llm::mistral_classifier::MistralThemeClassifier;
 use quivotequoi::infrastructure::llm::mistral_dossier_summary::MistralDossierSummaryGenerator;
+use quivotequoi::infrastructure::llm::openai_brief_generator::OpenAiBriefGenerator;
 use quivotequoi::infrastructure::llm::openai_classifier::OpenAiThemeClassifier;
 use quivotequoi::infrastructure::llm::openai_dossier_summary::OpenAiDossierSummaryGenerator;
 use quivotequoi::infrastructure::llm::provider::LlmProvider;
+use quivotequoi::infrastructure::llm::unavailable_brief_generator::UnavailableBriefGenerator;
 use quivotequoi::infrastructure::llm::unavailable_classifier::UnavailableThemeClassifier;
 use quivotequoi::infrastructure::llm::unavailable_dossier_summary::UnavailableDossierSummaryGenerator;
 use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient;
 use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
 use quivotequoi::infrastructure::national_assembly::client::NationalAssemblyClient;
 use quivotequoi::infrastructure::national_assembly::scrutin_client::ScrutinClient;
+use quivotequoi::infrastructure::national_assembly::text_version_client::TextVersionClient;
 use quivotequoi::infrastructure::persistence::pg_actor_repository::PgActorRepository;
 use quivotequoi::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
+use quivotequoi::infrastructure::persistence::pg_brief_line_repository::PgBriefLineRepository;
 use quivotequoi::infrastructure::persistence::pg_candidate_repository::PgCandidateRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_group_actions_repository::PgDossierGroupActionsRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_repository::PgDossierRepository;
@@ -44,6 +57,7 @@ use quivotequoi::infrastructure::persistence::pg_final_vote_repository::PgFinalV
 use quivotequoi::infrastructure::persistence::pg_group_repository::PgGroupRepository;
 use quivotequoi::infrastructure::persistence::pg_health_probe::PgHealthProbe;
 use quivotequoi::infrastructure::persistence::pg_scrutin_repository::PgScrutinRepository;
+use quivotequoi::infrastructure::persistence::pg_text_version_repository::PgTextVersionRepository;
 use quivotequoi::infrastructure::persistence::pg_theme_repository::PgThemeRepository;
 use quivotequoi::infrastructure::security::AdminTokenSecret;
 use quivotequoi::AppState;
@@ -83,6 +97,11 @@ async fn main() {
         Arc::new(PgFinalVoteRepository::new(db.clone()));
     let group_repository: Arc<dyn GroupRepository> = Arc::new(PgGroupRepository::new(db.clone()));
     let theme_repository: Arc<dyn ThemeRepository> = Arc::new(PgThemeRepository::new(db.clone()));
+    let text_version_source: Arc<dyn TextVersionSource> = Arc::new(TextVersionClient::new());
+    let text_version_repository: Arc<dyn TextVersionRepository> =
+        Arc::new(PgTextVersionRepository::new(db.clone()));
+    let brief_line_repository: Arc<dyn BriefLineRepository> =
+        Arc::new(PgBriefLineRepository::new(db.clone()));
     let health_probe: Arc<dyn HealthProbe> = Arc::new(PgHealthProbe::new(db.clone()));
 
     let llm_provider = match LlmProvider::from_env() {
@@ -167,6 +186,55 @@ async fn main() {
         None => Arc::new(UnavailableDossierSummaryGenerator),
     };
 
+    // « En bref » : même fournisseur que la synthèse par groupe. Sans clé, la
+    // passe lit les textes et reprend les lignes connues, mais n'envoie rien.
+    let brief_generator: Arc<dyn BriefGenerator> = match llm_provider {
+        Some(LlmProvider::Anthropic) => match AnthropicBriefGenerator::from_env() {
+            Some(generator) => {
+                tracing::info!("Text brief generator ready ({})", generator.model());
+                Arc::new(generator)
+            }
+            None => {
+                tracing::warn!("ANTHROPIC_API_KEY absent: text briefs will stay pending");
+                Arc::new(UnavailableBriefGenerator)
+            }
+        },
+        Some(LlmProvider::OpenAi) => match OpenAiBriefGenerator::from_env() {
+            Some(generator) => {
+                tracing::info!("Text brief generator ready ({})", generator.model());
+                Arc::new(generator)
+            }
+            None => {
+                tracing::warn!("OPENAI_API_KEY absent: text briefs will stay pending");
+                Arc::new(UnavailableBriefGenerator)
+            }
+        },
+        Some(LlmProvider::Mistral) => match MistralBriefGenerator::from_env() {
+            Some(generator) => {
+                tracing::info!("Text brief generator ready ({})", generator.model());
+                Arc::new(generator)
+            }
+            None => {
+                tracing::warn!("MISTRAL_API_KEY absent: text briefs will stay pending");
+                Arc::new(UnavailableBriefGenerator)
+            }
+        },
+        None => Arc::new(UnavailableBriefGenerator),
+    };
+
+    let legal_text_source: Arc<dyn LegalTextSource> = match LegifranceClient::from_env() {
+        Some(client) => {
+            tracing::info!("Legifrance client ready");
+            Arc::new(client)
+        }
+        None => {
+            tracing::warn!(
+                "LEGIFRANCE_CLIENT_ID or LEGIFRANCE_CLIENT_SECRET absent: briefs citing a code or law article will stay pending"
+            );
+            Arc::new(UnavailableLegalTextSource)
+        }
+    };
+
     // Le jeton d'ecriture n'est pas pose dans l'environnement: il est derive
     // du secret et de la date du jour, cote serveur comme cote client
     // (src/infrastructure/security.rs).
@@ -208,6 +276,11 @@ async fn main() {
         group_repository,
         theme_repository,
         theme_classifier,
+        text_version_source,
+        text_version_repository,
+        legal_text_source,
+        brief_generator,
+        brief_line_repository,
     };
 
     let app = api::routes::create_router(state, admin_guard);

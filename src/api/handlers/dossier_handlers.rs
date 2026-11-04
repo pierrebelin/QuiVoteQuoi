@@ -11,11 +11,13 @@ use crate::api::dto::{
     RefreshResponse, RegistryResponse, SuggestionsQuery, SuggestionsResponse,
 };
 use crate::api::error::ApiError;
+use crate::api::text_brief_dto::{DossierBriefQuery, DossierBriefResponse};
 use crate::application::ports::dossier_repository::DossierCriteria;
 use crate::application::use_cases::browse_dossiers::{BrowseDossiers, DossierQuery};
 use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::curate_dossier::CurateDossier;
 use crate::application::use_cases::fetch_recent_dossiers::FetchRecentDossiers;
+use crate::application::use_cases::get_dossier_brief::{GetDossierBrief, GetDossierBriefError};
 use crate::application::use_cases::get_dossier_detail::GetDossierDetail;
 use crate::application::use_cases::get_dossier_group_actions::GetDossierGroupActions;
 use crate::application::use_cases::journaling::Journaling;
@@ -23,6 +25,7 @@ use crate::application::use_cases::refresh_actor_registry::RefreshActorRegistry;
 use crate::application::use_cases::refresh_all::RefreshAll;
 use crate::application::use_cases::refresh_dossier_group_summaries::RefreshDossierGroupSummaries;
 use crate::application::use_cases::refresh_dossiers::RefreshScope;
+use crate::application::use_cases::refresh_text_briefs::RefreshTextBriefs;
 use crate::application::use_cases::save_dossier::SaveDossier;
 use crate::application::use_cases::suggest_dossiers::SuggestDossiers;
 use crate::domain::dossier::DossierUid;
@@ -120,6 +123,38 @@ pub async fn get_dossier_group_actions(
     .ok_or_else(|| ApiError::not_found("Dossier not found"))?;
 
     Ok(Json(DossierGroupActionsResponse::from(result)))
+}
+
+/// « En bref » d'un dossier : la dernière version disponible, ou celle que
+/// `?version=` désigne (CU-03). Un dossier ou une version inconnus sont des
+/// adresses qui n'existent pas.
+pub async fn get_dossier_brief(
+    State(state): State<AppState>,
+    Path(uid): Path<String>,
+    Query(query): Query<DossierBriefQuery>,
+) -> Result<Json<DossierBriefResponse>, ApiError> {
+    let uid = DossierUid::new(uid).map_err(ApiError::bad_request)?;
+
+    let brief = GetDossierBrief::new(
+        state.dossier_repository.as_ref(),
+        state.text_version_repository.as_ref(),
+        state.brief_line_repository.as_ref(),
+        state.brief_generator.as_ref(),
+    )
+    .execute(&uid, query.version.as_deref())
+    .await
+    .map_err(status_of)?
+    .ok_or_else(|| ApiError::not_found("Version not found"))?;
+
+    Ok(Json(DossierBriefResponse::from(brief)))
+}
+
+/// Un dossier inconnu est une adresse qui n'existe pas, pas une panne.
+fn status_of(error: GetDossierBriefError) -> ApiError {
+    match error {
+        GetDossierBriefError::NotFound(_) => ApiError::not_found("Dossier not found"),
+        GetDossierBriefError::Repository(_) => ApiError::internal(error),
+    }
 }
 
 pub async fn save_dossier(
@@ -220,7 +255,26 @@ pub async fn refresh_dossiers(
     .await
     .map_err(ApiError::internal)?;
 
-    Ok(Json(RefreshResponse::from((outcome, summary_report))))
+    // RM-18 : la passe « En bref » rapporte ses défaillances, elle ne fait
+    // jamais échouer la route.
+    let text_brief_report = RefreshTextBriefs::new(
+        state.text_version_source.as_ref(),
+        state.text_version_repository.as_ref(),
+        state.legal_text_source.as_ref(),
+        state.brief_line_repository.as_ref(),
+        state.brief_generator.as_ref(),
+    )
+    .execute(
+        config::text_brief_dossiers_per_refresh(),
+        Utc::now().date_naive(),
+    )
+    .await;
+
+    Ok(Json(RefreshResponse::from((
+        outcome,
+        summary_report,
+        text_brief_report,
+    ))))
 }
 
 pub async fn refresh_actor_registry(

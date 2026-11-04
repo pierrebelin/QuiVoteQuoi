@@ -175,7 +175,8 @@ sources primaires explicitement publiées dans la page de programme décrite ci-
 #### Ce que prévoit le texte
 
 **« En bref »** dit, en mots de tous les jours, ce que change chaque article du
-texte débattu (le porteur du thème, §5). Le lien vers le texte officiel suit
+texte débattu (le porteur du thème, §5). Il s'affiche sur la fiche du dossier,
+qui porte les versions publiées du texte. Le lien vers le texte officiel suit
 toujours. Labellisé « Synthèse automatique ».
 
 - **Une ligne par article**, 25 mots au plus, rangées sous les titres du texte.
