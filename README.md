@@ -47,6 +47,7 @@ Conséquences directes :
 - Le scoring **ordonne** l'affichage (pertinence, ampleur), il ne **filtre** jamais.
 - Tout critère de classement est **public et consultable** sur le site.
 - Toute lacune connue (source indisponible, vote à main levée) est **affichée comme telle**, jamais silencieuse.
+- Les publications sur les réseaux (Instagram seul pour l'instant) sont des vitrines de l'outil, pas un second canal éditorial. Le post quotidien retient le scrutin de la veille qui a réuni **le plus de votants** (égalité départagée par le numéro de scrutin) ; ce critère est publié sur le site. Un carrousel hebdomadaire reprend **tous** les votes de la semaine, dans l'ordre chronologique, ce qui rétablit l'exhaustivité que le quotidien ne couvre pas. Les règles de forme du §6 s'y appliquent, chaque post est relu à la main avant publication, et aucune publication n'est automatique.
 
 ## 3. Modèle politique — les trois pièges
 
@@ -303,7 +304,7 @@ API officielle : textes promulgués, droit en vigueur, Journal officiel. Auth OA
 ## Non-objectifs
 
 - Pas de note, de classement ni de score attribué à un groupe ou à une personne.
-- Pas d'opinion, pas de conclusion éditoriale, pas de recherche de viralité.
+- Pas d'opinion, pas de conclusion éditoriale, pas de recherche de viralité : les publications Instagram (§2) montrent l'outil et ses données, elles ne forment pas un média d'opinion, et aucun contenu n'est choisi ni formulé pour son potentiel de partage.
 - Pas de traduction groupe → parti sans base factuelle.
 - Pas de prédiction électorale, pas de comparaison de programmes.
 - Pas de chiffre produit par un LLM.

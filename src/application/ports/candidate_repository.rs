@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use chrono::NaiveDate;
+use chrono::{DateTime, NaiveDate, Utc};
 
 use crate::domain::candidate::CandidateId;
 use crate::domain::theme::FamilyCode;
@@ -48,8 +48,23 @@ pub struct CandidateParliamentaryGroupRecord {
     pub source_label: String,
 }
 
+/// Source de programme dont le contenu a changé depuis sa première observation.
+#[derive(Debug, Clone)]
+pub struct ChangedSourceRecord {
+    pub source_url: String,
+    pub changed_at: DateTime<Utc>,
+    /// Candidatures qui s'appuient sur cette source, pour orienter la revue.
+    pub candidate_names: Vec<String>,
+}
+
 #[async_trait]
 pub trait CandidateRepository: Send + Sync {
+    /// Sources modifiées depuis `since`, à relire avant toute publication.
+    async fn changed_sources(
+        &self,
+        since: DateTime<Utc>,
+    ) -> Result<Vec<ChangedSourceRecord>, RepositoryError>;
+
     /// Toutes les candidatures déjà établies par une déclaration primaire.
     async fn list_candidates(&self) -> Result<Vec<CandidateRecord>, RepositoryError>;
 

@@ -28,6 +28,10 @@ fn read_routes() -> Router<AppState> {
             "/api/candidats-2027",
             get(candidate_handlers::list_candidates),
         )
+        .route(
+            "/api/candidats-2027/sources-modifiees",
+            get(candidate_handlers::list_changed_sources),
+        )
         // Liste principale : tous les dossiers, paginés (README.md §2).
         .route("/api/dossiers", get(dossier_handlers::browse_dossiers))
         // Activité récente, utilisée par la sélection éditoriale.

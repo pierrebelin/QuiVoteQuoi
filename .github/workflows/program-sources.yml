@@ -1,0 +1,72 @@
+name: Sources de programmes
+
+# Ouvre une issue par source de programme dont le contenu a changé. La
+# vérification quotidienne (timer systemd) ne publie jamais rien : cette issue
+# est la file de revue humaine (README.md §8.2).
+on:
+  schedule:
+    # Après la vérification quotidienne (06:10 + délai aléatoire de 10 min).
+    - cron: '30 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  notify:
+    name: Signaler les sources modifiées
+    runs-on: ubuntu-latest
+    steps:
+      - name: Lire les sources modifiées
+        env:
+          PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
+        run: |
+          set -euo pipefail
+          # Fenêtre large : un workflow en échec quelques jours ne perd rien.
+          curl -fsS --max-time 30 \
+            "$PUBLIC_BASE_URL/api/candidats-2027/sources-modifiees?jours=14" \
+            -o response.json
+          jq -e '.changed_sources | type == "array"' response.json >/dev/null
+
+      - name: Ouvrir une issue par changement non encore signalé
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh label create programmes --force \
+            --description "Source de programme modifiée, revue humaine requise" >/dev/null
+
+          # Un changement = une URL + une date. Fermer l'issue ne la rouvre pas.
+          gh issue list --label programmes --state all --limit 500 \
+            --json body --jq '.[].body' > known.txt
+
+          jq -c '.changed_sources[]' response.json | while read -r change; do
+            url=$(jq -r '.source_url' <<<"$change")
+            changed_at=$(jq -r '.changed_at' <<<"$change")
+            marker="source-change:${url}@${changed_at}"
+            if grep -qF -- "$marker" known.txt; then
+              continue
+            fi
+            candidates=$(jq -r '.candidates | if length == 0 then "aucune candidature rattachée" else join(", ") end' <<<"$change")
+            {
+              echo "Le contenu d'une source de programme a changé depuis sa dernière observation."
+              echo
+              echo "- Source : <${url}>"
+              echo "- Modifiée le : ${changed_at}"
+              echo "- Candidatures concernées : ${candidates}"
+              echo
+              echo "À faire :"
+              echo "- [ ] Relire la source et comparer avec les extraits publiés"
+              echo "- [ ] Mettre à jour \`scripts/candidates-2027-proposals.json\` si un extrait a changé"
+              echo "- [ ] Relancer \`node scripts/seed-candidates-2027.mjs\`"
+              echo
+              echo "Rien n'est republié automatiquement. Un changement de bannière, de date ou de pied de page déclenche aussi cette alerte : dans ce cas, fermer l'issue."
+              echo
+              echo "<!-- ${marker} -->"
+            } > body.md
+            gh issue create --label programmes \
+              --title "Source de programme modifiée : ${candidates}" \
+              --body-file body.md
+          done

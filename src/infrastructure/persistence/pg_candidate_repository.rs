@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use super::db;
 use crate::application::ports::candidate_repository::{
     CandidateParliamentaryGroupRecord, CandidateProgramProposalRecord, CandidateRecord,
-    CandidateRepository, PoliticalOrganizationRecord, RepositoryError,
+    CandidateRepository, ChangedSourceRecord, PoliticalOrganizationRecord, RepositoryError,
 };
 use crate::domain::candidate::CandidateId;
 use crate::domain::theme::FamilyCode;
@@ -29,6 +30,49 @@ fn candidate_id(raw: String) -> Result<CandidateId, RepositoryError> {
 
 #[async_trait]
 impl CandidateRepository for PgCandidateRepository {
+    async fn changed_sources(
+        &self,
+        since: DateTime<Utc>,
+    ) -> Result<Vec<ChangedSourceRecord>, RepositoryError> {
+        let rows = sqlx::query(
+            "WITH usage AS (
+                 SELECT declaration_source_url AS url, display_name FROM presidential_candidates
+                 UNION SELECT official_site_url, display_name FROM presidential_candidates
+                 UNION SELECT program_url, display_name FROM presidential_candidates
+                 UNION SELECT link.source_url, candidate.display_name
+                         FROM candidate_political_organizations link
+                         JOIN presidential_candidates candidate ON candidate.id = link.candidate_id
+                 UNION SELECT proposal.source_url, candidate.display_name
+                         FROM candidate_program_proposals proposal
+                         JOIN presidential_candidates candidate ON candidate.id = proposal.candidate_id
+             )
+             SELECT observation.source_url, observation.last_changed_at,
+                    COALESCE(array_agg(DISTINCT usage.display_name)
+                             FILTER (WHERE usage.display_name IS NOT NULL), '{}') AS candidate_names
+               FROM candidate_program_source_observations observation
+               LEFT JOIN usage ON usage.url = observation.source_url
+              WHERE observation.last_changed_at > observation.first_observed_at
+                AND observation.last_changed_at > $1
+              GROUP BY observation.source_url, observation.last_changed_at
+              ORDER BY observation.last_changed_at DESC, observation.source_url",
+        )
+        .persistent(false)
+        .bind(since)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        rows.into_iter()
+            .map(|row| {
+                Ok(ChangedSourceRecord {
+                    source_url: row.try_get("source_url").map_err(db)?,
+                    changed_at: row.try_get("last_changed_at").map_err(db)?,
+                    candidate_names: row.try_get("candidate_names").map_err(db)?,
+                })
+            })
+            .collect()
+    }
+
     async fn list_candidates(&self) -> Result<Vec<CandidateRecord>, RepositoryError> {
         let candidate_rows = sqlx::query(
             "SELECT id, display_name, declared_on, declaration_source_url,
