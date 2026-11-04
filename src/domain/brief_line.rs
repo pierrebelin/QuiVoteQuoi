@@ -557,10 +557,13 @@ impl LetterNumber {
         self.count += 1;
     }
 
+    /// Une année se lit en lettres comme en chiffres, sauf un compte rond de
+    /// centaines : « deux mille euros » est un montant.
     fn finish(self) -> Number {
+        let value = self.total + self.current;
         Number {
-            value: (self.total + self.current).to_string(),
-            year: false,
+            value: value.to_string(),
+            year: (1800..=2100).contains(&value) && !value.is_multiple_of(100),
             indefinite: self.count == 1 && self.indefinite,
         }
     }
@@ -1046,6 +1049,40 @@ mod tests {
         assert_eq!(
             BriefLineError::UnsourcedNumber("13 jour".to_string()).as_str(),
             "unsourced_number"
+        );
+    }
+
+    #[test]
+    fn should_accept_year_in_letters_when_a_noun_follows_it() {
+        let sources = ["Les affectations sont confirmées pour l'année 2027."];
+
+        for line in [
+            "Il confirme pour l'année deux mille vingt-sept les affectations.",
+            "Il confirme en deux mille vingt-sept les affectations.",
+        ] {
+            assert!(BriefLine::check(line, &sources).is_ok(), "{line}");
+        }
+    }
+
+    #[test]
+    fn should_refuse_year_in_letters_when_sources_state_another_year() {
+        assert_eq!(
+            BriefLine::check(
+                "Il confirme en deux mille vingt-huit les affectations.",
+                &["Les affectations sont confirmées pour l'année 2027."],
+            ),
+            Err(BriefLineError::UnsourcedNumber("2028 année".to_string()))
+        );
+    }
+
+    #[test]
+    fn should_not_read_a_round_amount_in_letters_as_a_year() {
+        assert_eq!(
+            quantities("Une aide de deux mille euros."),
+            vec![Quantity {
+                value: "2000".to_string(),
+                qualifier: "euro".to_string(),
+            }]
         );
     }
 }
