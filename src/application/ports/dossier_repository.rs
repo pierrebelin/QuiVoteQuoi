@@ -19,8 +19,9 @@ pub use super::RepositoryError;
 pub struct DossierCriteria {
     /// Fragment cherché dans le titre du dossier.
     pub search: Option<String>,
-    /// Sort du dossier, tel que `DossierOutcome::kind` l'écrit.
-    pub outcome_kind: Option<String>,
+    /// Sorts retenus, tels que `DossierOutcome::kind` les écrit : le dossier
+    /// doit porter l'un d'eux. Vide, aucun sort n'est écarté.
+    pub outcome_kinds: Vec<String>,
     pub initiative: Option<Initiative>,
     /// Famille courante du dossier, héritée de ses textes ou propre (RM-06).
     pub family: Option<FamilyCode>,
@@ -29,7 +30,7 @@ pub struct DossierCriteria {
 impl DossierCriteria {
     pub fn is_empty(&self) -> bool {
         self.search.is_none()
-            && self.outcome_kind.is_none()
+            && self.outcome_kinds.is_empty()
             && self.initiative.is_none()
             && self.family.is_none()
     }

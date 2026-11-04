@@ -162,7 +162,15 @@ impl From<&DossierPageQuery> for DossierCriteria {
     fn from(q: &DossierPageQuery) -> Self {
         Self {
             search: non_empty(q.search.as_deref()),
-            outcome_kind: non_empty(q.outcome.as_deref()),
+            outcome_kinds: q
+                .outcome
+                .as_deref()
+                .unwrap_or_default()
+                .split(',')
+                .map(str::trim)
+                .filter(|kind| !kind.is_empty())
+                .map(str::to_string)
+                .collect(),
             initiative: q
                 .initiative
                 .as_deref()

@@ -491,11 +491,16 @@ impl DossierOutcome {
     /// necessaire pour le savoir: un sort promulgue reste definitif meme si sa
     /// date manque en base. Un code inconnu n'est pas definitif.
     pub fn kind_is_final(kind: &str) -> bool {
-        matches!(
-            kind,
-            Self::KIND_PROMULGATED | Self::KIND_WITHDRAWN | Self::KIND_MERGED_INTO
-        )
+        Self::FINAL_KINDS.contains(&kind)
     }
+
+    /// Les codes de sort definitifs (voir `kind_is_final`).
+    const FINAL_KINDS: [&'static str; 3] = [
+        Self::KIND_PROMULGATED,
+        Self::KIND_WITHDRAWN,
+        Self::KIND_MERGED_INTO,
+    ];
+
 
     pub fn date(&self) -> Option<NaiveDate> {
         match self {

@@ -246,10 +246,11 @@ mod tests {
                 .to_lowercase()
                 .contains(&needle.to_lowercase())
         });
-        let outcome_matches = criteria
-            .outcome_kind
-            .as_ref()
-            .is_none_or(|kind| dossier.outcome().kind() == kind);
+        let outcome_matches = criteria.outcome_kinds.is_empty()
+            || criteria
+                .outcome_kinds
+                .iter()
+                .any(|kind| dossier.outcome().kind() == kind);
         let initiative_matches = criteria.initiative.is_none_or(|initiative| {
             dossier
                 .procedure()
@@ -403,7 +404,7 @@ mod tests {
                 1,
                 20,
                 DossierCriteria {
-                    outcome_kind: Some("promulgated".into()),
+                    outcome_kinds: vec!["promulgated".into()],
                     ..Default::default()
                 },
             ))
@@ -468,7 +469,7 @@ mod tests {
                 20,
                 DossierCriteria {
                     search: Some("loi".into()),
-                    outcome_kind: Some("promulgated".into()),
+                    outcome_kinds: vec!["promulgated".into()],
                     initiative: Some(Initiative::Parliamentary),
                     family: None,
                 },
