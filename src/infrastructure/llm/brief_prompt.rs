@@ -12,7 +12,7 @@ use crate::application::ports::brief_generator::{
 use crate::domain::cited_article::CitedWording;
 
 /// Version du prompt, enregistrée avec chaque ligne (RM-16, RM-17).
-pub const PROMPT_VERSION: &str = "text-brief-v1";
+pub const PROMPT_VERSION: &str = "text-brief-v2";
 
 /// Plafond de jetons de sortie d'un appel, commun aux trois fournisseurs : un
 /// paquet de 40 articles rend 40 clés (une empreinte) et 40 lignes.
@@ -36,6 +36,9 @@ pub(crate) fn system_prompt() -> &'static str {
         "- Ne reprends pas le numéro de l'article.\n",
         "- Aucune intention (pas de \"vise à\", \"a pour objectif\", \"a pour but\", \"afin de\") et aucun jugement (pas de \"important\", \"significatif\", \"historique\", \"ambitieux\", \"efficace\", \"injuste\").\n",
         "- N'écris aucun nombre qui ne soit recopié des sources (le contenu de l'article et les rédactions fournies), avec le même mot qui le qualifie (unité, mois, jours...). Aucun calcul, aucun arrondi, aucune conversion : \"trois mois\" reste \"trois mois\".\n",
+        "- Recopie chaque nombre sous la forme des sources : \"2027\" reste \"2027\", \"60 milliards\" reste \"60 milliards\". N'écris jamais en lettres un nombre écrit en chiffres.\n",
+        "- Si tout ne tient pas en 25 mots, cite moins de montants plutôt que d'allonger la phrase.\n",
+        "- Ne nomme aucune taxe, aucun dispositif ni aucun organisme que les sources ne nomment pas.\n",
         "- N'utilise que les sources fournies : aucune connaissance extérieure, aucun contexte politique, aucune supposition. Quand une rédaction n'est pas fournie, ne la décris pas.",
     )
 }
@@ -281,9 +284,17 @@ mod tests {
             "afin de",
             "aucun calcul",
             "aucune conversion",
+            "sous la forme des sources",
+            "cite moins de montants",
+            "ne nomme aucune taxe",
         ] {
             assert!(prompt.contains(rule), "missing rule {rule:?}");
         }
+    }
+
+    #[test]
+    fn should_change_the_prompt_version_with_the_rules_on_numbers_and_names() {
+        assert_eq!(PROMPT_VERSION, "text-brief-v2");
     }
 
     #[test]

@@ -139,14 +139,7 @@ impl BriefGenerator for CountedCalls {
 }
 
 /// Article, statut, ligne ou refus, modèle, prompt, sources citées.
-type BriefRow = (
-    String,
-    String,
-    String,
-    String,
-    String,
-    serde_json::Value,
-);
+type BriefRow = (String, String, String, String, String, serde_json::Value);
 
 #[tokio::test]
 #[ignore = "essai réel : base, dossier et clé du modèle à poser à la main"]
