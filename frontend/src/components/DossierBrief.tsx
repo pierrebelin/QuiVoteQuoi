@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
 import { Card, ErrorPanel, Meta, Note, Pill } from './ui'
@@ -29,7 +30,7 @@ function topLevel(division: string | null) {
 /** Ce qui suit le premier niveau : le sous-titre d'une division repliée. */
 function belowTopLevel(division: string | null) {
   if (division === null) return null
-  const rest = division.split(DIVISION_SEPARATOR).slice(1).join(' › ')
+  const rest = division.split(DIVISION_SEPARATOR).slice(1).join(DIVISION_SEPARATOR)
   return rest === '' ? null : rest
 }
 
@@ -47,6 +48,44 @@ function runsBy(
   return runs
 }
 
+/** Un titre que le texte officiel écrit en capitales se lit en minuscules. */
+function readableDivision(raw: string) {
+  if (raw !== raw.toUpperCase()) return raw
+  return raw
+    .toLowerCase()
+    .replace(/\s*:\s*/, ' — ')
+    .replace(/\b(i{1,3}|iv|vi{0,3})\b/g, (roman) => roman.toUpperCase())
+    .replace(/(^|— )(\p{L})/gu, (_, before: string, letter: string) => before + letter.toUpperCase())
+}
+
+function shortName(article: ArticleBriefDto) {
+  return article.label === 'liminaire' ? 'Lim.' : `Art. ${article.label}`
+}
+
+function fullName(article: ArticleBriefDto) {
+  return article.label === 'liminaire' ? 'Article liminaire' : `Article ${article.label}`
+}
+
+function waitingWord(article: ArticleBriefDto) {
+  return article.state === 'pending' ? 'résumé en attente' : 'résumé indisponible'
+}
+
+function OfficialLink({ officialUrl, children }: { officialUrl: string; children: ReactNode }) {
+  return (
+    <a href={officialUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+      {children}
+    </a>
+  )
+}
+
+function Chevron({ openedBy }: { openedBy: string }) {
+  return (
+    <span aria-hidden className={`w-3 shrink-0 text-center text-ink-faint transition-transform ${openedBy}`}>
+      ›
+    </span>
+  )
+}
+
 function ArticleLine({
   article,
   officialUrl,
@@ -54,32 +93,74 @@ function ArticleLine({
   article: ArticleBriefDto
   officialUrl: string | null
 }) {
-  const name = `Article ${article.label}`
-  if (article.state === 'ready') {
-    return (
-      <li className="py-1.5 text-sm leading-relaxed text-ink">
-        <span className="font-medium">{name}</span>
-        {' '}— {article.line}
-      </li>
-    )
-  }
   return (
-    <li className="py-1.5 text-sm leading-relaxed text-ink-faint">
-      <span className="font-medium">{name}</span>
-      {' '}— {article.state === 'pending' ? 'résumé en attente' : 'résumé indisponible'}
-      {officialUrl && (
-        <>
-          {' · '}
-          <a href={officialUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
-            Texte officiel ↗
-          </a>
-        </>
+    <li className="grid grid-cols-[3.25rem_minmax(0,1fr)] gap-2.5 py-2 text-sm leading-relaxed">
+      <span className="text-[13px] font-semibold text-ink-soft" title={fullName(article)}>
+        {shortName(article)}
+      </span>
+      {article.state === 'ready' ? (
+        <span className="text-ink">{article.line}</span>
+      ) : (
+        <span className="text-[13.5px] text-ink-faint">
+          {waitingWord(article)}
+          {officialUrl && (
+            <>
+              {' · '}
+              <OfficialLink officialUrl={officialUrl}>Texte officiel ↗</OfficialLink>
+            </>
+          )}
+        </span>
       )}
     </li>
   )
 }
 
-/** Les articles d'une suite, sous l'en-tête discret de leur division. */
+/** Des articles sans ligne qui se suivent, en une rangée : leurs numéros restent dépliables (CU-03). */
+function WaitingArticles({
+  articles,
+  officialUrl,
+}: {
+  articles: ArticleBriefDto[]
+  officialUrl: string | null
+}) {
+  const pending = articles.filter((article) => article.state === 'pending').length
+  const unavailable = articles.length - pending
+  const counts = [
+    pending > 0 ? `${pending} en attente` : null,
+    unavailable > 0 ? `${unavailable} ${unavailable > 1 ? 'indisponibles' : 'indisponible'}` : null,
+  ].filter((count) => count !== null)
+  const link = articles.length > 2 ? 'à' : 'et'
+  return (
+    <details className="group/waiting my-1.5 rounded-lg bg-surface-soft text-[13.5px] text-ink-soft">
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-2.5 py-2 [&::-webkit-details-marker]:hidden">
+        <Chevron openedBy="group-open/waiting:rotate-90" />
+        <span className="font-semibold">
+          Articles {articles[0].label} {link} {articles[articles.length - 1].label}
+        </span>
+        <span className="ml-auto">{counts.join(', ')}</span>
+      </summary>
+      <ul className="flex flex-wrap gap-1 px-2.5 pb-2 text-[12.5px]">
+        {articles.map((article, index) => (
+          <li
+            key={`${article.label}-${index}`}
+            title={`${fullName(article)} : ${waitingWord(article)}`}
+            className={`rounded-md bg-surface px-1.5 py-px ${article.state === 'pending' ? '' : 'text-ink-faint line-through'}`}
+          >
+            {article.label}
+            <span className="sr-only"> : {waitingWord(article)}</span>
+          </li>
+        ))}
+      </ul>
+      {officialUrl && (
+        <p className="px-2.5 pb-2.5 text-[13px]">
+          <OfficialLink officialUrl={officialUrl}>Lire ces articles dans le texte officiel ↗</OfficialLink>
+        </p>
+      )}
+    </details>
+  )
+}
+
+/** Les articles d'une division, ceux sans ligne qui se suivent regroupés. */
 function DivisionBlock({
   heading,
   articles,
@@ -89,21 +170,35 @@ function DivisionBlock({
   articles: ArticleBriefDto[]
   officialUrl: string | null
 }) {
+  const runs = runsBy(articles, (article) => (article.state === 'ready' ? 'ready' : 'waiting'))
   return (
     <div className="mt-3 first:mt-0">
       {heading && (
-        <h4 className="text-[12.5px] font-semibold text-ink-soft">{heading.replaceAll(DIVISION_SEPARATOR, ' › ')}</h4>
+        <h4 className="text-[12.5px] font-semibold text-ink-soft">
+          {heading.split(DIVISION_SEPARATOR).map(readableDivision).join(' › ')}
+        </h4>
       )}
-      <ul className="divide-y divide-line">
-        {articles.map((article, index) => (
-          <ArticleLine key={`${article.label}-${index}`} article={article} officialUrl={officialUrl} />
-        ))}
-      </ul>
+      {runs.map((run, index) =>
+        run.key === 'waiting' && run.articles.length > 1 ? (
+          <WaitingArticles key={index} articles={run.articles} officialUrl={officialUrl} />
+        ) : (
+          <ul key={index} className="divide-y divide-line">
+            {run.articles.map((article, articleIndex) => (
+              <ArticleLine key={`${article.label}-${articleIndex}`} article={article} officialUrl={officialUrl} />
+            ))}
+          </ul>
+        ),
+      )}
     </div>
   )
 }
 
-/** Tous les articles, rangés sous leurs divisions ; repliés par grande partie quand le texte est long. */
+function partTally(articles: ArticleBriefDto[]) {
+  const ready = articles.filter((article) => article.state === 'ready').length
+  return `${articles.length} ${articles.length > 1 ? 'articles' : 'article'} · ${ready} ${ready > 1 ? 'résumés' : 'résumé'}`
+}
+
+/** Tous les articles, rangés sous leurs divisions ; repliés par grande partie quand le texte est long, la première ouverte. */
 function Articles({
   articles,
   officialUrl,
@@ -123,28 +218,35 @@ function Articles({
     )
   }
 
+  const parts = runsBy(articles, (article) => topLevel(article.division))
+  const firstNamedPart = parts.findIndex((part) => part.key !== null)
   return (
-    <div className="space-y-2">
-      {runsBy(articles, (article) => topLevel(article.division)).map((part, index) => (
-        <details key={index} className="rounded-lg border border-line bg-surface-soft/40 px-3 py-2">
-          <summary className="cursor-pointer text-sm font-medium text-ink">
-            {part.key ?? 'Articles hors division'}
-            <span className="ml-2 text-xs font-normal text-ink-faint">
-              {part.articles.length} {part.articles.length > 1 ? 'articles' : 'article'}
-            </span>
-          </summary>
-          <div className="mt-2">
-            {runsBy(part.articles, (article) => article.division).map((run, subIndex) => (
-              <DivisionBlock
-                key={subIndex}
-                heading={belowTopLevel(run.key)}
-                articles={run.articles}
-                officialUrl={officialUrl}
-              />
-            ))}
-          </div>
-        </details>
-      ))}
+    <div className="space-y-2.5">
+      {parts.map((part, index) =>
+        part.key === null ? (
+          <DivisionBlock key={index} heading={null} articles={part.articles} officialUrl={officialUrl} />
+        ) : (
+          <details key={index} open={index === firstNamedPart} className="group/part rounded-xl border border-line">
+            <summary className="flex cursor-pointer list-none items-start gap-2 px-3.5 py-3 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
+              <Chevron openedBy="group-open/part:rotate-90" />
+              <span className="min-w-0">
+                {readableDivision(part.key)}
+                <span className="block text-[13px] font-normal text-ink-faint">{partTally(part.articles)}</span>
+              </span>
+            </summary>
+            <div className="px-3.5 pb-2">
+              {runsBy(part.articles, (article) => article.division).map((run, subIndex) => (
+                <DivisionBlock
+                  key={subIndex}
+                  heading={belowTopLevel(run.key)}
+                  articles={run.articles}
+                  officialUrl={officialUrl}
+                />
+              ))}
+            </div>
+          </details>
+        ),
+      )}
     </div>
   )
 }
