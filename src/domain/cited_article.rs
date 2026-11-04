@@ -4,7 +4,7 @@
 /// Codes reconnus, au nom canonique de Légifrance (majuscule initiale). Un code
 /// absent de cette liste n'est pas reconnu : le renvoi est ignoré, il ne bloque
 /// pas (RM-08).
-pub const KNOWN_CODES: [&str; 31] = [
+pub const KNOWN_CODES: [&str; 41] = [
     "Code civil",
     "Code pénal",
     "Code de la santé publique",
@@ -36,10 +36,20 @@ pub const KNOWN_CODES: [&str; 31] = [
     "Code de l'organisation judiciaire",
     "Code général de la fonction publique",
     "Code des postes et des communications électroniques",
+    "Code des impositions sur les biens et services",
+    "Code des juridictions financières",
+    "Code de la recherche",
+    "Code du cinéma et de l'image animée",
+    "Code des pensions civiles et militaires de retraite",
+    "Code de la mutualité",
+    "Code des douanes",
+    "Code du sport",
+    "Code du tourisme",
+    "Code général de la propriété des personnes publiques",
 ];
 
 /// Mentions latines qui suivent un numéro d'article.
-const LATIN: [&str; 12] = [
+const LATIN: [&str; 26] = [
     "bis",
     "ter",
     "quater",
@@ -52,6 +62,20 @@ const LATIN: [&str; 12] = [
     "undecies",
     "duodecies",
     "terdecies",
+    "quaterdecies",
+    "quindecies",
+    "sexdecies",
+    "septdecies",
+    "octodecies",
+    "novodecies",
+    "vicies",
+    "unvicies",
+    "duovicies",
+    "tervicies",
+    "quatervicies",
+    "quinvicies",
+    "sexvicies",
+    "septvicies",
 ];
 
 /// Mots qui, avant « code », renvoient au dernier code nommé.
@@ -150,6 +174,9 @@ impl CitedArticle {
         let words = read_words(content);
         let mut found: Vec<CitedArticle> = Vec::new();
         let mut last_code: Option<&'static str> = None;
+        // Le code qu'une phrase « Le code X est ainsi modifié : » ouvre, jusqu'à
+        // la section suivante : ses articles sont cités sans préfixe (RM-07).
+        let mut modified_code: Option<&'static str> = None;
         let mut at = 0;
         while at < words.len() {
             if is_article_keyword(&words[at]) {
@@ -173,7 +200,8 @@ impl CitedArticle {
                             None if reading.prefixed => {
                                 last_code.map(|name| CitedText::Code(name.to_string()))
                             }
-                            None => None,
+                            None if names_a_text(&words[end..]) => None,
+                            None => modified_code.map(|name| CitedText::Code(name.to_string())),
                         };
                         if let Some(text) = text {
                             record(
@@ -191,9 +219,14 @@ impl CitedArticle {
                     continue;
                 }
             } else if let Some((mention, end)) = code_mention_at(&words, at) {
-                mention.resolve(&mut last_code);
+                let named = mention.resolve(&mut last_code);
+                if opens_modifications(&words[end..]) {
+                    modified_code = named;
+                }
                 at = end;
                 continue;
+            } else if is_section_mark(&words[at]) {
+                modified_code = None;
             }
             at += 1;
         }
@@ -272,6 +305,28 @@ fn read_words(content: &str) -> Vec<Word> {
         .split_whitespace()
         .filter_map(Word::read)
         .collect()
+}
+
+/// « est ainsi modifié » : la suite énumère les modifications du texte nommé.
+fn opens_modifications(after: &[Word]) -> bool {
+    matches!(
+        after,
+        [is, thus, modified, ..]
+            if is.lower == "est" && thus.lower == "ainsi" && modified.lower == "modifié"
+    )
+}
+
+/// « de la présente loi », « du décret » : un numéro sans préfixe suivi d'un
+/// complément appartient à ce texte, pas au code en cours de modification.
+fn names_a_text(after: &[Word]) -> bool {
+    after.first().is_some_and(|word| {
+        matches!(word.lower.as_str(), "de" | "du" | "des") || word.lower.starts_with("d'")
+    })
+}
+
+/// « II. » : une section numérotée en chiffres romains.
+fn is_section_mark(word: &Word) -> bool {
+    word.after == Some('.') && word.bare.chars().all(|c| matches!(c, 'I' | 'V' | 'X'))
 }
 
 fn is_article_keyword(word: &Word) -> bool {
@@ -782,6 +837,61 @@ mod tests {
                 cited(santé.clone(), "L1111-3", "L. 1111-3", true),
                 cited(santé, "L1111-4", "L. 1111-4", false),
             ]
+        );
+    }
+
+    #[test]
+    fn should_cite_article_of_the_code_des_impositions_when_text_names_it() {
+        let content = "Le 2° de l'article L. 425-12 du code des impositions sur les biens et services est remplacé.";
+
+        assert_eq!(
+            CitedArticle::cited_in(content),
+            vec![cited(
+                code("Code des impositions sur les biens et services"),
+                "L425-12",
+                "L. 425-12",
+                false
+            )]
+        );
+    }
+
+    #[test]
+    fn should_attach_bare_numbers_to_the_code_being_modified() {
+        let content = "Le code général des impôts est ainsi modifié : 1° Au premier alinéa du 1 des articles 39 bis A, 39 bis B et 199 unvicies et au VIII de l'article 244 quater O, l'année est remplacée.";
+        let cgi = || code("Code général des impôts");
+
+        assert_eq!(
+            CitedArticle::cited_in(content),
+            vec![
+                cited(cgi(), "39 bis A", "39 bis A", false),
+                cited(cgi(), "39 bis B", "39 bis B", false),
+                cited(cgi(), "199 unvicies", "199 unvicies", false),
+                cited(cgi(), "244 quater O", "244 quater O", false),
+            ]
+        );
+    }
+
+    #[test]
+    fn should_not_attach_bare_number_when_the_code_is_only_mentioned() {
+        let content = "Le code général des impôts s'applique. L'article 5 entre en vigueur en 2027.";
+
+        assert_eq!(CitedArticle::cited_in(content), vec![]);
+    }
+
+    #[test]
+    fn should_not_attach_bare_number_to_the_modified_code_when_it_names_another_text() {
+        let content = "Le code général des impôts est ainsi modifié : au sens de l'article 12 de la présente loi, le taux est remplacé.";
+
+        assert_eq!(CitedArticle::cited_in(content), vec![]);
+    }
+
+    #[test]
+    fn should_stop_attaching_bare_numbers_at_the_next_section() {
+        let content = "I. – Le code général des impôts est ainsi modifié : à l'article 39, le mot est supprimé. II. – L'article 5 s'applique en 2027.";
+
+        assert_eq!(
+            CitedArticle::cited_in(content),
+            vec![cited(code("Code général des impôts"), "39", "39", false)]
         );
     }
 }
