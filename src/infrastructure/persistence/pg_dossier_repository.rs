@@ -378,10 +378,11 @@ fn push_criteria(query: &mut QueryBuilder<'_, Postgres>, criteria: &DossierCrite
         query.push("title ILIKE ");
         query.push_bind(format!("%{}%", escape_like(search)));
     }
-    if let Some(kind) = criteria.outcome_kind.as_ref() {
+    if !criteria.outcome_kinds.is_empty() {
         open(query, &mut separated);
-        query.push("outcome_kind = ");
-        query.push_bind(kind.clone());
+        query.push("outcome_kind = ANY(");
+        query.push_bind(criteria.outcome_kinds.clone());
+        query.push(")");
     }
     // L'initiative se lit dans le libellé de procédure, avec la règle que porte
     // le domaine : « Projet de loi ... » vient du gouvernement.

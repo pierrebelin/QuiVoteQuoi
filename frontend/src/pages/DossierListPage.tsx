@@ -24,19 +24,23 @@ interface DossierPageResponse {
 const PER_PAGE = 20
 
 /*
-  Les cinq sorts que le domaine distingue, tous proposés : n'en offrir que
-  trois laisserait croire que les deux autres n'existent pas. « Sans
-  conclusion » est le libellé de la source, pas un jugement sur le dossier
-  (README.md §6).
+  Les cinq sorts que le domaine distingue, tous proposés et cumulables :
+  n'en offrir que trois laisserait croire que les deux autres n'existent pas.
+  Par défaut, la liste montre les dossiers terminés (promulgués, retirés,
+  absorbés) : les ouverts, sans acte de conclusion, sont presque tous vides et
+  n'apprennent rien. « En cours » les ajoute sur demande. Il désigne ici les
+  dossiers sans conclusion enregistrée par la source, pas un jugement sur
+  leur avenir (README.md §6).
 */
 const outcomes = [
-  { value: '', label: 'Tous' },
   { value: 'promulgated', label: 'Promulgués' },
-  { value: 'rejected', label: 'Rejetés' },
   { value: 'withdrawn', label: 'Retirés' },
   { value: 'merged_into', label: 'Absorbés' },
-  { value: 'no_recorded_conclusion', label: 'Sans conclusion' },
+  { value: 'rejected', label: 'Rejetés' },
+  { value: 'no_recorded_conclusion', label: 'En cours' },
 ]
+
+const DEFAULT_OUTCOMES = ['promulgated', 'withdrawn', 'merged_into']
 
 const initiatives = [
   { value: '', label: 'Toutes' },
@@ -50,20 +54,25 @@ export default function DossierListPage() {
   const [params, setParams] = useSearchParams()
   const page = Math.max(1, Number(params.get('page')) || 1)
   const search = params.get('search') ?? ''
-  const outcome = params.get('outcome') ?? ''
+  // Sorts retenus, séparés par des virgules dans l'URL ; sans paramètre, les
+  // dossiers terminés.
+  const outcomeParam = params.get('outcome') ?? ''
+  const selected = outcomeParam
+    ? outcomeParam.split(',').filter(Boolean)
+    : DEFAULT_OUTCOMES
   const initiative = params.get('initiative') ?? ''
   const theme = params.get('theme') ?? ''
 
   const [draft, setDraft] = useState(search)
 
-  const filtered = Boolean(search || outcome || initiative || theme)
+  const filtered = Boolean(search || outcomeParam || initiative || theme)
 
   const query = new URLSearchParams({
     page: String(page),
     per_page: String(PER_PAGE),
   })
   if (search) query.set('search', search)
-  if (outcome) query.set('outcome', outcome)
+  query.set('outcome', selected.join(','))
   if (initiative) query.set('initiative', initiative)
   if (theme) query.set('family', theme)
 
@@ -105,6 +114,20 @@ export default function DossierListPage() {
     window.scrollTo({ top: 0 })
   }
 
+  // Cumulables, mais jamais aucun : une liste sans sort n'a pas de sens, le
+  // dernier choix reste donc allumé. Revenir au défaut efface le paramètre.
+  const toggleOutcome = (value: string) => {
+    const next = selected.includes(value)
+      ? selected.filter((v) => v !== value)
+      : [...selected, value]
+    if (next.length === 0) return
+    const ordered = outcomes.map((o) => o.value).filter((v) => next.includes(v))
+    const isDefault =
+      ordered.length === DEFAULT_OUTCOMES.length &&
+      DEFAULT_OUTCOMES.every((v) => ordered.includes(v))
+    apply({ outcome: isDefault ? '' : ordered.join(',') })
+  }
+
   const goTo = (next: number) => apply({ page: next === 1 ? '' : String(next) })
 
   const reset = () => {
@@ -119,7 +142,7 @@ export default function DossierListPage() {
         title="Dossiers législatifs"
         lede={
           !data
-            ? 'Tous les dossiers ouverts sous cette législature, du plus récemment actif au plus ancien.'
+            ? 'Les dossiers législatifs de cette législature, du plus récemment actif au plus ancien.'
             : filtered
               ? /*
                   Sous filtre, le total affiché n'est plus celui de la base :
@@ -127,7 +150,7 @@ export default function DossierListPage() {
                   à ces dossiers (README.md §2).
                 */
                 `${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''} correspond${data.total > 1 ? 'ent' : ''} à ces filtres. Les filtres restreignent l'affichage, jamais la base.${theme ? ' Seuls les dossiers déjà rattachés à un thème y figurent.' : ''}`
-              : `Les ${data.total.toLocaleString('fr-FR')} dossiers ouverts sous cette législature, du plus récemment actif au plus ancien. Rien n'est écarté.`
+              : `Les ${data.total.toLocaleString('fr-FR')} dossiers terminés sous cette législature, du plus récemment actif au plus ancien. Les dossiers en cours, ou tous, sont à un clic.`
         }
         /*
           Les scrutins sont le détail d'un dossier avant d'être une rubrique :
@@ -164,12 +187,35 @@ export default function DossierListPage() {
           <Button type="submit">Rechercher</Button>
         </form>
 
-        <SegmentedControl
-          label="Sort"
-          options={outcomes}
-          value={outcome}
-          onChange={(value) => apply({ outcome: value })}
-        />
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="shrink-0 text-xs font-medium text-ink-faint">
+            Sort
+          </span>
+          <div
+            role="group"
+            aria-label="Sort"
+            className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-surface-soft p-0.5"
+          >
+            {outcomes.map((option) => {
+              const on = selected.includes(option.value)
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => toggleOutcome(option.value)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    on
+                      ? 'bg-surface text-ink shadow-card'
+                      : 'text-ink-soft hover:text-ink'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
         <SegmentedControl
           label="Initiative"
           options={initiatives}
