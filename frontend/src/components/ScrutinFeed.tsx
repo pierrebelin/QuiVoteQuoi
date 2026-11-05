@@ -105,7 +105,7 @@ function CitedAuthor({ cited, compact = false }: { cited: CitedAmendmentDto; com
       {abbrev &&
         (cited.author_group_color ? (
           <span
-            className="rounded-md px-1.5 text-[11px] leading-[18px] font-bold tracking-wide"
+            className="rounded-md px-1.5 text-[11px] leading-[18px] font-bold tracking-wide ring-1 ring-inset ring-badge-edge"
             style={{
               backgroundColor: cited.author_group_color,
               color: cited.author_text_tone === 'white' ? '#ffffff' : '#000000',

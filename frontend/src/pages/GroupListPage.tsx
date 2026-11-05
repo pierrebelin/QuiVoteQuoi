@@ -20,7 +20,7 @@ export function GroupDot({
 }) {
   return (
     <span
-      className={`inline-block shrink-0 rounded-full ring-1 ring-inset ring-black/10 ${
+      className={`inline-block shrink-0 rounded-full ring-1 ring-inset ring-chip-edge ${
         size === 'lg' ? 'h-3 w-3' : 'h-2.5 w-2.5'
       }`}
       style={{ backgroundColor: color ?? 'transparent' }}

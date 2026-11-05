@@ -126,7 +126,7 @@ function CitedAmendment({
           {amendment.author_group_abbrev &&
             (amendment.author_group_color ? (
               <span
-                className="ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold"
+                className="ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ring-badge-edge"
                 style={{
                   backgroundColor: amendment.author_group_color,
                   color: amendment.author_text_tone === 'white' ? '#ffffff' : '#000000',

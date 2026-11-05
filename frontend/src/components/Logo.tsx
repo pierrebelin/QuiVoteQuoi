@@ -17,6 +17,13 @@ type LogoProps = {
  *
  * Les tracés vivent dans `logoTraces.ts`, partagés avec l'image d'un scrutin.
  */
+
+/** Les rayons bleu et rouge suivent le thème ; la crème tient sur les deux. */
+const FILL_THEMABLE: Record<string, string> = {
+  '#16233f': 'var(--color-logo-blue)',
+  '#9e3038': 'var(--color-logo-red)',
+}
+
 export default function Logo({ className }: LogoProps) {
   return (
     <svg
@@ -26,7 +33,7 @@ export default function Logo({ className }: LogoProps) {
       className={className}
     >
       {LOGO_TRACES.map(([d, fill]) => (
-        <path key={d} d={d} fill={fill} />
+        <path key={d} d={d} fill={FILL_THEMABLE[fill] ?? fill} />
       ))}
     </svg>
   )

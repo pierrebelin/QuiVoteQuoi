@@ -67,6 +67,17 @@
    */
   --color-seat-empty: #ededef;
 
+  /*
+   * Trait des pastilles et pavés aux couleurs officielles des groupes. Les
+   * couleurs de l'Assemblée ne bougent pas d'un thème à l'autre : en sombre,
+   * celles du RN (#313567) ou du GDR (#830E21) se confondent avec la surface.
+   * Le trait les en détache sans toucher à la couleur. `chip-edge` remplace le
+   * filet noir des pastilles ; `badge-edge` ne dessine rien en clair, où les
+   * pavés tiennent seuls.
+   */
+  --color-chip-edge: rgb(0 0 0 / 0.1);
+  --color-badge-edge: transparent;
+
   /* Cartes et ligne de liste : le relief vient d'une ombre d'un pixel, pas
      d'un dégradé ni d'une bordure épaisse. */
   --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.04), 0 1px 3px 0 rgb(24 24 27 / 0.03);
@@ -97,6 +108,12 @@
  */
 :root {
   --mobile-nav-h: calc(3.5rem + 1px + env(safe-area-inset-bottom, 0px));
+
+  /* Rayons bleu nuit et rouge du logo de l'en-tête (Logo.tsx), dessinés pour un
+     fond clair. Hors `@theme` : aucune classe ne les nomme, Tailwind ne les
+     émettrait pas. */
+  --color-logo-blue: #16233f;
+  --color-logo-red: #9e3038;
 }
 
 @media (min-width: 48rem) {
@@ -127,7 +144,9 @@ html[data-theme='dark'] {
 
   --color-ink: #f4f4f5;
   --color-ink-soft: #a1a1aa;
-  --color-ink-faint: #71717a;
+  /* #71717a ne donnait que 3,8:1 sur la surface des cartes et 4,1:1 sur le
+     canevas : sous le seuil AA (4,5:1) pour du texte de 12 px. */
+  --color-ink-faint: #8b8b95;
 
   --color-accent: #60a5fa;
   --color-accent-strong: #93c5fd;
@@ -138,15 +157,27 @@ html[data-theme='dark'] {
 
   --color-yes: #34d399;
   --color-yes-soft: rgb(4 120 87 / 0.2);
-  --color-yes-bar: #12977a;
+  /* Barres « pour » et « contre » : le blanc du libellé posé dessus (VoteCard,
+     pastilles de position) n'atteignait que 3,7:1 et 4,3:1. Assombries à 4,8:1
+     au moins avec le blanc, 3,6:1 au moins contre la surface, et d'une clarté
+     voisine pour qu'aucune des deux ne domine l'autre. */
+  --color-yes-bar: #0e7d65;
   --color-no: #fca5a5;
   --color-no-soft: rgb(153 27 27 / 0.22);
-  --color-no-bar: #cf4f47;
+  --color-no-bar: #c7453e;
   --color-abstain: #fbbf24;
   --color-abstain-soft: rgb(154 91 6 / 0.24);
   --color-abstain-bar: #c98f2d;
 
   --color-seat-empty: #23232a;
+
+  --color-chip-edge: rgb(255 255 255 / 0.3);
+  --color-badge-edge: rgb(255 255 255 / 0.3);
+
+  /* Le bleu nuit (1,2:1 sur l'en-tête) disparaissait, le rouge s'y devinait à
+     peine (2,2:1) : éclaircis à 3:1 au moins, la teinte reste celle du logo. */
+  --color-logo-blue: #4568b3;
+  --color-logo-red: #c44550;
 
   /* Sur fond sombre, une ombre noire ne se voit pas : le relief vient d'un
      trait clair au-dessus de la carte plutôt que d'une ombre portée. */
