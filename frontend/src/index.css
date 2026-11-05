@@ -71,6 +71,38 @@
      d'un dégradé ni d'une bordure épaisse. */
   --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.04), 0 1px 3px 0 rgb(24 24 27 / 0.03);
   --shadow-card-hover: 0 2px 4px 0 rgb(24 24 27 / 0.06), 0 4px 12px -2px rgb(24 24 27 / 0.06);
+
+  /* Tiroirs du mobile (BottomSheet) : le fond se fond, le panneau monte. */
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-sheet-in: sheet-in 0.22s ease-out;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes sheet-in {
+    from {
+      transform: translateY(1.5rem);
+      opacity: 0;
+    }
+  }
+}
+
+/*
+ * Hauteur que la barre de navigation basse retire au bas de l'écran : zéro dès
+ * `md`, où la barre haute reprend la main. Ce qui doit rester visible au-dessus
+ * d'elle (pied de page, barre d'action collante) s'en sert comme décalage.
+ */
+:root {
+  --mobile-nav-h: calc(3.5rem + 1px + env(safe-area-inset-bottom, 0px));
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --mobile-nav-h: 0px;
+  }
 }
 
 /**
