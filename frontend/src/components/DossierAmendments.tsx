@@ -247,7 +247,7 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
           aria-label="Filtrer par groupe politique"
           value={group}
           onChange={(event) => reset(setGroup)(event.target.value)}
-          className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft"
+          className="w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft sm:w-auto sm:max-w-xs"
         >
           <option value="">Tous les groupes</option>
           {data?.groups.map((option) => (

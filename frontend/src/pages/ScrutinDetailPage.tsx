@@ -337,11 +337,11 @@ function GroupColumns({ groups }: { groups: GroupBreakdownDto[] }) {
 
   return (
     <>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {COLUMNS.map((column) => {
           const members = groups.filter((g) => leadingPosition(g) === column.key)
           return (
-            <div key={column.key}>
+            <div key={column.key} className="min-w-0">
               <h4 className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
                 <span className={`size-2.5 rounded-[3px] ${column.dot}`} />
                 {column.title}
@@ -366,7 +366,7 @@ function GroupColumns({ groups }: { groups: GroupBreakdownDto[] }) {
           <h4 className="mb-2 text-[13px] font-semibold text-ink-soft">
             Partagés à égalité, ou sans votant
           </h4>
-          <ul className="grid gap-2 md:grid-cols-3">
+          <ul className="grid grid-cols-1 gap-2 md:grid-cols-3">
             {others.map((g, i) => (
               <GroupTile key={g.group_uid ?? `others-${i}`} group={g} />
             ))}
