@@ -2,6 +2,7 @@ import { LOGO_TRACES, LOGO_VUE } from '../components/logoTraces'
 import { PLAN_SIEGES, PLAN_VUE, RAYON_SIEGE } from '../components/planHemicycle'
 import { siegesDesGroupes } from '../components/sieges'
 import type {
+  CitedAmendmentDto,
   GroupBreakdownDto,
   ScrutinDetailDto,
   TallyDto,
@@ -25,6 +26,7 @@ import { formatDate, tallySize } from '../types/scrutins'
 
 export type ReseauImage =
   | 'instagram'
+  | 'story'
   | 'reel'
   | 'tiktok'
   | 'linkedin'
@@ -45,7 +47,7 @@ export type OptionsImage = {
   lien: string
 }
 
-type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical'
+type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical' | 'story'
 
 /**
  * Géométrie d'une image. `u` est l'échelle des tailles de texte ; les maxima
@@ -56,6 +58,10 @@ type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical'
  * Le vertical réserve les zones que Reels, Stories et TikTok couvrent de leur
  * interface : le nom du compte en haut, la légende et les boutons en bas, la
  * colonne d'icônes à droite. Le fond les remplit, le contenu les évite.
+ *
+ * La story n'a pas cette colonne d'icônes : elle garde les seules zones du haut
+ * et du bas, et son texte prend toute la largeur. Son dessin est à part, voir
+ * `dessinerStoryVote`.
  */
 const GABARITS: Record<
   Gabarit,
@@ -100,6 +106,14 @@ const GABARITS: Record<
     lignesTitre: 4,
     lignesSujet: 3,
   },
+  story: {
+    largeur: 1080,
+    hauteur: 1920,
+    u: 1,
+    marges: { haut: 250, bas: 340, gauche: 72, droite: 72 },
+    lignesTitre: 5,
+    lignesSujet: 5,
+  },
 }
 
 /**
@@ -117,7 +131,8 @@ export const RESEAUX: Record<
   }
 > = {
   instagram: { libelle: 'Instagram', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
-  reel: { libelle: 'Reel / Story', gabarit: 'vertical', usage: 'Instagram et Facebook, 9:16, hors zones des boutons' },
+  story: { libelle: 'Story', gabarit: 'story', usage: 'Instagram, 9:16, le vote puis l’exposé s’il existe' },
+  reel: { libelle: 'Reel', gabarit: 'vertical', usage: 'Instagram et Facebook, 9:16, hors zones des boutons' },
   tiktok: { libelle: 'TikTok', gabarit: 'vertical', usage: 'Mode photo, 9:16, hors zones des boutons' },
   linkedin: { libelle: 'LinkedIn', gabarit: 'portrait', usage: 'Image du fil, 4:5' },
   facebook: { libelle: 'Facebook', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
@@ -566,6 +581,29 @@ function majuscule(texte: string) {
 }
 
 /**
+ * Ce qui a été mis aux voix, jamais le dossier : « Adopté » sous « Projet de loi
+ * de finances » laisserait croire que le texte entier a été adopté, quand le
+ * vote portait sur un amendement.
+ *
+ * `tete` est court quand l'intitulé commence par un amendement ou un article ;
+ * sinon c'est l'intitulé entier. Le dossier n'est ajouté que si l'intitulé ne
+ * nomme aucun texte.
+ */
+function objetDuVote(data: ScrutinDetailDto) {
+  const intitule = data.subject.trim().replace(/\.$/, '')
+  const decoupe = intitule.match(
+    /^(?:l['’]|le\s+)((?:sous-)?amendement n°\s*\S+|article\s+\S+)\s+(.+)$/i,
+  )
+  const nommeUnTexte = /\b(?:projet|proposition) de loi\b/i.test(intitule)
+  const dossier = data.dossier_label && !nommeUnTexte ? `Dossier : ${data.dossier_label}` : ''
+  return {
+    tete: majuscule(decoupe ? decoupe[1] : intitule),
+    court: decoupe !== null,
+    suite: [decoupe?.[2] ?? '', dossier].filter(Boolean).join(' · '),
+  }
+}
+
+/**
  * Dessine l'image d'un scrutin. Synchrone : appeler `chargerPolices` avant,
  * sinon le premier rendu se fait en police système.
  */
@@ -575,6 +613,10 @@ export function dessinerVote(
   options: OptionsImage,
 ) {
   const gabarit = RESEAUX[options.reseau].gabarit
+  if (gabarit === 'story') {
+    dessinerStoryVote(canvas, data, options.lien)
+    return
+  }
   const {
     largeur: W,
     hauteur: H,
@@ -656,25 +698,18 @@ export function dessinerVote(
   )
   y += hauteurPastille + 24 * u
 
-  /* Dossier en titre, intitulé mis aux voix dessous — même hiérarchie que la page. */
+  /* Ce qui a été mis aux voix en titre, le reste de l'intitulé dessous. */
+  const objet = objetDuVote(data)
   const tailleTitre = 40 * u
   police(ctx, 700, tailleTitre)
   ctx.fillStyle = p.encre
-  y += paragraphe(
-    ctx,
-    data.dossier_uid ? data.dossier_label || data.dossier_uid : data.subject,
-    G,
-    y,
-    colonne,
-    lignesTitre,
-    tailleTitre * 1.2,
-  )
-  if (data.dossier_uid) {
+  y += paragraphe(ctx, objet.tete, G, y, colonne, lignesTitre, tailleTitre * 1.2)
+  if (objet.suite) {
     const tailleSujet = 22 * u
     police(ctx, 400, tailleSujet)
     ctx.fillStyle = p.encreDouce
     y += 10 * u
-    y += paragraphe(ctx, data.subject, G, y, colonne, lignesSujet, tailleSujet * 1.4)
+    y += paragraphe(ctx, objet.suite, G, y, colonne, lignesSujet, tailleSujet * 1.4)
   }
   y += 30 * u
 
@@ -755,6 +790,378 @@ export function dessinerVote(
   }
 }
 
+/* ------------------------------------------------------------------ story */
+
+const STORY = GABARITS.story
+const STORY_G = STORY.marges.gauche
+const STORY_D = STORY.largeur - STORY.marges.droite
+const STORY_HAUT = STORY.marges.haut
+const STORY_BAS = STORY.hauteur - STORY.marges.bas
+const STORY_LARGEUR = STORY_D - STORY_G
+
+function sansAccents(texte: string) {
+  return texte
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+}
+
+/**
+ * L'amendement voté, si son auteur est bien celui de l'intitulé officiel. Le
+ * rattachement par numéro peut se tromper (n° 9758 : « amendement n° 1 du
+ * Gouvernement » rattaché à l'amendement I-1 d'un député) : plutôt aucun exposé
+ * que celui d'un autre. Le Gouvernement n'a pas de député auteur, la source
+ * laisse alors le nom vide.
+ */
+function amendementDuVote(data: ScrutinDetailDto): CitedAmendmentDto | null {
+  const amendement = data.cited[0]?.amendment
+  if (!amendement?.summary) return null
+  const intitule = sansAccents(data.subject)
+  const auteur = sansAccents(amendement.author_name ?? '')
+  if (intitule.includes('du gouvernement')) {
+    return !auteur || auteur.includes('gouvernement') ? amendement : null
+  }
+  const famille = auteur.split(/\s+/).at(-1)
+  return famille && intitule.includes(famille) ? amendement : null
+}
+
+/** Seconde image d'une story : seulement s'il y a un contenu réel à montrer. */
+export function aUnContenuDeStory(data: ScrutinDetailDto) {
+  return amendementDuVote(data) !== null
+}
+
+/** Écrit un texte à la plus grande taille qui tient en `lignes` et renvoie le y suivant. */
+function texteAjuste(
+  ctx: CanvasRenderingContext2D,
+  texte: string,
+  y: number,
+  style: {
+    poids: number
+    max: number
+    min: number
+    lignes: number
+    couleur: string
+    interligne: number
+  },
+) {
+  let taille = style.max
+  police(ctx, style.poids, taille)
+  while (
+    taille > style.min &&
+    couperLignes(ctx, texte, STORY_LARGEUR, Infinity).length > style.lignes
+  ) {
+    taille -= 2
+    police(ctx, style.poids, taille)
+  }
+  ctx.fillStyle = style.couleur
+  return (
+    y +
+    paragraphe(ctx, texte, STORY_G, y, STORY_LARGEUR, style.lignes, taille * style.interligne)
+  )
+}
+
+function enteteStory(ctx: CanvasRenderingContext2D, data: ScrutinDetailDto) {
+  const hauteurLogo = 52
+  const milieu = STORY_HAUT + hauteurLogo / 2
+  const largeurLogo = logo(ctx, STORY_G, STORY_HAUT, hauteurLogo, true)
+  morceaux(
+    ctx,
+    [
+      { texte: 'QuiVote', couleur: '#ffffff', poids: 600 },
+      { texte: 'Quoi', couleur: '#ffffff', poids: 600 },
+    ],
+    STORY_G + largeurLogo + 16,
+    milieu,
+    38,
+  )
+  morceaux(
+    ctx,
+    [{ texte: formatDate(data.date), couleur: '#ffffff', poids: 600 }],
+    STORY_D,
+    milieu,
+    32,
+    'droite',
+  )
+}
+
+function piedStory(
+  ctx: CanvasRenderingContext2D,
+  data: ScrutinDetailDto,
+  lien: string,
+  couleur: string,
+) {
+  const adresse = lien.replace(/^https?:\/\//, '')
+  let taille = 36
+  police(ctx, 700, taille)
+  while (ctx.measureText(adresse).width > STORY_LARGEUR && taille > 24) {
+    taille -= 1
+    police(ctx, 700, taille)
+  }
+  morceaux(ctx, [{ texte: adresse, couleur, poids: 700 }], STORY_G, STORY_BAS - 62, taille)
+  morceaux(
+    ctx,
+    [{ texte: `Source : Assemblée nationale, scrutin n° ${data.number}`, couleur }],
+    STORY_G,
+    STORY_BAS - 16,
+    30,
+  )
+}
+
+/** Titre du vote et reste de l'intitulé. Renvoie le y suivant. */
+function objetStory(
+  ctx: CanvasRenderingContext2D,
+  objet: ReturnType<typeof objetDuVote>,
+  yDepart: number,
+  styles: { couleur: string; couleurSuite: string; titre: number; suite: number; lignesSuite: number },
+) {
+  const y = objet.court
+    ? texteAjuste(ctx, objet.tete, yDepart, {
+        poids: 700,
+        max: styles.titre,
+        min: 56,
+        lignes: 1,
+        couleur: styles.couleur,
+        interligne: 1.16,
+      })
+    : texteAjuste(ctx, objet.tete, yDepart, {
+        poids: 700,
+        max: Math.round(styles.titre * 0.72),
+        min: 44,
+        lignes: 5,
+        couleur: styles.couleur,
+        interligne: 1.16,
+      })
+  if (!objet.suite) return y
+  return texteAjuste(ctx, objet.suite, y + 16, {
+    poids: 400,
+    max: styles.suite,
+    min: 28,
+    lignes: styles.lignesSuite,
+    couleur: styles.couleurSuite,
+    interligne: 1.28,
+  })
+}
+
+/** Première image d'une story : le vote, l'hémicycle bord à bord sur fond sombre. */
+function dessinerStoryVote(canvas: HTMLCanvasElement, data: ScrutinDetailDto, lien: string) {
+  const p = PALETTES.sombre
+  canvas.width = STORY.largeur
+  canvas.height = STORY.hauteur
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return
+
+  ctx.fillStyle = p.fond
+  ctx.fillRect(0, 0, STORY.largeur, STORY.hauteur)
+  enteteStory(ctx, data)
+
+  const y = objetStory(ctx, objetDuVote(data), STORY_HAUT + 96, {
+    couleur: p.encre,
+    couleurSuite: p.encreDouce,
+    titre: 100,
+    suite: 32,
+    lignesSuite: 5,
+  })
+
+  const yChiffres = STORY_BAS - 90 - 136
+  const yIssue = yChiffres - 128
+
+  const avecSieges = data.groups.some((g) => g.votes.some((v) => v.seat !== null))
+  if (avecSieges) {
+    const bord = 20
+    hemicycle(
+      ctx,
+      p,
+      'sombre',
+      data,
+      { x: bord, y: y + 16, largeur: STORY.largeur - bord * 2, hauteur: yIssue - y - 32 },
+      1.6,
+    )
+  } else {
+    groupes(
+      ctx,
+      p,
+      data,
+      { x: STORY_G, y: y + 16, largeur: STORY_LARGEUR, hauteur: yIssue - y - 32 },
+      1.3,
+    )
+  }
+
+  morceaux(
+    ctx,
+    [
+      {
+        texte: majuscule(data.outcome_code),
+        couleur: data.outcome_code === 'adopté' ? p.pour : p.contre,
+        poids: 700,
+      },
+    ],
+    STORY_G - 4,
+    yIssue + 54,
+    108,
+  )
+
+  const t = data.synthesis.tally
+  const chiffres: [string, number, string][] = [
+    ['Pour', t.votes_for, p.pour],
+    ['Contre', t.votes_against, p.contre],
+    ['Abst.', t.abstentions, p.abstention],
+    ['Non-votants', t.not_voting, p.encreDouce],
+  ]
+  chiffres.forEach(([libelle, valeur, couleur], i) => {
+    const x = STORY_G + (i * STORY_LARGEUR) / chiffres.length
+    morceaux(ctx, [{ texte: String(valeur), couleur, poids: 700 }], x, yChiffres + 40, 80)
+    morceaux(ctx, [{ texte: libelle, couleur: p.encreDouce, poids: 500 }], x, yChiffres + 104, 30)
+  })
+
+  piedStory(ctx, data, lien, p.encre)
+}
+
+/**
+ * Début de l'exposé qui tient dans `maxLignes`, sans choix éditorial : on prend
+ * depuis le début et on coupe à la fin d'une phrase. `[…]` dit la coupure.
+ */
+function extraitExpose(
+  ctx: CanvasRenderingContext2D,
+  expose: string,
+  largeur: number,
+  maxLignes: number,
+) {
+  const blocs: string[][] = []
+  let restant = maxLignes
+  for (const paragraphe of expose.split(/\n+/).map((t) => t.trim()).filter(Boolean)) {
+    const lignes = couperLignes(ctx, paragraphe, largeur, Infinity)
+    if (lignes.length <= restant) {
+      blocs.push(lignes)
+      // L'espace entre deux paragraphes vaut une demi-ligne.
+      restant -= lignes.length + 0.5
+      continue
+    }
+    let garde = ''
+    for (const phrase of paragraphe.split(/(?<=[.!?…])\s+/)) {
+      const essai = garde ? `${garde} ${phrase}` : phrase
+      if (couperLignes(ctx, `${essai} […]`, largeur, Infinity).length > Math.floor(restant)) break
+      garde = essai
+    }
+    if (garde) {
+      blocs.push(couperLignes(ctx, `${garde} […]`, largeur, Infinity))
+    } else if (blocs.length > 0) {
+      const dernier = blocs[blocs.length - 1].join(' ')
+      blocs[blocs.length - 1] = couperLignes(ctx, `${dernier} […]`, largeur, Infinity)
+    } else {
+      blocs.push(couperLignes(ctx, paragraphe, largeur, Math.max(1, Math.floor(restant))))
+    }
+    break
+  }
+  return blocs
+}
+
+/**
+ * Seconde image d'une story : l'exposé, sur fond à la couleur de l'issue. La
+ * pastille redit le résultat, la couleur seule ne suffit pas à le dire. L'exposé
+ * est l'argumentaire de son auteur, non un constat : l'image le dit (README.md §6).
+ * Renvoie `false` sans rien dessiner s'il n'y a pas de contenu à montrer.
+ */
+export function dessinerContenuStory(
+  canvas: HTMLCanvasElement,
+  data: ScrutinDetailDto,
+  lien: string,
+) {
+  const amendement = amendementDuVote(data)
+  if (!amendement?.summary) return false
+  canvas.width = STORY.largeur
+  canvas.height = STORY.hauteur
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return false
+
+  const adopte = data.outcome_code === 'adopté'
+  const fond = adopte ? PALETTES.clair.pour : PALETTES.clair.contre
+  const blanc = '#ffffff'
+  const blancDoux = 'rgba(255, 255, 255, 0.88)'
+
+  ctx.fillStyle = fond
+  ctx.fillRect(0, 0, STORY.largeur, STORY.hauteur)
+  enteteStory(ctx, data)
+
+  // Le reste de l'intitulé est déjà sur la première image : la place va à l'exposé.
+  let y = objetStory(ctx, { ...objetDuVote(data), suite: '' }, STORY_HAUT + 96, {
+    couleur: blanc,
+    couleurSuite: blanc,
+    titre: 84,
+    suite: 0,
+    lignesSuite: 0,
+  })
+  y += 18
+
+  const resultat = majuscule(data.outcome_code)
+  police(ctx, 700, 40)
+  ctx.fillStyle = blanc
+  ctx.beginPath()
+  ctx.roundRect(STORY_G, y, ctx.measureText(resultat).width + 44, 72, 14)
+  ctx.fill()
+  morceaux(ctx, [{ texte: resultat, couleur: fond, poids: 700 }], STORY_G + 22, y + 37, 40)
+  y += 72 + 40
+
+  // La couleur du groupe reste cantonnée à sa pastille, cerclée pour rester
+  // visible sur le fond (README.md §6).
+  ctx.fillStyle = amendement.author_group_color ?? PALETTES.clair.traitFort
+  ctx.strokeStyle = blanc
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.arc(STORY_G + 15, y + 22, 15, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.stroke()
+
+  const groupe = amendement.author_group_abbrev ? ` (${amendement.author_group_abbrev})` : ''
+  const nb = amendement.cosignatory_count
+  const cosignataires = nb > 0 ? ` + ${nb} cosignataire${nb > 1 ? 's' : ''}` : ''
+  const auteur = `${amendement.author_name ?? 'Gouvernement'}${groupe}${cosignataires}`
+  let tailleAuteur = 36
+  police(ctx, 600, tailleAuteur)
+  while (ctx.measureText(auteur).width > STORY_LARGEUR - 44 && tailleAuteur > 24) {
+    tailleAuteur -= 1
+    police(ctx, 600, tailleAuteur)
+  }
+  morceaux(ctx, [{ texte: auteur, couleur: blanc, poids: 600 }], STORY_G + 44, y + 22, tailleAuteur)
+  y += 62
+
+  const mention = amendement.author_name
+    ? 'Exposé rédigé par l’auteur de l’amendement'
+    : 'Exposé rédigé par le Gouvernement'
+  morceaux(ctx, [{ texte: mention, couleur: blancDoux }], STORY_G, y + 16, 30)
+  y += 58
+
+  /* Le début de l'exposé, présenté en citation. */
+  const retrait = 28
+  const taille = 42
+  const interligne = taille * 1.34
+  const finTexte = STORY_BAS - 130
+  police(ctx, 400, taille)
+  // Une ligne de réserve : le `[…]` ajouté à un paragraphe peut en créer une.
+  const blocs = extraitExpose(
+    ctx,
+    amendement.summary,
+    STORY_LARGEUR - retrait,
+    Math.floor((finTexte - y) / interligne) - 1,
+  )
+  const debutCitation = y
+  ctx.fillStyle = blanc
+  ctx.textBaseline = 'top'
+  blocs.forEach((lignes, i) => {
+    if (i > 0) y += interligne / 2
+    lignes.forEach((ligne) => {
+      ctx.fillText(ligne, STORY_G + retrait, y)
+      y += interligne
+    })
+  })
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
+  ctx.beginPath()
+  ctx.roundRect(STORY_G, debutCitation + 4, 6, y - debutCitation - 14, 3)
+  ctx.fill()
+
+  piedStory(ctx, data, lien, blanc)
+  return true
+}
+
 /** Ligne d'un groupe dans le texte d'accompagnement : les chiffres de l'image, en toutes lettres. */
 function ligneGroupe(groupe: GroupBreakdownDto) {
   const t = groupe.tally
@@ -774,7 +1181,7 @@ function ligneGroupe(groupe: GroupBreakdownDto) {
  */
 export function texteDePartage(data: ScrutinDetailDto, lien: string, reseau: ReseauImage) {
   const t = data.synthesis.tally
-  const titre = data.dossier_uid ? data.dossier_label || data.subject : data.subject
+  const titre = majuscule(data.subject)
   const resume =
     `Scrutin n° ${data.number} du ${formatDate(data.date)} — ${majuscule(data.outcome_code)} : ` +
     `${t.votes_for} pour, ${t.votes_against} contre, ${t.abstentions} abstention${t.abstentions > 1 ? 's' : ''}.\n` +

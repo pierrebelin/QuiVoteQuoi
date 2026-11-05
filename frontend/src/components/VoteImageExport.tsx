@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   RESEAUX,
+  aUnContenuDeStory,
   chargerPolices,
+  dessinerContenuStory,
   dessinerVote,
   dimensions,
   texteDePartage,
@@ -29,6 +31,9 @@ function enBlob(canvas: HTMLCanvasElement) {
  * se règle pas — retirer les non-votants ou un groupe ferait dire à l'image
  * autre chose que la page (README.md §2).
  *
+ * La story fait exception : son dessin est fixe (le vote sur fond sombre), avec
+ * une seconde image, l'exposé, seulement quand il existe.
+ *
  * Le partage natif n'est proposé que là où le navigateur sait partager un
  * fichier (mobile surtout) ; ailleurs, on télécharge l'image et on copie le
  * texte qui l'accompagne.
@@ -53,15 +58,34 @@ export default function VoteImageExport({
   )
   const [statut, setStatut] = useState<string | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasContenuRef = useRef<HTMLCanvasElement>(null)
+
+  const estStory = reseau === 'story'
+  const avecContenu = estStory && aUnContenuDeStory(scrutin)
 
   const lien = `${window.location.origin}/scrutins/${scrutin.uid}`
-  const nomFichier = `quivotequoi-scrutin-${scrutin.number}-${reseau}.png`
+  const nomFichier = (numero: number | null) =>
+    `quivotequoi-scrutin-${scrutin.number}-${reseau}${numero === null ? '' : `-${numero}`}.png`
+
+  /** Les images à publier, dans l'ordre, chacune avec son nom de fichier. */
+  function images() {
+    const liste = [canvasRef.current, canvasContenuRef.current].filter(
+      (c): c is HTMLCanvasElement => c !== null,
+    )
+    return liste.map((canvas, i) => ({
+      canvas,
+      nom: nomFichier(liste.length > 1 ? i + 1 : null),
+    }))
+  }
 
   useEffect(() => {
     let annule = false
     chargerPolices().then(() => {
       if (!annule && canvasRef.current) {
         dessinerVote(canvasRef.current, scrutin, { reseau, visuel, theme, lien })
+      }
+      if (!annule && canvasContenuRef.current) {
+        dessinerContenuStory(canvasContenuRef.current, scrutin, lien)
       }
     })
     return () => {
@@ -70,30 +94,33 @@ export default function VoteImageExport({
   }, [scrutin, reseau, visuel, theme, lien])
 
   async function telecharger() {
-    if (!canvasRef.current) return
-    const url = URL.createObjectURL(await enBlob(canvasRef.current))
-    const a = document.createElement('a')
-    a.href = url
-    a.download = nomFichier
-    a.click()
-    URL.revokeObjectURL(url)
-    setStatut('Image téléchargée.')
+    const liste = images()
+    for (const { canvas, nom } of liste) {
+      const url = URL.createObjectURL(await enBlob(canvas))
+      const a = document.createElement('a')
+      a.href = url
+      a.download = nom
+      a.click()
+      URL.revokeObjectURL(url)
+    }
+    setStatut(liste.length > 1 ? 'Images téléchargées.' : 'Image téléchargée.')
   }
 
   const fichierPartageable =
     typeof navigator.canShare === 'function' &&
     navigator.canShare({
-      files: [new File([], nomFichier, { type: 'image/png' })],
+      files: [new File([], nomFichier(null), { type: 'image/png' })],
     })
 
   async function partager() {
-    if (!canvasRef.current) return
-    const fichier = new File([await enBlob(canvasRef.current)], nomFichier, {
-      type: 'image/png',
-    })
+    const fichiers = await Promise.all(
+      images().map(
+        async ({ canvas, nom }) => new File([await enBlob(canvas)], nom, { type: 'image/png' }),
+      ),
+    )
     try {
       await navigator.share({
-        files: [fichier],
+        files: fichiers,
         text: texteDePartage(scrutin, lien, reseau),
       })
     } catch (erreur) {
@@ -130,13 +157,23 @@ export default function VoteImageExport({
       </div>
 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_16rem]">
-        <div className="flex min-w-0 items-center justify-center rounded-lg bg-surface-soft p-3">
+        <div className="flex min-w-0 items-center justify-center gap-3 rounded-lg bg-surface-soft p-3">
           <canvas
             ref={canvasRef}
             role="img"
             aria-label={`Aperçu de l'image du scrutin n° ${scrutin.number}`}
-            className="block h-auto max-h-[28rem] w-auto max-w-full rounded-md shadow-card"
+            className={`block h-auto max-h-[28rem] w-auto rounded-md shadow-card ${
+              avecContenu ? 'min-w-0 max-w-[48%]' : 'max-w-full'
+            }`}
           />
+          {avecContenu && (
+            <canvas
+              ref={canvasContenuRef}
+              role="img"
+              aria-label={`Aperçu de la seconde image du scrutin n° ${scrutin.number} : l'exposé`}
+              className="block h-auto max-h-[28rem] w-auto min-w-0 max-w-[48%] rounded-md shadow-card"
+            />
+          )}
         </div>
 
         <div className="space-y-4">
@@ -171,25 +208,35 @@ export default function VoteImageExport({
             </p>
           </div>
 
-          <SegmentedControl
-            label="Visuel"
-            options={[
-              ...(avecSieges ? [{ value: 'hemicycle', label: 'Hémicycle' }] : []),
-              { value: 'groupes', label: 'Groupes' },
-            ]}
-            value={visuel}
-            onChange={(v) => setVisuel(v as VisuelImage)}
-          />
+          {!estStory && (
+            <>
+              <SegmentedControl
+                label="Visuel"
+                options={[
+                  ...(avecSieges ? [{ value: 'hemicycle', label: 'Hémicycle' }] : []),
+                  { value: 'groupes', label: 'Groupes' },
+                ]}
+                value={visuel}
+                onChange={(v) => setVisuel(v as VisuelImage)}
+              />
 
-          <SegmentedControl
-            label="Thème"
-            options={[
-              { value: 'clair', label: 'Clair' },
-              { value: 'sombre', label: 'Sombre' },
-            ]}
-            value={theme}
-            onChange={(v) => setTheme(v as ThemeImage)}
-          />
+              <SegmentedControl
+                label="Thème"
+                options={[
+                  { value: 'clair', label: 'Clair' },
+                  { value: 'sombre', label: 'Sombre' },
+                ]}
+                value={theme}
+                onChange={(v) => setTheme(v as ThemeImage)}
+              />
+            </>
+          )}
+
+          {estStory && !avecContenu && (
+            <p className="text-xs text-ink-soft">
+              Une seule image : aucun exposé disponible pour ce vote.
+            </p>
+          )}
 
           <div className="flex flex-wrap gap-2 border-t border-line pt-4">
             <Button onClick={telecharger}>Télécharger</Button>
