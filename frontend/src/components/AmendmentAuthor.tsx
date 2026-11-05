@@ -26,7 +26,7 @@ export default function AmendmentAuthor({ amendment }: { amendment: AmendmentDto
         <span
           className={
             amendment.author_group_color
-              ? 'ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold'
+              ? 'ml-1.5 rounded px-1.5 py-0.5 text-xs font-semibold ring-1 ring-inset ring-badge-edge'
               : 'ml-1.5'
           }
           style={

@@ -83,7 +83,7 @@ function InitiatorTag({ initiator }: { initiator: DossierCardInitiatorDto }) {
     return (
       <span
         title={initiator.group_label ?? undefined}
-        className="inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-bold tracking-wide"
+        className="inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-bold tracking-wide ring-1 ring-inset ring-badge-edge"
         style={{
           backgroundColor: initiator.group_color,
           color: initiator.group_text_tone === 'white' ? '#ffffff' : '#000000',

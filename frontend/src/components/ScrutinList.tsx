@@ -28,7 +28,7 @@ function CitedAuthor({ cited }: { cited: CitedAmendmentDto }) {
         <span
           className={
             cited.author_group_color
-              ? 'ml-1.5 rounded px-1.5 py-0.5 font-semibold'
+              ? 'ml-1.5 rounded px-1.5 py-0.5 font-semibold ring-1 ring-inset ring-badge-edge'
               : 'ml-1.5'
           }
           style={

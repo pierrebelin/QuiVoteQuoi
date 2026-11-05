@@ -67,6 +67,17 @@
    */
   --color-seat-empty: #ededef;
 
+  /*
+   * Trait des pastilles et pavés aux couleurs officielles des groupes. Les
+   * couleurs de l'Assemblée ne bougent pas d'un thème à l'autre : en sombre,
+   * celles du RN (#313567) ou du GDR (#830E21) se confondent avec la surface.
+   * Le trait les en détache sans toucher à la couleur. `chip-edge` remplace le
+   * filet noir des pastilles ; `badge-edge` ne dessine rien en clair, où les
+   * pavés tiennent seuls.
+   */
+  --color-chip-edge: rgb(0 0 0 / 0.1);
+  --color-badge-edge: transparent;
+
   /* Cartes et ligne de liste : le relief vient d'une ombre d'un pixel, pas
      d'un dégradé ni d'une bordure épaisse. */
   --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.04), 0 1px 3px 0 rgb(24 24 27 / 0.03);
@@ -149,6 +160,9 @@ html[data-theme='dark'] {
   --color-abstain-bar: #c98f2d;
 
   --color-seat-empty: #23232a;
+
+  --color-chip-edge: rgb(255 255 255 / 0.3);
+  --color-badge-edge: rgb(255 255 255 / 0.3);
 
   /* Sur fond sombre, une ombre noire ne se voit pas : le relief vient d'un
      trait clair au-dessus de la carte plutôt que d'une ombre portée. */
