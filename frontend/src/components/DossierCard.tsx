@@ -68,7 +68,7 @@ function banner(dossier: DossierCardDto): { tone: string; text: string } {
       text: `Étape : ${stage.label}${stage.chamber ? ` — ${stage.chamber}` : ''}`,
     }
   }
-  return { tone: 'bg-surface-soft text-ink-soft', text: 'Sans conclusion enregistrée' }
+  return { tone: 'bg-surface-soft text-ink-soft', text: 'Sans conclusion à ce jour' }
 }
 
 /**

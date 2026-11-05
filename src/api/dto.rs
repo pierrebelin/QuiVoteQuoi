@@ -89,7 +89,7 @@ impl From<&DossierOutcome> for OutcomeDto {
                 dto.label = label.clone();
             }
             DossierOutcome::NoRecordedConclusion => {
-                dto.label = "Sans conclusion enregistr\u{00e9}e".into();
+                dto.label = "Sans conclusion \u{00e0} ce jour".into();
             }
         }
 

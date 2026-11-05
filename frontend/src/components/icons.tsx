@@ -55,6 +55,12 @@ const PATHS = {
   down: <path d="M6 9l6 6 6-6" />,
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   add: <path d="M12 5v14M5 12h14" />,
+  info: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M12 11.5v5M12 8h.01" />
+    </>
+  ),
   tune: (
     <>
       <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />

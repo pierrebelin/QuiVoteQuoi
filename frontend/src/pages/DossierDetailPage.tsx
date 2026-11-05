@@ -80,9 +80,17 @@ function tabFrom(params: URLSearchParams): Tab {
 function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
   const { outcome, current_stage: stage } = dossier
   const step = dossier.last_activity_label.replace(/\.$/, '')
+  // Une étape datée après aujourd'hui n'a pas encore eu lieu : comme sur la carte.
+  const upcoming = dossier.last_activity_date > new Date().toISOString().slice(0, 10)
   const lastStep = (
     <span className="text-[12.5px] font-medium text-ink-soft">
-      Dernière étape : {step} · {formatDate(dossier.last_activity_date)}
+      {upcoming ? 'Prochaine étape' : 'Dernière étape'} : {step} ·{' '}
+      {formatDate(dossier.last_activity_date)}
+      {upcoming && (
+        <span className="ml-1.5 rounded bg-surface px-1.5 text-[11px] font-semibold text-info">
+          à venir
+        </span>
+      )}
     </span>
   )
 
@@ -125,7 +133,7 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
       ? `${outcome.label}${outcome.date ? ` le ${formatDate(outcome.date)}` : ''}`
       : stage
         ? `Étape : ${stage.label}${stage.chamber ? ` — ${stage.chamber}` : ''}`
-        : 'Sans conclusion enregistrée'
+        : 'Sans conclusion à ce jour'
   const tone =
     outcome.kind === 'no_recorded_conclusion' && stage
       ? 'bg-info-soft text-info'
