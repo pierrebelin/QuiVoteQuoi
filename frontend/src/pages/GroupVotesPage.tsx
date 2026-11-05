@@ -298,7 +298,7 @@ function GroupPicker({
               title={group.label}
               className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium ring-1 ring-inset transition-colors has-[img]:pl-1 ${
                 isSelected
-                  ? 'bg-ink text-white ring-ink'
+                  ? 'bg-ink text-surface ring-ink'
                   : 'bg-surface text-ink-soft shadow-card ring-line hover:text-ink hover:ring-line-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:ring-line'
               }`}
             >

@@ -440,7 +440,7 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
                   disabled={full && !isSelected}
                   title={`${group.label} — ajouter à la comparaison`}
                   className={`inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-1.5 text-xs font-semibold ring-1 ring-inset transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    isSelected ? 'bg-ink text-white ring-ink' : 'bg-surface text-ink-soft ring-line hover:ring-line-strong'
+                    isSelected ? 'bg-ink text-surface ring-ink' : 'bg-surface text-ink-soft ring-line hover:ring-line-strong'
                   }`}
                 >
                   <GroupDot color={group.color} />

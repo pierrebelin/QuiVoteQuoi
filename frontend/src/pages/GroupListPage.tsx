@@ -58,6 +58,15 @@ function GroupRow({ group }: { group: GroupSummaryDto }) {
           </span>{' '}
           député{group.member_count > 1 ? 's' : ''} au{' '}
           {formatDate(group.reference_date)}
+          <span
+            className="block"
+            title="Scrutins où la source publie une ligne pour ce groupe"
+          >
+            <span className="font-semibold text-ink-soft">
+              {formatCount(group.scrutin_count)}
+            </span>{' '}
+            scrutin{group.scrutin_count > 1 ? 's' : ''}
+          </span>
           {group.created_on && (
             <span className="block">
               constitué le {formatDate(group.created_on)}

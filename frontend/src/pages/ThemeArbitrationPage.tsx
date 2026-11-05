@@ -191,7 +191,7 @@ export default function ThemeArbitrationPage() {
                 author.trim() === ''
               }
               onClick={() => arbitrate.mutate()}
-              className="rounded bg-accent px-3 py-1 text-sm font-medium text-white hover:bg-accent-strong disabled:opacity-40"
+              className="rounded bg-accent px-3 py-1 text-sm font-medium text-surface hover:bg-accent-strong disabled:opacity-40"
             >
               {arbitrate.isPending ? 'Enregistrement…' : 'Enregistrer'}
             </button>
