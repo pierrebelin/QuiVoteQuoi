@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { TallyDto } from '../types/scrutins'
+import { Icon } from './icons'
 
 /**
  * Primitives visuelles du site.
@@ -293,7 +294,10 @@ export function TallyLine({
 
 /**
  * Groupe de filtres. Le segment actif est plein plutôt que teinté : sur une
- * ligne de quatre groupes, une teinte pâle ne se distingue plus du survol.
+ * ligne de quatre groupes, une teinte pâle ne se distingue plus du survol. Il
+ * porte aussi une coche et un trait, pour que l'état ne repose pas sur la seule
+ * couleur, et reste net en sombre où le fond de la surface est proche de celui
+ * de la piste.
  */
 export function SegmentedControl({
   label,
@@ -314,20 +318,25 @@ export function SegmentedControl({
         </span>
       )}
       <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-surface-soft p-0.5">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            onClick={() => onChange(option.value)}
-            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-              value === option.value
-                ? 'bg-surface text-ink shadow-card'
-                : 'text-ink-soft hover:text-ink'
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
+        {options.map((option) => {
+          const active = value === option.value
+          return (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={active}
+              onClick={() => onChange(option.value)}
+              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                active
+                  ? 'bg-surface text-ink shadow-card ring-1 ring-line-strong ring-inset'
+                  : 'text-ink-soft hover:text-ink'
+              }`}
+            >
+              {active && <Icon name="check" className="size-3" strokeWidth={3} />}
+              {option.label}
+            </button>
+          )
+        })}
       </div>
     </div>
   )

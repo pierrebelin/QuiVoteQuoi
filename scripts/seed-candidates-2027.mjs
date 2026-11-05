@@ -2,10 +2,17 @@
 
 /**
  * Peuple le registre des candidatures presidentielles 2027 dont la
- * declaration est documentee par une source primaire et dont le programme est
- * ajoute seulement lorsqu'une source primaire le permet.
+ * declaration est documentee par une source primaire.
  *
- * Les extraits sont reproduits tels qu'ils apparaissent dans les programmes.
+ * Programmes : seul le site officiel du candidat fait foi (README.md §8.2).
+ * programUrl et la source de chaque extrait doivent etre sur ce site, ou dans
+ * officialDocuments : un document heberge ailleurs mais lie directement depuis
+ * le site. Le script echoue sinon. Candidat sans programme verifiable : rien
+ * plutot qu'une source tierce.
+ *
+ * Les extraits sont reproduits tels quels. Leur presence mot pour mot dans leur
+ * source n'est pas controlee ici mais par scripts/check-candidate-sources.mjs,
+ * a relancer apres toute modification des extraits.
  * Aucun groupe parlementaire n'est ajoute ici : ce lien exige sa propre source
  * explicite (README.md §3.3 et §8.2).
  *
@@ -18,6 +25,9 @@
  *
  * Pour examiner la transaction sans ecrire :
  *   node scripts/seed-candidates-2027.mjs --dry-run
+ *
+ * Pour lire le registre en JSON (utilise par le controle) :
+ *   node scripts/seed-candidates-2027.mjs --json
  */
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -25,8 +35,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const options = new Set(process.argv.slice(2))
-if (![...options].every((option) => option === '--dry-run' || option === '--docker')) {
-  throw new Error('Usage: node scripts/seed-candidates-2027.mjs [--dry-run] [--docker]')
+if (![...options].every((option) => ['--dry-run', '--docker', '--json'].includes(option))) {
+  throw new Error('Usage: node scripts/seed-candidates-2027.mjs [--dry-run] [--docker] [--json]')
 }
 const dryRun = options.has('--dry-run')
 const useDocker = options.has('--docker')
@@ -59,12 +69,6 @@ const candidates = [
         excerpt: 'Sceller un moratoire normatif et fiscal : pas de nouvelle norme et de nouvel impôt sur le quinquennat.',
         sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere',
         sourceLabel: 'Avec Édouard 2027 — Pour une France plus prospère',
-      },
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Assurer notre souveraineté énergétique en relançant le nucléaire, en développant les renouvelables et en électrifiant massivement nos usages.',
-        sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-conquerante',
-        sourceLabel: 'Avec Édouard 2027 — Pour une France plus conquérante',
       },
       {
         familyCode: 'international-defense',
@@ -182,7 +186,7 @@ const candidates = [
     declarationSourceUrl: 'https://lesecologistes.fr/posts/4DGpyusxBAU4xQPexfncsx/marine-tondelier-designee-pour-representer-les-ecologistes-a-l-election-presidentielle',
     declarationSourceLabel: 'Les Écologistes — Désignation pour l’élection présidentielle',
     officialSiteUrl: 'https://marinetondelier.fr/',
-    programUrl: 'https://lesecologistes.fr/share/page/6ImK65GKUnvibm33WGkjkj/projet',
+    programUrl: 'https://marinetondelier.fr/programme-2027',
     organization: {
       id: 'les-ecologistes',
       label: 'Les Écologistes',
@@ -192,16 +196,10 @@ const candidates = [
     },
     proposals: [
       {
-        familyCode: 'environnement-energie',
-        excerpt: 'Marine Tondelier et Les Écologistes proposent la création d’un congé climatique jusqu’à 5 jours, pour permettre à chacun·e de faire face à une canicule, une inondation, un incendie ou une fermeture d’école liée au climat, sans perte de revenus.',
-        sourceUrl: 'https://action.lesecologistes.fr/petition/50hAndmVdkRyA7bvNqn2xx/conge-climatique',
-        sourceLabel: 'Les Écologistes — Congé climatique',
-      },
-      {
         familyCode: 'institutions-vie-politique',
         excerpt: 'Nous ferons de la lutte contre la corruption une priorité, garantirons l’indépendance de la justice et des médias, et moderniserons nos institutions pour fonder la première république écologique et citoyenne, plus proche de la souveraineté populaire.',
-        sourceUrl: 'https://yvelines.lesecologistes.fr/posts/6llZ3TixHP7gIKPL7zbPcx/programme-ecologiste-2027-le-futur-est-deja-la-que-serait-une-societe-ecologiste',
-        sourceLabel: 'Les Écologistes — Programme écologiste 2027',
+        sourceUrl: 'https://marinetondelier.fr/s/Programme-2027.pdf',
+        sourceLabel: 'Marine Tondelier — Programme 2027 (PDF)',
       },
     ],
   },
@@ -262,32 +260,7 @@ const candidates = [
       sourceUrl: 'https://place-publique.eu/posts/2fgDdljEIy36rgxBjRyiQZ/raphael-glucksmann-sa-lettre-aux-francais',
       sourceLabel: 'Place publique — Raphaël Glucksmann, sa lettre aux Français (25 août 2026) (signée « Co-Président »)',
     },
-    proposals: [
-      {
-        familyCode: 'travail-emploi',
-        excerpt: 'Nous défendrons le travail plutôt que la rente.',
-        sourceUrl: 'https://place-publique.eu/posts/2fgDdljEIy36rgxBjRyiQZ/raphael-glucksmann-sa-lettre-aux-francais',
-        sourceLabel: 'Place publique — Raphaël Glucksmann, sa lettre aux Français (25 août 2026)',
-      },
-      {
-        familyCode: 'protection-sociale-retraites',
-        excerpt: 'Nous démarchandiserons les EHPAD et les crèches.',
-        sourceUrl: 'https://place-publique.eu/posts/2fgDdljEIy36rgxBjRyiQZ/raphael-glucksmann-sa-lettre-aux-francais',
-        sourceLabel: 'Place publique — Raphaël Glucksmann, sa lettre aux Français (25 août 2026)',
-      },
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Nous planifierons et nous organiserons la transformation écologique.',
-        sourceUrl: 'https://place-publique.eu/posts/2fgDdljEIy36rgxBjRyiQZ/raphael-glucksmann-sa-lettre-aux-francais',
-        sourceLabel: 'Place publique — Raphaël Glucksmann, sa lettre aux Français (25 août 2026)',
-      },
-      {
-        familyCode: 'economie-finances-publiques',
-        excerpt: 'Nous protégerons nos productions et nous remettrons des usines dans nos territoires.',
-        sourceUrl: 'https://place-publique.eu/posts/2fgDdljEIy36rgxBjRyiQZ/raphael-glucksmann-sa-lettre-aux-francais',
-        sourceLabel: 'Place publique — Raphaël Glucksmann, sa lettre aux Français (25 août 2026)',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'nicolas-dupont-aignan',
@@ -296,7 +269,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.debout-la-france.fr/actualite/je-suis-candidat-pour/',
     declarationSourceLabel: 'Debout la France — « Je suis candidat pour rendre le pouvoir aux Français et rendre sa liberté à la France ! »',
     officialSiteUrl: 'https://www.dupontaignan.fr/',
-    programUrl: 'https://www.debout-la-france.fr/notre-projet/',
+    programUrl: null,
     organization: {
       id: 'debout-la-france',
       label: 'Debout la France',
@@ -304,32 +277,7 @@ const candidates = [
       sourceUrl: 'https://www.debout-la-france.fr/actualite/je-suis-candidat-pour/',
       sourceLabel: 'Debout la France — « Nicolas Dupont-Aignan, président de Debout la France, a officiellement annoncé, ce samedi 8 mars, sa candidature à l’élection présidentielle de 2027. »',
     },
-    proposals: [
-      {
-        familyCode: 'justice-securite',
-        excerpt: 'Déployer l’armée aux frontières pour soulager les forces de l’ordre sur d’autres missions.',
-        sourceUrl: 'https://www.debout-la-france.fr/projet/securite/',
-        sourceLabel: 'Debout la France — Projet : Sécurité (Nos 30 mesures)',
-      },
-      {
-        familyCode: 'numerique',
-        excerpt: 'Créer un Fonds Souverain IA doté de plusieurs milliards d’euros, (dans l’esprit des fonds nationaux norvégiens), financé par l’État, la BPI et des investisseurs privés.',
-        sourceUrl: 'https://www.debout-la-france.fr/projet/intelligence-artificielle/',
-        sourceLabel: 'Debout la France — Projet : Intelligence Artificielle (Nos 25 mesures)',
-      },
-      {
-        familyCode: 'economie-finances-publiques',
-        excerpt: 'Rendre obligatoire l’étiquetage de la part du “fabriqué en France” dans chaque produit pour inciter les consommateurs à acheter français.',
-        sourceUrl: 'https://www.debout-la-france.fr/projet/produire-en-france/',
-        sourceLabel: 'Debout la France — Projet : Produire en France (Nos 10 mesures)',
-      },
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Instaurer le référendum d’initiative citoyenne constituant (RIC) pour rendre les citoyens acteurs de l’élaboration des lois et maîtres de leur Constitution. Les Français pourront soumettre au référendum une modification de la loi ou de la Constitution dès qu’un million d’inscrits sur les listes électorales soutiendra leur pétition.',
-        sourceUrl: 'https://www.debout-la-france.fr/projet/refonder-et-moraliser-notre-democratie/',
-        sourceLabel: 'Debout la France — Projet : Refonder et moraliser notre démocratie (Nos 15 mesures)',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'augustin-billetdoux',
@@ -376,18 +324,6 @@ const candidates = [
     },
     proposals: [
       {
-        familyCode: 'pouvoir-achat',
-        excerpt: 'C’est en prenant sur les profits qu’on pourra répartir le travail entre tous et permettre à chaque travailleur de s’en sortir avec un salaire, un revenu ou une pension d’au moins 2 200 euros net.',
-        sourceUrl: 'https://lutte-ouvriere.org/journal/article/nathalie-arthaud-camp-travailleurs-celui-medef-196731.html',
-        sourceLabel: 'Lutte ouvrière (n° 3031, éditorial signé Nathalie Arthaud) — Nathalie Arthaud : le camp des travailleurs, pas celui du Medef !',
-      },
-      {
-        familyCode: 'economie-finances-publiques',
-        excerpt: 'C’est en refusant la dictature du capital et la guerre économique qu’on ne subira plus les catastrophes que cette société provoque, qu’on financera les hôpitaux, les écoles ou la lutte contre les incendies plutôt que les marchands d’armes.',
-        sourceUrl: 'https://lutte-ouvriere.org/journal/article/nathalie-arthaud-camp-travailleurs-celui-medef-196731.html',
-        sourceLabel: 'Lutte ouvrière (n° 3031, éditorial signé Nathalie Arthaud) — Nathalie Arthaud : le camp des travailleurs, pas celui du Medef !',
-      },
-      {
         familyCode: 'institutions-vie-politique',
         excerpt: 'Aux travailleurs de diriger, pas aux capitalistes !',
         sourceUrl: 'https://www.nathalie-arthaud.info',
@@ -402,7 +338,7 @@ const candidates = [
     declarationSourceUrl: 'https://juan-branco.fr/',
     declarationSourceLabel: 'juan-branco.fr (site de Juan Branco) — « Juan Branco annonce le 19 décembre 2025 son intention de se présenter à l’élection présidentielle de 2027. »',
     officialSiteUrl: 'https://juan-branco.fr/',
-    programUrl: 'https://ruches.org/le-projet',
+    programUrl: null,
     organization: {
       id: 'les-ruches',
       label: 'Les Ruches',
@@ -410,32 +346,7 @@ const candidates = [
       sourceUrl: 'https://juan-branco.fr/',
       sourceLabel: 'juan-branco.fr — « Le mouvement citoyen des Ruches porte cette candidature déclarée »',
     },
-    proposals: [
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Restaurer une démocratie directe et participative. Référendums citoyens, assemblées locales, transparence absolue des institutions.',
-        sourceUrl: 'https://ruches.org/',
-        sourceLabel: 'ruches.org — Les grandes orientations — Souveraineté populaire',
-      },
-      {
-        familyCode: 'pouvoir-achat',
-        excerpt: 'Réduire les inégalités de manière structurelle. Réforme fiscale, salaire minimum vital, logement comme droit fondamental.',
-        sourceUrl: 'https://ruches.org/',
-        sourceLabel: 'ruches.org — Les grandes orientations — Justice sociale',
-      },
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Une écologie du possible, enracinée dans les territoires. Agriculture paysanne, énergie décentralisée, protection des communs.',
-        sourceUrl: 'https://ruches.org/',
-        sourceLabel: 'ruches.org — Les grandes orientations — Transition écologique',
-      },
-      {
-        familyCode: 'societe-libertes',
-        excerpt: 'Libérer les médias de la concentration capitalistique. Financement public, indépendance éditoriale, droit à l\'information.',
-        sourceUrl: 'https://ruches.org/',
-        sourceLabel: 'ruches.org — Les grandes orientations — Médias & démocratie',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'francois-ruffin',
@@ -522,6 +433,9 @@ const candidates = [
     declarationSourceLabel: 'LCP — « “Je suis candidat” : David Lisnard quitte LR et relance le débat sur une primaire à droite » (citation du 20 h de France 2, 31 mars 2026)',
     officialSiteUrl: 'https://www.unenouvelleenergie.fr/david-lisnard/',
     programUrl: 'https://www.unenouvelleenergie.fr/notre-programme/',
+    officialDocuments: [
+      { url: 'https://nouvelle-energie-media-prod.s3.fr-par.scw.cloud/media/legacy/2026/06/Discours-de-David-Lisnard-a-Bayeux-17062026.pdf', linkedFrom: 'https://www.unenouvelleenergie.fr/notre-programme/' },
+    ],
     organization: {
       id: 'nouvelle-energie',
       label: 'Nouvelle Énergie',
@@ -592,7 +506,7 @@ const candidates = [
     declaredOn: '2026-05-09',
     declarationSourceUrl: 'https://www.sudradio.fr/politique/je-suis-candidat-florian-philippot-se-lance-pour-la-presidentielle-de-2027',
     declarationSourceLabel: 'Sud Radio — « Je suis candidat » : Florian Philippot se lance pour la présidentielle de 2027 (citation de son entretien sur France 2)',
-    officialSiteUrl: null,
+    officialSiteUrl: 'https://les-patriotes.fr/',
     programUrl: 'https://les-patriotes.fr/projetpourlafrance/',
     organization: {
       id: 'les-patriotes',
@@ -636,6 +550,9 @@ const candidates = [
     declarationSourceLabel: 'À nous maintenant — « Jean-François Legendre propose sa candidature au nom du mouvement « À nous maintenant ». »',
     officialSiteUrl: 'https://www.anousmaintenant.fr/',
     programUrl: 'https://www.anousmaintenant.fr/',
+    officialDocuments: [
+      { url: 'https://docs.google.com/document/d/1G4dUZaI20umZghEgSgRGCQeiWDJ2fiwhLZvtUK7hofc/edit?usp=sharing', linkedFrom: 'https://www.anousmaintenant.fr/' },
+    ],
     organization: {
       id: 'a-nous-maintenant',
       label: 'À nous maintenant',
@@ -868,7 +785,7 @@ const candidates = [
     declaredOn: '2026-09-04',
     declarationSourceUrl: 'https://www.les-ecologistes-mei.org/post/erwan-rohou-candidat-du-mei-aux-%C3%A9lections-pr%C3%A9sidentielles',
     declarationSourceLabel: 'Mouvement écologiste indépendant — « Erwan ROHOU, candidat du MEI aux élections présidentielles. » (« Ce candidat sera Erwan Rohou. »)',
-    officialSiteUrl: 'https://www.youtube.com/@erwanrohou3436',
+    officialSiteUrl: 'https://www.les-ecologistes-mei.org/',
     programUrl: 'https://www.les-ecologistes-mei.org/post/le-livre-blanc-du-mouvement-ecologiste-ind%C3%A9pendant-1',
     organization: {
       id: 'mouvement-ecologiste-independant',
@@ -906,6 +823,11 @@ const candidates = [
     declarationSourceLabel: 'PCF — « Élection présidentielle : Fabien Roussel désigné candidat à 72% par les communistes »',
     officialSiteUrl: 'https://www.fabienroussel2027.fr/',
     programUrl: null,
+    officialDocuments: [
+      { url: 'https://assets.nationbuilder.com/pcf/pages/44585/attachments/original/1791210591/tract_service_public.pdf', linkedFrom: 'https://www.fabienroussel2027.fr/materiel' },
+      { url: 'https://assets.nationbuilder.com/pcf/pages/44583/attachments/original/1791210341/tract_pompier.pdf', linkedFrom: 'https://www.fabienroussel2027.fr/materiel' },
+      { url: 'https://assets.nationbuilder.com/pcf/pages/44609/attachments/original/1791282014/Plan_Jeunesse_2027-2032.pdf', linkedFrom: 'https://www.fabienroussel2027.fr/materiel' },
+    ],
     organization: {
       id: 'parti-communiste-francais',
       label: 'Parti communiste français',
@@ -913,32 +835,7 @@ const candidates = [
       sourceUrl: 'https://www.pcf.fr/presidentielle2027_fabien_roussel_designe_candidat',
       sourceLabel: 'PCF — « Élection présidentielle : Fabien Roussel désigné candidat à 72% par les communistes »',
     },
-    proposals: [
-      {
-        familyCode: 'travail-emploi',
-        excerpt: 'Nous abrogerons la loi Travail, cette loi indigne, et nous rétablirons les CHSCT et les délégués du personnel.',
-        sourceUrl: 'https://www.pcf.fr/fete_de_lhumanite_2026_discours_de_fabien_roussel',
-        sourceLabel: 'PCF — Fête de l\'Humanité 2026 - discours de Fabien ROUSSEL (15 septembre 2026)',
-      },
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Enfin, soyons aussi créatifs et innovants et soyons la première nation européenne à investir dans la transition écologique, en planifiant enfin la sortie des énergies fossiles dans les quinze prochaines années.',
-        sourceUrl: 'https://www.pcf.fr/fete_de_lhumanite_2026_discours_de_fabien_roussel',
-        sourceLabel: 'PCF — Fête de l\'Humanité 2026 - discours de Fabien ROUSSEL (15 septembre 2026)',
-      },
-      {
-        familyCode: 'societe-libertes',
-        excerpt: 'Mes amis, nous devons porter de grandes ambitions, être créatifs, par exemple, pour prendre des mesures fortes et inédites, pour bâtir enfin une République féministe garantissant l\'égalité réelle entre les femmes et les hommes, en commençant par les salaires.',
-        sourceUrl: 'https://www.pcf.fr/fete_de_lhumanite_2026_discours_de_fabien_roussel',
-        sourceLabel: 'PCF — Fête de l\'Humanité 2026 - discours de Fabien ROUSSEL (15 septembre 2026)',
-      },
-      {
-        familyCode: 'international-defense',
-        excerpt: 'Nous voulons bâtir une France qui choisira le camp de la paix et participera à toutes les coalitions internationales pour faire taire les armes, pour appeler au cessez-le-feu, pour dialoguer avec toutes les parties, quelles qu\'elles soient.',
-        sourceUrl: 'https://www.pcf.fr/fete_de_lhumanite_2026_discours_de_fabien_roussel',
-        sourceLabel: 'PCF — Fête de l\'Humanité 2026 - discours de Fabien ROUSSEL (15 septembre 2026)',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'eric-zemmour',
@@ -1054,7 +951,7 @@ const candidates = [
   },
 ]
 
-// Extraits relevés programme par programme, chacun retrouvé mot pour mot dans sa source.
+// Extraits relevés programme par programme. Présence mot pour mot : scripts/check-candidate-sources.mjs.
 const extractedProposals = JSON.parse(readFileSync(new URL('./candidates-2027-proposals.json', import.meta.url), 'utf8'))
 const candidatesById = new Map(candidates.map((candidate) => [candidate.id, candidate]))
 for (const { candidateId, ...proposal } of extractedProposals) {
@@ -1062,6 +959,44 @@ for (const { candidateId, ...proposal } of extractedProposals) {
   if (!candidate) throw new Error(`Extrait rattaché à une candidature inconnue : ${candidateId}`)
   candidate.proposals.push(proposal)
 }
+
+const SOCIAL_NETWORK = /(^|\.)(youtube\.com|youtu\.be|facebook\.com|instagram\.com|x\.com|twitter\.com|tiktok\.com|linkedin\.com|bsky\.app|linktr\.ee)$/
+const hostOf = (url) => new URL(url).hostname.replace(/^www\./, '')
+
+function isOnOfficialSite(candidate, url) {
+  if (!candidate.officialSiteUrl) return false
+  const site = hostOf(candidate.officialSiteUrl)
+  const host = hostOf(url)
+  return host === site || host.endsWith(`.${site}`)
+}
+
+const isLinkedDocument = (candidate, url) => (candidate.officialDocuments ?? []).some((document) => document.url === url)
+
+// Une source hors du site officiel fait échouer le script, y compris en --dry-run.
+const violations = candidates.flatMap((candidate) => {
+  const found = []
+  const check = (label, url) => {
+    if (!isOnOfficialSite(candidate, url) && !isLinkedDocument(candidate, url)) found.push(`${candidate.id} : ${label} hors du site officiel : ${url}`)
+  }
+  if (candidate.officialSiteUrl && SOCIAL_NETWORK.test(hostOf(candidate.officialSiteUrl))) {
+    found.push(`${candidate.id} : un réseau social n'est pas un site officiel : ${candidate.officialSiteUrl}`)
+  }
+  if (candidate.programUrl) check('programUrl', candidate.programUrl)
+  for (const proposal of candidate.proposals) check('extrait', proposal.sourceUrl)
+  for (const document of candidate.officialDocuments ?? []) {
+    if (!isOnOfficialSite(candidate, document.linkedFrom)) found.push(`${candidate.id} : document lié depuis une page hors du site officiel : ${document.linkedFrom}`)
+  }
+  return found
+})
+if (violations.length > 0) throw new Error(`Sources refusées (README.md §8.2) :\n${violations.join('\n')}`)
+
+// Attendre l'écriture : process.exit() tronquerait la sortie sur un pipe.
+const writeAndExit = async (text) => {
+  await new Promise((resolve) => process.stdout.write(text, resolve))
+  process.exit(0)
+}
+
+if (options.has('--json')) await writeAndExit(`${JSON.stringify(candidates)}\n`)
 
 const sqlText = (value) => {
   if (value == null) return 'NULL'
@@ -1135,10 +1070,7 @@ const sql = [
   'COMMIT;',
 ].join('\n\n')
 
-if (dryRun) {
-  process.stdout.write(`${sql}\n`)
-  process.exit(0)
-}
+if (dryRun) await writeAndExit(`${sql}\n`)
 
 if (!useDocker && !process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL est requis ; chargez .env avant d’exécuter le script.')

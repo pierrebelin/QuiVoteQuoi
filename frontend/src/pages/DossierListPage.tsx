@@ -3,6 +3,7 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import DossierCard, { type DossierCardDto } from '../components/DossierCard'
 import { FamilyIllustration } from '../components/FamilyIllustration'
+import { Icon } from '../components/icons'
 import {
   Button,
   ErrorPanel,
@@ -204,12 +205,13 @@ export default function DossierListPage() {
                   type="button"
                   aria-pressed={on}
                   onClick={() => toggleOutcome(option.value)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                     on
-                      ? 'bg-surface text-ink shadow-card'
+                      ? 'bg-surface text-ink shadow-card ring-1 ring-line-strong ring-inset'
                       : 'text-ink-soft hover:text-ink'
                   }`}
                 >
+                  {on && <Icon name="check" className="size-3" strokeWidth={3} />}
                   {option.label}
                 </button>
               )
@@ -236,19 +238,22 @@ export default function DossierListPage() {
 
       {/* Les thèmes en vignettes plutôt qu'en liste déroulante : on reconnaît
           un sujet à son pictogramme avant d'en lire le libellé. La rangée
-          défile sur petit écran au lieu de repousser la liste. */}
+          défile sur petit écran au lieu de repousser la liste ; elle déborde
+          jusqu'au bord de l'écran, comme `<main>` (px-6). Le thème choisi est
+          plein et coché : il ne se distingue pas par la seule couleur. */}
       {families.data && (
-        <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+        <div className="-mx-6 mb-6 flex gap-2 overflow-x-auto px-6 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
           <button
             type="button"
             onClick={() => apply({ theme: '' })}
             aria-pressed={!theme}
-            className={`shrink-0 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition ${
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition ${
               !theme
-                ? 'border-ink bg-surface text-ink ring-1 ring-ink'
+                ? 'border-ink bg-ink text-surface'
                 : 'border-line bg-surface text-ink-soft hover:border-line-strong'
             }`}
           >
+            {!theme && <Icon name="check" className="size-3.5" strokeWidth={3} />}
             Tous les thèmes
           </button>
           {families.data.families.map((family) => (
@@ -260,15 +265,21 @@ export default function DossierListPage() {
               title={family.scope}
               className={`inline-flex shrink-0 items-center gap-2 rounded-xl border py-1 pr-3 pl-1 text-[13px] font-medium whitespace-nowrap transition ${
                 theme === family.code
-                  ? 'border-ink bg-surface text-ink ring-1 ring-ink'
+                  ? 'border-ink bg-ink text-surface'
                   : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
               }`}
             >
-              <FamilyIllustration
-                code={family.code}
-                className="size-7 rounded-lg"
-                glyphClassName="size-[18px]"
-              />
+              {theme === family.code ? (
+                <span className="flex size-7 shrink-0 items-center justify-center">
+                  <Icon name="check" className="size-4" strokeWidth={3} />
+                </span>
+              ) : (
+                <FamilyIllustration
+                  code={family.code}
+                  className="size-7 rounded-lg"
+                  glyphClassName="size-[18px]"
+                />
+              )}
               {family.label}
             </button>
           ))}

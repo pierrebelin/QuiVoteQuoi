@@ -68,7 +68,7 @@ export function StepIntro({
 /** Barre collée en bas de l'écran : le résumé du choix et l'action suivante. */
 export function ActionBar({ summary, children }: { summary: ReactNode; children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-canvas/95 px-6 py-3.5 backdrop-blur">
+    <div className="sticky bottom-[var(--mobile-nav-h)] z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-canvas/95 px-6 py-3.5 backdrop-blur">
       <p className="text-sm text-ink-soft" aria-live="polite">
         {summary}
       </p>
@@ -98,7 +98,10 @@ export function PrimaryButton({
   )
 }
 
-/** Pastille à bascule des panneaux de la barre des votes. */
+/**
+ * Pastille à bascule des panneaux de la barre des votes. L'état actif se lit à
+ * la coche autant qu'à l'inversion des couleurs.
+ */
 export function ToggleChip({
   pressed,
   onClick,
@@ -125,6 +128,7 @@ export function ToggleChip({
           : 'border-line-strong bg-surface text-ink hover:bg-surface-soft'
       }`}
     >
+      {pressed && <CheckIcon className="size-4 shrink-0" />}
       {children}
     </button>
   )

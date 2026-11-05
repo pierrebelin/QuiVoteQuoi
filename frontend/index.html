@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <meta name="theme-color" content="#ffffff" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
     <script>
       // Appliqué avant le premier rendu : sinon la page s'afficherait dans le
@@ -24,6 +24,10 @@
           (choix !== 'light' &&
             window.matchMedia('(prefers-color-scheme: dark)').matches)
         document.documentElement.dataset.theme = sombre ? 'dark' : 'light'
+        // La barre du navigateur suit l'apparence : elle reprend la couleur de
+        // `--color-surface`, celle de l'en-tête (ThemeToggle la met à jour).
+        var barre = document.querySelector('meta[name="theme-color"]')
+        if (barre) barre.setAttribute('content', sombre ? '#151519' : '#ffffff')
       })()
     </script>
     <meta
