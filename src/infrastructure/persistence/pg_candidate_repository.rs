@@ -42,7 +42,7 @@ impl CandidateRepository for PgCandidateRepository {
                  UNION SELECT link.source_url, candidate.display_name
                          FROM candidate_political_organizations link
                          JOIN presidential_candidates candidate ON candidate.id = link.candidate_id
-                 UNION SELECT proposal.source_url, candidate.display_name
+                 UNION SELECT split_part(proposal.source_url, '#', 1), candidate.display_name
                          FROM candidate_program_proposals proposal
                          JOIN presidential_candidates candidate ON candidate.id = proposal.candidate_id
              )

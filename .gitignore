@@ -29,3 +29,6 @@ graphify-out/
 
 # Plans et rapports locaux
 todo/
+
+# Texte des PDF déjà lus par scripts/check-candidate-sources.mjs
+/.cache/
