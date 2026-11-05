@@ -62,7 +62,7 @@ jobs:
               echo "- [ ] Mettre à jour \`scripts/candidates-2027-proposals.json\` si un extrait a changé"
               echo "- [ ] Relancer \`node scripts/seed-candidates-2027.mjs\`"
               echo
-              echo "Rien n'est republié automatiquement. Un changement de bannière, de date ou de pied de page déclenche aussi cette alerte : dans ce cas, fermer l'issue."
+              echo "Rien n'est republié automatiquement. Un changement de bannière, de date ou de pied de page déclenche aussi cette alerte : dans ce cas, fermer l'issue. Pour une candidature qui cite un PDF, la page de son site n'est comparée que sur la liste de ses PDF liés : une alerte y signale un document ajouté ou retiré."
               echo
               echo "<!-- ${marker} -->"
             } > body.md

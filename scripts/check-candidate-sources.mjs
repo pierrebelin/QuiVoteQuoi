@@ -11,21 +11,36 @@
  * absence, elle est signalée à part. Les requêtes restent une à une : certains
  * sites bannissent les rafales.
  *
+ * Un PDF déjà lu n'est pas redemandé pendant 24 h : son texte reste dans
+ * .cache/candidate-sources/ (non versionné). Au-delà, une requête conditionnelle
+ * suffit à confirmer qu'il n'a pas changé. Une candidature qui cite un PDF
+ * n'est pas parcourue au-delà de ses sources citées.
+ *
  * Requiert pdftotext (poppler).
  *
  * Usage :
- *   node scripts/check-candidate-sources.mjs [identifiant-candidat...]
+ *   node scripts/check-candidate-sources.mjs [--refresh] [identifiant-candidat...]
+ *
+ * --refresh ignore le délai de 24 h et revalide les PDF auprès de leur site.
  *
  * Code de sortie 0 si tout est retrouvé, 1 sinon.
  */
 import { spawnSync } from 'node:child_process'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const USER_AGENT = 'QuiVoteQuoi-check-sources/1.0'
 const TIMEOUT_MS = 60_000
-const PAUSE_MS = 500
+const PAUSE_MS = 2_000
+const CACHE_DIRECTORY = fileURLToPath(new URL('../.cache/candidate-sources/', import.meta.url))
+const CACHE_TTL_MS = 24 * 60 * 60 * 1_000
+
+const args = process.argv.slice(2)
+const refresh = args.includes('--refresh')
+const requested = args.filter((arg) => arg !== '--refresh')
 
 /** Les symboles porteurs de sens (€, %, $, +, °) restent significatifs. */
 export function normalize(text) {
@@ -77,14 +92,54 @@ function downloadUrl(url) {
   return googleDoc ? `https://docs.google.com/document/d/${googleDoc[1]}/export?format=txt` : url
 }
 
+const cachePath = (url) => join(CACHE_DIRECTORY, `${createHash('sha256').update(url).digest('hex')}.json`)
+
+function readCachedPdf(url) {
+  try {
+    return JSON.parse(readFileSync(cachePath(url), 'utf8'))
+  } catch {
+    return null
+  }
+}
+
+function writeCachedPdf(url, entry) {
+  mkdirSync(CACHE_DIRECTORY, { recursive: true })
+  writeFileSync(cachePath(url), JSON.stringify(entry))
+}
+
+let requestCount = 0
+
 async function read(url) {
+  const cached = readCachedPdf(url)
+  if (cached && !refresh && Date.now() - cached.checkedAt < CACHE_TTL_MS) return { text: cached.text, raw: '' }
+
+  await new Promise((resolve) => setTimeout(resolve, PAUSE_MS))
+  requestCount += 1
   const response = await fetch(downloadUrl(url), {
-    headers: { 'user-agent': USER_AGENT, 'accept-language': 'fr' },
+    headers: {
+      'user-agent': USER_AGENT,
+      'accept-language': 'fr',
+      ...(cached?.etag && { 'if-none-match': cached.etag }),
+      ...(cached?.lastModified && { 'if-modified-since': cached.lastModified }),
+    },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
+  if (response.status === 304 && cached) {
+    writeCachedPdf(url, { ...cached, checkedAt: Date.now() })
+    return { text: cached.text, raw: '' }
+  }
   if (!response.ok) return { error: `HTTP ${response.status}` }
   const bytes = Buffer.from(await response.arrayBuffer())
-  if (bytes.subarray(0, 5).toString('latin1') === '%PDF-') return { text: pdfText(bytes), raw: '' }
+  if (bytes.subarray(0, 5).toString('latin1') === '%PDF-') {
+    const text = pdfText(bytes)
+    writeCachedPdf(url, {
+      etag: response.headers.get('etag'),
+      lastModified: response.headers.get('last-modified'),
+      checkedAt: Date.now(),
+      text,
+    })
+    return { text, raw: '' }
+  }
   const body = bytes.toString('utf8')
   return { text: /html/.test(response.headers.get('content-type') ?? '') ? visibleHtmlText(body) : body, raw: body }
 }
@@ -98,14 +153,12 @@ if (seed.status !== 0) {
   process.exit(1)
 }
 
-const requested = process.argv.slice(2)
 const candidates = JSON.parse(seed.stdout).filter((candidate) => requested.length === 0 || requested.includes(candidate.id))
 
 const sources = new Map()
 async function source(url) {
   const key = url.split('#')[0]
   if (!sources.has(key)) {
-    await new Promise((resolve) => setTimeout(resolve, PAUSE_MS))
     sources.set(key, await read(key).catch((error) => ({ error: error.cause?.code ?? error.message })))
   }
   return sources.get(key)
@@ -114,6 +167,7 @@ async function source(url) {
 let found = 0
 const absent = []
 const unreachable = new Map()
+const citesPdf = (candidate) => candidate.proposals.some((proposal) => /\.pdf$/i.test(proposal.sourceUrl.split('#')[0]))
 const flagUnreachable = (candidate, url, error, count = 1) => {
   const key = `${candidate.id} : ${url} (${error})`
   unreachable.set(key, (unreachable.get(key) ?? 0) + count)
@@ -133,7 +187,7 @@ for (const candidate of candidates) {
     if (page.error) flagUnreachable(candidate, document.linkedFrom, page.error)
     else if (!page.raw.replace(/&amp;/g, '&').includes(document.url)) absent.push(`${candidate.id} : ${document.url} non lié depuis ${document.linkedFrom}`)
   }
-  if (candidate.programUrl) {
+  if (candidate.programUrl && !citesPdf(candidate)) {
     const page = await source(candidate.programUrl)
     if (page.error) flagUnreachable(candidate, candidate.programUrl, page.error, 0)
   }
@@ -141,7 +195,7 @@ for (const candidate of candidates) {
   process.stdout.write(`${candidate.id} : ${candidateFound}/${candidate.proposals.length} retrouvés, ${absent.length - before} absents\n`)
 }
 
-process.stdout.write(`\n${found} extraits retrouvés, ${absent.length} anomalies, ${unreachable.size} sources injoignables.\n`)
+process.stdout.write(`\n${found} extraits retrouvés, ${absent.length} anomalies, ${unreachable.size} sources injoignables, ${requestCount} requêtes réseau.\n`)
 for (const line of absent) process.stdout.write(`ABSENT ${line}\n`)
 for (const [line, count] of unreachable) process.stdout.write(`INJOIGNABLE ${line}${count ? ` — ${count} extraits non vérifiés` : ''}\n`)
 process.exit(absent.length > 0 || unreachable.size > 0 ? 1 : 0)
