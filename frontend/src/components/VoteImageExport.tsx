@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   RESEAUX,
-  aUnContenuDeStory,
+  aUnExpose,
   chargerPolices,
-  dessinerContenuStory,
+  dessinerExpose,
   dessinerVote,
   dimensions,
+  estDiaporama,
   texteDePartage,
   type ReseauImage,
   type ThemeImage,
@@ -31,8 +32,8 @@ function enBlob(canvas: HTMLCanvasElement) {
  * se règle pas — retirer les non-votants ou un groupe ferait dire à l'image
  * autre chose que la page (README.md §2).
  *
- * La story fait exception : son dessin est fixe (le vote sur fond sombre), avec
- * une seconde image, l'exposé, seulement quand il existe.
+ * La story et le post Instagram font exception : leur dessin est fixe (le vote
+ * sur fond sombre), avec une seconde image, l'exposé, seulement quand il existe.
  *
  * Le partage natif n'est proposé que là où le navigateur sait partager un
  * fichier (mobile surtout) ; ailleurs, on télécharge l'image et on copie le
@@ -60,8 +61,8 @@ export default function VoteImageExport({
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const canvasContenuRef = useRef<HTMLCanvasElement>(null)
 
-  const estStory = reseau === 'story'
-  const avecContenu = estStory && aUnContenuDeStory(scrutin)
+  const diaporama = estDiaporama(reseau)
+  const avecContenu = diaporama && aUnExpose(scrutin)
 
   const lien = `${window.location.origin}/scrutins/${scrutin.uid}`
   const nomFichier = (numero: number | null) =>
@@ -85,7 +86,7 @@ export default function VoteImageExport({
         dessinerVote(canvasRef.current, scrutin, { reseau, visuel, theme, lien })
       }
       if (!annule && canvasContenuRef.current) {
-        dessinerContenuStory(canvasContenuRef.current, scrutin, lien)
+        dessinerExpose(canvasContenuRef.current, scrutin, { reseau, lien })
       }
     })
     return () => {
@@ -208,7 +209,7 @@ export default function VoteImageExport({
             </p>
           </div>
 
-          {!estStory && (
+          {!diaporama && (
             <>
               <SegmentedControl
                 label="Visuel"
@@ -232,7 +233,7 @@ export default function VoteImageExport({
             </>
           )}
 
-          {estStory && !avecContenu && (
+          {diaporama && !avecContenu && (
             <p className="text-xs text-ink-soft">
               Une seule image : aucun exposé disponible pour ce vote.
             </p>

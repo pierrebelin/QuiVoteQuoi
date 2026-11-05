@@ -47,7 +47,7 @@ export type OptionsImage = {
   lien: string
 }
 
-type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical' | 'story'
+type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical' | 'story' | 'carrousel'
 
 /**
  * Géométrie d'une image. `u` est l'échelle des tailles de texte ; les maxima
@@ -60,8 +60,8 @@ type Gabarit = 'portrait' | 'carre' | 'paysage' | 'vertical' | 'story'
  * colonne d'icônes à droite. Le fond les remplit, le contenu les évite.
  *
  * La story n'a pas cette colonne d'icônes : elle garde les seules zones du haut
- * et du bas, et son texte prend toute la largeur. Son dessin est à part, voir
- * `dessinerStoryVote`.
+ * et du bas, et son texte prend toute la largeur. Son dessin, partagé avec le
+ * carrousel du post Instagram, est à part : voir `dessinerDiapoVote`.
  */
 const GABARITS: Record<
   Gabarit,
@@ -114,6 +114,14 @@ const GABARITS: Record<
     lignesTitre: 5,
     lignesSujet: 5,
   },
+  carrousel: {
+    largeur: 1080,
+    hauteur: 1350,
+    u: 1,
+    marges: { haut: 64, bas: 64, gauche: 64, droite: 64 },
+    lignesTitre: 5,
+    lignesSujet: 3,
+  },
 }
 
 /**
@@ -130,7 +138,7 @@ export const RESEAUX: Record<
     limiteTexte?: number
   }
 > = {
-  instagram: { libelle: 'Instagram', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
+  instagram: { libelle: 'Instagram', gabarit: 'carrousel', usage: 'Publication du fil, 4:5, le vote puis l’exposé s’il existe' },
   story: { libelle: 'Story', gabarit: 'story', usage: 'Instagram, 9:16, le vote puis l’exposé s’il existe' },
   reel: { libelle: 'Reel', gabarit: 'vertical', usage: 'Instagram et Facebook, 9:16, hors zones des boutons' },
   tiktok: { libelle: 'TikTok', gabarit: 'vertical', usage: 'Mode photo, 9:16, hors zones des boutons' },
@@ -613,8 +621,8 @@ export function dessinerVote(
   options: OptionsImage,
 ) {
   const gabarit = RESEAUX[options.reseau].gabarit
-  if (gabarit === 'story') {
-    dessinerStoryVote(canvas, data, options.lien)
+  if (gabarit === 'story' || gabarit === 'carrousel') {
+    dessinerDiapoVote(canvas, data, options.lien, DIAPOS[gabarit])
     return
   }
   const {
@@ -790,14 +798,102 @@ export function dessinerVote(
   }
 }
 
-/* ------------------------------------------------------------------ story */
+/* ---------------------------------------------- story et post Instagram */
 
-const STORY = GABARITS.story
-const STORY_G = STORY.marges.gauche
-const STORY_D = STORY.largeur - STORY.marges.droite
-const STORY_HAUT = STORY.marges.haut
-const STORY_BAS = STORY.hauteur - STORY.marges.bas
-const STORY_LARGEUR = STORY_D - STORY_G
+type GabaritDiapo = 'story' | 'carrousel'
+
+/**
+ * Story et post Instagram se dessinent pareil : le vote, puis l'exposé s'il
+ * existe. Seules les tailles changent, le 4:5 étant moins haut que le 9:16.
+ */
+function diapo(
+  gabarit: GabaritDiapo,
+  tailles: {
+    decalageTitre: number
+    voteTitre: number
+    voteSuite: number
+    voteLignesSuite: number
+    /** Hauteur du bloc de nombres, et distance entre le résultat et ce bloc. */
+    blocChiffres: number
+    pasIssue: number
+    tailleIssue: number
+    tailleChiffre: number
+    tailleLibelle: number
+    /** Échelle de la légende de l'hémicycle ou des lignes de groupes. */
+    uVisuel: number
+    uGroupes: number
+    bordHemicycle: number
+    contenuTitre: number
+    apresPastille: number
+    apresAuteur: number
+    apresMention: number
+    reserveBas: number
+    tailleExpose: number
+  },
+) {
+  const { largeur, hauteur, marges } = GABARITS[gabarit]
+  return {
+    ...tailles,
+    largeur,
+    hauteur,
+    G: marges.gauche,
+    D: largeur - marges.droite,
+    haut: marges.haut,
+    bas: hauteur - marges.bas,
+    largeurTexte: largeur - marges.gauche - marges.droite,
+  }
+}
+
+type Diapo = ReturnType<typeof diapo>
+
+const DIAPOS: Record<GabaritDiapo, Diapo> = {
+  story: diapo('story', {
+    decalageTitre: 96,
+    voteTitre: 100,
+    voteSuite: 32,
+    voteLignesSuite: 5,
+    blocChiffres: 136,
+    pasIssue: 128,
+    tailleIssue: 108,
+    tailleChiffre: 80,
+    tailleLibelle: 30,
+    uVisuel: 1.6,
+    uGroupes: 1.3,
+    bordHemicycle: 20,
+    contenuTitre: 84,
+    apresPastille: 40,
+    apresAuteur: 62,
+    apresMention: 58,
+    reserveBas: 130,
+    tailleExpose: 42,
+  }),
+  carrousel: diapo('carrousel', {
+    decalageTitre: 84,
+    voteTitre: 88,
+    voteSuite: 30,
+    voteLignesSuite: 3,
+    blocChiffres: 124,
+    pasIssue: 112,
+    tailleIssue: 96,
+    tailleChiffre: 72,
+    tailleLibelle: 28,
+    uVisuel: 1.5,
+    uGroupes: 1.2,
+    bordHemicycle: 40,
+    contenuTitre: 76,
+    apresPastille: 30,
+    apresAuteur: 56,
+    apresMention: 50,
+    reserveBas: 110,
+    tailleExpose: 40,
+  }),
+}
+
+/** Le réseau se publie en deux images au plus : ses réglages sont fixes. */
+export function estDiaporama(reseau: ReseauImage) {
+  const gabarit = RESEAUX[reseau].gabarit
+  return gabarit === 'story' || gabarit === 'carrousel'
+}
 
 function sansAccents(texte: string) {
   return texte
@@ -825,14 +921,15 @@ function amendementDuVote(data: ScrutinDetailDto): CitedAmendmentDto | null {
   return famille && intitule.includes(famille) ? amendement : null
 }
 
-/** Seconde image d'une story : seulement s'il y a un contenu réel à montrer. */
-export function aUnContenuDeStory(data: ScrutinDetailDto) {
+/** Seconde image : seulement s'il y a un contenu réel à montrer. */
+export function aUnExpose(data: ScrutinDetailDto) {
   return amendementDuVote(data) !== null
 }
 
 /** Écrit un texte à la plus grande taille qui tient en `lignes` et renvoie le y suivant. */
 function texteAjuste(
   ctx: CanvasRenderingContext2D,
+  f: Diapo,
   texte: string,
   y: number,
   style: {
@@ -848,7 +945,7 @@ function texteAjuste(
   police(ctx, style.poids, taille)
   while (
     taille > style.min &&
-    couperLignes(ctx, texte, STORY_LARGEUR, Infinity).length > style.lignes
+    couperLignes(ctx, texte, f.largeurTexte, Infinity).length > style.lignes
   ) {
     taille -= 2
     police(ctx, style.poids, taille)
@@ -856,36 +953,37 @@ function texteAjuste(
   ctx.fillStyle = style.couleur
   return (
     y +
-    paragraphe(ctx, texte, STORY_G, y, STORY_LARGEUR, style.lignes, taille * style.interligne)
+    paragraphe(ctx, texte, f.G, y, f.largeurTexte, style.lignes, taille * style.interligne)
   )
 }
 
-function enteteStory(ctx: CanvasRenderingContext2D, data: ScrutinDetailDto) {
+function enteteDiapo(ctx: CanvasRenderingContext2D, f: Diapo, data: ScrutinDetailDto) {
   const hauteurLogo = 52
-  const milieu = STORY_HAUT + hauteurLogo / 2
-  const largeurLogo = logo(ctx, STORY_G, STORY_HAUT, hauteurLogo, true)
+  const milieu = f.haut + hauteurLogo / 2
+  const largeurLogo = logo(ctx, f.G, f.haut, hauteurLogo, true)
   morceaux(
     ctx,
     [
       { texte: 'QuiVote', couleur: '#ffffff', poids: 600 },
       { texte: 'Quoi', couleur: '#ffffff', poids: 600 },
     ],
-    STORY_G + largeurLogo + 16,
+    f.G + largeurLogo + 16,
     milieu,
     38,
   )
   morceaux(
     ctx,
     [{ texte: formatDate(data.date), couleur: '#ffffff', poids: 600 }],
-    STORY_D,
+    f.D,
     milieu,
     32,
     'droite',
   )
 }
 
-function piedStory(
+function piedDiapo(
   ctx: CanvasRenderingContext2D,
+  f: Diapo,
   data: ScrutinDetailDto,
   lien: string,
   couleur: string,
@@ -893,29 +991,30 @@ function piedStory(
   const adresse = lien.replace(/^https?:\/\//, '')
   let taille = 36
   police(ctx, 700, taille)
-  while (ctx.measureText(adresse).width > STORY_LARGEUR && taille > 24) {
+  while (ctx.measureText(adresse).width > f.largeurTexte && taille > 24) {
     taille -= 1
     police(ctx, 700, taille)
   }
-  morceaux(ctx, [{ texte: adresse, couleur, poids: 700 }], STORY_G, STORY_BAS - 62, taille)
+  morceaux(ctx, [{ texte: adresse, couleur, poids: 700 }], f.G, f.bas - 62, taille)
   morceaux(
     ctx,
     [{ texte: `Source : Assemblée nationale, scrutin n° ${data.number}`, couleur }],
-    STORY_G,
-    STORY_BAS - 16,
+    f.G,
+    f.bas - 16,
     30,
   )
 }
 
 /** Titre du vote et reste de l'intitulé. Renvoie le y suivant. */
-function objetStory(
+function objetDiapo(
   ctx: CanvasRenderingContext2D,
+  f: Diapo,
   objet: ReturnType<typeof objetDuVote>,
   yDepart: number,
   styles: { couleur: string; couleurSuite: string; titre: number; suite: number; lignesSuite: number },
 ) {
   const y = objet.court
-    ? texteAjuste(ctx, objet.tete, yDepart, {
+    ? texteAjuste(ctx, f, objet.tete, yDepart, {
         poids: 700,
         max: styles.titre,
         min: 56,
@@ -923,7 +1022,7 @@ function objetStory(
         couleur: styles.couleur,
         interligne: 1.16,
       })
-    : texteAjuste(ctx, objet.tete, yDepart, {
+    : texteAjuste(ctx, f, objet.tete, yDepart, {
         poids: 700,
         max: Math.round(styles.titre * 0.72),
         min: 44,
@@ -932,7 +1031,7 @@ function objetStory(
         interligne: 1.16,
       })
   if (!objet.suite) return y
-  return texteAjuste(ctx, objet.suite, y + 16, {
+  return texteAjuste(ctx, f, objet.suite, y + 16, {
     poids: 400,
     max: styles.suite,
     min: 28,
@@ -942,47 +1041,52 @@ function objetStory(
   })
 }
 
-/** Première image d'une story : le vote, l'hémicycle bord à bord sur fond sombre. */
-function dessinerStoryVote(canvas: HTMLCanvasElement, data: ScrutinDetailDto, lien: string) {
+/** Première image : le vote, l'hémicycle bord à bord sur fond sombre. */
+function dessinerDiapoVote(
+  canvas: HTMLCanvasElement,
+  data: ScrutinDetailDto,
+  lien: string,
+  f: Diapo,
+) {
   const p = PALETTES.sombre
-  canvas.width = STORY.largeur
-  canvas.height = STORY.hauteur
+  canvas.width = f.largeur
+  canvas.height = f.hauteur
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
   ctx.fillStyle = p.fond
-  ctx.fillRect(0, 0, STORY.largeur, STORY.hauteur)
-  enteteStory(ctx, data)
+  ctx.fillRect(0, 0, f.largeur, f.hauteur)
+  enteteDiapo(ctx, f, data)
 
-  const y = objetStory(ctx, objetDuVote(data), STORY_HAUT + 96, {
+  const y = objetDiapo(ctx, f, objetDuVote(data), f.haut + f.decalageTitre, {
     couleur: p.encre,
     couleurSuite: p.encreDouce,
-    titre: 100,
-    suite: 32,
-    lignesSuite: 5,
+    titre: f.voteTitre,
+    suite: f.voteSuite,
+    lignesSuite: f.voteLignesSuite,
   })
 
-  const yChiffres = STORY_BAS - 90 - 136
-  const yIssue = yChiffres - 128
+  const yChiffres = f.bas - 90 - f.blocChiffres
+  const yIssue = yChiffres - f.pasIssue
 
   const avecSieges = data.groups.some((g) => g.votes.some((v) => v.seat !== null))
   if (avecSieges) {
-    const bord = 20
+    const bord = f.bordHemicycle
     hemicycle(
       ctx,
       p,
       'sombre',
       data,
-      { x: bord, y: y + 16, largeur: STORY.largeur - bord * 2, hauteur: yIssue - y - 32 },
-      1.6,
+      { x: bord, y: y + 16, largeur: f.largeur - bord * 2, hauteur: yIssue - y - 32 },
+      f.uVisuel,
     )
   } else {
     groupes(
       ctx,
       p,
       data,
-      { x: STORY_G, y: y + 16, largeur: STORY_LARGEUR, hauteur: yIssue - y - 32 },
-      1.3,
+      { x: f.G, y: y + 16, largeur: f.largeurTexte, hauteur: yIssue - y - 32 },
+      f.uGroupes,
     )
   }
 
@@ -995,9 +1099,9 @@ function dessinerStoryVote(canvas: HTMLCanvasElement, data: ScrutinDetailDto, li
         poids: 700,
       },
     ],
-    STORY_G - 4,
-    yIssue + 54,
-    108,
+    f.G - 4,
+    yIssue + f.tailleIssue / 2,
+    f.tailleIssue,
   )
 
   const t = data.synthesis.tally
@@ -1008,12 +1112,18 @@ function dessinerStoryVote(canvas: HTMLCanvasElement, data: ScrutinDetailDto, li
     ['Non-votants', t.not_voting, p.encreDouce],
   ]
   chiffres.forEach(([libelle, valeur, couleur], i) => {
-    const x = STORY_G + (i * STORY_LARGEUR) / chiffres.length
-    morceaux(ctx, [{ texte: String(valeur), couleur, poids: 700 }], x, yChiffres + 40, 80)
-    morceaux(ctx, [{ texte: libelle, couleur: p.encreDouce, poids: 500 }], x, yChiffres + 104, 30)
+    const x = f.G + (i * f.largeurTexte) / chiffres.length
+    morceaux(ctx, [{ texte: String(valeur), couleur, poids: 700 }], x, yChiffres + f.tailleChiffre / 2, f.tailleChiffre)
+    morceaux(
+      ctx,
+      [{ texte: libelle, couleur: p.encreDouce, poids: 500 }],
+      x,
+      yChiffres + f.tailleChiffre + 24,
+      f.tailleLibelle,
+    )
   })
 
-  piedStory(ctx, data, lien, p.encre)
+  piedDiapo(ctx, f, data, lien, p.encre)
 }
 
 /**
@@ -1056,20 +1166,24 @@ function extraitExpose(
 }
 
 /**
- * Seconde image d'une story : l'exposé, sur fond à la couleur de l'issue. La
+ * Seconde image : l'exposé, sur fond à la couleur de l'issue. La
  * pastille redit le résultat, la couleur seule ne suffit pas à le dire. L'exposé
  * est l'argumentaire de son auteur, non un constat : l'image le dit (README.md §6).
  * Renvoie `false` sans rien dessiner s'il n'y a pas de contenu à montrer.
  */
-export function dessinerContenuStory(
+export function dessinerExpose(
   canvas: HTMLCanvasElement,
   data: ScrutinDetailDto,
-  lien: string,
+  options: Pick<OptionsImage, 'reseau' | 'lien'>,
 ) {
+  const gabarit = RESEAUX[options.reseau].gabarit
+  if (gabarit !== 'story' && gabarit !== 'carrousel') return false
+  const f = DIAPOS[gabarit]
+  const lien = options.lien
   const amendement = amendementDuVote(data)
   if (!amendement?.summary) return false
-  canvas.width = STORY.largeur
-  canvas.height = STORY.hauteur
+  canvas.width = f.largeur
+  canvas.height = f.hauteur
   const ctx = canvas.getContext('2d')
   if (!ctx) return false
 
@@ -1079,14 +1193,14 @@ export function dessinerContenuStory(
   const blancDoux = 'rgba(255, 255, 255, 0.88)'
 
   ctx.fillStyle = fond
-  ctx.fillRect(0, 0, STORY.largeur, STORY.hauteur)
-  enteteStory(ctx, data)
+  ctx.fillRect(0, 0, f.largeur, f.hauteur)
+  enteteDiapo(ctx, f, data)
 
   // Le reste de l'intitulé est déjà sur la première image : la place va à l'exposé.
-  let y = objetStory(ctx, { ...objetDuVote(data), suite: '' }, STORY_HAUT + 96, {
+  let y = objetDiapo(ctx, f, { ...objetDuVote(data), suite: '' }, f.haut + f.decalageTitre, {
     couleur: blanc,
     couleurSuite: blanc,
-    titre: 84,
+    titre: f.contenuTitre,
     suite: 0,
     lignesSuite: 0,
   })
@@ -1096,10 +1210,10 @@ export function dessinerContenuStory(
   police(ctx, 700, 40)
   ctx.fillStyle = blanc
   ctx.beginPath()
-  ctx.roundRect(STORY_G, y, ctx.measureText(resultat).width + 44, 72, 14)
+  ctx.roundRect(f.G, y, ctx.measureText(resultat).width + 44, 72, 14)
   ctx.fill()
-  morceaux(ctx, [{ texte: resultat, couleur: fond, poids: 700 }], STORY_G + 22, y + 37, 40)
-  y += 72 + 40
+  morceaux(ctx, [{ texte: resultat, couleur: fond, poids: 700 }], f.G + 22, y + 37, 40)
+  y += 72 + f.apresPastille
 
   // La couleur du groupe reste cantonnée à sa pastille, cerclée pour rester
   // visible sur le fond (README.md §6).
@@ -1107,7 +1221,7 @@ export function dessinerContenuStory(
   ctx.strokeStyle = blanc
   ctx.lineWidth = 3
   ctx.beginPath()
-  ctx.arc(STORY_G + 15, y + 22, 15, 0, Math.PI * 2)
+  ctx.arc(f.G + 15, y + 22, 15, 0, Math.PI * 2)
   ctx.fill()
   ctx.stroke()
 
@@ -1117,30 +1231,30 @@ export function dessinerContenuStory(
   const auteur = `${amendement.author_name ?? 'Gouvernement'}${groupe}${cosignataires}`
   let tailleAuteur = 36
   police(ctx, 600, tailleAuteur)
-  while (ctx.measureText(auteur).width > STORY_LARGEUR - 44 && tailleAuteur > 24) {
+  while (ctx.measureText(auteur).width > f.largeurTexte - 44 && tailleAuteur > 24) {
     tailleAuteur -= 1
     police(ctx, 600, tailleAuteur)
   }
-  morceaux(ctx, [{ texte: auteur, couleur: blanc, poids: 600 }], STORY_G + 44, y + 22, tailleAuteur)
-  y += 62
+  morceaux(ctx, [{ texte: auteur, couleur: blanc, poids: 600 }], f.G + 44, y + 22, tailleAuteur)
+  y += f.apresAuteur
 
   const mention = amendement.author_name
     ? 'Exposé rédigé par l’auteur de l’amendement'
     : 'Exposé rédigé par le Gouvernement'
-  morceaux(ctx, [{ texte: mention, couleur: blancDoux }], STORY_G, y + 16, 30)
-  y += 58
+  morceaux(ctx, [{ texte: mention, couleur: blancDoux }], f.G, y + 16, 30)
+  y += f.apresMention
 
   /* Le début de l'exposé, présenté en citation. */
   const retrait = 28
-  const taille = 42
+  const taille = f.tailleExpose
   const interligne = taille * 1.34
-  const finTexte = STORY_BAS - 130
+  const finTexte = f.bas - f.reserveBas
   police(ctx, 400, taille)
   // Une ligne de réserve : le `[…]` ajouté à un paragraphe peut en créer une.
   const blocs = extraitExpose(
     ctx,
     amendement.summary,
-    STORY_LARGEUR - retrait,
+    f.largeurTexte - retrait,
     Math.floor((finTexte - y) / interligne) - 1,
   )
   const debutCitation = y
@@ -1149,16 +1263,16 @@ export function dessinerContenuStory(
   blocs.forEach((lignes, i) => {
     if (i > 0) y += interligne / 2
     lignes.forEach((ligne) => {
-      ctx.fillText(ligne, STORY_G + retrait, y)
+      ctx.fillText(ligne, f.G + retrait, y)
       y += interligne
     })
   })
   ctx.fillStyle = 'rgba(255, 255, 255, 0.55)'
   ctx.beginPath()
-  ctx.roundRect(STORY_G, debutCitation + 4, 6, y - debutCitation - 14, 3)
+  ctx.roundRect(f.G, debutCitation + 4, 6, y - debutCitation - 14, 3)
   ctx.fill()
 
-  piedStory(ctx, data, lien, blanc)
+  piedDiapo(ctx, f, data, lien, blanc)
   return true
 }
 
