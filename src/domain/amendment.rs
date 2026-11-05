@@ -791,22 +791,81 @@ fn resolve_one(
 /// un amendement rectifie garde son numero, la mention designe une version du
 /// meme amendement.
 pub fn amendment_numbers_in_subject(subject: &str) -> Vec<AmendmentNumber> {
+    number_run(subject).map_or_else(Vec::new, |run| run.numbers)
+}
+
+/// Auteur que l'objet d'un scrutin nomme pour le numero qu'il cite.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CitedAuthor {
+    Government,
+    /// Nom tel qu'ecrit dans l'objet: « Le Coq », « Philippe Vigier ».
+    Deputy(String),
+    /// Commission, plusieurs numeros, formulation non reconnue: rien a comparer.
+    NotStated,
+}
+
+/// Auteur nomme par l'objet, lu juste apres le numero cite (SPEC-sujet-amendements RM-11).
+///
+/// « l'amendement n° 1 du Gouvernement à l'article liminaire » → `Government`
+/// « l'amendement n° 3457 (rect.) de M. Raux après l'article 42 » → `Deputy("Raux")`
+/// « l'amendement n° 5 de la commission des lois »                → `NotStated`
+///
+/// Seul un objet a numero unique est lu: « les amendements n° 12 et 45 de M. X »
+/// ne dit pas qui a depose lequel.
+pub fn cited_author_in_subject(subject: &str) -> CitedAuthor {
+    let Some(run) = number_run(subject) else {
+        return CitedAuthor::NotStated;
+    };
+    if run.numbers.len() != 1 {
+        return CitedAuthor::NotStated;
+    }
+    let clause: Vec<&str> = run
+        .after
+        .iter()
+        .map(String::as_str)
+        .skip_while(|token| is_author_clause_filler(token))
+        .collect();
+    let Some((first, rest)) = clause.split_first() else {
+        return CitedAuthor::NotStated;
+    };
+    if bare_word(first).eq_ignore_ascii_case("gouvernement") {
+        return CitedAuthor::Government;
+    }
+    let name = match *first {
+        "M." | "M" | "Mme" | "mme" => name_words(rest),
+        glued => match glued.strip_prefix("M.") {
+            Some(start) if !start.is_empty() => name_words(&[&[start][..], rest].concat()),
+            _ => Vec::new(),
+        },
+    };
+    if name.is_empty() {
+        CitedAuthor::NotStated
+    } else {
+        CitedAuthor::Deputy(name.join(" "))
+    }
+}
+
+/// Suite de numeros cites par l'objet, et les mots qui la suivent.
+struct NumberRun {
+    numbers: Vec<AmendmentNumber>,
+    after: Vec<String>,
+}
+
+fn number_run(subject: &str) -> Option<NumberRun> {
     let cleaned = clean(subject);
     let lower = lowercase(&cleaned);
 
-    let Some(marker) = lower.find("amendement") else {
-        return Vec::new();
-    };
+    let marker = lower.find("amendement")?;
     let tail = &lower[marker..];
-
-    let Some(numbers_at) = number_marker_end(tail) else {
-        return Vec::new();
-    };
+    let numbers_at = number_marker_end(tail)?;
+    let run_text = &tail[numbers_at..];
 
     let mut numbers = Vec::new();
-    for token in tail[numbers_at..].split_whitespace() {
+    let mut consumed = 0;
+    for token in run_text.split_whitespace() {
         let token = token.trim_matches(|c: char| !c.is_alphanumeric());
         if token.is_empty() {
+            consumed += 1;
             continue;
         }
         let digits = token
@@ -819,15 +878,90 @@ pub fn amendment_numbers_in_subject(subject: &str) -> Vec<AmendmentNumber> {
                     numbers.push(number);
                 }
             }
+            consumed += 1;
             continue;
         }
         if is_number_run_filler(token) {
+            consumed += 1;
             continue;
         }
         break;
     }
 
-    numbers
+    // `lowercase` rend un caractere pour un caractere: le texte suivant se relit
+    // dans sa casse d'origine au meme rang de caractere.
+    let run_chars = lower[..lower.len() - run_text.len()].chars().count();
+    let original: String = cleaned.chars().skip(run_chars).collect();
+    let after = original
+        .split_whitespace()
+        .skip(consumed)
+        .map(str::to_string)
+        .collect();
+    Some(NumberRun { numbers, after })
+}
+
+/// Mots qui peuvent separer le numero de l'auteur: rectification, renvoi aux
+/// amendements identiques, preposition.
+fn is_author_clause_filler(token: &str) -> bool {
+    let word = lowercase(bare_word(token));
+    matches!(
+        word.as_str(),
+        "et" | "de"
+            | "d"
+            | "du"
+            | "les"
+            | "l'amendement"
+            | "amendement"
+            | "amendements"
+            | "identique"
+            | "identiques"
+            | "suivant"
+            | "suivants"
+    ) || word.starts_with("rect")
+        || is_rectification_rank(&word)
+}
+
+/// « 2e », « 2ème », « 3eme » dans « (2ème rect.) ».
+fn is_rectification_rank(word: &str) -> bool {
+    let ordinal = word.trim_start_matches(|c: char| c.is_ascii_digit());
+    ordinal.len() < word.len() && matches!(ordinal, "e" | "ème" | "eme")
+}
+
+fn bare_word(token: &str) -> &str {
+    token.trim_matches(|c: char| !c.is_alphanumeric())
+}
+
+/// Mots du nom qui suit la civilite: majuscules et particules, jusqu'au premier
+/// autre mot ou a la premiere ponctuation.
+fn name_words<'t>(tokens: &[&'t str]) -> Vec<&'t str> {
+    let mut name = Vec::new();
+    for (index, token) in tokens.iter().enumerate() {
+        let word = token.trim_end_matches(|c: char| !c.is_alphanumeric());
+        let keeps = starts_a_name(word)
+            || (is_name_particle(word)
+                && tokens[index + 1..]
+                    .iter()
+                    .find(|next| !is_name_particle(next))
+                    .is_some_and(|next| starts_a_name(next)));
+        if !keeps {
+            break;
+        }
+        name.push(word);
+        if word.len() < token.len() {
+            break;
+        }
+    }
+    name
+}
+
+/// Majuscule initiale, y compris apres une elision (« d'Intorni », « Prud'homme »).
+fn starts_a_name(word: &str) -> bool {
+    let initial = |text: &str| text.chars().next().is_some_and(char::is_uppercase);
+    initial(word) || word.rsplit('\'').next().is_some_and(initial)
+}
+
+fn is_name_particle(word: &str) -> bool {
+    matches!(word, "de" | "du" | "des" | "la" | "le" | "les")
 }
 
 /// Fin du marqueur de numerotation (« n° », « no ») qui ouvre la suite de
@@ -870,6 +1004,60 @@ mod tests {
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
+    }
+
+    #[test]
+    fn should_read_each_author_form_when_subject_names_an_author() {
+        let deputy = |name: &str| CitedAuthor::Deputy(name.to_string());
+        let cases = [
+            ("l'amendement n° 1 du Gouvernement à l'article 3", CitedAuthor::Government),
+            ("l'amendement n° 1 (rect.) du Gouvernement à l'article 3", CitedAuthor::Government),
+            ("l'amendement n° 2 de du Gouvernement à l'article 31", CitedAuthor::Government),
+            (
+                "l'amendement n° 105 du Gouvernement et les amendements identiques suivants",
+                CitedAuthor::Government,
+            ),
+            ("l'amendement n° 12 de M. Sansu à l'article 57", deputy("Sansu")),
+            ("l'amendement n° 12 de Mme Bentorki à l'article 51", deputy("Bentorki")),
+            ("l'amendement n° 12 (2ème rect.) de M. Baptiste à l'article 10", deputy("Baptiste")),
+            ("l'amendement n° 12 de M.Renault à l'article 42", deputy("Renault")),
+            ("l'amendement n° 12 de M Fournier et l'amendement identique", deputy("Fournier")),
+            ("l'amendement n° 12 Mme Capdevielle et l'amendement identique", deputy("Capdevielle")),
+            ("l'amendement n° 12 de de Mme Lebon et les amendements", deputy("Lebon")),
+            ("l'amendement n° 12 de mme Runel et l'amendement", deputy("Runel")),
+            ("l'amendement n° 12 de M. Le Coq à l'article 57", deputy("Le Coq")),
+            ("l'amendement n° 12 de M. de Courson à l'article 57", deputy("de Courson")),
+            ("l'amendement n° 12 de Mme d\u{2019}Intorni après l'article 3", deputy("d'Intorni")),
+            ("l'amendement n° 12 de M. Prud'homme à l'article 17", deputy("Prud'homme")),
+            ("l'amendement n° 12 de Mme Stambach-Terrenoir, rapporteure", deputy("Stambach-Terrenoir")),
+            (
+                "l'amendement n° 209 et les amendements identiques suivants de M. Hetzel à l'article 7",
+                deputy("Hetzel"),
+            ),
+            (
+                "le sous-amendement n° 2 de Mme Perrine Goulet à l'amendement n° 1 du Gouvernement",
+                deputy("Perrine Goulet"),
+            ),
+        ];
+        for (subject, expected) in cases {
+            assert_eq!(cited_author_in_subject(subject), expected, "{subject}");
+        }
+    }
+
+    #[test]
+    fn should_state_no_author_when_subject_gives_nothing_to_compare() {
+        let subjects = [
+            "l'article 12 du projet de loi",
+            "l'amendement de M. Martin à l'article 3",
+            "l'amendement n° 34 après l'article 13 du projet de loi",
+            "l'amendement n° 5 de la commission des lois à l'article 3",
+            "l'amendement n° 5 de M. le rapporteur à l'article 3",
+            "l'amendement n° 2 du Gouvernemnt à l'article 31",
+            "les amendements identiques n° 12 et 45 de M. Martin",
+        ];
+        for subject in subjects {
+            assert_eq!(cited_author_in_subject(subject), CitedAuthor::NotStated, "{subject}");
+        }
     }
 
     fn deputy_author(actor: &str) -> Author {

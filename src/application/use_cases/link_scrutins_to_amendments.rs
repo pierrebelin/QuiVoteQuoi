@@ -58,7 +58,7 @@ mod tests {
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
     use crate::domain::amendment::{AmendmentNumber, AmendmentTarget, AmendmentUid};
     use crate::domain::amendment_citation::{
-        CandidateAmendment, CitationOutcome, CitationResult, UnlinkedCause,
+        CandidateAmendment, CandidateAuthor, CitationOutcome, CitationResult, UnlinkedCause,
     };
     use crate::domain::dossier::DossierUid;
     use crate::domain::scrutin::ScrutinUid;
@@ -82,12 +82,23 @@ mod tests {
     }
 
     fn candidate(uid: &str, dossier_uid: &str, number: &str) -> CandidateAmendment {
+        authored_candidate(uid, dossier_uid, number, "ARTICLE 3", CandidateAuthor::Deputy { name: None })
+    }
+
+    fn authored_candidate(
+        uid: &str,
+        dossier_uid: &str,
+        number: &str,
+        target: &str,
+        author: CandidateAuthor,
+    ) -> CandidateAmendment {
         CandidateAmendment::new(
             AmendmentUid::new(uid.to_string()).unwrap(),
             dossier(dossier_uid),
             AmendmentNumber::new(number.to_string()).unwrap(),
-            &AmendmentTarget::new("ARTICLE 3".to_string(), None).unwrap(),
+            &AmendmentTarget::new(target.to_string(), None).unwrap(),
             None,
+            author,
         )
     }
 
@@ -125,6 +136,69 @@ mod tests {
             stored[0].outcome.result,
             CitationResult::Linked { .. }
         ));
+    }
+
+    /// Cas reel: scrutin n° 9758, le n° 1 de seconde deliberation repart a 1.
+    #[tokio::test]
+    async fn should_not_link_second_deliberation_vote_to_homonymous_amendment_of_another_author() {
+        let repository = InMemoryCitationRepository::default();
+        *repository.scrutins.lock().unwrap() = vec![scrutin(
+            "VTANR5L17V9758",
+            "l'amendement n° 1 du Gouvernement à l'article liminaire du projet de loi de \
+             finances pour 2027 (seconde délibération) (première lecture).",
+            Some("DLR5L17N54629"),
+        )];
+        *repository.amendments.lock().unwrap() = vec![authored_candidate(
+            "AMANRI1",
+            "DLR5L17N54629",
+            "I-1",
+            "Article 3",
+            CandidateAuthor::Deputy {
+                name: Some("Laurent Wauquiez".to_string()),
+            },
+        )];
+
+        let report = LinkScrutinsToAmendments::new(&repository)
+            .execute()
+            .await
+            .unwrap();
+
+        let stored = repository.citations.lock().unwrap();
+        assert_eq!(
+            stored[0].outcome.result,
+            CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)
+        );
+        assert_eq!(report.author_mismatch, 1);
+        assert_eq!(report.linked, 0);
+    }
+
+    /// Cas reel: scrutin n° 9619, auteur institutionnel sans nom de depute.
+    #[tokio::test]
+    async fn should_link_government_amendment_when_author_has_no_deputy_name() {
+        let repository = InMemoryCitationRepository::default();
+        *repository.scrutins.lock().unwrap() = vec![scrutin(
+            "VTANR5L17V9619",
+            "l'amendement n° 3990 du Gouvernement après l'article 27 du projet de loi de \
+             finances pour 2027 (première lecture).",
+            Some("DLR5L17N54629"),
+        )];
+        *repository.amendments.lock().unwrap() = vec![authored_candidate(
+            "AMANRI3990",
+            "DLR5L17N54629",
+            "I-3990",
+            "Article 27",
+            CandidateAuthor::Institutional {
+                label: "Gouvernement".to_string(),
+            },
+        )];
+
+        let report = LinkScrutinsToAmendments::new(&repository)
+            .execute()
+            .await
+            .unwrap();
+
+        assert_eq!(report.linked, 1);
+        assert_eq!(report.author_mismatch, 0);
     }
 
     #[tokio::test]
@@ -188,6 +262,7 @@ mod tests {
                 no_dossier: 1,
                 unresolved: 1,
                 ambiguous: 0,
+                author_mismatch: 0,
             }
         );
     }

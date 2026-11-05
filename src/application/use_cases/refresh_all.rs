@@ -287,7 +287,7 @@ mod tests {
     use crate::domain::amendment::{
         Amendment, AmendmentNumber, AmendmentTarget, AmendmentUid,
     };
-    use crate::domain::amendment_citation::CandidateAmendment;
+    use crate::domain::amendment_citation::{CandidateAmendment, CandidateAuthor};
     use crate::domain::dataset::DatasetShape;
     use crate::domain::ingestion::{CheckOutcome, IngestionSource};
     use chrono::{TimeZone, Utc};
@@ -754,6 +754,7 @@ mod tests {
             AmendmentNumber::new("12".to_string()).unwrap(),
             &AmendmentTarget::new("ARTICLE 3".to_string(), None).unwrap(),
             None,
+            CandidateAuthor::Deputy { name: None },
         )];
 
         let outcome = refresh!(

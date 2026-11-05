@@ -2,16 +2,19 @@
 //!
 //! Voir `todo/sujet-amendements/SPEC-sujet-amendements.md`. L'objet d'un scrutin
 //! cite des numeros d'amendement; chacun se resout en un amendement unique du
-//! dossier publie par la source, ou en une cause d'absence de lien (RM-01 a RM-04).
+//! dossier publie par la source, ou en une cause d'absence de lien (RM-01 a RM-04,
+//! RM-11).
 
 use chrono::NaiveDate;
 
 use super::amendment::{
-    amendment_numbers_in_subject, AmendmentNumber, AmendmentTarget, AmendmentUid,
+    amendment_numbers_in_subject, cited_author_in_subject, AmendmentNumber, AmendmentTarget,
+    AmendmentUid, CitedAuthor,
 };
 use super::article::ArticleNumber;
 use super::dossier::DossierUid;
 use super::scrutin::ScrutinUid;
+use super::theme::lowercase;
 
 /// Dossier dans lequel chercher les amendements cites (RM-04).
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -29,6 +32,70 @@ impl SearchDossier {
     }
 }
 
+/// Auteur publie d'un amendement, tel que compare a l'objet du scrutin (RM-11).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum CandidateAuthor {
+    /// `name` vaut `None` quand le repertoire ne connait pas l'acteur.
+    Deputy { name: Option<String> },
+    Institutional { label: String },
+}
+
+impl CandidateAuthor {
+    /// Vrai seulement quand l'objet et la source designent deux auteurs differents.
+    ///
+    /// Un rapporteur peut porter en seance l'amendement de sa commission: un
+    /// depute nomme ne contredit donc pas une commission. Un auteur inconnu ne
+    /// contredit rien.
+    fn contradicts(&self, cited: &CitedAuthor) -> bool {
+        match (cited, self) {
+            (CitedAuthor::NotStated, _) => false,
+            (CitedAuthor::Government, Self::Deputy { .. }) => true,
+            (CitedAuthor::Government, Self::Institutional { label }) => !is_government(label),
+            (CitedAuthor::Deputy(_), Self::Institutional { label }) => is_government(label),
+            (CitedAuthor::Deputy(_), Self::Deputy { name: None }) => false,
+            (CitedAuthor::Deputy(cited), Self::Deputy { name: Some(name) }) => {
+                !name_contains(name, cited)
+            }
+        }
+    }
+}
+
+fn is_government(label: &str) -> bool {
+    lowercase(label).contains("gouvernement")
+}
+
+/// Chaque mot du nom cite figure dans le nom publie, particules exceptees, sans
+/// tenir compte de la casse, des accents ni des tirets.
+fn name_contains(published: &str, cited: &str) -> bool {
+    let published = comparable_words(published);
+    comparable_words(cited)
+        .iter()
+        .all(|word| published.contains(word))
+}
+
+fn comparable_words(name: &str) -> Vec<String> {
+    let folded: String = lowercase(name).chars().map(without_accent).collect();
+    folded
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .filter(|word| !matches!(*word, "de" | "du" | "des" | "d" | "la" | "le" | "les" | "l"))
+        .map(str::to_string)
+        .collect()
+}
+
+fn without_accent(c: char) -> char {
+    match c {
+        '\u{e0}' | '\u{e2}' | '\u{e4}' => 'a',
+        '\u{e7}' => 'c',
+        '\u{e8}' | '\u{e9}' | '\u{ea}' | '\u{eb}' => 'e',
+        '\u{ee}' | '\u{ef}' => 'i',
+        '\u{f4}' | '\u{f6}' => 'o',
+        '\u{f9}' | '\u{fb}' | '\u{fc}' => 'u',
+        '\u{ff}' => 'y',
+        other => other,
+    }
+}
+
 /// Amendement d'un dossier, tel que propose au rapprochement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CandidateAmendment {
@@ -37,6 +104,7 @@ pub struct CandidateAmendment {
     number: AmendmentNumber,
     article: Option<ArticleNumber>,
     deposited_on: Option<NaiveDate>,
+    author: CandidateAuthor,
 }
 
 impl CandidateAmendment {
@@ -46,6 +114,7 @@ impl CandidateAmendment {
         number: AmendmentNumber,
         target: &AmendmentTarget,
         deposited_on: Option<NaiveDate>,
+        author: CandidateAuthor,
     ) -> Self {
         Self {
             uid,
@@ -53,6 +122,7 @@ impl CandidateAmendment {
             number,
             article: target.article(),
             deposited_on,
+            author,
         }
     }
 }
@@ -81,6 +151,7 @@ pub enum UnlinkedCause {
     NoDossier,
     Unresolved,
     Ambiguous,
+    AuthorMismatch,
 }
 
 impl UnlinkedCause {
@@ -90,6 +161,7 @@ impl UnlinkedCause {
             Self::NoDossier => "no_dossier",
             Self::Unresolved => "unresolved",
             Self::Ambiguous => "ambiguous",
+            Self::AuthorMismatch => "author_mismatch",
         }
     }
 
@@ -99,6 +171,7 @@ impl UnlinkedCause {
             "no_dossier" => Some(Self::NoDossier),
             "unresolved" => Some(Self::Unresolved),
             "ambiguous" => Some(Self::Ambiguous),
+            "author_mismatch" => Some(Self::AuthorMismatch),
             _ => None,
         }
     }
@@ -112,6 +185,9 @@ impl UnlinkedCause {
             }
             Self::Ambiguous => {
                 "Plusieurs amendements du dossier correspondent au num\u{e9}ro cit\u{e9}"
+            }
+            Self::AuthorMismatch => {
+                "L'amendement du dossier portant ce num\u{e9}ro a un autre auteur que celui nomm\u{e9} par l'objet"
             }
         }
     }
@@ -142,6 +218,7 @@ pub struct ScrutinCitations {
     search: SearchDossier,
     article: Option<ArticleNumber>,
     numbers: Vec<AmendmentNumber>,
+    author: CitedAuthor,
 }
 
 impl ScrutinCitations {
@@ -161,6 +238,7 @@ impl ScrutinCitations {
             search,
             article: ArticleNumber::in_text(subject),
             numbers: amendment_numbers_in_subject(subject),
+            author: cited_author_in_subject(subject),
         })
     }
 
@@ -217,9 +295,14 @@ impl ScrutinCitations {
             .copied()
             .filter(|c| c.number.answers(cited))
             .collect();
-        let linked = |candidate: &CandidateAmendment, by_cited_article| CitationResult::Linked {
-            amendment: candidate.uid.clone(),
-            method: LinkMethod { by_cited_article },
+        let linked = |candidate: &CandidateAmendment, by_cited_article| {
+            if candidate.author.contradicts(&self.author) {
+                return CitationResult::Unlinked(UnlinkedCause::AuthorMismatch);
+            }
+            CitationResult::Linked {
+                amendment: candidate.uid.clone(),
+                method: LinkMethod { by_cited_article },
+            }
         };
         match sharing.as_slice() {
             [] => CitationResult::Unlinked(UnlinkedCause::Unresolved),
@@ -263,6 +346,7 @@ pub struct LinkingReport {
     pub no_dossier: i64,
     pub unresolved: i64,
     pub ambiguous: i64,
+    pub author_mismatch: i64,
 }
 
 impl LinkingReport {
@@ -280,6 +364,7 @@ impl LinkingReport {
                 Some(UnlinkedCause::NoDossier) => report.no_dossier += entry.count,
                 Some(UnlinkedCause::Unresolved) => report.unresolved += entry.count,
                 Some(UnlinkedCause::Ambiguous) => report.ambiguous += entry.count,
+                Some(UnlinkedCause::AuthorMismatch) => report.author_mismatch += entry.count,
             }
         }
         report
@@ -339,7 +424,32 @@ mod tests {
             number(raw_number),
             &target,
             deposited_on,
+            CandidateAuthor::Deputy { name: None },
         )
+    }
+
+    fn authored(id: &str, raw_number: &str, title: &str, author: CandidateAuthor) -> CandidateAmendment {
+        let target = AmendmentTarget::new(title.to_string(), None).unwrap();
+        CandidateAmendment::new(
+            uid(id),
+            dossier("DLR5L17N1"),
+            number(raw_number),
+            &target,
+            Some(day(10)),
+            author,
+        )
+    }
+
+    fn deputy(name: &str) -> CandidateAuthor {
+        CandidateAuthor::Deputy {
+            name: Some(name.to_string()),
+        }
+    }
+
+    fn government() -> CandidateAuthor {
+        CandidateAuthor::Institutional {
+            label: "Gouvernement".to_string(),
+        }
     }
 
     fn published() -> SearchDossier {
@@ -505,6 +615,133 @@ mod tests {
     }
 
     #[test]
+    fn should_mark_author_mismatch_when_subject_names_government_and_candidate_is_a_deputy() {
+        let cited = citations(
+            "l'amendement n° 1 du Gouvernement à l'article liminaire du projet de loi de \
+             finances pour 2027 (seconde délibération) (première lecture).",
+            published(),
+        );
+        let candidates = [authored("I-1", "I-1", "Article 3", deputy("Laurent Wauquiez"))];
+        assert_eq!(
+            cited.resolve(&candidates),
+            vec![outcome(
+                0,
+                Some("1"),
+                CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)
+            )]
+        );
+    }
+
+    #[test]
+    fn should_link_government_amendment_when_its_published_author_is_the_government() {
+        let cited = citations(
+            "l'amendement n° 3990 du Gouvernement après l'article 27 du projet de loi de \
+             finances pour 2027 (première lecture).",
+            published(),
+        );
+        let candidates = [authored("I-3990", "I-3990", "Article 27", government())];
+        assert_eq!(
+            cited.resolve(&candidates),
+            vec![outcome(0, Some("3990"), linked("I-3990", false))]
+        );
+    }
+
+    #[test]
+    fn should_mark_author_mismatch_when_subject_names_government_and_candidate_is_a_commission() {
+        let cited = citations("l'amendement n° 1 du Gouvernement à l'article 3", published());
+        let commission = CandidateAuthor::Institutional {
+            label: "Commission".to_string(),
+        };
+        let candidates = [authored("A1", "1", "Article 3", commission)];
+        assert_eq!(
+            cited.resolve(&candidates)[0].result,
+            CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)
+        );
+    }
+
+    #[test]
+    fn should_mark_author_mismatch_when_subject_names_another_deputy() {
+        let cited = citations("l'amendement n° 12 de M. Martin à l'article 3", published());
+        let candidates = [authored("A12", "12", "Article 3", deputy("Laurent Wauquiez"))];
+        assert_eq!(
+            cited.resolve(&candidates)[0].result,
+            CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)
+        );
+    }
+
+    #[test]
+    fn should_mark_author_mismatch_when_subject_names_a_deputy_and_candidate_is_the_government() {
+        let cited = citations("l'amendement n° 12 de M. Martin à l'article 3", published());
+        let candidates = [authored("A12", "12", "Article 3", government())];
+        assert_eq!(
+            cited.resolve(&candidates)[0].result,
+            CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)
+        );
+    }
+
+    #[test]
+    fn should_link_when_named_deputy_matches_despite_accents_case_hyphens_and_particles() {
+        let pairs = [
+            ("de Mme Thiebault Martinez", "Céline Thiébault-Martinez"),
+            ("de M. Le Coq", "Aurélien Le Coq"),
+            ("de M. Courson", "Charles de Courson"),
+            ("de Mme d'Intorni", "Christelle D'Intorni"),
+            ("de Mme K/Bidi", "Émeline K/Bidi"),
+            ("de M. Philippe Vigier", "Philippe Vigier"),
+            ("de M.Renault", "Marc Renault"),
+        ];
+        for (clause, name) in pairs {
+            let cited = citations(&format!("l'amendement n° 12 {clause} à l'article 3"), published());
+            let candidates = [authored("A12", "12", "Article 3", deputy(name))];
+            assert_eq!(
+                cited.resolve(&candidates)[0].result,
+                linked("A12", false),
+                "{clause} / {name}"
+            );
+        }
+    }
+
+    #[test]
+    fn should_link_when_named_deputy_cannot_be_compared() {
+        let cited = citations("l'amendement n° 12 de M. Martin à l'article 3", published());
+        let unknown = CandidateAuthor::Deputy { name: None };
+        let commission = CandidateAuthor::Institutional {
+            label: "Commission des finances".to_string(),
+        };
+        for author in [unknown, commission] {
+            let candidates = [authored("A12", "12", "Article 3", author)];
+            assert_eq!(cited.resolve(&candidates)[0].result, linked("A12", false));
+        }
+    }
+
+    #[test]
+    fn should_link_when_subject_states_no_comparable_author() {
+        let subjects = [
+            "l'amendement n° 5 de la commission des lois à l'article 3",
+            "l'amendement n° 5 après l'article 3",
+            "l'amendement n° 5 de M. le rapporteur à l'article 3",
+        ];
+        for subject in subjects {
+            let cited = citations(subject, published());
+            let candidates = [authored("A5", "5", "Article 3", deputy("Laurent Wauquiez"))];
+            assert_eq!(cited.resolve(&candidates)[0].result, linked("A5", false), "{subject}");
+        }
+    }
+
+    #[test]
+    fn should_mark_author_mismatch_when_article_separates_candidates_but_author_differs() {
+        let cited = citations("l'amendement n° 243 du Gouvernement après l'article 15", published());
+        let candidates = [
+            authored("II-243", "II-243", "Article 52", government()),
+            authored("I-243", "I-243", "Après l'article 15", deputy("Laurent Wauquiez")),
+        ];
+        assert_eq!(
+            cited.resolve(&candidates)[0].result,
+            CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)
+        );
+    }
+
+    #[test]
     fn should_link_single_amendment_when_join_lists_it_twice() {
         let cited = citations("l'amendement n° 12 de M. Martin à l'article 3", published());
         let candidates = [
@@ -578,6 +815,7 @@ mod tests {
             (UnlinkedCause::NoDossier, "no_dossier", "La source ne rattache aucun dossier à ce scrutin"),
             (UnlinkedCause::Unresolved, "unresolved", "Aucun amendement du dossier ne correspond au numéro cité"),
             (UnlinkedCause::Ambiguous, "ambiguous", "Plusieurs amendements du dossier correspondent au numéro cité"),
+            (UnlinkedCause::AuthorMismatch, "author_mismatch", "L'amendement du dossier portant ce numéro a un autre auteur que celui nommé par l'objet"),
         ];
         for (cause, code, label) in expected {
             assert_eq!(cause.as_str(), code);
@@ -598,6 +836,7 @@ mod tests {
             outcome(1, Some("5"), CitationResult::Unlinked(UnlinkedCause::NoDossier)),
             outcome(0, Some("6"), CitationResult::Unlinked(UnlinkedCause::Unresolved)),
             outcome(0, Some("7"), CitationResult::Unlinked(UnlinkedCause::Ambiguous)),
+            outcome(0, Some("8"), CitationResult::Unlinked(UnlinkedCause::AuthorMismatch)),
         ];
         let expected = LinkingReport {
             linked: 3,
@@ -606,6 +845,7 @@ mod tests {
             no_dossier: 2,
             unresolved: 1,
             ambiguous: 1,
+            author_mismatch: 1,
         };
         assert_eq!(LinkingReport::from_outcomes(&outcomes), expected);
         assert_eq!(
@@ -616,6 +856,7 @@ mod tests {
                 CitationCount { cause: Some(UnlinkedCause::NoDossier), by_cited_article: false, count: 2 },
                 CitationCount { cause: Some(UnlinkedCause::Unresolved), by_cited_article: false, count: 1 },
                 CitationCount { cause: Some(UnlinkedCause::Ambiguous), by_cited_article: false, count: 1 },
+                CitationCount { cause: Some(UnlinkedCause::AuthorMismatch), by_cited_article: false, count: 1 },
             ]),
             expected
         );

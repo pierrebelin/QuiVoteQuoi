@@ -111,6 +111,7 @@ mod tests {
                 no_dossier: 0,
                 unresolved: 0,
                 ambiguous: 1,
+                author_mismatch: 0,
             }
         );
     }
