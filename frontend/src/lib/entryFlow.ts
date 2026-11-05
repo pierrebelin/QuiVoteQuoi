@@ -204,6 +204,16 @@ export function stanceDescription(
   return `${group.label} : ${POSITION_WORDS[position]} (${counts})${published ? `. ${published}` : ''}`
 }
 
+/** « 14 votants sur 17 députés » ; `null` quand personne n'a voté ou sans ligne publiée. */
+export function stanceTurnout(stance: StanceDto | undefined): string | null {
+  if (!stance) return null
+  const voters = voterCount(stance)
+  if (voters === 0) return null
+  const members = stance.member_count
+  const of = members == null ? '' : ` sur ${plural(members, 'député')}`
+  return `${plural(voters, 'votant')}${of}`
+}
+
 /** Phrase du bandeau du groupe suivi. */
 export function stanceSentence(stance: StanceDto | undefined): string {
   const position = groupPosition(stance)
