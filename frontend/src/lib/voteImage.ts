@@ -108,18 +108,24 @@ const GABARITS: Record<
  */
 export const RESEAUX: Record<
   ReseauImage,
-  { libelle: string; gabarit: Gabarit; usage: string }
+  {
+    libelle: string
+    gabarit: Gabarit
+    usage: string
+    /** Longueur maximale d'un texte, pour les réseaux où elle est courte. */
+    limiteTexte?: number
+  }
 > = {
   instagram: { libelle: 'Instagram', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
   reel: { libelle: 'Reel / Story', gabarit: 'vertical', usage: 'Instagram et Facebook, 9:16, hors zones des boutons' },
   tiktok: { libelle: 'TikTok', gabarit: 'vertical', usage: 'Mode photo, 9:16, hors zones des boutons' },
   linkedin: { libelle: 'LinkedIn', gabarit: 'portrait', usage: 'Image du fil, 4:5' },
   facebook: { libelle: 'Facebook', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
-  threads: { libelle: 'Threads', gabarit: 'portrait', usage: 'Publication du fil, 4:5' },
+  threads: { libelle: 'Threads', gabarit: 'portrait', usage: 'Publication du fil, 4:5', limiteTexte: 500 },
   reddit: { libelle: 'Reddit', gabarit: 'carre', usage: 'Publication image, 1:1' },
-  x: { libelle: 'X', gabarit: 'paysage', usage: 'Image du fil, 16:9' },
-  bluesky: { libelle: 'Bluesky', gabarit: 'paysage', usage: 'Image du fil, 16:9' },
-  mastodon: { libelle: 'Mastodon', gabarit: 'paysage', usage: 'Image du fil, 16:9' },
+  x: { libelle: 'X', gabarit: 'paysage', usage: 'Image du fil, 16:9', limiteTexte: 280 },
+  bluesky: { libelle: 'Bluesky', gabarit: 'paysage', usage: 'Image du fil, 16:9', limiteTexte: 300 },
+  mastodon: { libelle: 'Mastodon', gabarit: 'paysage', usage: 'Image du fil, 16:9', limiteTexte: 500 },
 }
 
 /** Dimensions en pixels de l'image d'un réseau. */
@@ -425,6 +431,9 @@ function hemicycle(
   ctx.textAlign = 'left'
 }
 
+const NOTE_RECONSTITUE =
+  '* Répartition reconstituée à partir des positions nominales, non publiée par l’Assemblée.'
+
 function nomGroupe(groupe: GroupBreakdownDto) {
   // Sigle officiel, jamais un parti (README.md §3.1).
   const nom = groupe.abbrev ?? groupe.label ?? groupe.group_uid ?? 'Sans groupe'
@@ -539,7 +548,7 @@ function groupes(
       ctx,
       [
         {
-          texte: '* Répartition reconstituée à partir des positions nominales, non publiée par l’Assemblée.',
+          texte: NOTE_RECONSTITUE,
           couleur: p.encrePale,
         },
       ],
@@ -746,13 +755,43 @@ export function dessinerVote(
   }
 }
 
-/** Texte d'accompagnement : les nombres, sans adverbe, et le lien. */
-export function texteDePartage(data: ScrutinDetailDto, lien: string) {
+/** Ligne d'un groupe dans le texte d'accompagnement : les chiffres de l'image, en toutes lettres. */
+function ligneGroupe(groupe: GroupBreakdownDto) {
+  const t = groupe.tally
+  const chiffres = [
+    `${t.votes_for} pour`,
+    `${t.votes_against} contre`,
+    `${t.abstentions} abstention${t.abstentions > 1 ? 's' : ''}`,
+    ...(t.not_voting > 0 ? [`${t.not_voting} non-votant${t.not_voting > 1 ? 's' : ''}`] : []),
+  ]
+  return `${nomGroupe(groupe)} : ${chiffres.join(', ')}`
+}
+
+/**
+ * Texte d'accompagnement : les nombres, sans adverbe, le vote de chaque groupe
+ * et le lien. Là où le détail dépasse la limite du réseau, il cède la place au
+ * total : tronquer la liste ferait disparaître des groupes (README.md §2).
+ */
+export function texteDePartage(data: ScrutinDetailDto, lien: string, reseau: ReseauImage) {
   const t = data.synthesis.tally
   const titre = data.dossier_uid ? data.dossier_label || data.subject : data.subject
-  return (
+  const resume =
     `Scrutin n° ${data.number} du ${formatDate(data.date)} — ${majuscule(data.outcome_code)} : ` +
     `${t.votes_for} pour, ${t.votes_against} contre, ${t.abstentions} abstention${t.abstentions > 1 ? 's' : ''}.\n` +
-    `${titre}\n${lien}`
-  )
+    titre
+  const court = `${resume}\n${lien}`
+  if (data.groups.length === 0) return court
+
+  const reconstitue = data.groups.some((g) => g.origin === 'reconstructed')
+  const complet = [
+    resume,
+    '',
+    'Vote par groupe :',
+    ...data.groups.map(ligneGroupe),
+    ...(reconstitue ? ['', NOTE_RECONSTITUE] : []),
+    '',
+    lien,
+  ].join('\n')
+  const limite = RESEAUX[reseau].limiteTexte
+  return limite !== undefined && complet.length > limite ? court : complet
 }
