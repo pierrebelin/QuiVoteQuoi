@@ -51,7 +51,7 @@ export function OutcomePanel({
   if (outcome.kind === 'no_recorded_conclusion') {
     return (
       <Card className="px-4 py-3">
-        <p className="text-sm font-semibold">Sans conclusion enregistrée</p>
+        <p className="text-sm font-semibold">Sans conclusion à ce jour</p>
         <p className="text-xs text-ink-soft mt-0.5">
           L'Assemblée n'a publié aucun acte de clôture pour ce dossier. Dernier
           acte connu : {lastActivityLabel}, le {formatDate(lastActivityDate)}.

@@ -7,22 +7,62 @@ import type { FamilyDto } from '../types/themes'
 export interface FilterOption {
   value: string
   label: string
+  /** Précision affichée sous l'option, quand son libellé ne suffit pas. */
+  help?: string
+}
+
+export interface FilterShortcut {
+  label: string
+  /** Dossiers que le raccourci affiche ; `undefined` tant qu'il n'est pas connu. */
+  count: number | undefined
+  active: boolean
+  onToggle: () => void
 }
 
 /**
- * Champs de filtre de la liste des dossiers : sort, initiative, thème.
+ * Bouton qui pose d'un coup plusieurs filtres, et les retire au second appui.
+ * Plein ET coché quand il est actif : pas la seule couleur.
+ */
+export function ShortcutChip({ shortcut }: { shortcut: FilterShortcut }) {
+  const { label, count, active, onToggle } = shortcut
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={onToggle}
+      className={`flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-semibold transition-colors ${FOCUS} ${
+        active
+          ? 'bg-ink text-surface'
+          : 'bg-surface text-ink ring-1 ring-line-strong ring-inset hover:bg-surface-soft'
+      }`}
+    >
+      <Icon
+        name={active ? 'check' : 'dossiers'}
+        className={`size-[18px] ${active ? '' : 'text-ink-soft'}`}
+        strokeWidth={active ? 3 : undefined}
+      />
+      {label}
+      {count !== undefined && (
+        <span className={`ml-auto text-[13px] font-medium ${active ? '' : 'text-ink-soft'}`}>
+          {count.toLocaleString('fr-FR')}
+        </span>
+      )}
+    </button>
+  )
+}
+
+/**
+ * Champs de filtre de la liste des dossiers : raccourci, sort, initiative, thème.
  *
  * Le même contenu sert à deux endroits : dans le tiroir « Filtres » sous
  * 1024 px, et dans la colonne de gauche au-delà. Il n'a donc aucun état propre
  * (les filtres vivent dans l'URL, la page les lui passe). La colonne reste
  * montée mais masquée (`display: none`) sous 1024 px : elle n'est ni visible
  * ni atteignable au clavier tant que le tiroir est le seul à servir.
- *
- * Pour ajouter un raccourci (un bouton qui pose d'un coup plusieurs filtres),
- * l'ajouter ici comme une `SheetSection` de plus, avant « Sort ».
  */
 export default function DossierFilters({
   layout,
+  shortcut,
   outcomes,
   selectedOutcomes,
   onToggleOutcome,
@@ -35,6 +75,7 @@ export default function DossierFilters({
 }: {
   /** `sheet` : tiroir étroit, initiative en trois boutons. `aside` : colonne, en rangées. */
   layout: 'sheet' | 'aside'
+  shortcut: FilterShortcut
   outcomes: FilterOption[]
   selectedOutcomes: string[]
   onToggleOutcome: (value: string) => void
@@ -49,16 +90,26 @@ export default function DossierFilters({
 }) {
   return (
     <>
+      <SheetSection title="Raccourci">
+        <ShortcutChip shortcut={shortcut} />
+      </SheetSection>
+
       <SheetSection title="Sort">
         <div role="group" aria-label="Sort">
           {outcomes.map((option) => (
-            <CheckRow
-              key={option.value}
-              checked={selectedOutcomes.includes(option.value)}
-              onToggle={() => onToggleOutcome(option.value)}
-            >
-              {option.label}
-            </CheckRow>
+            <div key={option.value}>
+              <CheckRow
+                checked={selectedOutcomes.includes(option.value)}
+                onToggle={() => onToggleOutcome(option.value)}
+              >
+                {option.label}
+              </CheckRow>
+              {option.help && (
+                <p className="mx-0.5 mt-1.5 text-[12.5px] leading-snug text-ink-soft">
+                  {option.help}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       </SheetSection>

@@ -3,7 +3,11 @@ import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import { BottomSheet } from '../components/BottomSheet'
 import DossierCard, { type DossierCardDto } from '../components/DossierCard'
-import DossierFilters from '../components/DossierFilters'
+import DossierFilters, {
+  ShortcutChip,
+  type FilterOption,
+  type FilterShortcut,
+} from '../components/DossierFilters'
 import { Icon } from '../components/icons'
 import { FOCUS, SheetButton } from '../components/SheetControls'
 import { Button, ErrorPanel, Loading, PageHeader } from '../components/ui'
@@ -25,23 +29,28 @@ const PER_PAGE = 20
   n'en offrir que trois laisserait croire que les deux autres n'existent pas.
   Par défaut, la liste montre les dossiers terminés (promulgués, retirés,
   absorbés) : les ouverts, sans acte de conclusion, sont presque tous vides et
-  n'apprennent rien. « En cours » les ajoute sur demande. Il désigne ici les
-  dossiers sans conclusion enregistrée par la source, pas un jugement sur
-  leur avenir (README.md §6).
+  n'apprennent rien. « Sans conclusion à ce jour » les ajoute sur demande. Jamais
+  « en cours » : la source ne l'affirme pas pour ces dossiers (README.md §6).
 */
-const outcomes = [
+const NO_CONCLUSION = 'no_recorded_conclusion'
+const NO_CONCLUSION_HELP =
+  "La source ne publie aucune issue pour ces dossiers. Cela ne dit pas qu'ils avancent : chaque carte donne son étape datée."
+
+const outcomes: FilterOption[] = [
   { value: 'promulgated', label: 'Promulgués' },
   { value: 'withdrawn', label: 'Retirés' },
   { value: 'merged_into', label: 'Absorbés' },
   { value: 'rejected', label: 'Rejetés' },
-  { value: 'no_recorded_conclusion', label: 'En cours' },
+  { value: NO_CONCLUSION, label: 'Sans conclusion à ce jour', help: NO_CONCLUSION_HELP },
 ]
 
 const DEFAULT_OUTCOMES = ['promulgated', 'withdrawn', 'merged_into']
 
+const GOVERNMENT = 'government'
+
 const initiatives = [
   { value: '', label: 'Toutes' },
-  { value: 'government', label: 'Projets de loi' },
+  { value: GOVERNMENT, label: 'Projets de loi' },
   { value: 'parliamentary', label: 'Propositions' },
 ]
 
@@ -100,6 +109,23 @@ export default function DossierListPage() {
     retry: false,
   })
 
+  // Le nombre du raccourci suit la recherche et le thème, conservés quand on
+  // l'active : il annonce ce que l'appui affichera vraiment.
+  const shortcutQuery = new URLSearchParams({
+    page: '1',
+    per_page: '1',
+    outcome: NO_CONCLUSION,
+    initiative: GOVERNMENT,
+  })
+  if (search) shortcutQuery.set('search', search)
+  if (theme) shortcutQuery.set('family', theme)
+
+  const shortcutTotal = useQuery<DossierPageResponse>({
+    queryKey: ['dossiers', shortcutQuery.toString()],
+    queryFn: () => fetchJson<DossierPageResponse>(`/api/dossiers?${shortcutQuery}`),
+    retry: false,
+  })
+
   const today = new Date().toISOString().slice(0, 10)
 
   /*
@@ -131,6 +157,19 @@ export default function DossierListPage() {
       ordered.length === DEFAULT_OUTCOMES.length &&
       DEFAULT_OUTCOMES.every((v) => ordered.includes(v))
     apply({ outcome: isDefault ? '' : ordered.join(',') })
+  }
+
+  const shortcutActive = outcomeParam === NO_CONCLUSION && initiative === GOVERNMENT
+  const shortcut: FilterShortcut = {
+    label: 'Projets de loi sans conclusion',
+    count: shortcutTotal.data?.total,
+    active: shortcutActive,
+    onToggle: () =>
+      apply(
+        shortcutActive
+          ? { outcome: '', initiative: '' }
+          : { outcome: NO_CONCLUSION, initiative: GOVERNMENT },
+      ),
   }
 
   const goTo = (next: number) => apply({ page: next === 1 ? '' : String(next) })
@@ -189,7 +228,7 @@ export default function DossierListPage() {
         title="Dossiers législatifs"
         lede={
           !data
-            ? 'Les dossiers législatifs de cette législature, du plus récemment actif au plus ancien.'
+            ? 'Les dossiers législatifs, du plus récemment actif au plus ancien.'
             : filtered
               ? /*
                   Sous filtre, le total affiché n'est plus celui de la base :
@@ -197,7 +236,7 @@ export default function DossierListPage() {
                   à ces dossiers (README.md §2).
                 */
                 `${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''} correspond${data.total > 1 ? 'ent' : ''} à ces filtres. Les filtres restreignent l'affichage, jamais la base.${theme ? ' Seuls les dossiers déjà rattachés à un thème y figurent.' : ''}`
-              : `Les ${data.total.toLocaleString('fr-FR')} dossiers terminés sous cette législature, du plus récemment actif au plus ancien. Les dossiers en cours, ou tous, sont à un clic.`
+              : `Les ${data.total.toLocaleString('fr-FR')} dossiers terminés (promulgués, retirés ou absorbés), du plus récemment actif au plus ancien. Ceux sans conclusion à ce jour s'ajoutent depuis les filtres.`
         }
         /*
           Les scrutins sont le détail d'un dossier avant d'être une rubrique :
@@ -268,6 +307,12 @@ export default function DossierListPage() {
             </button>
           </form>
 
+          {/* Visible sans ouvrir le tiroir : c'est le chemin le plus court vers
+              les projets de loi sans issue publiée. */}
+          <div className="lg:hidden">
+            <ShortcutChip shortcut={shortcut} />
+          </div>
+
           <div className="flex items-center gap-2 lg:hidden">
             <p className="flex min-w-0 flex-1 items-start gap-1.5 text-[13px] leading-snug text-ink-soft">
               <Icon name="check" className="mt-0.5 size-3.5" strokeWidth={3} />
@@ -282,6 +327,7 @@ export default function DossierListPage() {
           <div className="hidden lg:block">
             <DossierFilters
               layout="aside"
+              shortcut={shortcut}
               outcomes={outcomes}
               selectedOutcomes={selected}
               onToggleOutcome={toggleOutcome}
@@ -297,6 +343,15 @@ export default function DossierListPage() {
         </div>
 
         <div className="min-w-0">
+          {/* Le raccourci mène ici sans passer par le tiroir : l'aide doit être
+              lue avant les cartes. À partir de 1024 px, la colonne la montre déjà. */}
+          {selected.includes(NO_CONCLUSION) && (
+            <p className="mb-3 flex gap-2 rounded-xl bg-info-soft px-3 py-2.5 text-[12.5px] leading-snug text-ink lg:hidden">
+              <Icon name="info" className="mt-px size-4 text-info" />
+              <span>{NO_CONCLUSION_HELP}</span>
+            </p>
+          )}
+
           {isLoading && <Loading>Chargement des dossiers…</Loading>}
           {isError && <ErrorPanel error={error} />}
 
@@ -367,6 +422,7 @@ export default function DossierListPage() {
         </p>
         <DossierFilters
           layout="sheet"
+          shortcut={shortcut}
           outcomes={outcomes}
           selectedOutcomes={selected}
           onToggleOutcome={toggleOutcome}
