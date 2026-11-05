@@ -127,7 +127,9 @@ html[data-theme='dark'] {
 
   --color-ink: #f4f4f5;
   --color-ink-soft: #a1a1aa;
-  --color-ink-faint: #71717a;
+  /* #71717a ne donnait que 3,8:1 sur la surface des cartes et 4,1:1 sur le
+     canevas : sous le seuil AA (4,5:1) pour du texte de 12 px. */
+  --color-ink-faint: #8b8b95;
 
   --color-accent: #60a5fa;
   --color-accent-strong: #93c5fd;
