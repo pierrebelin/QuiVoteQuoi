@@ -1,8 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { FamilyIllustration } from '../components/FamilyIllustration'
+import { Icon } from '../components/icons'
 import { MethodNote } from '../components/ThemeBadges'
 import { ErrorPanel, Loading, Note, PageHeader } from '../components/ui'
+import { firstSentence } from '../lib/text'
+import { formatCount } from '../types/groups'
 import type { FamiliesResponse, MethodResponse } from '../types/themes'
 
 export default function ThemeListPage() {
@@ -40,10 +43,50 @@ export default function ThemeListPage() {
 
       <MethodNote note={families.data!.method_note} />
 
-      {/* Une vignette et un titre par famille ; le périmètre s'affiche au
-          survol (ou au focus clavier) par-dessus la vignette. Sur un écran
-          tactile, sans survol, il reste écrit sous le titre. */}
-      <ul className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4">
+      {/* Sous 640 px : une ligne aérée par thème, vignette de 56 px, première
+          phrase du périmètre et décomptes ; toute la ligne est le lien. */}
+      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card sm:hidden">
+        {families.data!.families.map((family) => {
+          const stats = coverage.get(family.code)
+          return (
+            <li key={family.code}>
+              <Link
+                to={`/themes/${family.code}`}
+                className="group grid grid-cols-[56px_minmax(0,1fr)_16px] items-center gap-3 px-3.5 py-3 transition-colors hover:bg-surface-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+              >
+                <FamilyIllustration
+                  code={family.code}
+                  className="size-14 rounded-[14px]"
+                  glyphClassName="size-[30px]"
+                />
+                <div className="min-w-0">
+                  <p className="text-[15.5px] leading-tight font-semibold text-ink">
+                    {family.label}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-[13px] leading-[1.35] text-ink-soft">
+                    {firstSentence(family.scope)}
+                  </p>
+                  {stats && (
+                    <p className="mt-0.5 text-xs text-ink-soft">
+                      {formatCount(stats.scrutin_count)} scrutin
+                      {stats.scrutin_count > 1 ? 's' : ''} ·{' '}
+                      {formatCount(stats.text_count)} texte
+                      {stats.text_count > 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+                <Icon name="chevron" className="size-4 text-ink-faint" />
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+
+      {/* À partir de 640 px : une vignette et un titre par famille ; le
+          périmètre s'affiche au survol (ou au focus clavier) par-dessus la
+          vignette. Sur un écran tactile, sans survol, il reste écrit sous le
+          titre. */}
+      <ul className="hidden grid-cols-3 gap-2.5 sm:grid lg:grid-cols-4">
         {families.data!.families.map((family) => {
           const stats = coverage.get(family.code)
           return (

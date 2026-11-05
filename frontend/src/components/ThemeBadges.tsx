@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { FamilyIllustration } from './FamilyIllustration'
 import { Note } from './ui'
 import type { AssignedFamilyDto } from '../types/themes'
 
@@ -6,6 +7,9 @@ import type { AssignedFamilyDto } from '../types/themes'
  * Le rattachement s'affiche pour ce qu'il rattache, sans dire qui l'a ouvert :
  * savoir qu'un texte est « logement selon un modèle » plutôt que « logement »
  * déplace l'attention du lecteur sans rien lui apprendre sur le vote.
+ *
+ * Le pictogramme de la famille, le même que sur les cartes de dossiers et la
+ * page des thèmes, fait reconnaître le thème avant d'en lire le libellé.
  */
 export function FamilyBadges({
   families,
@@ -17,21 +21,31 @@ export function FamilyBadges({
   if (families.length === 0) return null
 
   return (
-    <div className="flex flex-wrap gap-1">
+    <div className="flex flex-wrap gap-1.5">
       {families.map((family) => {
         const className =
-          'inline-flex items-center rounded-md bg-surface-soft px-1.5 py-0.5 text-[11px] font-medium text-ink-soft ring-1 ring-inset ring-line'
+          'inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2 pl-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line'
+        const content = (
+          <>
+            <FamilyIllustration
+              code={family.code}
+              className="size-5 rounded-md"
+              glyphClassName="size-3.5"
+            />
+            {family.label}
+          </>
+        )
         return linkToFamily ? (
           <Link
             key={family.code}
             to={`/themes/${family.code}`}
             className={`${className} transition-colors hover:bg-surface hover:text-ink hover:ring-line-strong`}
           >
-            {family.label}
+            {content}
           </Link>
         ) : (
           <span key={family.code} className={className}>
-            {family.label}
+            {content}
           </span>
         )
       })}
