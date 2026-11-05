@@ -154,7 +154,14 @@ export default function DossierCard({
         </h2>
 
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <div className="flex flex-wrap gap-1.5">
+          {/*
+            Sous 768 px, chaque puce de thème a une zone tactile de 44 px sans
+            grossir : un pseudo-élément déborde de 9 px au-dessus et au-dessous
+            de ses 26 px. Les rangées se touchent exactement quand elles se
+            replient (26 + 18 d'écart = 44) ; plus serrées, deux zones se
+            recouvriraient.
+          */}
+          <div className="flex flex-wrap gap-1.5 max-md:gap-y-[18px]">
             {dossier.families.length > 0 ? (
               dossier.families.map((family) => (
                 <button
@@ -162,7 +169,7 @@ export default function DossierCard({
                   type="button"
                   onClick={() => onFamily(family.code)}
                   title={`Voir les dossiers du thème « ${family.label} »`}
-                  className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition hover:ring-line-strong"
+                  className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:ring-line-strong"
                 >
                   <FamilyIllustration
                     code={family.code}

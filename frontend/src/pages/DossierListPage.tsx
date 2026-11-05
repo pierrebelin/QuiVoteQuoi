@@ -1,16 +1,12 @@
 import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
+import { BottomSheet } from '../components/BottomSheet'
 import DossierCard, { type DossierCardDto } from '../components/DossierCard'
-import { FamilyIllustration } from '../components/FamilyIllustration'
+import DossierFilters from '../components/DossierFilters'
 import { Icon } from '../components/icons'
-import {
-  Button,
-  ErrorPanel,
-  Loading,
-  PageHeader,
-  SegmentedControl,
-} from '../components/ui'
+import { FOCUS, SheetButton } from '../components/SheetControls'
+import { Button, ErrorPanel, Loading, PageHeader } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
 import type { FamiliesResponse } from '../types/themes'
 
@@ -65,8 +61,16 @@ export default function DossierListPage() {
   const theme = params.get('theme') ?? ''
 
   const [draft, setDraft] = useState(search)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const filtered = Boolean(search || outcomeParam || initiative || theme)
+  // Filtres posés dans le tiroir (la recherche a son champ) : sorts autres que
+  // ceux par défaut, initiative, thème. C'est le nombre affiché sur « Filtres ».
+  const outcomesChanged = !(
+    selected.length === DEFAULT_OUTCOMES.length &&
+    DEFAULT_OUTCOMES.every((v) => selected.includes(v))
+  )
+  const activeCount = (outcomesChanged ? 1 : 0) + (initiative ? 1 : 0) + (theme ? 1 : 0)
 
   const query = new URLSearchParams({
     page: String(page),
@@ -137,6 +141,48 @@ export default function DossierListPage() {
     window.scrollTo({ top: 0 })
   }
 
+  // Le tiroir efface les filtres qu'il porte et laisse la recherche, qui reste
+  // visible dans son champ derrière lui.
+  const resetFilters = () => apply({ outcome: '', initiative: '', theme: '' })
+
+  const setTheme = (code: string) => {
+    if (code !== theme) apply({ theme: code })
+  }
+  const setInitiative = (value: string) => {
+    if (value !== initiative) apply({ initiative: value })
+  }
+
+  // Tout ce qui restreint la liste est dit en clair sous la recherche, tiroir
+  // fermé : aucun filtre actif n'est caché derrière le bouton.
+  const outcomeNames = outcomes
+    .filter((o) => selected.includes(o.value))
+    .map((o) => o.label)
+    .join(', ')
+  const summary = [
+    outcomeNames || selected.join(', '),
+    initiatives.find((i) => i.value === initiative)?.label,
+    theme && (families.data?.families.find((f) => f.code === theme)?.label ?? theme),
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
+  const seeLabel =
+    !data || isPlaceholderData
+      ? 'Voir les dossiers'
+      : data.total === 0
+        ? 'Aucun dossier ne correspond'
+        : `Voir ${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''}`
+
+  const resetButton = filtered && (
+    <button
+      type="button"
+      onClick={reset}
+      className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-2 text-[13px] font-medium text-accent hover:underline ${FOCUS}`}
+    >
+      Tout afficher
+    </button>
+  )
+
   return (
     <>
       <PageHeader
@@ -161,176 +207,177 @@ export default function DossierListPage() {
         aside={
           <Link
             to="/scrutins"
-            className="text-sm font-medium text-accent hover:underline"
+            className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline"
           >
             Accéder à tous les scrutins →
           </Link>
         }
       />
 
-      {/* Recherche et filtres sur une seule ligne, comme sur les scrutins :
-          la largeur du site les porte, et trois blocs empilés repousseraient
-          la liste vers le bas. */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            apply({ search: draft.trim() })
-          }}
-          className="flex w-full gap-1.5 sm:w-auto"
-        >
-          <input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="Rechercher dans le titre du dossier…"
-            className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm shadow-card placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none sm:w-72 sm:flex-none"
-          />
-          <Button type="submit">Rechercher</Button>
-        </form>
-
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="shrink-0 text-xs font-medium text-ink-faint">
-            Sort
-          </span>
-          <div
-            role="group"
-            aria-label="Sort"
-            className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-surface-soft p-0.5"
+      {/*
+        Sous 1024 px : la recherche, un bouton « Filtres » qui ouvre le tiroir,
+        et une ligne qui dit ce qui est filtré. À partir de 1024 px, le tiroir
+        n'a plus lieu d'être : les mêmes filtres tiennent dans une colonne à
+        gauche des cartes, que la page garde sous les yeux en défilant.
+      */}
+      <div className="lg:grid lg:grid-cols-[296px_minmax(0,1fr)] lg:items-start lg:gap-6">
+        <div className="mb-4 flex flex-col gap-2 lg:sticky lg:top-[4.5rem] lg:mb-0 lg:max-h-[calc(100dvh-5.5rem)] lg:gap-0 lg:overflow-y-auto lg:rounded-2xl lg:border lg:border-line lg:bg-surface lg:p-4 lg:shadow-card">
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault()
+              apply({ search: draft.trim() })
+            }}
+            className="flex gap-2"
           >
-            {outcomes.map((option) => {
-              const on = selected.includes(option.value)
-              return (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => toggleOutcome(option.value)}
-                  className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                    on
-                      ? 'bg-surface text-ink shadow-card ring-1 ring-line-strong ring-inset'
-                      : 'text-ink-soft hover:text-ink'
-                  }`}
-                >
-                  {on && <Icon name="check" className="size-3" strokeWidth={3} />}
-                  {option.label}
-                </button>
-              )
-            })}
+            {/* Le champ mesure 44 px comme le cadre : il recouvre sa bordure d'un
+                pixel de chaque côté, pour que toute la hauteur soit touchable. */}
+            <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl border border-line-strong bg-surface text-ink-soft focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+              <button
+                type="submit"
+                aria-label="Lancer la recherche"
+                className={`flex size-11 shrink-0 items-center justify-center rounded-xl hover:text-ink ${FOCUS}`}
+              >
+                <Icon name="search" />
+              </button>
+              <input
+                type="search"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                enterKeyHint="search"
+                autoComplete="off"
+                placeholder="Rechercher un titre…"
+                aria-label="Rechercher dans le titre du dossier"
+                className="h-11 min-w-0 flex-1 bg-transparent pr-3 text-base text-ink outline-none placeholder:text-ink-faint md:text-sm"
+              />
+            </div>
+            <button
+              type="button"
+              aria-haspopup="dialog"
+              onClick={() => setSheetOpen(true)}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-surface px-3.5 text-sm font-semibold text-ink ring-1 ring-line-strong ring-inset transition-colors hover:bg-surface-soft lg:hidden ${FOCUS}`}
+            >
+              <Icon name="tune" className="size-[18px]" />
+              Filtres
+              {activeCount > 0 && (
+                <span className="flex min-w-5 items-center justify-center rounded-full bg-ink px-1.5 text-xs leading-5 font-semibold text-surface">
+                  {activeCount}
+                  <span className="sr-only"> actif{activeCount > 1 ? 's' : ''}</span>
+                </span>
+              )}
+            </button>
+          </form>
+
+          <div className="flex items-center gap-2 lg:hidden">
+            <p className="flex min-w-0 flex-1 items-start gap-1.5 text-[13px] leading-snug text-ink-soft">
+              <Icon name="check" className="mt-0.5 size-3.5" strokeWidth={3} />
+              <span>
+                <span className="sr-only">Filtres appliqués : </span>
+                {summary}
+              </span>
+            </p>
+            {resetButton}
+          </div>
+
+          <div className="hidden lg:block">
+            <DossierFilters
+              layout="aside"
+              outcomes={outcomes}
+              selectedOutcomes={selected}
+              onToggleOutcome={toggleOutcome}
+              initiatives={initiatives}
+              initiative={initiative}
+              onInitiative={setInitiative}
+              families={families.data?.families}
+              theme={theme}
+              onTheme={setTheme}
+            />
+            {resetButton && <div className="mt-3">{resetButton}</div>}
           </div>
         </div>
-        <SegmentedControl
-          label="Initiative"
-          options={initiatives}
-          value={initiative}
-          onChange={(value) => apply({ initiative: value })}
-        />
 
-        {filtered && (
-          <button
-            type="button"
-            onClick={reset}
-            className="text-xs font-medium text-accent hover:underline"
-          >
-            Tout afficher
-          </button>
-        )}
+        <div className="min-w-0">
+          {isLoading && <Loading>Chargement des dossiers…</Loading>}
+          {isError && <ErrorPanel error={error} />}
+
+          {data && data.dossiers.length === 0 && (
+            <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
+              Aucun dossier ne correspond à ces filtres.
+            </p>
+          )}
+
+          {/*
+            Une carte par dossier, aérée : l'état en bandeau, le titre en entier,
+            les thèmes, puis qui l'a déposé, quand, où il en est et s'il a été voté.
+            Moins de dossiers par écran, mais chacun se lit sans ouvrir sa page.
+          */}
+          {data && data.dossiers.length > 0 && (
+            <div
+              className={`space-y-3 transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
+            >
+              {data.dossiers.map((d) => (
+                <DossierCard
+                  key={d.uid}
+                  dossier={d}
+                  today={today}
+                  onFamily={(code) => apply({ theme: code })}
+                />
+              ))}
+            </div>
+          )}
+
+          {data && data.total_pages > 1 && (
+            <nav className="mt-5 flex items-center justify-between gap-4">
+              <Button onClick={() => goTo(page - 1)} disabled={page <= 1}>
+                ← Précédent
+              </Button>
+              <span className="text-xs text-ink-faint">
+                Page {data.page} sur {data.total_pages}
+              </span>
+              <Button
+                onClick={() => goTo(page + 1)}
+                disabled={page >= data.total_pages}
+              >
+                Suivant →
+              </Button>
+            </nav>
+          )}
+        </div>
       </div>
 
-      {/* Les thèmes en vignettes plutôt qu'en liste déroulante : on reconnaît
-          un sujet à son pictogramme avant d'en lire le libellé. La rangée
-          défile sur petit écran au lieu de repousser la liste ; elle déborde
-          jusqu'au bord de l'écran, comme `<main>` (px-6). Le thème choisi est
-          plein et coché : il ne se distingue pas par la seule couleur. */}
-      {families.data && (
-        <div className="-mx-6 mb-6 flex gap-2 overflow-x-auto px-6 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
-          <button
-            type="button"
-            onClick={() => apply({ theme: '' })}
-            aria-pressed={!theme}
-            className={`inline-flex shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium transition ${
-              !theme
-                ? 'border-ink bg-ink text-surface'
-                : 'border-line bg-surface text-ink-soft hover:border-line-strong'
-            }`}
-          >
-            {!theme && <Icon name="check" className="size-3.5" strokeWidth={3} />}
-            Tous les thèmes
-          </button>
-          {families.data.families.map((family) => (
-            <button
-              key={family.code}
-              type="button"
-              onClick={() => apply({ theme: theme === family.code ? '' : family.code })}
-              aria-pressed={theme === family.code}
-              title={family.scope}
-              className={`inline-flex shrink-0 items-center gap-2 rounded-xl border py-1 pr-3 pl-1 text-[13px] font-medium whitespace-nowrap transition ${
-                theme === family.code
-                  ? 'border-ink bg-ink text-surface'
-                  : 'border-line bg-surface text-ink-soft hover:border-line-strong hover:text-ink'
-              }`}
-            >
-              {theme === family.code ? (
-                <span className="flex size-7 shrink-0 items-center justify-center">
-                  <Icon name="check" className="size-4" strokeWidth={3} />
-                </span>
-              ) : (
-                <FamilyIllustration
-                  code={family.code}
-                  className="size-7 rounded-lg"
-                  glyphClassName="size-[18px]"
-                />
-              )}
-              {family.label}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {isLoading && <Loading>Chargement des dossiers…</Loading>}
-      {isError && <ErrorPanel error={error} />}
-
-      {data && data.dossiers.length === 0 && (
-        <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
-          Aucun dossier ne correspond à ces filtres.
+      <BottomSheet
+        open={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        title="Filtres"
+        footer={
+          <>
+            <SheetButton onClick={resetFilters} disabled={activeCount === 0}>
+              Réinitialiser
+            </SheetButton>
+            <SheetButton primary onClick={() => setSheetOpen(false)}>
+              {seeLabel}
+            </SheetButton>
+          </>
+        }
+      >
+        {/* Le bouton du pied change de libellé à chaque filtre : la même
+            information, annoncée aux lecteurs d'écran. */}
+        <p role="status" className="sr-only">
+          {seeLabel}
         </p>
-      )}
-
-      {/*
-        Une carte par dossier, aérée : l'état en bandeau, le titre en entier,
-        les thèmes, puis qui l'a déposé, quand, où il en est et s'il a été voté.
-        Moins de dossiers par écran, mais chacun se lit sans ouvrir sa page.
-      */}
-      {data && data.dossiers.length > 0 && (
-        <div
-          className={`space-y-3 transition-opacity ${isPlaceholderData ? 'opacity-50' : ''}`}
-        >
-          {data.dossiers.map((d) => (
-            <DossierCard
-              key={d.uid}
-              dossier={d}
-              today={today}
-              onFamily={(code) => apply({ theme: code })}
-            />
-          ))}
-        </div>
-      )}
-
-      {data && data.total_pages > 1 && (
-        <nav className="mt-5 flex items-center justify-between gap-4">
-          <Button onClick={() => goTo(page - 1)} disabled={page <= 1}>
-            ← Précédent
-          </Button>
-          <span className="text-xs text-ink-faint">
-            Page {data.page} sur {data.total_pages}
-          </span>
-          <Button
-            onClick={() => goTo(page + 1)}
-            disabled={page >= data.total_pages}
-          >
-            Suivant →
-          </Button>
-        </nav>
-      )}
+        <DossierFilters
+          layout="sheet"
+          outcomes={outcomes}
+          selectedOutcomes={selected}
+          onToggleOutcome={toggleOutcome}
+          initiatives={initiatives}
+          initiative={initiative}
+          onInitiative={setInitiative}
+          families={families.data?.families}
+          theme={theme}
+          onTheme={setTheme}
+        />
+      </BottomSheet>
     </>
   )
 }
