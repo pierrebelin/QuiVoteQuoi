@@ -252,11 +252,14 @@ export function VoteBar({
   tally,
   outOf,
   label,
+  thick = false,
 }: {
   tally: TallyDto
   outOf?: number
   /** Remplace la phrase par défaut, lue et affichée en infobulle. */
   label?: string
+  /** Barre plus haute, quand elle est l'objet principal du bloc. */
+  thick?: boolean
 }) {
   const parts = segments(tally)
   const total = parts.reduce((sum, part) => sum + part.value, 0)
@@ -267,7 +270,7 @@ export function VoteBar({
   return (
     <div className="w-full rounded-full bg-surface-soft">
       <div
-        className="flex h-1.5 overflow-hidden rounded-full"
+        className={`flex overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-1.5'}`}
         style={{ width: `${scale * 100}%` }}
         role="img"
         title={label}
