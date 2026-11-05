@@ -127,7 +127,7 @@ export default function DossierCard({
   const step = dossier.last_activity_label.replace(/\.$/, '')
 
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition-colors hover:border-line-strong">
+    <article className="group relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none">
       <div
         className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-[18px] py-1.5 text-[13px] font-semibold ${state.tone}`}
       >
