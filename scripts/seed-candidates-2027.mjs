@@ -186,7 +186,7 @@ const candidates = [
     declarationSourceUrl: 'https://lesecologistes.fr/posts/4DGpyusxBAU4xQPexfncsx/marine-tondelier-designee-pour-representer-les-ecologistes-a-l-election-presidentielle',
     declarationSourceLabel: 'Les Écologistes — Désignation pour l’élection présidentielle',
     officialSiteUrl: 'https://marinetondelier.fr/',
-    programUrl: null,
+    programUrl: 'https://marinetondelier.fr/programme-2027',
     organization: {
       id: 'les-ecologistes',
       label: 'Les Écologistes',
