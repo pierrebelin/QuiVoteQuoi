@@ -333,7 +333,7 @@ function barre(
     [tally.votes_for, p.pourBarre],
     [tally.votes_against, p.contreBarre],
     [tally.abstentions, p.abstentionBarre],
-    [tally.not_voting + tally.voluntary_not_voting, p.traitFort],
+    [tally.not_voting, p.traitFort],
   ]
   const total = segments.reduce((somme, [valeur]) => somme + valeur, 0)
 
@@ -434,9 +434,13 @@ function nomGroupe(groupe: GroupBreakdownDto) {
 /**
  * Décompte d'un groupe, non-votants compris quand il y en a : la barre leur
  * donne leur part réelle, la ligne doit donc dire combien ils sont.
+ *
+ * `voluntary_not_voting` n'entre pas dans le compte : au niveau des groupes, il
+ * reproduit les abstentions et les compterait deux fois (n° 9759 : GDR, 17
+ * membres, 15 contre, 2 abstentions, aucun non-votant sur la page de l'Assemblée).
  */
 function chiffresGroupe(tally: TallyDto, p: Palette): Morceau[] {
-  const nonVotants = tally.not_voting + tally.voluntary_not_voting
+  const nonVotants = tally.not_voting
   return [
     { texte: String(tally.votes_for), couleur: p.pour, poids: 600 },
     { texte: ' pour · ', couleur: p.encrePale },
@@ -736,25 +740,7 @@ export function dessinerVote(
 
   const avecSieges = data.groups.some((g) => g.votes.some((v) => v.seat !== null))
   if (options.visuel === 'hemicycle' && avecSieges) {
-    // Quand la hauteur le permet, l'hémicycle seul laisserait la moitié de
-    // l'image vide : la répartition par groupe prend la place restante.
-    if (cadre.hauteur > 700 * u && data.groups.length > 0) {
-      const hauteurHemicycle = cadre.hauteur * 0.5
-      hemicycle(ctx, p, options.theme, data, { ...cadre, hauteur: hauteurHemicycle }, u)
-      groupes(
-        ctx,
-        p,
-        data,
-        {
-          ...cadre,
-          y: cadre.y + hauteurHemicycle + 24 * u,
-          hauteur: cadre.hauteur - hauteurHemicycle - 24 * u,
-        },
-        u,
-      )
-    } else {
-      hemicycle(ctx, p, options.theme, data, cadre, u)
-    }
+    hemicycle(ctx, p, options.theme, data, cadre, u)
   } else {
     groupes(ctx, p, data, cadre, u)
   }
