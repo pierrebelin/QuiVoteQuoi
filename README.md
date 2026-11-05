@@ -221,6 +221,9 @@ toujours. Labellisé « Synthèse automatique ».
 
 La page « Programmes et votes associés — 2027 » recense les candidatures dont une déclaration publique primaire est disponible. Pour chaque candidat, elle publie la déclaration, les organisations ou soutiens explicitement sourcés, le lien vers le programme et des extraits attribués à celui-ci, rattachés au référentiel fermé des thèmes.
 
+- **Seul le site officiel du candidat fait foi.** Le lien vers le programme et la source de chaque extrait sont sur ce site, ou sur un document hébergé ailleurs mais lié directement depuis lui. Un candidat sans programme vérifiable n'affiche rien plutôt qu'une source tierce.
+- Le site officiel est le site au nom du candidat, quel qu'en soit l'éditeur légal (mentions légales à l'appui) ; à défaut de site personnel, celui de son parti. Un réseau social n'en est jamais un ; en cas de doute, aucun site n'est retenu.
+- Un extrait est retrouvé mot pour mot dans sa source, sans reformuler ni compléter : seules la casse, les accents, la ponctuation et les espaces peuvent différer. `scripts/seed-candidates-2027.mjs` refuse toute source hors du site officiel, `scripts/check-candidate-sources.mjs` revérifie la présence des extraits.
 - Un extrait porte toujours son lien source et sa date lorsqu'elle est publiée.
 - Parti, soutien de campagne et groupe parlementaire sont des objets distincts. Un groupe n'est associé à une candidature que lorsqu'une source le dit ; son vote reste celui du groupe, à la date du scrutin.
 - La comparaison est côte à côte : aucun score, étiquette « aligné / non aligné », résumé libre ni position personnelle déduite n'est produit.
