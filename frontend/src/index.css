@@ -108,6 +108,12 @@
  */
 :root {
   --mobile-nav-h: calc(3.5rem + 1px + env(safe-area-inset-bottom, 0px));
+
+  /* Rayons bleu nuit et rouge du logo de l'en-tête (Logo.tsx), dessinés pour un
+     fond clair. Hors `@theme` : aucune classe ne les nomme, Tailwind ne les
+     émettrait pas. */
+  --color-logo-blue: #16233f;
+  --color-logo-red: #9e3038;
 }
 
 @media (min-width: 48rem) {
@@ -163,6 +169,11 @@ html[data-theme='dark'] {
 
   --color-chip-edge: rgb(255 255 255 / 0.3);
   --color-badge-edge: rgb(255 255 255 / 0.3);
+
+  /* Le bleu nuit (1,2:1 sur l'en-tête) disparaissait, le rouge s'y devinait à
+     peine (2,2:1) : éclaircis à 3:1 au moins, la teinte reste celle du logo. */
+  --color-logo-blue: #4568b3;
+  --color-logo-red: #c44550;
 
   /* Sur fond sombre, une ombre noire ne se voit pas : le relief vient d'un
      trait clair au-dessus de la carte plutôt que d'une ombre portée. */
