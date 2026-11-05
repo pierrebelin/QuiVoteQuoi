@@ -1,5 +1,6 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { excerptSourceUrl } from '../../lib/candidates'
 import { fetchJson } from '../../lib/fetchJson'
 import type { CandidateComparisonResponse, CandidateDto } from '../../types/candidates'
 import { formatDate } from '../../types/scrutins'
@@ -156,7 +157,7 @@ export function ThemeExcerpts({
                     <p className="mt-1 text-xs leading-[1.3] text-ink-soft">
                       <a
                         className="inline-flex items-start gap-1 text-accent underline underline-offset-2 [overflow-wrap:anywhere]"
-                        href={proposal.source_url}
+                        href={excerptSourceUrl(proposal.source_url, proposal.excerpt)}
                         target="_blank"
                         rel="noreferrer"
                       >
