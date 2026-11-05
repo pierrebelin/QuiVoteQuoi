@@ -250,12 +250,7 @@ export default function GroupDetailPage() {
                 label="Non-participation"
                 swatch={RATE_BARS.absence}
                 perMille={rates.absence_per_mille}
-                count={counts.not_voting + counts.voluntary_not_voting}
-                detail={`dont ${formatCount(
-                  counts.voluntary_not_voting,
-                )} non-votant${counts.voluntary_not_voting > 1 ? 's' : ''} volontaire${
-                  counts.voluntary_not_voting > 1 ? 's' : ''
-                }`}
+                count={counts.not_voting}
               />
             </div>
             <p className="mt-2 text-xs text-ink-faint">

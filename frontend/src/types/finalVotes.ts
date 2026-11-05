@@ -5,7 +5,6 @@ export interface TallyDto {
   votes_against: number
   abstentions: number
   not_voting: number
-  voluntary_not_voting: number
 }
 
 /** Parts rapportées aux seuls votants du groupe (pour + contre + abstention). */

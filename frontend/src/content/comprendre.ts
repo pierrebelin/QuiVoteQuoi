@@ -369,11 +369,6 @@ export const SECTIONS: Section[] = [
             texte:
               "Le détail d'un scrutin affiche, pour chaque non-votant, la cause publiée par la source — présidence de séance, mission, ou tout autre motif qu'elle indique.",
           },
-          {
-            kind: 'p',
-            texte:
-              "La source distingue à part les « non-votants volontaires », comptés par groupe sans être nommés. Ils apparaissent donc dans la répartition d'un groupe, pas dans la liste nominative.",
-          },
         ],
       },
       {

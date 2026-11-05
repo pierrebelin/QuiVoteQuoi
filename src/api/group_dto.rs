@@ -13,7 +13,7 @@ pub const PARTY_NOTE: &str = "L'Assemblée publie des groupes parlementaires, pa
 /// Formule du taux, publiée avec le chiffre pour qu'il soit refaisable
 /// (README.md §9).
 pub const RATE_NOTE: &str = "Les taux rapportent les positions que l'Assemblée publie pour ce \
-     groupe : pour + contre + abstention + non-votants + non-votants volontaires. « Voix \
+     groupe : pour + contre + abstention + non-votants. « Voix \
      exprimées » réunit les pour et les contre sans les distinguer — le sens du vote se lit \
      scrutin par scrutin, jamais cumulé.";
 

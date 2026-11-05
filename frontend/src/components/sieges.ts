@@ -45,10 +45,8 @@ export function siegesDesGroupes(groups: GroupBreakdownDto[]): SiegeVote[] {
 /**
  * Décompte reconstitué depuis les positions nominales.
  *
- * Sert à ce que la légende dise exactement ce que le dessin montre : la synthèse
- * officielle compte les non-votants volontaires à part, la liste nominale les
- * range avec les autres non-votants, et deux totaux différents sous un même
- * graphique seraient une incohérence affichée.
+ * Sert à ce que la légende dise exactement ce que le dessin montre : deux totaux
+ * différents sous un même graphique seraient une incohérence affichée.
  */
 export function tallyDesVotes(votes: Pick<VoteDto, 'position'>[]): TallyDto {
   return {
@@ -56,6 +54,5 @@ export function tallyDesVotes(votes: Pick<VoteDto, 'position'>[]): TallyDto {
     votes_against: votes.filter((v) => v.position === 'against').length,
     abstentions: votes.filter((v) => v.position === 'abstention').length,
     not_voting: votes.filter((v) => v.position === 'not_voting').length,
-    voluntary_not_voting: 0,
   }
 }

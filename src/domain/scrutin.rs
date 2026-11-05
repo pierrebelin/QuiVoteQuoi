@@ -275,7 +275,9 @@ pub struct VoteTally {
     pub abstentions: u16,
     pub not_voting: u16,
     /// Comptes par groupe, jamais nommes, et absents de la synthese officielle
-    /// qui affiche toujours zero (H10). Affiche avec le libelle de la source.
+    /// qui affiche toujours zero (H10). Conserve tel que publie, jamais affiche:
+    /// au niveau du groupe, la source y recopie les abstentions, si bien que ces
+    /// personnes sont deja comptees dans `abstentions`.
     pub voluntary_not_voting: u16,
 }
 

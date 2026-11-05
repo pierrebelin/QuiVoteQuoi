@@ -43,7 +43,6 @@ export interface ParticipationCountsDto {
   expressed: number
   abstentions: number
   not_voting: number
-  voluntary_not_voting: number
   published_positions: number
 }
 

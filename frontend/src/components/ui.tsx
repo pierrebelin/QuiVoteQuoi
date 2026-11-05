@@ -186,7 +186,7 @@ export function Meta({
 type Segment = { key: string; value: number; className: string; label: string }
 
 function segments(tally: TallyDto): Segment[] {
-  const notVoting = tally.not_voting + tally.voluntary_not_voting
+  const notVoting = tally.not_voting
   return [
     { key: 'for', value: tally.votes_for, className: 'bg-yes-bar', label: 'pour' },
     { key: 'against', value: tally.votes_against, className: 'bg-no-bar', label: 'contre' },
@@ -272,7 +272,7 @@ export function TallyLine({
   tally: TallyDto
   dense?: boolean
 }) {
-  const notVoting = tally.not_voting + tally.voluntary_not_voting
+  const notVoting = tally.not_voting
   return (
     <span className="text-xs text-ink-faint">
       <span className="font-semibold text-yes">{tally.votes_for}</span> pour

@@ -193,8 +193,7 @@ export function stanceDescription(
 ): string {
   const position = groupPosition(stance)
   if (!stance || position === 'missing') return `${group.label} : ${MISSING_STANCE_NOTE}`
-  const { votes_for, votes_against, abstentions, not_voting, voluntary_not_voting } = stance.tally
-  const nonVoters = not_voting + voluntary_not_voting
+  const { votes_for, votes_against, abstentions, not_voting: nonVoters } = stance.tally
   const counts = [
     `${votes_for} pour`,
     `${votes_against} contre`,
