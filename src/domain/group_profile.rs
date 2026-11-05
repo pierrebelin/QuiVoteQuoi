@@ -27,6 +27,9 @@ use serde::Serialize;
 /// Les cinq comptes sont ceux de la source, additionnes tels quels (RM-08).
 /// `votes_for` et `votes_against` ne sortent jamais d'ici separement: ils
 /// n'existent que dans `expressed()`.
+///
+/// `voluntary_not_voting` reste conserve mais n'entre dans aucun taux: dans le
+/// fichier de l'Assemblee, ce compte de groupe recopie les abstentions.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct ParticipationCounts {
     pub votes_for: u64,
@@ -43,18 +46,12 @@ impl ParticipationCounts {
         self.votes_for + self.votes_against
     }
 
-    /// Membres n'ayant pas pris part au vote, volontairement ou non. La source
-    /// publie les deux comptes separement et ne nomme pas les seconds.
-    pub fn absent(&self) -> u64 {
-        self.not_voting + self.voluntary_not_voting
-    }
-
     /// Denominateur de tous les taux de la fiche: chaque position que la source
     /// publie pour le groupe. Ce n'est pas son effectif — la source ne fait pas
     /// toujours coincider les deux, et supposer l'egalite serait produire un
     /// chiffre qu'elle ne publie pas.
     pub fn published_positions(&self) -> u64 {
-        self.expressed() + self.abstentions + self.absent()
+        self.expressed() + self.abstentions + self.not_voting
     }
 
     pub fn add(&mut self, other: &Self) {
@@ -82,7 +79,7 @@ pub struct ParticipationRates {
     /// Part des voix exprimees, pour et contre confondus.
     pub expressed_per_mille: u16,
     pub abstention_per_mille: u16,
-    /// Part des non-votants, volontaires compris.
+    /// Part des non-votants.
     pub absence_per_mille: u16,
 }
 
@@ -96,7 +93,7 @@ impl ParticipationRates {
             return None;
         }
 
-        let parts = [counts.expressed(), counts.abstentions, counts.absent()];
+        let parts = [counts.expressed(), counts.abstentions, counts.not_voting];
         let mut shares = [0u64; 3];
         let mut remainders = [(0u64, 0usize); 3];
         for (index, part) in parts.iter().enumerate() {
@@ -228,10 +225,21 @@ mod tests {
 
     #[test]
     fn the_denominator_holds_every_published_position() {
-        let counts = counts(10, 5, 3, 2, 1);
+        let counts = counts(10, 5, 3, 2, 0);
         assert_eq!(counts.expressed(), 15);
-        assert_eq!(counts.absent(), 3);
-        assert_eq!(counts.published_positions(), 21);
+        assert_eq!(counts.published_positions(), 20);
+    }
+
+    #[test]
+    fn the_voluntary_count_repeats_the_abstentions_and_adds_no_position() {
+        // V8280, EPR: 64 pour, 18 contre, 9 abstentions pour 91 membres, et
+        // 9 « non-votants volontaires » qui sont ces memes 9 abstentionnistes.
+        let counts = counts(64, 18, 9, 0, 9);
+        assert_eq!(counts.published_positions(), 91);
+
+        let rates = ParticipationRates::from_counts(&counts).unwrap();
+        assert_eq!(rates.base, 91);
+        assert_eq!(rates.absence_per_mille, 0);
     }
 
     #[test]
@@ -264,14 +272,6 @@ mod tests {
         let one = ParticipationRates::from_counts(&counts(80, 10, 6, 4, 0)).unwrap();
         let other = ParticipationRates::from_counts(&counts(10, 80, 6, 4, 0)).unwrap();
         assert_eq!(one, other);
-    }
-
-    #[test]
-    fn voluntary_non_voters_count_as_non_participation() {
-        let rates = ParticipationRates::from_counts(&counts(50, 30, 10, 6, 4)).unwrap();
-        assert_eq!(rates.absence_per_mille, 100);
-        assert_eq!(rates.abstention_per_mille, 100);
-        assert_eq!(rates.expressed_per_mille, 800);
     }
 
     #[test]

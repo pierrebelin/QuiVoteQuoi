@@ -38,8 +38,7 @@ const OUTCOME = {
 } as const
 
 function assemblyLabel(vote: FinalVoteDto): string {
-  const { votes_for, votes_against, abstentions, not_voting, voluntary_not_voting } = vote.synthesis
-  const nonVoters = not_voting + voluntary_not_voting
+  const { votes_for, votes_against, abstentions, not_voting: nonVoters } = vote.synthesis
   return [
     `Toute l’Assemblée : ${votes_for} pour`,
     `${votes_against} contre`,
@@ -161,7 +160,7 @@ export default function VoteCard({
         <span className="shrink-0 text-xs font-semibold text-ink-soft">Toute l’Assemblée</span>
         <div className="min-w-0 flex-1">
           <VoteBar
-            tally={{ ...vote.synthesis, not_voting: 0, voluntary_not_voting: 0 }}
+            tally={{ ...vote.synthesis, not_voting: 0 }}
             label={assemblyLabel(vote)}
           />
         </div>

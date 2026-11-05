@@ -1,23 +1,20 @@
 import type { AssignedFamilyDto } from './themes'
 
+/**
+ * L'API envoie aussi `voluntary_not_voting`, volontairement absent d'ici : au
+ * niveau du groupe, la source y recopie les abstentions. L'additionner compterait
+ * deux fois les mêmes personnes.
+ */
 export interface TallyDto {
   votes_for: number
   votes_against: number
   abstentions: number
   not_voting: number
-  /** Publié par groupe, absent de la synthèse officielle qui affiche 0. */
-  voluntary_not_voting: number
 }
 
 /** Nombre de positions portées par un décompte, non-votants compris. */
 export function tallySize(tally: TallyDto) {
-  return (
-    tally.votes_for +
-    tally.votes_against +
-    tally.abstentions +
-    tally.not_voting +
-    tally.voluntary_not_voting
-  )
+  return tally.votes_for + tally.votes_against + tally.abstentions + tally.not_voting
 }
 
 export interface ScrutinSummaryDto {

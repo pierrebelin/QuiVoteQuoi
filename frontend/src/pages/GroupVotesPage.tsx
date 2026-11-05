@@ -135,12 +135,9 @@ function StanceCard({ stance }: { stance: StanceDto }) {
         </p>
       )}
 
-      {(tally.not_voting > 0 || tally.voluntary_not_voting > 0) && (
+      {tally.not_voting > 0 && (
         <p className="mt-0.5 text-xs text-ink-faint">
-          {tally.not_voting > 0 && `${tally.not_voting} non-votant${tally.not_voting > 1 ? 's' : ''}`}
-          {tally.not_voting > 0 && tally.voluntary_not_voting > 0 && ' · '}
-          {tally.voluntary_not_voting > 0 &&
-            `${tally.voluntary_not_voting} non-votant${tally.voluntary_not_voting > 1 ? 's' : ''} volontaire${tally.voluntary_not_voting > 1 ? 's' : ''}`}
+          {tally.not_voting} non-votant{tally.not_voting > 1 ? 's' : ''}
         </p>
       )}
     </div>

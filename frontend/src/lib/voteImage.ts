@@ -333,7 +333,7 @@ function barre(
     [tally.votes_for, p.pourBarre],
     [tally.votes_against, p.contreBarre],
     [tally.abstentions, p.abstentionBarre],
-    [tally.not_voting + tally.voluntary_not_voting, p.traitFort],
+    [tally.not_voting, p.traitFort],
   ]
   const total = segments.reduce((somme, [valeur]) => somme + valeur, 0)
 
@@ -436,7 +436,7 @@ function nomGroupe(groupe: GroupBreakdownDto) {
  * donne leur part réelle, la ligne doit donc dire combien ils sont.
  */
 function chiffresGroupe(tally: TallyDto, p: Palette): Morceau[] {
-  const nonVotants = tally.not_voting + tally.voluntary_not_voting
+  const nonVotants = tally.not_voting
   return [
     { texte: String(tally.votes_for), couleur: p.pour, poids: 600 },
     { texte: ' pour · ', couleur: p.encrePale },

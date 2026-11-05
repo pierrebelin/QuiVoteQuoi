@@ -133,8 +133,8 @@ mod tests {
                 votes_for: 500_000,
                 votes_against: 300_000,
                 abstentions: 100_000,
-                not_voting: 60_000,
-                voluntary_not_voting: 40_000,
+                not_voting: 100_000,
+                voluntary_not_voting: 100_000,
             };
         }
         repository

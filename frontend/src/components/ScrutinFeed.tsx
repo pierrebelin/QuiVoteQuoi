@@ -163,7 +163,7 @@ function OutcomeTag({ scrutin }: { scrutin: ScrutinSummaryDto }) {
 /** Pour, contre, abstentions en chiffres colorés, puis la barre. */
 function Tally({ scrutin, size }: { scrutin: ScrutinSummaryDto; size: 'large' | 'small' }) {
   const { tally } = scrutin
-  const notVoting = tally.not_voting + tally.voluntary_not_voting
+  const notVoting = tally.not_voting
   const figures = [
     ['pour', tally.votes_for, 'text-yes'],
     ['contre', tally.votes_against, 'text-no'],
