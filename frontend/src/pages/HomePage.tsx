@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import Hemicycle from '../components/Hemicycle'
+import { InfoTip } from '../components/InfoTip'
 import ScrutinList, { CoverageNote } from '../components/ScrutinList'
 import { siegesDesGroupes, tallyDesVotes } from '../components/sieges'
 import { Card, ErrorPanel, Loading, Note, TallyLine } from '../components/ui'
@@ -140,6 +141,7 @@ function Section({
   surtitre,
   titre,
   chapo,
+  info,
   aside,
   panneau = false,
   children,
@@ -147,10 +149,19 @@ function Section({
   surtitre: string
   titre?: string
   chapo?: ReactNode
+  /** Mentions de la section que le téléphone ne montre que dans l'infobulle. */
+  info?: ReactNode
   aside?: ReactNode
   panneau?: boolean
   children: ReactNode
 }) {
+  const aide = (chapo || info) && (
+    <InfoTip label={`En savoir plus : ${surtitre}`} className="md:hidden">
+      {chapo && <p>{chapo}</p>}
+      {info}
+    </InfoTip>
+  )
+
   const coiffe = Boolean(titre || chapo)
 
   return (
@@ -173,6 +184,7 @@ function Section({
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
         <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-accent">
           {surtitre}
+          {!titre && aide}
         </h3>
         {aside}
       </div>
@@ -180,16 +192,54 @@ function Section({
       {titre && (
         <p className="mt-2 max-w-3xl text-2xl font-semibold tracking-tight text-ink">
           {titre}
+          {aide}
         </p>
       )}
       {chapo && (
-        <p className="mt-3 max-w-3xl text-base leading-relaxed text-ink-soft">
+        <p className="mt-3 hidden max-w-3xl text-base leading-relaxed text-ink-soft md:block">
           {chapo}
         </p>
       )}
 
       <div className={coiffe ? 'mt-6' : 'mt-3'}>{children}</div>
     </section>
+  )
+}
+
+const NEVER_SHOWN =
+  'Ce qui n’est jamais affiché : une motivation reconstituée, un commentaire de presse, une synthèse rédigée par un modèle de langage. Seules comptent les positions attribuées et publiques.'
+
+/** Légende de l'hémicycle du dernier scrutin. */
+function SeatsHelp() {
+  return (
+    <>
+      Chaque siège porte le vote du député qui l’occupe, à sa place
+      réelle sur le{' '}
+      <a
+        href="https://www.assemblee-nationale.fr/dyn/vos-deputes/hemicycle"
+        target="_blank"
+        rel="noreferrer"
+        className="text-accent hover:underline"
+      >
+        plan de l’hémicycle
+      </a>{' '}
+      publié par l’Assemblée. En gris, les sièges dont aucune position
+      n’a été enregistrée sur ce scrutin.
+    </>
+  )
+}
+
+function ProcedureHelp() {
+  return (
+    <>
+      Rien n’est supposé acquis. Non-votant, abstention, scrutin solennel,
+      motion de censure : chaque mot de la procédure est expliqué au fil des
+      pages, en deux niveaux de lecture, sur{' '}
+      <Link to="/comprendre" className="text-accent hover:underline">
+        Comprendre
+      </Link>
+      .
+    </>
   )
 }
 
@@ -273,6 +323,9 @@ export default function HomePage() {
                   className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint"
                 >
                   Dernier scrutin publié
+                  <InfoTip label="Comment lire l’hémicycle" className="md:hidden">
+                    <SeatsHelp />
+                  </InfoTip>
                 </h3>
                 <span className="text-xs text-ink-faint">
                   {formatDate(dernier.date)}
@@ -306,19 +359,8 @@ export default function HomePage() {
                 </a>
               </div>
 
-              <p className="mt-4 border-t border-line pt-3 text-xs leading-relaxed text-ink-faint">
-                Chaque siège porte le vote du député qui l’occupe, à sa place
-                réelle sur le{' '}
-                <a
-                  href="https://www.assemblee-nationale.fr/dyn/vos-deputes/hemicycle"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  plan de l’hémicycle
-                </a>{' '}
-                publié par l’Assemblée. En gris, les sièges dont aucune position
-                n’a été enregistrée sur ce scrutin.
+              <p className="mt-4 hidden border-t border-line pt-3 text-xs leading-relaxed text-ink-faint md:block">
+                <SeatsHelp />
               </p>
             </>
           ) : (
@@ -363,6 +405,11 @@ export default function HomePage() {
         page — l’écart entre ce qu’on croit d’un groupe et ce qu’il vote, si.
       */}
       <Section
+        info={
+          <p>
+            <ProcedureHelp />
+          </p>
+        }
         surtitre="À quoi ça sert"
         titre="Vous avez déjà un avis sur les groupes. Voici ce qu’ils votent."
         chapo="Cet avis vient des discours, des reprises, de ce qu’on en dit autour de vous. Un vote, lui, est un acte : daté, nominatif, opposable. Les rapprocher ne demande aucune expertise — seulement d’avoir la page sous les yeux. Là où les deux se rejoignent, là où ils s’écartent : c’est vous qui le constatez, le site ne le conclut jamais à votre place."
@@ -401,19 +448,14 @@ export default function HomePage() {
           ))}
         </ul>
 
-        <p className="mt-4 max-w-3xl text-sm leading-relaxed text-ink-soft">
-          Rien n’est supposé acquis. Non-votant, abstention, scrutin solennel,
-          motion de censure : chaque mot de la procédure est expliqué au fil des
-          pages, en deux niveaux de lecture, sur{' '}
-          <Link to="/comprendre" className="text-accent hover:underline">
-            Comprendre
-          </Link>
-          .
+        <p className="mt-4 hidden max-w-3xl text-sm leading-relaxed text-ink-soft md:block">
+          <ProcedureHelp />
         </p>
       </Section>
 
       {/* ------------------------------------------------ Derniers scrutins */}
       <Section
+        info={scrutins.data && <p>{scrutins.data.coverage_note}</p>}
         surtitre="Publié récemment"
         aside={
           <Link
@@ -440,6 +482,7 @@ export default function HomePage() {
 
       {/* ---------------------------------------------------- Le « pourquoi » */}
       <Section
+        info={<p>{NEVER_SHOWN}</p>}
         surtitre="Le « pourquoi » d’un vote"
         titre="Un décompte ne dit pas les raisons. Les pièces, si."
         chapo="Un vote isolé se prête à toutes les lectures. Le site ne reconstitue pas les motivations d’un groupe et ne les résume pas à sa place : il rassemble ce qui est attribué, daté et public autour de chaque scrutin, pour que le vote soit lu avec ce qui l’entoure."
@@ -461,11 +504,7 @@ export default function HomePage() {
         </ul>
 
         <div className="mt-4">
-          <Note>
-            Ce qui n’est jamais affiché : une motivation reconstituée, un
-            commentaire de presse, une synthèse rédigée par un modèle de langage.
-            Seules comptent les positions attribuées et publiques.
-          </Note>
+          <Note desktopOnly>{NEVER_SHOWN}</Note>
         </div>
       </Section>
 
@@ -521,8 +560,13 @@ export default function HomePage() {
           <div>
             <h4 className="text-sm font-semibold text-ink">
               Ce que ce site ne fait pas
+              <InfoTip label="Pourquoi cette liste" className="md:hidden">
+                Une promesse de neutralité sans contrepartie n’engage à rien. La
+                liste ci-contre est cette contrepartie : chaque ligne est une
+                fonctionnalité écartée, y compris quand elle serait facile.
+              </InfoTip>
             </h4>
-            <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
+            <p className="mt-1.5 hidden text-sm leading-relaxed text-ink-soft md:block">
               Une promesse de neutralité sans contrepartie n’engage à rien. La
               liste ci-contre est cette contrepartie : chaque ligne est une
               fonctionnalité écartée, y compris quand elle serait facile.

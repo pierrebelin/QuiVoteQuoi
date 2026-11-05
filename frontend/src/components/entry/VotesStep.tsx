@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useQueries, type UseQueryResult } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { ErrorPanel, Loading, Note } from '../ui'
@@ -7,6 +8,7 @@ import type { FinalVoteListResponse, GroupDto } from '../../types/finalVotes'
 import type { FamilyDto } from '../../types/themes'
 import VoteCard from './VoteCard'
 import VotesToolbar from './VotesToolbar'
+import { InfoTip } from '../InfoTip'
 
 const PREVIEW_SIZE = 5
 
@@ -24,18 +26,31 @@ function allVotesLink(code: string, followed: string[]): string {
   return `${base}&groupes=${followed.map(encodeURIComponent).join(',')}`
 }
 
+function ReadingNote() {
+  return (
+    <>
+      Un groupe parlementaire n’est pas un parti. Les chiffres sont ceux publiés par
+      l’Assemblée nationale ; le détail de chaque vote, député par député, s’ouvre depuis son
+      titre. <Link to="/votes-par-groupe/methode" className="underline">Méthode</Link>
+    </>
+  )
+}
+
 function ThemeSection({
   family,
   query,
   groups,
   followed,
   first,
+  info,
 }: {
   family: FamilyDto
   query: UseQueryResult<FinalVoteListResponse>
   groups: GroupDto[]
   followed: string[]
   first: boolean
+  /** Mentions du parcours : sur téléphone, portées par le titre du premier sujet. */
+  info?: ReactNode
 }) {
   const total = query.data?.total ?? 0
 
@@ -48,7 +63,17 @@ function ThemeSection({
           className="text-xl font-semibold tracking-tight outline-none"
         >
           {typographic(family.label)}{' '}
-          <span className="text-[15px] font-normal text-ink-soft">· dernières lois votées</span>
+          <span className="text-[15px] font-normal text-ink-soft">· dernières lois{' '}
+            {/* Insécable : l'icône ne doit pas partir seule à la ligne. */}
+            <span className="whitespace-nowrap">
+              votées
+              {info && (
+                <InfoTip label="Comment lire ces votes" className="md:hidden">
+                  {info}
+                </InfoTip>
+              )}
+            </span>
+          </span>
         </h2>
         {total > 0 && (
           <Link
@@ -149,16 +174,24 @@ export default function VotesStep({
             groups={groups}
             followed={followed}
             first={index === 0}
+            info={
+              index === 0 && (
+                <>
+                  {scopeNote && <p>{scopeNote}</p>}
+                  <p>
+                    <ReadingNote />
+                  </p>
+                </>
+              )
+            }
           />
         ))}
       </div>
 
       <div className="space-y-2">
-        {scopeNote && <Note>{scopeNote}</Note>}
-        <Note>
-          Un groupe parlementaire n’est pas un parti. Les chiffres sont ceux publiés par
-          l’Assemblée nationale ; le détail de chaque vote, député par député, s’ouvre depuis son
-          titre. <Link to="/votes-par-groupe/methode" className="underline">Méthode</Link>
+        {scopeNote && <Note desktopOnly>{scopeNote}</Note>}
+        <Note desktopOnly>
+          <ReadingNote />
         </Note>
       </div>
     </div>

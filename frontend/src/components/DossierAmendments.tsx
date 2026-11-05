@@ -149,6 +149,23 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
  * est affiché : paginer n'est pas filtrer (README.md §2, RM-07). Aucun tri par
  * « importance » ni par nombre de cosignataires — ce serait un classement.
  */
+function AmendmentNotes({ data }: { data: DossierAmendmentsResponse }) {
+  return (
+    <>
+      {data.source_note} {data.pagination_note} {data.coverage_note}
+      {data.coverage.without_summary > 0 && (
+        <>
+          {' '}
+          {data.coverage.without_summary} amendement
+          {data.coverage.without_summary > 1 ? 's' : ''} de ce dossier
+          {data.coverage.without_summary > 1 ? ' sont déposés' : ' est déposé'}{' '}
+          sans exposé sommaire publié.
+        </>
+      )}
+    </>
+  )
+}
+
 export default function DossierAmendments({ uid, initialGroup = '' }: { uid: string; initialGroup?: string }) {
   const [offset, setOffset] = useState(0)
   const [fate, setFate] = useState('')
@@ -212,7 +229,10 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
 
   return (
     <section id="dossier-amendements" className="mb-6">
-      <SectionTitle count={data && data.total > 0 ? data.total : undefined}>
+      <SectionTitle
+        count={data && data.total > 0 ? data.total : undefined}
+        info={data && <AmendmentNotes data={data} />}
+      >
         Amendements
       </SectionTitle>
 
@@ -318,17 +338,8 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
             </>
           )}
 
-          <Note>
-            {data.source_note} {data.pagination_note} {data.coverage_note}
-            {data.coverage.without_summary > 0 && (
-              <>
-                {' '}
-                {data.coverage.without_summary} amendement
-                {data.coverage.without_summary > 1 ? 's' : ''} de ce dossier
-                {data.coverage.without_summary > 1 ? ' sont déposés' : ' est déposé'}{' '}
-                sans exposé sommaire publié.
-              </>
-            )}
+          <Note desktopOnly>
+            <AmendmentNotes data={data} />
           </Note>
         </div>
       )}

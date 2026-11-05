@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { TallyDto } from '../types/scrutins'
 import { Icon } from './icons'
+import { InfoTip } from './InfoTip'
 
 /**
  * Primitives visuelles du site.
@@ -19,15 +20,19 @@ import { Icon } from './icons'
  *
  * Le chapô n'est pas décoratif. La plupart des pages affichent des chiffres
  * dont la portée exacte n'est pas devinable — « tous les scrutins publics, sans
- * sélection » est une garantie (README.md §2), pas un slogan.
+ * sélection » est une garantie (README.md §2), pas un slogan. Sur téléphone, il
+ * reste accessible d'une tape depuis le titre, pour laisser l'écran au contenu.
  */
 export function PageHeader({
   title,
   lede,
+  info,
   aside,
 }: {
   title: string
   lede?: ReactNode
+  /** Mentions de la page que le téléphone ne montre que dans l'infobulle du titre. */
+  info?: ReactNode
   aside?: ReactNode
 }) {
   return (
@@ -35,9 +40,15 @@ export function PageHeader({
       <div className="min-w-0">
         <h2 className="text-2xl font-semibold tracking-tight text-ink">
           {title}
+          {(lede || info) && (
+            <InfoTip label={`À propos de cette page : ${title}`} className="md:hidden">
+              {lede && <p>{lede}</p>}
+              {info}
+            </InfoTip>
+          )}
         </h2>
         {lede && (
-          <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+          <p className="mt-1 hidden text-sm leading-relaxed text-ink-soft md:block">
             {lede}
           </p>
         )}
@@ -51,9 +62,12 @@ export function PageHeader({
 export function SectionTitle({
   children,
   count,
+  info,
 }: {
   children: ReactNode
   count?: ReactNode
+  /** Mentions de la section, en infobulle sur téléphone. */
+  info?: ReactNode
 }) {
   return (
     <div className="mb-2 flex items-baseline gap-2">
@@ -61,6 +75,14 @@ export function SectionTitle({
         {children}
       </h3>
       {count != null && <span className="text-xs text-ink-faint">{count}</span>}
+      {info && (
+        <InfoTip
+          label={`À propos : ${typeof children === 'string' ? children : 'cette section'}`}
+          className="md:hidden"
+        >
+          {info}
+        </InfoTip>
+      )}
     </div>
   )
 }
@@ -109,10 +131,25 @@ export function ListCard({
   )
 }
 
-/** Encadré de méthode ou de lacune. Discret, jamais masqué (README.md §2). */
-export function Note({ children }: { children: ReactNode }) {
+/**
+ * Encadré de méthode ou de lacune.
+ *
+ * Avec `desktopOnly`, il n'apparaît qu'à partir de 768 px : la page doit alors
+ * porter le même texte dans l'infobulle du titre concerné.
+ */
+export function Note({
+  children,
+  desktopOnly = false,
+}: {
+  children: ReactNode
+  desktopOnly?: boolean
+}) {
   return (
-    <div className="rounded-lg border border-line bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft">
+    <div
+      className={`rounded-lg border border-line bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft ${
+        desktopOnly ? 'hidden md:block' : ''
+      }`}
+    >
       {children}
     </div>
   )

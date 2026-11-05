@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { InfoTip } from '../components/InfoTip'
 import ScrutinFeed from '../components/ScrutinFeed'
 import { Button, ErrorPanel, Loading, SegmentedControl } from '../components/ui'
 import type { ScrutinListResponse } from '../types/scrutins'
@@ -65,8 +66,17 @@ export default function ScrutinListPage() {
     <>
       <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Scrutins</h1>
-          <p className="mt-1 max-w-2xl text-ink-soft">
+          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+            Scrutins
+            <InfoTip label="À propos de cette page : Scrutins" className="md:hidden">
+              <p>
+                Tous les scrutins publics de la législature, dans l'ordre où ils ont eu lieu. Aucune sélection,
+                aucun classement.
+              </p>
+              {data && <p>{data.coverage_note}</p>}
+            </InfoTip>
+          </h1>
+          <p className="mt-1 hidden max-w-2xl text-ink-soft md:block">
             Tous les scrutins publics de la législature, dans l'ordre où ils ont eu lieu. Aucune sélection,
             aucun classement.
           </p>
@@ -129,7 +139,7 @@ export default function ScrutinListPage() {
       </div>
 
       {data && (
-        <p className="mt-3 mb-5 flex items-center gap-2 px-0.5 text-[12.5px] text-ink-faint">
+        <p className="mt-3 mb-5 hidden items-center gap-2 px-0.5 text-[12.5px] text-ink-faint md:flex">
           <svg
             viewBox="0 0 24 24"
             fill="none"

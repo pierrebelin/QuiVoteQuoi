@@ -5,7 +5,9 @@ import DossierScrutins from '../components/DossierScrutins'
 import DossierBrief from '../components/DossierBrief'
 import DossierGroupActions from '../components/DossierGroupActions'
 import DossierFinalScrutin from '../components/DossierFinalScrutin'
+import { InfoTip } from '../components/InfoTip'
 import DossierParcours, {
+  DocumentsSource,
   type ParcoursActDto,
   type ParcoursDocumentDto,
 } from '../components/DossierParcours'
@@ -366,6 +368,11 @@ export default function DossierDetailPage() {
           <Card className="px-5 py-4">
             <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
               Parcours du texte
+              {data.documents.length > 0 && (
+                <InfoTip label="Source des documents" className="md:hidden">
+                  <DocumentsSource documents={data.documents} />
+                </InfoTip>
+              )}
             </h3>
             <DossierParcours acts={data.acts} documents={data.documents} />
           </Card>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { InfoTip } from '../components/InfoTip'
 import { Card, ErrorPanel, Loading, Note, Pill } from '../components/ui'
 import { formatDate } from '../types/scrutins'
 import {
@@ -23,17 +24,38 @@ const RATE_BARS = {
   absence: 'bg-slate-400',
 } as const
 
+/** Les mises en garde dues (README.md §6), lues au même endroit quel que soit l'écran. */
+function GroupNotes({ group }: { group: GroupDetailResponse }) {
+  return (
+    <div className="space-y-1">
+      <p>{group.party_note}</p>
+      <p>{group.rate_note}</p>
+      <p>{group.comparison_note}</p>
+      <p>{group.hand_vote_note}</p>
+      {group.reconstructed_count > 0 && <p>{group.reconstructed_note}</p>}
+      {group.silent_line_count > 0 && <p>{group.silent_line_note}</p>}
+    </div>
+  )
+}
+
 function Section({
   title,
+  info,
   children,
 }: {
   title: string
+  info?: React.ReactNode
   children: React.ReactNode
 }) {
   return (
     <Card className="px-4 py-3">
       <h3 className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
         {title}
+        {info && (
+          <InfoTip label={`Comment lire : ${title}`} className="md:hidden">
+            {info}
+          </InfoTip>
+        )}
       </h3>
       <div className="mt-2">{children}</div>
     </Card>
@@ -223,7 +245,7 @@ export default function GroupDetailPage() {
         </Section>
       </div>
 
-      <Section title="Participation">
+      <Section title="Participation" info={<GroupNotes group={group} />}>
         {rates === null ? (
           <p className="text-sm text-ink-soft">
             L'Assemblée ne publie aucune position pour ce groupe : il n'y a
@@ -274,15 +296,8 @@ export default function GroupDetailPage() {
 
       {/* Toutes les mises en garde dues (README.md §6) dans un seul encadré :
           cinq blocs empilés pesaient plus que la fiche qu'ils commentent. */}
-      <Note>
-        <div className="space-y-1">
-          <p>{group.party_note}</p>
-          <p>{group.rate_note}</p>
-          <p>{group.comparison_note}</p>
-          <p>{group.hand_vote_note}</p>
-          {group.reconstructed_count > 0 && <p>{group.reconstructed_note}</p>}
-          {group.silent_line_count > 0 && <p>{group.silent_line_note}</p>}
-        </div>
+      <Note desktopOnly>
+        <GroupNotes group={group} />
       </Note>
     </div>
   )

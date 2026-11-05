@@ -44,9 +44,11 @@ export default function GroupStep({
         ← Sujets&nbsp;: {themesLabel}
       </Link>
 
-      <StepIntro eyebrow="Étape 2 sur 2" title="Quels groupes voulez-vous suivre&nbsp;?">
-        Un groupe réunit des députés à l’Assemblée. Ce n’est pas toujours un parti.
-      </StepIntro>
+      <StepIntro
+        eyebrow="Étape 2 sur 2"
+        title="Quels groupes voulez-vous suivre&nbsp;?"
+        hint="Un groupe réunit des députés à l’Assemblée. Ce n’est pas toujours un parti."
+      />
 
       <button
         type="button"

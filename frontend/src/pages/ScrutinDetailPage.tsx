@@ -10,6 +10,7 @@ import VoteImageExport from '../components/VoteImageExport'
 import PositionGlyph from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
 import { siegesDesGroupes } from '../components/sieges'
+import { InfoTip } from '../components/InfoTip'
 import { CoverageNote } from '../components/ScrutinList'
 import {
   Card,
@@ -54,6 +55,51 @@ function shortDate(iso: string) {
  * encore être modifié ailleurs. Rien n'est affiché quand la source ne conclut
  * rien — « en cours » serait une affirmation que personne n'a écrite.
  */
+/** Ce que le vote recouvre exactement, et ce qu'il ne recouvre pas. */
+function ScrutinScopeHelp({ dossierUid }: { dossierUid: string | null }) {
+  return (
+    <>
+      Le vote porte sur cet objet, pas nécessairement sur l'ensemble du texte.{' '}
+      <GuideLink ancre="q-scrutin-loi">Comment lire un scrutin</GuideLink>
+      {!dossierUid && (
+        <>
+          {' · '}La source ne rattache ce scrutin à aucun dossier
+          législatif, comme la majorité des scrutins.{' '}
+          <GuideLink ancre="q-sans-dossier">Pourquoi</GuideLink>
+        </>
+      )}
+    </>
+  )
+}
+
+function ExpressedVotesHelp() {
+  return (
+    <>
+      Les abstentions n'entrent pas dans les suffrages exprimés, et
+      « non-votant » ne se lit pas comme une absence.{' '}
+      <GuideLink ancre="q-non-votant">Ce que recouvrent les positions</GuideLink>
+    </>
+  )
+}
+
+function HemicycleHelp() {
+  return (
+    <>
+      Chaque député à sa place réelle (
+      <a
+        href="https://www.assemblee-nationale.fr/dyn/vos-deputes/hemicycle"
+        target="_blank"
+        rel="noreferrer"
+        className="text-accent hover:underline"
+      >
+        plan de l'hémicycle
+      </a>
+      ). Survolez un siège pour lire le nom, le groupe et la position ; en
+      gris, aucune position enregistrée.
+    </>
+  )
+}
+
 function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: string }) {
   if (outcome.kind === 'no_recorded_conclusion') return null
   const tone =
@@ -415,6 +461,9 @@ export default function ScrutinDetailPage() {
   const adopted = data.outcome_code === 'adopté'
   const methodNote = data.groups.find((g) => g.method_note)?.method_note
   const votesNominaux = siegesDesGroupes(data.groups)
+  const unknownActorsNote =
+    data.unknown_actors > 0 &&
+    `${data.unknown_actors} votant${data.unknown_actors > 1 ? 's' : ''} ne figure${data.unknown_actors > 1 ? 'nt' : ''} pas au référentiel des acteurs : leur identifiant est affiché tel quel, aucun nom n'est deviné.`
 
   return (
     <div>
@@ -517,16 +566,13 @@ export default function ScrutinDetailPage() {
         {/* Ce que le vote recouvre exactement, et ce qu'il ne recouvre pas. */}
         <p className="mt-3 text-xs leading-relaxed text-ink-faint">
           Scrutin n° {data.number} · {data.ballot_type_label}
-          {data.requester && ` · demandé par : ${data.requester}`}. Le vote porte
-          sur cet objet, pas nécessairement sur l'ensemble du texte.{' '}
-          <GuideLink ancre="q-scrutin-loi">Comment lire un scrutin</GuideLink>
-          {!data.dossier_uid && (
-            <>
-              {' · '}La source ne rattache ce scrutin à aucun dossier
-              législatif, comme la majorité des scrutins.{' '}
-              <GuideLink ancre="q-sans-dossier">Pourquoi</GuideLink>
-            </>
-          )}
+          {data.requester && ` · demandé par : ${data.requester}`}.{' '}
+          <span className="hidden md:inline">
+            <ScrutinScopeHelp dossierUid={data.dossier_uid} />
+          </span>
+          <InfoTip label="Ce que ce vote recouvre" className="md:hidden">
+            <ScrutinScopeHelp dossierUid={data.dossier_uid} />
+          </InfoTip>
         </p>
       </Card>
 
@@ -569,28 +615,28 @@ export default function ScrutinDetailPage() {
             </div>
             <p className="mt-3 text-xs leading-relaxed text-ink-faint">
               {s.required} voix requises sur {s.expressed} suffrages exprimés
-              {data.majority_label && ` (${data.majority_label.toLowerCase()})`}.
-              Les abstentions n'entrent pas dans les suffrages exprimés, et
-              « non-votant » ne se lit pas comme une absence.{' '}
-              <GuideLink ancre="q-non-votant">Ce que recouvrent les positions</GuideLink>
+              {data.majority_label && ` (${data.majority_label.toLowerCase()})`}.{' '}
+              <span className="hidden md:inline">
+                <ExpressedVotesHelp />
+              </span>
+              <InfoTip label="Comment lire ce résultat" className="md:hidden">
+                <p>
+                  <ExpressedVotesHelp />
+                </p>
+                {votesNominaux.length > 0 && (
+                  <p>
+                    <HemicycleHelp />
+                  </p>
+                )}
+              </InfoTip>
             </p>
           </div>
 
           {votesNominaux.length > 0 && (
             <div>
               <Hemicycle votes={votesNominaux} labelledBy="hemicycle-scrutin" />
-              <p className="mt-1 text-center text-xs text-ink-faint">
-                Chaque député à sa place réelle (
-                <a
-                  href="https://www.assemblee-nationale.fr/dyn/vos-deputes/hemicycle"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-accent hover:underline"
-                >
-                  plan de l'hémicycle
-                </a>
-                ). Survolez un siège pour lire le nom, le groupe et la position ; en
-                gris, aucune position enregistrée.
+              <p className="mt-1 hidden text-center text-xs text-ink-faint md:block">
+                <HemicycleHelp />
               </p>
             </div>
           )}
@@ -627,8 +673,17 @@ export default function ScrutinDetailPage() {
       <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
         <h3 className="mb-1 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
           Qui a voté quoi
+          <InfoTip label="Comment lire ces votes" className="md:hidden">
+            <p>
+              Groupe du député à la date du scrutin. Un groupe n'est pas un parti.{' '}
+              <GuideLink ancre="q-groupe">Pourquoi cette distinction</GuideLink>
+            </p>
+            {methodNote && <p>{methodNote}</p>}
+            {unknownActorsNote && <p>{unknownActorsNote}</p>}
+            <p>{data.coverage_note}</p>
+          </InfoTip>
         </h3>
-        <p className="mb-4 text-xs text-ink-faint">
+        <p className="mb-4 hidden text-xs text-ink-faint md:block">
           Groupe du député à la date du scrutin. Un groupe n'est pas un parti.{' '}
           <GuideLink ancre="q-groupe">Pourquoi cette distinction</GuideLink>
         </p>
@@ -636,7 +691,7 @@ export default function ScrutinDetailPage() {
             chiffres marqués « reconstituée » sont produits par le site, pas
             publiés par l'Assemblée. */}
         {methodNote && (
-          <p className="mb-4 rounded-lg bg-info-soft px-3 py-2 text-xs leading-relaxed text-info ring-1 ring-info/15 ring-inset">
+          <p className="mb-4 hidden rounded-lg bg-info-soft px-3 py-2 text-xs leading-relaxed text-info ring-1 ring-info/15 ring-inset md:block">
             {methodNote}
           </p>
         )}
@@ -645,10 +700,12 @@ export default function ScrutinDetailPage() {
 
       {data.corrections.length > 0 && (
         <section className="mb-4">
-          <SectionTitle>Mises au point</SectionTitle>
+          <SectionTitle info="Déclarations postérieures au scrutin. Elles ne modifient ni le résultat ni la répartition ci-dessus.">
+            Mises au point
+          </SectionTitle>
           {/* Déclarations postérieures des députés. Elles ne modifient aucun
               décompte publié par l'Assemblée. */}
-          <p className="mb-3 text-xs text-ink-faint">
+          <p className="mb-3 hidden text-xs text-ink-faint md:block">
             Déclarations postérieures au scrutin. Elles ne modifient ni le
             résultat ni la répartition ci-dessus.
           </p>
@@ -678,14 +735,7 @@ export default function ScrutinDetailPage() {
       )}
 
       <div className="space-y-2">
-        {data.unknown_actors > 0 && (
-          <Note>
-            {data.unknown_actors} votant{data.unknown_actors > 1 ? 's' : ''} ne
-            figure{data.unknown_actors > 1 ? 'nt' : ''} pas au référentiel des
-            acteurs : leur identifiant est affiché tel quel, aucun nom n'est
-            deviné.
-          </Note>
-        )}
+        {unknownActorsNote && <Note desktopOnly>{unknownActorsNote}</Note>}
         <CoverageNote note={data.coverage_note} />
       </div>
     </div>

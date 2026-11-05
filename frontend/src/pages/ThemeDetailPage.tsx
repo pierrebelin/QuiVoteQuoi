@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { InfoTip } from '../components/InfoTip'
 import TextList from '../components/TextList'
-import { MethodNote } from '../components/ThemeBadges'
+import { MethodNote, MethodText } from '../components/ThemeBadges'
 import type { FamiliesResponse, TextListResponse } from '../types/themes'
 
 const PAGE_SIZE = 50
@@ -47,13 +48,19 @@ export default function ThemeDetailPage() {
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">
             {family?.label ?? code}
+            <InfoTip label="À propos de ce thème" className="md:hidden">
+              {family && <p>{family.scope}</p>}
+              <p>
+                <MethodText note={data.method_note} />
+              </p>
+            </InfoTip>
           </h2>
           <span className="text-xs text-ink-faint">
             {data.total} texte{data.total > 1 ? 's' : ''} rattaché
             {data.total > 1 ? 's' : ''}
           </span>
         </div>
-        {family && <p className="mt-0.5 text-sm text-ink-soft">{family.scope}</p>}
+        {family && <p className="mt-0.5 hidden text-sm text-ink-soft md:block">{family.scope}</p>}
       </div>
 
       <MethodNote note={data.method_note} />
@@ -87,8 +94,14 @@ export default function ThemeDetailPage() {
       <p className="text-xs text-ink-faint">
         <Link to="/themes/non-rattaches" className="text-accent underline">
           Voir les textes non rattachés
-        </Link>{' '}
-        — aucun texte n'est retiré du site faute de thème.
+        </Link>
+        <span className="hidden md:inline">
+          {' '}
+          — aucun texte n'est retiré du site faute de thème.
+        </span>
+        <InfoTip label="Textes non rattachés" className="md:hidden">
+          Aucun texte n'est retiré du site faute de thème.
+        </InfoTip>
       </p>
     </div>
   )
