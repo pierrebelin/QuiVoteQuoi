@@ -38,6 +38,33 @@ export function organizationLabel(candidate: CandidateDto): string {
   return candidate.political_organizations[0]?.label ?? ''
 }
 
+/** Au-delà, le lien cible le début et la fin de l'extrait : il reste court et franchit les paragraphes. */
+const WHOLE_EXCERPT_MAX_WORDS = 12
+const EXCERPT_BOUND_WORDS = 5
+
+/** Une borne de text fragment : sans ponctuation d'extrémité, avec `-` encodé car c'est un séparateur. */
+function textFragmentTerm(words: string[]): string {
+  const term = words.join(' ').replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}%€]+$/gu, '')
+  return encodeURIComponent(term).replace(/-/g, '%2D')
+}
+
+/**
+ * Lien vers le passage de l'extrait dans sa source. Une page web reçoit un text
+ * fragment, qu'un navigateur ignore sans dommage s'il ne le retrouve pas. Un PDF
+ * n'en lit pas : il garde l'ancre `#page=N` portée par sa source.
+ */
+export function excerptSourceUrl(sourceUrl: string, excerpt: string): string {
+  const [base = sourceUrl, fragment = ''] = sourceUrl.split('#')
+  if (/\.pdf$/i.test(new URL(base).pathname)) return sourceUrl
+
+  const words = excerpt.trim().split(/\s+/)
+  const terms =
+    words.length <= WHOLE_EXCERPT_MAX_WORDS
+      ? textFragmentTerm(words)
+      : `${textFragmentTerm(words.slice(0, EXCERPT_BOUND_WORDS))},${textFragmentTerm(words.slice(-EXCERPT_BOUND_WORDS))}`
+  return `${base}#${fragment}:~:text=${terms}`
+}
+
 /** Identifiants du paramètre `candidats` : sans vide ni doublon, ordre conservé. */
 export function parseCandidateIds(raw: string | null): string[] {
   const ids = (raw ?? '').split(',').map((value) => value.trim()).filter(Boolean)

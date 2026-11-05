@@ -97,25 +97,25 @@ const candidates = [
       {
         familyCode: 'institutions-vie-politique',
         excerpt: 'Convoquer une Constituante pour passer à la 6e République.',
-        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf#page=11',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Réunir une Assemblée constituante pour passer à la 6e République',
       },
       {
         familyCode: 'pouvoir-achat',
         excerpt: 'Rendre l’impôt sur le revenu plus progressif avec un barème à 14 tranches contre 5 aujourd’hui.',
-        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf#page=26',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Faire la révolution fiscale',
       },
       {
         familyCode: 'environnement-energie',
         excerpt: 'Inscrire dans la Constitution le principe de la « règle verte », selon laquelle on ne prélève pas davantage à la nature que ce qu’elle est en état de reconstituer.',
-        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf#page=46',
         sourceLabel: 'L’Avenir en commun, édition 2025 — La bifurcation écologique pour une société de l’harmonie',
       },
       {
         familyCode: 'international-defense',
         excerpt: 'Se retirer immédiatement du commandement intégré de l’OTAN puis, par étapes, de l’organisation elle-même.',
-        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf',
+        sourceUrl: 'https://melenchon2027.fr/wp-content/uploads/2025/02/A5-PROGRAMME-SITE.pdf#page=59',
         sourceLabel: 'L’Avenir en commun, édition 2025 — Assumer l’indépendance de la France dans le monde',
       },
     ],
@@ -198,7 +198,7 @@ const candidates = [
       {
         familyCode: 'institutions-vie-politique',
         excerpt: 'Nous ferons de la lutte contre la corruption une priorité, garantirons l’indépendance de la justice et des médias, et moderniserons nos institutions pour fonder la première république écologique et citoyenne, plus proche de la souveraineté populaire.',
-        sourceUrl: 'https://marinetondelier.fr/s/Programme-2027.pdf',
+        sourceUrl: 'https://marinetondelier.fr/s/Programme-2027.pdf#page=7',
         sourceLabel: 'Marine Tondelier — Programme 2027 (PDF)',
       },
     ],
@@ -519,25 +519,25 @@ const candidates = [
       {
         familyCode: 'institutions-vie-politique',
         excerpt: 'La France doit retrouver sa souveraineté nationale en quittant toutes les instances supranationales : UE, Euro, Schengen, CEDH, OTAN, OMS. Le peuple français pourra alors reprendre en main son destin.',
-        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf',
+        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf#page=2',
         sourceLabel: 'Les Patriotes — Grandes orientations pour un projet patriote, édition 2026-2027 : Démocratie, institutions, corruption',
       },
       {
         familyCode: 'environnement-energie',
         excerpt: 'Quitter le marché européen de l’électricité. Les règles du marché européen de l’électricité ont été pensées pour nuire à la France afin que celle-ci ne profite pas de l’avantage compétitif que lui procure le nucléaire. C’est ce qui fait que le prix de l’électricité est indexé sur les prix du gaz et non sur le coût réel de production.',
-        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf',
+        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf#page=3',
         sourceLabel: 'Les Patriotes — Grandes orientations pour un projet patriote, édition 2026-2027 : Énergie',
       },
       {
         familyCode: 'economie-finances-publiques',
         excerpt: 'Réindustrialiser l’économie française. Face à nos concurrents directs, la France doit recomposer son tissu industriel, car c’est lui qui génère le plus d’emplois induits dans les autres secteurs et qui crée la valeur ajoutée.',
-        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf',
+        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf#page=3',
         sourceLabel: 'Les Patriotes — Grandes orientations pour un projet patriote, édition 2026-2027 : Industrie, commerce et emploi',
       },
       {
         familyCode: 'agriculture-alimentation',
         excerpt: 'Mettre fin aux accords de libre-échange, qui ruinent nos agriculteurs en les exposant à une concurrence déloyale avec le reste du monde.',
-        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf',
+        sourceUrl: 'https://les-patriotes.fr/wp-content/uploads/2026/09/Projet-pour-la-France-2026-v2.pdf#page=4',
         sourceLabel: 'Les Patriotes — Grandes orientations pour un projet patriote, édition 2026-2027 : Agriculture',
       },
     ],
@@ -684,19 +684,19 @@ const candidates = [
       {
         familyCode: 'international-defense',
         excerpt: 'À BAS LE MILITARISME, PAS UNE FEMME, PAS UN HOMME, PAS UN EURO POUR LES GUERRES IMPÉRIALISTES',
-        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf',
+        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf#page=2',
         sourceLabel: 'NPA-Révolutionnaires — « C’est aux travailleurs et aux travailleuses de diriger la société ! » (tract 4 pages de campagne, sept. 2026)',
       },
       {
         familyCode: 'pouvoir-achat',
         excerpt: 'L’augmentation massive, générale des salaires mais aussi des pensions et des allocations, et leur indexation sur les prix : c’est le premier objectif que doivent se fixer les travailleurs, c’est une urgence pour l’ensemble du monde du travail !',
-        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf',
+        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf#page=2',
         sourceLabel: 'NPA-Révolutionnaires — « C’est aux travailleurs et aux travailleuses de diriger la société ! » (tract 4 pages de campagne, sept. 2026)',
       },
       {
         familyCode: 'travail-emploi',
         excerpt: 'Imposer l’interdiction des licenciements, l’arrêt de toutes les suppressions d’emplois et la baisse du temps de travail sans perte de salaire, jusqu’à l’extinction du chômage, c’est la seule manière de mettre fin au chômage de masse, pour les jeunes comme pour les anciens.',
-        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf',
+        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf#page=2',
         sourceLabel: 'NPA-Révolutionnaires — « C’est aux travailleurs et aux travailleuses de diriger la société ! » (tract 4 pages de campagne, sept. 2026)',
       },
     ],
@@ -970,7 +970,8 @@ function isOnOfficialSite(candidate, url) {
   return host === site || host.endsWith(`.${site}`)
 }
 
-const isLinkedDocument = (candidate, url) => (candidate.officialDocuments ?? []).some((document) => document.url === url)
+// Une ancre « #page=N » désigne le même document.
+const isLinkedDocument = (candidate, url) => (candidate.officialDocuments ?? []).some((document) => document.url === url.split('#')[0])
 
 // Une source hors du site officiel fait échouer le script, y compris en --dry-run.
 const violations = candidates.flatMap((candidate) => {
