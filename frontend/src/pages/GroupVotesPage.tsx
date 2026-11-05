@@ -1,5 +1,9 @@
+import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
+import { BottomSheet } from '../components/BottomSheet'
+import { Icon } from '../components/icons'
+import { CheckRow, FOCUS, SheetButton } from '../components/SheetControls'
 import { FamilyBadges } from '../components/ThemeBadges'
 import {
   Button,
@@ -256,13 +260,15 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
 }
 
 /**
- * Sélecteur des groupes comparés. Une pastille par groupe du référentiel :
- * l'offre reste entière et visible, et la limite est annoncée avant d'être
- * atteinte plutôt que signalée par une erreur du serveur.
+ * Sélecteur des groupes comparés : autant de places que le plafond de la
+ * réponse (quatre), et une feuille qui liste tous les groupes du référentiel.
  *
- * Le renvoi vers les fiches de groupes est posé ici plutôt que dans la barre de
- * navigation : c'est en choisissant les sigles qu'on se demande qui ils
- * recouvrent, pas trois pages plus tôt.
+ * Les places disent le maximum sans compteur. Une place pleine retire son
+ * groupe d'un geste ; une place vide ouvre la feuille. La feuille montre les
+ * douze groupes sans masquer ni mettre en avant aucun, dans l'ordre où la
+ * réponse les donne, avec leur nom complet : l'offre reste entière, et la limite
+ * est annoncée avant d'être atteinte plutôt que signalée par une erreur du
+ * serveur (les groupes non choisis sont alors grisés, jamais cachés).
  */
 function GroupPicker({
   groups,
@@ -275,45 +281,102 @@ function GroupPicker({
   max: number
   onToggle: (abbrev: string) => void
 }) {
+  const [open, setOpen] = useState(false)
   const full = selected.length >= max
+  const places = Array.from({ length: max }, (_, index) => selected[index] ?? null)
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-      <span className="text-xs font-medium text-ink-faint">
-        Groupes comparés {selected.length}/{max}
-      </span>
-      <div className="flex flex-wrap gap-1.5">
-        {groups.map((group) => {
-          const isSelected = selected.includes(group.abbrev)
+    <>
+      <ul
+        aria-label={`Groupes comparés : ${selected.length} sur ${max}`}
+        className="grid grid-cols-4 gap-2"
+      >
+        {places.map((abbrev, index) => {
+          const group = abbrev === null ? null : groups.find((g) => g.abbrev === abbrev)
           return (
-            <button
-              key={group.uid}
-              type="button"
-              onClick={() => onToggle(group.abbrev)}
-              aria-pressed={isSelected}
-              disabled={full && !isSelected}
-              title={group.label}
-              className={`flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[13px] font-medium ring-1 ring-inset transition-colors has-[img]:pl-1 ${
-                isSelected
-                  ? 'bg-ink text-surface ring-ink'
-                  : 'bg-surface text-ink-soft shadow-card ring-line hover:text-ink hover:ring-line-strong disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:ring-line'
-              }`}
-            >
-              <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-9 rounded-md p-0.5" />
-              {group.abbrev}
-            </button>
+            // Clé = rang de la place, pas sigle : le bouton reste le même nœud
+            // quand la place se remplit ou se vide, donc le focus ne se perd
+            // ni à la fermeture de la feuille ni au retrait d'un groupe.
+            <li key={index} className="min-w-0">
+              {abbrev === null ? (
+                <button
+                  type="button"
+                  aria-haspopup="dialog"
+                  aria-label="Ajouter un groupe"
+                  onClick={() => setOpen(true)}
+                  className={`flex min-h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded-xl border-[1.5px] border-dashed border-line-strong px-0.5 py-1 text-xs leading-tight font-medium text-ink-soft transition-colors hover:bg-surface-soft ${FOCUS}`}
+                >
+                  <Icon name="add" className="size-[18px]" />
+                  Ajouter
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  aria-label={`Retirer ${abbrev}${group ? ` (${group.label})` : ''}`}
+                  onClick={() => onToggle(abbrev)}
+                  className={`relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-xl bg-ink px-0.5 py-1 text-xs leading-tight font-semibold text-surface transition-opacity hover:opacity-90 ${FOCUS}`}
+                >
+                  <GroupMark
+                    abbrev={abbrev}
+                    color={group?.color ?? null}
+                    className="h-[22px] w-9 rounded-md p-0.5"
+                  />
+                  <span className="max-w-full truncate">{abbrev}</span>
+                  <span
+                    aria-hidden
+                    className="absolute top-[3px] right-[3px] flex size-4 items-center justify-center rounded-full bg-surface text-ink"
+                  >
+                    <Icon name="close" className="size-[11px]" strokeWidth={3.4} />
+                  </span>
+                </button>
+              )}
+            </li>
           )
         })}
-      </div>
-      {groups.length > 0 && (
-        <Link
-          to="/groupes"
-          className="text-xs font-medium text-accent hover:underline"
-        >
-          Qui est qui : effectifs et composition des {groups.length} groupes →
-        </Link>
-      )}
-    </div>
+      </ul>
+
+      <BottomSheet
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Groupes à comparer"
+        aside={`${selected.length} sur ${max}`}
+        sideOnWide
+        footer={
+          <SheetButton primary onClick={() => setOpen(false)}>
+            Voir la comparaison
+          </SheetButton>
+        }
+      >
+        <p role="status" className="mb-1 text-[13px] leading-snug text-ink-soft">
+          {full
+            ? `${max} groupes sont comparés, le maximum : retirez-en un pour en changer.`
+            : `Jusqu'à ${max} groupes, comparés côte à côte.`}
+        </p>
+        <div role="group" aria-label="Groupes">
+          {groups.map((group) => {
+            const on = selected.includes(group.abbrev)
+            return (
+              <CheckRow
+                key={group.uid}
+                checked={on}
+                disabled={full && !on}
+                onToggle={() => onToggle(group.abbrev)}
+              >
+                <GroupMark
+                  abbrev={group.abbrev}
+                  color={group.color}
+                  className="h-6 w-10 rounded-md p-0.5"
+                />
+                <span className="min-w-0 py-1 leading-tight">
+                  {group.abbrev}
+                  <span className="block text-xs font-normal text-ink-soft">{group.label}</span>
+                </span>
+              </CheckRow>
+            )
+          })}
+        </div>
+      </BottomSheet>
+    </>
   )
 }
 
@@ -421,13 +484,39 @@ export default function GroupVotesPage() {
       <PageHeader
         title="Comparer les votes des groupes"
         lede="Choisissez les groupes à mettre côte à côte : chaque vote sur l'ensemble d'un texte affiche leur position, en pourcentage et en voix."
-        aside={
-          <label className="flex items-center gap-2 text-xs text-ink-faint">
+      />
+
+      <p className="mb-2 text-xs text-ink-faint">
+        <Link
+          to="/votes-par-groupe/methode"
+          className="inline-flex min-h-11 items-center text-accent underline"
+        >
+          Comment sont retenus les votes sur l’ensemble ?
+        </Link>
+      </p>
+
+      <div className="mb-4 space-y-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between md:gap-6">
+          <div className="md:w-full md:max-w-xl">
+            {data ? (
+              <GroupPicker
+                groups={groups}
+                selected={selectedAbbrevs}
+                max={maxGroups}
+                onToggle={toggleGroup}
+              />
+            ) : isLoading ? (
+              <Card className="px-4 py-3">
+                <Loading>Chargement des groupes disponibles…</Loading>
+              </Card>
+            ) : null}
+          </div>
+          <label className="flex items-center gap-2 text-sm font-medium text-ink-soft md:w-72 md:shrink-0">
             Thème
             <select
               value={theme}
               onChange={(e) => update({ theme: e.target.value })}
-              className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink shadow-card focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none"
+              className="h-11 min-w-0 flex-1 rounded-xl border border-line-strong bg-surface px-3 text-base font-normal text-ink focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none md:text-sm"
             >
               <option value="">Tous</option>
               {(families.data?.families ?? []).map((family) => (
@@ -437,28 +526,19 @@ export default function GroupVotesPage() {
               ))}
             </select>
           </label>
-        }
-      />
+        </div>
 
-      <p className="mb-4 text-xs text-ink-faint">
-        <Link to="/votes-par-groupe/methode" className="text-accent underline">
-          Comment sont retenus les votes sur l’ensemble ?
-        </Link>
-      </p>
-
-      <div className="mb-4 space-y-3">
-        {data ? (
-          <GroupPicker
-            groups={groups}
-            selected={selectedAbbrevs}
-            max={maxGroups}
-            onToggle={toggleGroup}
-          />
-        ) : isLoading ? (
-          <Card className="px-4 py-3">
-            <Loading>Chargement des groupes disponibles…</Loading>
-          </Card>
-        ) : null}
+        {groups.length > 0 && (
+          /* Le renvoi vers les fiches de groupes est posé ici plutôt que dans
+             la barre de navigation : c'est en choisissant les sigles qu'on se
+             demande qui ils recouvrent, pas trois pages plus tôt. */
+          <Link
+            to="/groupes"
+            className="inline-flex min-h-11 items-center text-xs font-medium text-accent hover:underline"
+          >
+            Qui est qui : effectifs et composition des {groups.length} groupes →
+          </Link>
+        )}
 
         {/*
           Les notes de lecture sont dues (README.md §6) mais tiennent dans un
