@@ -157,10 +157,14 @@ html[data-theme='dark'] {
 
   --color-yes: #34d399;
   --color-yes-soft: rgb(4 120 87 / 0.2);
-  --color-yes-bar: #12977a;
+  /* Barres « pour » et « contre » : le blanc du libellé posé dessus (VoteCard,
+     pastilles de position) n'atteignait que 3,7:1 et 4,3:1. Assombries à 4,8:1
+     au moins avec le blanc, 3,6:1 au moins contre la surface, et d'une clarté
+     voisine pour qu'aucune des deux ne domine l'autre. */
+  --color-yes-bar: #0e7d65;
   --color-no: #fca5a5;
   --color-no-soft: rgb(153 27 27 / 0.22);
-  --color-no-bar: #cf4f47;
+  --color-no-bar: #c7453e;
   --color-abstain: #fbbf24;
   --color-abstain-soft: rgb(154 91 6 / 0.24);
   --color-abstain-bar: #c98f2d;
