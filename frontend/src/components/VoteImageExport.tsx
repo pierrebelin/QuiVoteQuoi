@@ -94,7 +94,7 @@ export default function VoteImageExport({
     try {
       await navigator.share({
         files: [fichier],
-        text: texteDePartage(scrutin, lien),
+        text: texteDePartage(scrutin, lien, reseau),
       })
     } catch (erreur) {
       // Fermer la feuille de partage n'est pas une erreur à signaler.
@@ -105,7 +105,7 @@ export default function VoteImageExport({
 
   async function copierTexte() {
     try {
-      await navigator.clipboard.writeText(texteDePartage(scrutin, lien))
+      await navigator.clipboard.writeText(texteDePartage(scrutin, lien, reseau))
       setStatut('Texte copié : à coller avec l’image.')
     } catch {
       setStatut('Copie refusée par le navigateur.')
