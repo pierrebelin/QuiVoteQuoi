@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use super::db;
@@ -7,6 +8,10 @@ use crate::application::ports::dossier_group_actions_repository::{
 };
 use crate::domain::actor::GroupUid;
 use crate::domain::dossier_summary::{StoredGroupSummary, SummarySource, SummaryStatus};
+
+/// Type de lecture de `dossier_group_summaries.generated_at`. `Row::get` panique
+/// si ce type ne convient pas à la colonne, et seulement sur une valeur non nulle.
+type GeneratedAtColumn = Option<DateTime<Utc>>;
 
 pub struct PgDossierSummaryRepository {
     pool: PgPool,
@@ -90,7 +95,9 @@ impl DossierSummaryRepository for PgDossierSummaryRepository {
                     facts_fingerprint: row.get("facts_fingerprint"),
                     model: row.get("model"),
                     prompt_version: row.get("prompt_version"),
-                    generated_at: row.get("generated_at"),
+                    generated_at: row
+                        .get::<GeneratedAtColumn, _>("generated_at")
+                        .map(|at| at.naive_utc()),
                     sources: by_group.remove(&raw_group_uid).unwrap_or_default(),
                 })
             })
@@ -186,5 +193,23 @@ impl DossierSummaryRepository for PgDossierSummaryRepository {
             }
         }
         transaction.commit().await.map_err(db)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlx::postgres::{PgTypeInfo, Postgres};
+    use sqlx::Type;
+
+    use super::GeneratedAtColumn;
+
+    #[test]
+    fn generated_at_is_read_with_the_type_of_its_timestamptz_column() {
+        let migration =
+            include_str!("../../../migrations/20260810010000_create_dossier_group_summaries.sql");
+        assert!(migration.contains("generated_at TIMESTAMPTZ"));
+        assert!(<GeneratedAtColumn as Type<Postgres>>::compatible(
+            &PgTypeInfo::with_name("TIMESTAMPTZ")
+        ));
     }
 }
