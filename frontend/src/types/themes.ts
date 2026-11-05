@@ -105,7 +105,7 @@ export interface AmendmentLinkingDto {
 }
 
 export interface LinkAbsenceDto {
-  code: 'no_number' | 'no_dossier' | 'unresolved' | 'ambiguous'
+  code: 'no_number' | 'no_dossier' | 'unresolved' | 'ambiguous' | 'author_mismatch'
   label: string
   count: number
 }

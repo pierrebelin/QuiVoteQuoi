@@ -319,6 +319,7 @@ impl From<LinkingReport> for AmendmentLinkingDto {
                 absence(UnlinkedCause::NoDossier, report.no_dossier),
                 absence(UnlinkedCause::Unresolved, report.unresolved),
                 absence(UnlinkedCause::Ambiguous, report.ambiguous),
+                absence(UnlinkedCause::AuthorMismatch, report.author_mismatch),
             ],
         }
     }
@@ -379,7 +380,9 @@ const RULE_SCOPE: &str = "Certains textes portent leur famille dans leur nature 
 const AMENDMENT_LINKING_NOTE: &str = "« Aucun amendement du dossier ne correspond » compte aussi \
      les amendements de séance, que la source ne rattache pas au dossier, et ceux que le site \
      n'a pas encore ingérés : l'ingestion des amendements est plafonnée à chaque passe. \
-     Aucun lien n'est deviné : un numéro qui ne désigne pas un amendement unique reste sans lien.";
+     Aucun lien n'est deviné : un numéro qui ne désigne pas un amendement unique reste sans lien, \
+     comme celui dont l'auteur nommé par l'objet n'est pas l'auteur publié de l'amendement : \
+     la numérotation d'une seconde délibération repart à 1 et croise celle du texte initial.";
 
 impl From<MethodOverview> for MethodResponse {
     fn from(overview: MethodOverview) -> Self {
@@ -529,6 +532,7 @@ mod tests {
                 no_dossier: 5,
                 unresolved: 9,
                 ambiguous: 2,
+                author_mismatch: 1,
             },
         }
     }
@@ -560,7 +564,8 @@ mod tests {
                 ("no_number", 7),
                 ("no_dossier", 5),
                 ("unresolved", 9),
-                ("ambiguous", 2)
+                ("ambiguous", 2),
+                ("author_mismatch", 1)
             ]
         );
         assert_eq!(

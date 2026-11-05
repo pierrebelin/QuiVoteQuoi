@@ -12,7 +12,7 @@ use crate::application::ports::amendment_repository::AmendmentSummary;
 use crate::application::ports::RepositoryError;
 use crate::domain::amendment::{AmendmentNumber, AmendmentTarget, AmendmentUid};
 use crate::domain::amendment_citation::{
-    CandidateAmendment, CitationCount, CitationResult, LinkMethod, UnlinkedCause,
+    CandidateAmendment, CandidateAuthor, CitationCount, CitationResult, LinkMethod, UnlinkedCause,
 };
 use crate::domain::dossier::DossierUid;
 use crate::domain::scrutin::{ScrutinUid, VoteTally};
@@ -107,9 +107,11 @@ impl AmendmentCitationRepository for PgAmendmentCitationRepository {
         let uids: Vec<&str> = dossiers.iter().map(|d| d.as_str()).collect();
         let rows = sqlx::query(
             "SELECT DISTINCT a.uid, d.dossier_uid, a.number, a.target_title, a.target_kind,
-                    a.deposited_on
+                    a.deposited_on, a.author_label,
+                    NULLIF(TRIM(ac.first_name || ' ' || ac.last_name), '') AS author_full_name
              FROM amendments a
              JOIN dossier_documents d ON d.document_uid = a.text_ref
+             LEFT JOIN actors ac ON ac.uid = a.author_actor_uid
              WHERE d.dossier_uid = ANY($1::text[])",
         )
         .bind(&uids)
@@ -120,12 +122,21 @@ impl AmendmentCitationRepository for PgAmendmentCitationRepository {
             .map(|row| {
                 let target = AmendmentTarget::new(row.get("target_title"), row.get("target_kind"))
                     .map_err(invalid)?;
+                // `author_label` n'est renseigne que pour un auteur institutionnel
+                // (contrainte `amendments_author_label`).
+                let author = match row.get::<Option<String>, _>("author_label") {
+                    Some(label) => CandidateAuthor::Institutional { label },
+                    None => CandidateAuthor::Deputy {
+                        name: row.get("author_full_name"),
+                    },
+                };
                 Ok(CandidateAmendment::new(
                     AmendmentUid::new(row.get("uid")).map_err(invalid)?,
                     DossierUid::new(row.get("dossier_uid")).map_err(invalid)?,
                     AmendmentNumber::new(row.get("number")).map_err(invalid)?,
                     &target,
                     row.get("deposited_on"),
+                    author,
                 ))
             })
             .collect()
