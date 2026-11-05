@@ -64,13 +64,22 @@ export function UnassignedNote({ outcome }: { outcome: string | null }) {
   return <p className="text-xs text-ink-faint">{reason}</p>
 }
 
-export function MethodNote({ note }: { note: string }) {
+export function MethodText({ note }: { note: string }) {
   return (
-    <Note>
+    <>
       {note}{' '}
       <Link to="/themes/methode" className="text-accent underline">
         Méthode complète
       </Link>
+    </>
+  )
+}
+
+/** À partir de 768 px ; sur téléphone, la page place `MethodText` dans une infobulle. */
+export function MethodNote({ note }: { note: string }) {
+  return (
+    <Note desktopOnly>
+      <MethodText note={note} />
     </Note>
   )
 }

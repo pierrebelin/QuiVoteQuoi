@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { InfoTip } from './InfoTip'
 import ScrutinList, { CoverageNote } from './ScrutinList'
 import GuideLink from './GuideLink'
 import { Button, SegmentedControl } from './ui'
@@ -60,6 +61,11 @@ export default function DossierScrutins({ uid }: { uid: string }) {
           <span className="ml-2 font-normal normal-case tracking-normal text-ink-faint">
             {data.total}
           </span>
+        )}
+        {data && (
+          <InfoTip label="Votes absents de ce décompte" className="md:hidden">
+            {data.coverage_note}
+          </InfoTip>
         )}
       </h3>
 

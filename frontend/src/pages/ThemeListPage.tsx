@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { FamilyIllustration } from '../components/FamilyIllustration'
 import { Icon } from '../components/icons'
-import { MethodNote } from '../components/ThemeBadges'
+import { InfoTip } from '../components/InfoTip'
+import { MethodNote, MethodText } from '../components/ThemeBadges'
 import { ErrorPanel, Loading, Note, PageHeader } from '../components/ui'
 import { firstSentence } from '../lib/text'
 import { formatCount } from '../types/groups'
@@ -37,6 +38,11 @@ export default function ThemeListPage() {
   return (
     <div className="space-y-4">
       <PageHeader
+        info={
+          <p>
+            <MethodText note={families.data!.method_note} />
+          </p>
+        }
         title="Thèmes"
         lede={`Les votes de la législature, regroupés par famille thématique. Un texte peut appartenir à ${families.data?.max_families_per_text} familles au plus.`}
       />
@@ -128,7 +134,7 @@ export default function ThemeListPage() {
       </ul>
 
       {method.data && (
-        <Note>
+        <Note desktopOnly>
           <Link to="/themes/non-rattaches" className="text-accent underline">
             Textes non rattachés
           </Link>{' '}
@@ -137,6 +143,19 @@ export default function ThemeListPage() {
           sans famille, sur {method.data.texts_total}. Ils restent consultables :
           rien n'est retiré du site.
         </Note>
+      )}
+      {method.data && (
+        <p className="flex items-center text-xs md:hidden">
+          <Link to="/themes/non-rattaches" className="text-accent underline">
+            Textes non rattachés
+          </Link>
+          <InfoTip label="Textes non rattachés">
+            {method.data.texts_total - method.data.texts_assigned} texte
+            {method.data.texts_total - method.data.texts_assigned > 1 ? 's' : ''}{' '}
+            sans famille, sur {method.data.texts_total}. Ils restent consultables :
+            rien n'est retiré du site.
+          </InfoTip>
+        </p>
       )}
     </div>
   )

@@ -166,6 +166,20 @@ function DocumentLink({ document }: { document: ParcoursDocumentDto }) {
  * datées dessous, et les documents officiels rangés dans la lecture qui les a
  * produits.
  */
+/** Provenance des documents ; sur téléphone, dans l'infobulle du titre du parcours. */
+export function DocumentsSource({ documents }: { documents: ParcoursDocumentDto[] }) {
+  const retrieved = documents.find((d) => d.source_retrieved_at)?.source_retrieved_at
+  const license = documents.find((d) => d.source_license)?.source_license
+  return (
+    <>
+      Documents : archive de l'Assemblée nationale
+      {license && `, ${license}`}
+      {retrieved && `, relevés le ${new Date(retrieved).toLocaleDateString('fr-FR')}`}. Survolez un lien
+      pour sa référence officielle.
+    </>
+  )
+}
+
 export default function DossierParcours({
   acts,
   documents,
@@ -184,8 +198,6 @@ export default function DossierParcours({
   // ce sont elles qui restent visibles.
   const hidden = expanded ? 0 : Math.max(0, phases.length - VISIBLE_PHASES)
   const shown = phases.slice(hidden)
-  const retrieved = documents.find((d) => d.source_retrieved_at)?.source_retrieved_at
-  const license = documents.find((d) => d.source_license)?.source_license
 
   return (
     <div>
@@ -254,11 +266,8 @@ export default function DossierParcours({
       )}
 
       {documents.length > 0 && (
-        <p className="mt-4 text-xs leading-relaxed text-ink-faint">
-          Documents : archive de l'Assemblée nationale
-          {license && `, ${license}`}
-          {retrieved && `, relevés le ${new Date(retrieved).toLocaleDateString('fr-FR')}`}. Survolez un lien
-          pour sa référence officielle.
+        <p className="mt-4 hidden text-xs leading-relaxed text-ink-faint md:block">
+          <DocumentsSource documents={documents} />
         </p>
       )}
     </div>

@@ -98,6 +98,17 @@ export default function GroupListPage() {
   return (
     <div className="space-y-4">
       <PageHeader
+        info={
+          <>
+            <p>{data!.party_note}</p>
+            <p>
+              {data!.hand_vote_note}{' '}
+              <Link to="/scrutins" className="text-accent underline">
+                Voir tous les scrutins
+              </Link>
+            </p>
+          </>
+        }
         title="Groupes parlementaires"
         lede={
           <>
@@ -116,7 +127,7 @@ export default function GroupListPage() {
 
       {/* Groupe ≠ parti, et les votes à main levée manquent : les deux lacunes
           sont dites, dans un seul encadré (README.md §3 et §2). */}
-      <Note>
+      <Note desktopOnly>
         <p>{data!.party_note}</p>
         <p className="mt-1">
           {data!.hand_vote_note}{' '}

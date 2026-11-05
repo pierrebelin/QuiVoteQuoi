@@ -21,9 +21,11 @@ export default function ThemeStep({
 
   return (
     <div className="space-y-7">
-      <StepIntro eyebrow="Étape 1 sur 2" title="Quels sujets vous intéressent&nbsp;?">
-        Choisissez-en un ou plusieurs. Vous verrez ensuite ce qu’ont voté les députés sur ces sujets.
-      </StepIntro>
+      <StepIntro
+        eyebrow="Étape 1 sur 2"
+        title="Quels sujets vous intéressent&nbsp;?"
+        hint="Choisissez-en un ou plusieurs. Vous verrez ensuite ce qu’ont voté les députés sur ces sujets."
+      />
 
       <ul className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-4">
         {families.map((family) => {

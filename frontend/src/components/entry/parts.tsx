@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { InfoTip } from '../InfoTip'
 import { FOCUS_RING } from './styles'
 
 /*
@@ -42,11 +43,12 @@ export function CheckDot({ on }: { on: boolean }) {
 export function StepIntro({
   eyebrow,
   title,
-  children,
+  hint,
 }: {
   eyebrow: string
   title: string
-  children?: ReactNode
+  /** Mode d'emploi : derrière une tape sur téléphone, écrit à partir de 768 px. */
+  hint?: ReactNode
 }) {
   return (
     <header className="max-w-3xl">
@@ -57,9 +59,14 @@ export function StepIntro({
         className="mt-2 text-3xl leading-[1.15] font-semibold tracking-tight outline-none sm:text-4xl"
       >
         {title}
+        {hint && (
+          <InfoTip label="En savoir plus" className="md:hidden">
+            {hint}
+          </InfoTip>
+        )}
       </h2>
-      {children && (
-        <p className="mt-3 text-base leading-relaxed text-ink-soft sm:text-[17px]">{children}</p>
+      {hint && (
+        <p className="mt-3 hidden text-base leading-relaxed text-ink-soft md:block sm:text-[17px]">{hint}</p>
       )}
     </header>
   )

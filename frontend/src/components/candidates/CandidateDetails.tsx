@@ -136,7 +136,7 @@ export function CandidateDetails({
           <span className="block text-[15px] leading-tight font-semibold text-ink">
             {candidate.display_name}
           </span>
-          <span className="block text-[12.5px] leading-tight text-ink-soft">
+          <span className="hidden text-[12.5px] leading-tight text-ink-soft md:block">
             Déclaration, sources et groupes associés
           </span>
         </span>

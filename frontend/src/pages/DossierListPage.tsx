@@ -9,6 +9,7 @@ import DossierFilters, {
   type FilterShortcut,
 } from '../components/DossierFilters'
 import { Icon } from '../components/icons'
+import { InfoTip } from '../components/InfoTip'
 import { FOCUS, SheetButton } from '../components/SheetControls'
 import { Button, ErrorPanel, Loading, PageHeader } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
@@ -319,6 +320,11 @@ export default function DossierListPage() {
               <span>
                 <span className="sr-only">Filtres appliqués : </span>
                 {summary}
+                {selected.includes(NO_CONCLUSION) && (
+                  <InfoTip label="Sans conclusion à ce jour" className="md:hidden">
+                    {NO_CONCLUSION_HELP}
+                  </InfoTip>
+                )}
               </span>
             </p>
             {resetButton}
@@ -344,9 +350,10 @@ export default function DossierListPage() {
 
         <div className="min-w-0">
           {/* Le raccourci mène ici sans passer par le tiroir : l'aide doit être
-              lue avant les cartes. À partir de 1024 px, la colonne la montre déjà. */}
+              lue avant les cartes. À partir de 1024 px, la colonne la montre déjà ; sous
+              768 px, elle est dans l'infobulle du résumé des filtres. */}
           {selected.includes(NO_CONCLUSION) && (
-            <p className="mb-3 flex gap-2 rounded-xl bg-info-soft px-3 py-2.5 text-[12.5px] leading-snug text-ink lg:hidden">
+            <p className="mb-3 hidden gap-2 rounded-xl bg-info-soft px-3 py-2.5 text-[12.5px] leading-snug text-ink md:flex lg:hidden">
               <Icon name="info" className="mt-px size-4 text-info" />
               <span>{NO_CONCLUSION_HELP}</span>
             </p>

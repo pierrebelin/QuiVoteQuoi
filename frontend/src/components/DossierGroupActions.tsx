@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import { GroupDot } from '../pages/GroupListPage'
 import { GROUP_LOGOS } from '../content/logos'
+import { InfoTip } from './InfoTip'
 import { PoliticalLogo } from './PoliticalLogo'
 import PositionGlyph from './entry/PositionGlyph'
 import { Card, ErrorPanel, Pill, TallyLine, VoteBar } from './ui'
@@ -403,8 +404,12 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
       <Card className="px-4 py-4 sm:px-6 sm:py-5">
         <h3 className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
           Ce que chaque groupe a fait sur ce texte
+          <InfoTip label="Comment lire cette section" className="md:hidden">
+            <p>Cochez jusqu'à quatre groupes pour mettre côte à côte leurs synthèses et leurs votes finaux.</p>
+            <p>{data.notes.join(' ')}</p>
+          </InfoTip>
         </h3>
-        <p className="mt-1 text-xs text-ink-faint">
+        <p className="mt-1 hidden text-xs text-ink-faint md:block">
           Cochez jusqu'à quatre groupes pour mettre côte à côte leurs synthèses et leurs votes finaux.
         </p>
 
@@ -451,7 +456,7 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
           </div>
         )}
 
-        <p className="mt-4 text-xs leading-relaxed text-ink-faint">{data.notes.join(' ')}</p>
+        <p className="mt-4 hidden text-xs leading-relaxed text-ink-faint md:block">{data.notes.join(' ')}</p>
       </Card>
     </div>
   )

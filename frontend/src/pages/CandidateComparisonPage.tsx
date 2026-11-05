@@ -116,6 +116,7 @@ export default function CandidateComparisonPage() {
   return (
     <>
       <PageHeader
+        info={data?.declaration_note && <p>{data.declaration_note}</p>}
         title="Candidats 2027"
         lede="Comparez des extraits de programmes déclarés par thème, puis consultez les votes des groupes parlementaires explicitement associés à chaque candidature."
       />
@@ -124,7 +125,11 @@ export default function CandidateComparisonPage() {
       {list.isError && <ErrorPanel error={list.error} />}
       {data && (
         <div className="space-y-5">
-          {data.declaration_note && <Note>{data.declaration_note}</Note>}
+          {data.declaration_note && (
+            <Note desktopOnly>
+              {data.declaration_note}
+            </Note>
+          )}
 
           {data.candidates.length === 0 ? (
             <Card className="px-5 py-5">
@@ -141,8 +146,12 @@ export default function CandidateComparisonPage() {
               />
 
               <section className="space-y-2">
-                <SectionTitle>Extraits par thème</SectionTitle>
-                {data.proposals_note && <Note>{data.proposals_note}</Note>}
+                <SectionTitle info={data.proposals_note}>Extraits par thème</SectionTitle>
+                {data.proposals_note && (
+                  <Note desktopOnly>
+                    {data.proposals_note}
+                  </Note>
+                )}
                 {families.isLoading && <Loading>Chargement des thèmes…</Loading>}
                 {families.isError && <ErrorPanel error={families.error} />}
                 {families.data && (
@@ -162,8 +171,12 @@ export default function CandidateComparisonPage() {
               </section>
 
               <section className="space-y-2">
-                <SectionTitle>Sur chaque candidature</SectionTitle>
-                {data.groups_note && <Note>{data.groups_note}</Note>}
+                <SectionTitle info={data.groups_note}>Sur chaque candidature</SectionTitle>
+                {data.groups_note && (
+                  <Note desktopOnly>
+                    {data.groups_note}
+                  </Note>
+                )}
                 {visible.length === 0 ? (
                   <p className="rounded-xl border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-ink-soft shadow-card">
                     Choisissez une candidature pour lire sa déclaration, ses sources et les groupes parlementaires qui lui sont associés.

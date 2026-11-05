@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
+import { InfoTip } from '../components/InfoTip'
 import { BottomSheet } from '../components/BottomSheet'
 import { Icon } from '../components/icons'
 import { CheckRow, FOCUS, SheetButton } from '../components/SheetControls'
@@ -72,6 +73,32 @@ function ShareBar({ share }: { share: NonNullable<StanceDto['share']> }) {
  * chiffres bruts : les deux sont affichés côte à côte (README.md §6).
  */
 /** Logo du groupe quand il en a un ; sinon la pastille, le sigle suivant déjà. */
+/** Pourquoi rien n'est présélectionné : la neutralité, puis l'aide aux sigles. */
+function NoSelectionHelp({ maxGroups }: { maxGroups: number }) {
+  return (
+    <>
+      <p className="max-w-3xl text-sm leading-relaxed text-ink-soft">
+        Choisir pour vous les groupes à comparer reviendrait à désigner la
+        comparaison qui mérite d'être faite. Sélectionnez ci-dessus les
+        groupes que vous voulez lire côte à côte — {maxGroups} au maximum —
+        pour afficher les votes sur l'ensemble.
+      </p>
+      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
+        Les sigles ne vous parlent pas ? La{' '}
+        <Link to="/groupes" className="text-accent underline">
+          liste des groupes
+        </Link>{' '}
+        donne pour chacun son intitulé complet, son effectif et ses dates
+        d'existence. Un groupe parlementaire n'est pas un parti :{' '}
+        <Link to="/comprendre#q-groupe" className="text-accent underline">
+          pourquoi cette distinction
+        </Link>
+        .
+      </p>
+    </>
+  )
+}
+
 function GroupMark({ abbrev, color, className }: { abbrev: string; color: string | null; className: string }) {
   const logo = GROUP_LOGOS[abbrev]
   if (!logo) return <GroupDot color={color} />
@@ -479,9 +506,42 @@ export default function GroupVotesPage() {
     (group) => group.final_vote_count < totalUnfiltered,
   )
 
+  const selectionNotes = data && hasSelection && (
+    <div className="space-y-1">
+      <p>
+        {data.scope_note}{' '}
+        <Link to="/scrutins" className="text-accent underline">
+          Voir tous les scrutins
+        </Link>
+      </p>
+      <p>
+        {data.share_note} {data.outcome_note}
+      </p>
+      {missingGroups.map((group) => (
+        <p key={group.uid}>
+          {group.label} ({group.abbrev}) n'apparaît que sur{' '}
+          {group.final_vote_count} des {data.total_unfiltered} votes sur
+          l'ensemble : le groupe n'existait pas sur les autres.
+        </p>
+      ))}
+      {theme && (
+        <p>
+          La thématisation est en cours : {data.total_with_family} des{' '}
+          {data.total_unfiltered} votes sur l'ensemble portent une
+          famille. Filtrer par thème laisse donc de côté les textes pas
+          encore rattachés.{' '}
+          <Link to="/themes/methode" className="text-accent underline">
+            Méthode
+          </Link>
+        </p>
+      )}
+    </div>
+  )
+
   return (
     <>
       <PageHeader
+        info={selectionNotes}
         title="Comparer les votes des groupes"
         lede="Choisissez les groupes à mettre côte à côte : chaque vote sur l'ensemble d'un texte affiche leur position, en pourcentage et en voix."
       />
@@ -546,63 +606,21 @@ export default function GroupVotesPage() {
           l'écran. Le contenu est intégral, c'est le poids visuel qui baisse.
         */}
         {data && hasSelection && (
-          <Note>
-            <div className="space-y-1">
-              <p>
-                {data.scope_note}{' '}
-                <Link to="/scrutins" className="text-accent underline">
-                  Voir tous les scrutins
-                </Link>
-              </p>
-              <p>
-                {data.share_note} {data.outcome_note}
-              </p>
-              {missingGroups.map((group) => (
-                <p key={group.uid}>
-                  {group.label} ({group.abbrev}) n'apparaît que sur{' '}
-                  {group.final_vote_count} des {data.total_unfiltered} votes sur
-                  l'ensemble : le groupe n'existait pas sur les autres.
-                </p>
-              ))}
-              {theme && (
-                <p>
-                  La thématisation est en cours : {data.total_with_family} des{' '}
-                  {data.total_unfiltered} votes sur l'ensemble portent une
-                  famille. Filtrer par thème laisse donc de côté les textes pas
-                  encore rattachés.{' '}
-                  <Link to="/themes/methode" className="text-accent underline">
-                    Méthode
-                  </Link>
-                </p>
-              )}
-            </div>
-          </Note>
+          <Note desktopOnly>{selectionNotes}</Note>
         )}
       </div>
 
       {!hasSelection && data && (
         <Card className="px-4 py-3">
-          <p className="text-sm font-semibold">
+          <p className="flex items-center justify-between gap-1 text-sm font-semibold md:block">
             Aucun groupe n'est sélectionné au départ.
+            <InfoTip label="Pourquoi aucun groupe n'est sélectionné" className="md:hidden">
+              <NoSelectionHelp maxGroups={maxGroups} />
+            </InfoTip>
           </p>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-ink-soft">
-            Choisir pour vous les groupes à comparer reviendrait à désigner la
-            comparaison qui mérite d'être faite. Sélectionnez ci-dessus les
-            groupes que vous voulez lire côte à côte — {maxGroups} au maximum —
-            pour afficher les votes sur l'ensemble.
-          </p>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
-            Les sigles ne vous parlent pas ? La{' '}
-            <Link to="/groupes" className="text-accent underline">
-              liste des groupes
-            </Link>{' '}
-            donne pour chacun son intitulé complet, son effectif et ses dates
-            d'existence. Un groupe parlementaire n'est pas un parti :{' '}
-            <Link to="/comprendre#q-groupe" className="text-accent underline">
-              pourquoi cette distinction
-            </Link>
-            .
-          </p>
+          <div className="mt-1 hidden md:block">
+            <NoSelectionHelp maxGroups={maxGroups} />
+          </div>
         </Card>
       )}
 

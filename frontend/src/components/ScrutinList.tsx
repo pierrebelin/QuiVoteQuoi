@@ -7,10 +7,11 @@ export { TallyLine } from './ui'
 
 /**
  * Lacune de couverture affichée telle quelle : les votes à main levée sont
- * absents de la source, le site ne peut rien en dire.
+ * absents de la source, le site ne peut rien en dire. Sur téléphone, la page la
+ * porte dans l'infobulle de son titre.
  */
 export function CoverageNote({ note }: { note: string }) {
-  return <Note>{note}</Note>
+  return <Note desktopOnly>{note}</Note>
 }
 
 /**
