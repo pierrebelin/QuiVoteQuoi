@@ -162,7 +162,7 @@ export function groupPosition(stance: StanceDto | undefined): GroupPosition {
 }
 
 export function findStance(
-  vote: FinalVoteDto,
+  vote: Pick<FinalVoteDto, 'stances'>,
   group: { uid: string; abbrev: string },
 ): StanceDto | undefined {
   return (
@@ -246,28 +246,6 @@ export function stanceSentence(stance: StanceDto | undefined): string {
 /** Apostrophes droites des libellés de l'API → apostrophes typographiques. */
 export function typographic(text: string): string {
   return text.replaceAll("'", '’')
-}
-
-const LEADING_FORMS = [
-  'proposition de loi visant à ',
-  'projet de loi visant à ',
-  'proposition de loi relative à ',
-]
-
-/**
- * Titre lisible d'un vote sur l'ensemble : l'intitulé du dossier quand il
- * existe, sinon le libellé officiel du texte sans sa formule d'ouverture,
- * première lettre en capitale. Déterministe, aucun modèle de langage : le
- * libellé officiel complet reste porté par l'infobulle du lien.
- */
-export function voteTitle(vote: Pick<FinalVoteDto, 'dossier_label' | 'text_label'>): string {
-  const dossier = vote.dossier_label?.trim()
-  if (dossier) return typographic(dossier)
-  let label = vote.text_label.trim()
-  const lower = label.toLowerCase()
-  const prefix = LEADING_FORMS.find((form) => lower.startsWith(form))
-  if (prefix) label = label.slice(prefix.length)
-  return typographic(label.charAt(0).toUpperCase() + label.slice(1))
 }
 
 export function capitalized(text: string): string {

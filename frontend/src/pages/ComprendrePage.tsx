@@ -303,7 +303,7 @@ export default function ComprendrePage() {
       <FreshnessSection />
 
       <p className="border-t border-line pt-3 text-sm text-ink-soft">
-        La méthode de rattachement aux thèmes est publiée à part :{' '}
+        La méthode de rattachement aux sujets est publiée à part :{' '}
         <Link
           to="/themes/methode"
           className="text-accent underline underline-offset-2"

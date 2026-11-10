@@ -133,7 +133,7 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
             ))}
           </ul>
         ) : (
-          <p>Aucun scrutin public rapproché</p>
+          <p>Aucun vote public rapproché</p>
         )}
       </div>
     </Card>
@@ -157,7 +157,7 @@ function AmendmentNotes({ data }: { data: DossierAmendmentsResponse }) {
         <>
           {' '}
           {data.coverage.without_summary} amendement
-          {data.coverage.without_summary > 1 ? 's' : ''} de ce dossier
+          {data.coverage.without_summary > 1 ? 's' : ''} de ce texte
           {data.coverage.without_summary > 1 ? ' sont déposés' : ' est déposé'}{' '}
           sans exposé sommaire publié.
         </>
@@ -278,13 +278,13 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
 
       {number && (
         <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface-soft px-3 py-2 text-xs text-ink-soft">
-          <span>Amendement n° {number}, ouvert depuis un scrutin.</span>
+          <span>Amendement n° {number}, ouvert depuis un vote.</span>
           <button
             type="button"
             onClick={showAll}
             className="font-medium text-accent hover:underline"
           >
-            Afficher tous les amendements du dossier
+            Afficher tous les amendements du texte
           </button>
         </div>
       )}
@@ -310,8 +310,8 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
               {data.coverage.base_total === 0
                 ? "Les amendements ne sont pas encore ingérés sur ce site. Cette section restera vide jusqu'à la première passe d'ingestion."
                 : number
-                  ? `Aucun amendement n° ${number} n'est ingéré pour ce dossier.`
-                  : "Aucun amendement ingéré ne se rattache à un texte de ce dossier. Cela ne signifie pas qu'aucun amendement n'a été déposé sur ce texte."}
+                  ? `Aucun amendement n° ${number} n'est ingéré pour ce texte.`
+                  : "Aucun amendement ingéré ne se rattache à ce texte. Cela ne signifie pas qu'aucun amendement n'a été déposé sur ce texte."}
             </p>
           ) : (
             <>

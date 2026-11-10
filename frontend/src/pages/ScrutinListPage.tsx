@@ -39,8 +39,8 @@ const dossierFilters = [
 type ListView = 'scrutin' | 'dossier'
 
 const views: { value: ListView; label: string; icon: IconName }[] = [
-  { value: 'scrutin', label: 'Par scrutin', icon: 'list' },
-  { value: 'dossier', label: 'Par dossier', icon: 'dossiers' },
+  { value: 'scrutin', label: 'Par vote', icon: 'list' },
+  { value: 'dossier', label: 'Par texte', icon: 'dossiers' },
 ]
 
 /*
@@ -68,7 +68,7 @@ function StateChips({ value, onChange }: { value: string; onChange: (value: stri
   return (
     <div
       role="group"
-      aria-label="État du dossier"
+      aria-label="État du texte"
       className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:flex-wrap md:px-0"
     >
       {dossierStates.map((option) => {
@@ -142,7 +142,7 @@ function ViewToggle({ view, onChange }: { view: ListView; onChange: (view: ListV
   return (
     <div
       role="group"
-      aria-label="Regrouper les scrutins"
+      aria-label="Regrouper les votes"
       className="grid w-full grid-cols-2 gap-1 rounded-xl bg-surface-soft p-[3px] md:w-80"
     >
       {views.map((option) => {
@@ -312,13 +312,13 @@ export default function ScrutinListPage() {
 
   const seeLabel =
     !data || isPlaceholderData
-      ? 'Voir les scrutins'
+      ? 'Voir les votes'
       : data.total === 0
-        ? 'Aucun scrutin ne correspond'
-        : `Voir ${data.total.toLocaleString('fr-FR')} scrutin${data.total > 1 ? 's' : ''}`
+        ? 'Aucun vote ne correspond'
+        : `Voir ${data.total.toLocaleString('fr-FR')} vote${data.total > 1 ? 's' : ''}`
 
   const searchLabel =
-    view === 'dossier' ? 'Rechercher dans le titre du dossier' : "Rechercher dans l'objet du scrutin"
+    view === 'dossier' ? 'Rechercher dans le titre du texte' : "Rechercher dans l'objet du vote"
 
   function submitSearch() {
     setSearch(draft)
@@ -331,10 +331,10 @@ export default function ScrutinListPage() {
         {/* Le compteur reste sur la ligne du titre dans les deux vues, quelle que soit la longueur de son libellé. */}
         <div className="flex items-end justify-between gap-4">
           <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
-            Scrutins
-            <InfoTip label="À propos de cette page : Scrutins" className="md:hidden">
+            Votes
+            <InfoTip label="À propos de cette page : Votes" className="md:hidden">
               <p>
-                Tous les scrutins publics de la législature, dans l'ordre où ils ont eu lieu. Aucune sélection,
+                Tous les votes publics de la législature, dans l'ordre où ils ont eu lieu. Aucune sélection,
                 aucun classement.
               </p>
               {data && <p>{data.coverage_note}</p>}
@@ -343,18 +343,18 @@ export default function ScrutinListPage() {
           {view === 'scrutin' && data && (
             <PageCount
               total={data.total}
-              label={`scrutin${data.total > 1 ? 's' : ''}${outcome || ballotType || withDossier || search ? ' pour ces filtres' : ' publics'}`}
+              label={`vote${data.total > 1 ? 's' : ''}${outcome || ballotType || withDossier || search ? ' pour ces filtres' : ' publics'}`}
             />
           )}
           {view === 'dossier' && dossiers.data && (
             <PageCount
               total={dossiers.data.total}
-              label={`dossier${dossiers.data.total > 1 ? 's' : ''}${dossierState !== ALL_STATES || search ? ' pour ces filtres' : ' avec scrutin'}`}
+              label={`texte${dossiers.data.total > 1 ? 's' : ''}${dossierState !== ALL_STATES || search ? ' pour ces filtres' : ' avec vote'}`}
             />
           )}
         </div>
         <p className="mt-1 hidden max-w-2xl text-ink-soft md:block">
-          Tous les scrutins publics de la législature, dans l'ordre où ils ont eu lieu. Aucune sélection,
+          Tous les votes publics de la législature, dans l'ordre où ils ont eu lieu. Aucune sélection,
           aucun classement.
         </p>
         {/* Pendant du lien « Accéder à tous les scrutins » de la liste des dossiers. */}
@@ -362,7 +362,7 @@ export default function ScrutinListPage() {
           to="/dossiers"
           className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline"
         >
-          Tous les dossiers législatifs →
+          Tous les textes →
         </Link>
       </div>
 
@@ -458,7 +458,7 @@ export default function ScrutinListPage() {
             <SegmentedControl label="Issue" options={outcomes} value={outcome} onChange={reset(setOutcome)} />
             <SegmentedControl label="Type" options={ballotTypes} value={ballotType} onChange={reset(setBallotType)} />
             <SegmentedControl
-              label="Dossier"
+              label="Texte"
               options={dossierFilters}
               value={withDossier}
               onChange={reset(setWithDossier)}
@@ -493,13 +493,13 @@ export default function ScrutinListPage() {
 
       {view === 'dossier' && (
         <>
-          {dossiers.isLoading && <Loading>Chargement des dossiers…</Loading>}
+          {dossiers.isLoading && <Loading>Chargement des textes…</Loading>}
           {dossiers.isError && <ErrorPanel error={dossiers.error} />}
           {dossiers.data && (
             <>
               {dossiers.data.dossiers.length === 0 ? (
                 <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
-                  Aucun dossier voté ne correspond à ces filtres.
+                  Aucun texte voté ne correspond à ces filtres.
                 </p>
               ) : (
                 <div className={`space-y-3 transition-opacity ${dossiers.isPlaceholderData ? 'opacity-50' : ''}`}>
@@ -525,14 +525,14 @@ export default function ScrutinListPage() {
         </>
       )}
 
-      {view === 'scrutin' && isLoading && <Loading>Chargement des scrutins…</Loading>}
+      {view === 'scrutin' && isLoading && <Loading>Chargement des votes…</Loading>}
       {view === 'scrutin' && isError && <ErrorPanel error={error} />}
 
       {view === 'scrutin' && data && (
         <>
           {data.count === 0 ? (
             <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
-              Aucun scrutin ne correspond à ces filtres.
+              Aucun vote ne correspond à ces filtres.
             </p>
           ) : (
             <ScrutinFeed scrutins={data.scrutins} />
@@ -564,7 +564,7 @@ export default function ScrutinListPage() {
         </p>
         <SheetChoice label="Issue" options={outcomes} value={outcome} onChange={reset(setOutcome)} />
         <SheetChoice label="Type" options={ballotTypes} value={ballotType} onChange={reset(setBallotType)} />
-        <SheetChoice label="Dossier" options={dossierFilters} value={withDossier} onChange={reset(setWithDossier)} />
+        <SheetChoice label="Texte" options={dossierFilters} value={withDossier} onChange={reset(setWithDossier)} />
       </BottomSheet>
     </>
   )

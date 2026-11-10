@@ -104,7 +104,7 @@ export default function GroupListPage() {
             <p>
               {data!.hand_vote_note}{' '}
               <Link to="/scrutins" className="text-accent underline">
-                Voir tous les scrutins
+                Voir tous les votes
               </Link>
             </p>
           </>
@@ -114,7 +114,7 @@ export default function GroupListPage() {
           <>
             Les {data!.total} groupes de la {data!.groups[0]?.legislature}
             <sup>e</sup> législature. Ouvrez un groupe pour son effectif, ses
-            dates et sa participation aux scrutins.
+            dates et sa participation aux votes.
           </>
         }
       />
@@ -132,7 +132,7 @@ export default function GroupListPage() {
         <p className="mt-1">
           {data!.hand_vote_note}{' '}
           <Link to="/scrutins" className="text-accent underline">
-            Voir tous les scrutins
+            Voir tous les votes
           </Link>
         </p>
       </Note>

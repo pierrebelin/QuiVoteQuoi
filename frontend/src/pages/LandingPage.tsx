@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation } from 'react-router'
 import { useFreshness } from '../components/Freshness'
-import VoteCard from '../components/entry/VoteCard'
+import VoteCard from '../components/VoteCard'
+import { finalVoteCard } from '../components/voteCardData'
 import { FOCUS_RING } from '../components/entry/styles'
 import { Card, Loading } from '../components/ui'
 import {
@@ -9,7 +10,6 @@ import {
   PARAM_GROUPS,
   PARAM_STEP,
   PARAM_THEMES,
-  inHemicycleOrder,
 } from '../lib/entryFlow'
 import { fetchJson } from '../lib/fetchJson'
 import type { FinalVoteListResponse } from '../types/finalVotes'
@@ -24,7 +24,7 @@ const USAGES = [
   {
     to: '/votes-par-groupe',
     titre: 'Confronter un discours à un vote',
-    texte: 'La position de vote d’un groupe est datée et publique : pour, contre, abstention, scrutin par scrutin.',
+    texte: 'La position de vote d’un groupe est datée et publique : pour, contre, abstention, vote par vote.',
   },
   {
     to: '/scrutins',
@@ -47,7 +47,7 @@ const USAGES = [
 const REGLES = [
   {
     titre: 'Tout est publié.',
-    texte: 'Chaque scrutin de l’Assemblée, sans sélection ; une lacune connue est signalée.',
+    texte: 'Chaque vote de l’Assemblée, sans sélection ; une lacune connue est signalée.',
   },
   {
     titre: 'Des chiffres bruts.',
@@ -120,7 +120,7 @@ function Landmarks({ groupCount }: { groupCount: number | null }) {
   const chips = [
     total.data !== undefined && (
       <>
-        <b className="font-semibold text-ink">{total.data.toLocaleString('fr-FR')}</b> scrutins
+        <b className="font-semibold text-ink">{total.data.toLocaleString('fr-FR')}</b> votes
       </>
     ),
     groupCount !== null && groupCount > 0 && (
@@ -171,7 +171,7 @@ export default function LandingPage() {
   if (legacyEntry) return <Navigate to={`${ENTRY_PATH}${location.search}`} replace />
 
   const vote = latest.data?.items[0]
-  const groups = latest.data ? inHemicycleOrder(latest.data.groups) : []
+  const groups = latest.data?.groups ?? []
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 md:space-y-12">
@@ -213,7 +213,7 @@ export default function LandingPage() {
             Dernier vote sur l’ensemble d’un texte
           </h3>
           {vote ? (
-            <VoteCard vote={vote} groups={groups} followed={[]} />
+            <VoteCard size="full" {...finalVoteCard(vote, groups)} />
           ) : (
             <Card className="px-4 py-6">
               {latest.isError ? (

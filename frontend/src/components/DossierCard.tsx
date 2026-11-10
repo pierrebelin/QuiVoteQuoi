@@ -125,7 +125,7 @@ export default function DossierCard({
         <>
           <span className="text-line-strong">·</span>
           <span className="font-semibold text-ink">
-            {dossier.scrutin_count.toLocaleString('fr-FR')} scrutin
+            {dossier.scrutin_count.toLocaleString('fr-FR')} vote
             {dossier.scrutin_count > 1 ? 's' : ''}
           </span>
         </>
@@ -148,7 +148,7 @@ export default function DossierCard({
           <OutcomeSplit
             adopted={dossier.adopted_count}
             rejected={dossier.rejected_count}
-            scope={`${dossier.scrutin_count.toLocaleString('fr-FR')} scrutin${dossier.scrutin_count > 1 ? 's' : ''}`}
+            scope={`${dossier.scrutin_count.toLocaleString('fr-FR')} vote${dossier.scrutin_count > 1 ? 's' : ''}`}
           />
         )
       }

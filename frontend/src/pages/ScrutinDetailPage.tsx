@@ -62,11 +62,11 @@ function ScrutinScopeHelp({ dossierUid }: { dossierUid: string | null }) {
   return (
     <>
       Le vote porte sur cet objet, pas nécessairement sur l'ensemble du texte.{' '}
-      <GuideLink ancre="q-scrutin-loi">Comment lire un scrutin</GuideLink>
+      <GuideLink ancre="q-scrutin-loi">Comment lire un vote</GuideLink>
       {!dossierUid && (
         <>
-          {' · '}La source ne rattache ce scrutin à aucun dossier
-          législatif, comme la majorité des scrutins.{' '}
+          {' · '}La source ne rattache ce vote à aucun texte, comme la
+          majorité des votes.{' '}
           <GuideLink ancre="q-sans-dossier">Pourquoi</GuideLink>
         </>
       )}
@@ -142,7 +142,7 @@ function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: 
       <p className="text-xs">
         {outcome.date && <span className="text-ink-faint">{shortDate(outcome.date)} · </span>}
         <Link to={`/dossiers/${dossierUid}`} className="font-medium text-accent hover:underline">
-          Voir le dossier législatif →
+          Voir le texte et son parcours →
         </Link>
       </p>
     </InfoBox>
@@ -230,7 +230,7 @@ function CitedAmendment({
           to={amendmentCardPath(amendment.dossier_uid, amendment.number)}
           className="font-medium text-accent hover:underline"
         >
-          Voir l'amendement dans son dossier →
+          Voir l'amendement dans son texte →
         </Link>
       </div>
     </div>
@@ -430,12 +430,12 @@ export default function ScrutinDetailPage() {
     enabled: !!dossierUid,
   })
 
-  if (isLoading) return <Loading>Chargement du scrutin…</Loading>
+  if (isLoading) return <Loading>Chargement du vote…</Loading>
 
   if (isError) {
     return (
       <div>
-        <BackLink to="/scrutins" className="mb-4">Retour aux scrutins</BackLink>
+        <BackLink to="/scrutins" className="mb-4">Retour aux votes</BackLink>
         <ErrorPanel error={error} />
       </div>
     )
@@ -453,7 +453,7 @@ export default function ScrutinDetailPage() {
 
   return (
     <div>
-      <BackLink to="/scrutins" className="mb-4">Retour aux scrutins</BackLink>
+      <BackLink to="/scrutins" className="mb-4">Retour aux votes</BackLink>
 
       {/*
         De quoi il s'agit : l'issue, la date, la lecture et les thèmes sur une
@@ -531,7 +531,7 @@ export default function ScrutinDetailPage() {
               to={`/dossiers/${data.dossier_uid}`}
               className="font-medium text-accent hover:underline"
             >
-              Dossier législatif →
+              Le texte et tout son parcours →
             </Link>
           )}
           <button
@@ -656,7 +656,7 @@ export default function ScrutinDetailPage() {
           Qui a voté quoi
           <InfoTip label="Comment lire ces votes" className="md:hidden">
             <p>
-              Groupe du député à la date du scrutin. Un groupe n'est pas un parti.{' '}
+              Groupe du député à la date du vote. Un groupe n'est pas un parti.{' '}
               <GuideLink ancre="q-groupe">Pourquoi cette distinction</GuideLink>
             </p>
             {methodNote && <p>{methodNote}</p>}
@@ -665,7 +665,7 @@ export default function ScrutinDetailPage() {
           </InfoTip>
         </h3>
         <p className="mb-4 hidden text-xs text-ink-faint md:block">
-          Groupe du député à la date du scrutin. Un groupe n'est pas un parti.{' '}
+          Groupe du député à la date du vote. Un groupe n'est pas un parti.{' '}
           <GuideLink ancre="q-groupe">Pourquoi cette distinction</GuideLink>
         </p>
         {/* Mention de méthode portée une fois pour toute la section : les
@@ -681,13 +681,13 @@ export default function ScrutinDetailPage() {
 
       {data.corrections.length > 0 && (
         <section className="mb-4">
-          <SectionTitle info="Déclarations postérieures au scrutin. Elles ne modifient ni le résultat ni la répartition ci-dessus.">
+          <SectionTitle info="Déclarations postérieures au vote. Elles ne modifient ni le résultat ni la répartition ci-dessus.">
             Mises au point
           </SectionTitle>
           {/* Déclarations postérieures des députés. Elles ne modifient aucun
               décompte publié par l'Assemblée. */}
           <p className="mb-3 hidden text-xs text-ink-faint md:block">
-            Déclarations postérieures au scrutin. Elles ne modifient ni le
+            Déclarations postérieures au vote. Elles ne modifient ni le
             résultat ni la répartition ci-dessus.
           </p>
           <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">

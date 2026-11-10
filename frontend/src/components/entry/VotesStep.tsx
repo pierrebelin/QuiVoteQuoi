@@ -6,7 +6,8 @@ import { fetchJson } from '../../lib/fetchJson'
 import { typographic } from '../../lib/entryFlow'
 import type { FinalVoteListResponse, GroupDto } from '../../types/finalVotes'
 import type { FamilyDto } from '../../types/themes'
-import VoteCard from './VoteCard'
+import VoteCard from '../VoteCard'
+import { finalVoteCard } from '../voteCardData'
 import VotesToolbar from './VotesToolbar'
 import ThemeTexts from './ThemeTexts'
 import { InfoTip } from '../InfoTip'
@@ -26,6 +27,13 @@ function allVotesLink(code: string, followed: string[]): string {
   if (followed.length === 0 || followed.length > MAX_GROUPS_IN_COMPARISON_LINK) return base
   return `${base}&groupes=${followed.map(encodeURIComponent).join(',')}`
 }
+
+/**
+ * Ce que veut dire l'issue d'un vote sur l'ensemble. Dite une fois, dans
+ * l'infobulle du sujet, et non sur chaque carte.
+ */
+const OUTCOME_NOTE =
+  '« Adoptée » veut dire que l’Assemblée a voté pour ce texte à cette lecture : ce n’est pas forcément la loi définitive, le Sénat peut encore l’examiner et le modifier. « Rejetée » est l’issue de cette lecture seulement.'
 
 function ReadingNote() {
   return (
@@ -92,7 +100,11 @@ function ThemeSection({
         (query.data.items.length > 0 ? (
           <div className="space-y-3">
             {query.data.items.map((vote) => (
-              <VoteCard key={vote.scrutin_uid} vote={vote} groups={groups} followed={followed} />
+              <VoteCard
+                key={vote.scrutin_uid}
+                size="full"
+                {...finalVoteCard(vote, groups, followed)}
+              />
             ))}
           </div>
         ) : (
@@ -179,6 +191,7 @@ export default function VotesStep({
             info={
               index === 0 && (
                 <>
+                  <p>{OUTCOME_NOTE}</p>
                   {scopeNote && <p>{scopeNote}</p>}
                   <p>
                     <ReadingNote />
@@ -191,6 +204,7 @@ export default function VotesStep({
       </div>
 
       <div className="space-y-2">
+        <Note desktopOnly>{OUTCOME_NOTE}</Note>
         {scopeNote && <Note desktopOnly>{scopeNote}</Note>}
         <Note desktopOnly>
           <ReadingNote />

@@ -45,7 +45,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
   })
 
   if (groupActions.isLoading || (finalVote && scrutin.isLoading)) {
-    return <p className="mb-6 animate-pulse text-sm text-ink-faint">Chargement du scrutin final…</p>
+    return <p className="mb-6 animate-pulse text-sm text-ink-faint">Chargement du vote final…</p>
   }
 
   if (groupActions.isError || scrutin.isError) {
@@ -59,7 +59,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
   if (!finalVote || !scrutin.data) {
     return (
       <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
-        Aucun scrutin final publié n'est rattaché à ce dossier. Les scrutins éventuellement disponibles restent consultables dans l'onglet dédié.
+        Aucun vote final publié n'est rattaché à ce texte. Les votes éventuellement disponibles restent consultables dans l'onglet dédié.
       </p>
     )
   }
@@ -72,7 +72,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div>
           <h3 id="dossier-scrutin-final" className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-            Scrutin final publié
+            Vote final publié
           </h3>
           <p className="mt-1 text-sm text-ink-soft">
             <Link to={`/scrutins/${data.uid}`} className="font-medium text-accent hover:underline">
@@ -95,7 +95,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
               <Hemicycle votes={votes} labelledBy="dossier-scrutin-final" />
             ) : (
               <p className="rounded-lg border border-line bg-surface-soft px-3 py-2 text-sm text-ink-soft">
-                La source ne publie aucune position nominale exploitable pour représenter l'hémicycle de ce scrutin.
+                La source ne publie aucune position nominale exploitable pour représenter l'hémicycle de ce vote.
               </p>
             )}
           </div>

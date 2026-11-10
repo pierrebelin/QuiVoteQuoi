@@ -39,7 +39,7 @@ export function FamilyChips({
   onFamily?: (code: string) => void
 }) {
   if (families.length === 0) {
-    return <span className="text-xs text-ink-faint italic">Aucun thème attribué pour l'instant.</span>
+    return <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
   }
   const chip =
     'relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:ring-line-strong'
@@ -57,7 +57,7 @@ export function FamilyChips({
             key={family.code}
             type="button"
             onClick={() => onFamily(family.code)}
-            title={`Voir les dossiers du thème « ${typographic(family.label)} »`}
+            title={`Voir les textes du sujet « ${typographic(family.label)} »`}
             className={chip}
           >
             {content}

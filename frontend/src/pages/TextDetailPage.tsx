@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
-import { BackLink } from '../components/ui'
+import { BackLink, Card, Loading } from '../components/ui'
 import { FamilyBadges, UnassignedNote } from '../components/ThemeBadges'
+import VoteCard from '../components/VoteCard'
+import { isWholeTextVote, scrutinDetailCard, textScrutinCard } from '../components/voteCardData'
+import { fetchJson } from '../lib/fetchJson'
+import type { ScrutinDetailDto } from '../types/scrutins'
+import { formatDate } from '../types/scrutins'
 import type { TextDetailResponse } from '../types/themes'
-
-function frenchDate(value: string) {
-  return new Date(value).toLocaleDateString('fr-FR')
-}
 
 export default function TextDetailPage() {
   const { key } = useParams<{ key: string }>()
@@ -21,93 +22,93 @@ export default function TextDetailPage() {
       }),
   })
 
+  // Le dernier vote sur l'ensemble du texte, s'il y en a un, porte la
+  // position de chaque groupe : il est lu dans le détail du scrutin.
+  const whole = text.data?.scrutins.find((scrutin) => isWholeTextVote(scrutin.subject))
+  const wholeDetail = useQuery({
+    queryKey: ['scrutin', whole?.uid],
+    enabled: Boolean(whole),
+    queryFn: () => fetchJson<ScrutinDetailDto>(`/api/scrutins/${whole!.uid}`),
+    retry: false,
+  })
+
   if (text.isLoading)
     return <p className="animate-pulse text-ink-faint">Chargement…</p>
   if (text.error)
     return <p className="text-no">{(text.error as Error).message}</p>
 
   const data = text.data!
+  const others = data.scrutins.filter((scrutin) => scrutin.uid !== whole?.uid)
+  const motives = data.families.filter((family) => family.motive)
 
   return (
-    <div className="space-y-3">
-      <div>
-        <BackLink to="/par-sujet">Votes par sujet</BackLink>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight">
-          {data.label}
-        </h2>
-        <p className="mt-0.5 text-xs text-ink-faint">
-          {data.scrutin_count} scrutin{data.scrutin_count > 1 ? 's' : ''}
-          {data.first_vote && data.last_vote
-            ? ` · du ${frenchDate(data.first_vote)} au ${frenchDate(data.last_vote)}`
-            : ''}
-          {data.dossier_uid && (
-            <>
-              {' · dossier : '}
-              <Link
-                to={`/dossiers/${data.dossier_uid}`}
-                className="text-accent underline"
-              >
-                {data.dossier_label ?? data.dossier_uid}
-              </Link>
-            </>
-          )}
-        </p>
-      </div>
-
-      <section>
-        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-          Familles
-        </h3>
+    <div className="mx-auto max-w-3xl space-y-5">
+      <div className="space-y-2">
+        <BackLink to="/scrutins">Votes</BackLink>
+        <p className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">Texte</p>
+        <h2 className="text-2xl leading-tight font-semibold tracking-tight">{data.label}</h2>
         {data.families.length > 0 ? (
           <FamilyBadges families={data.families} />
         ) : (
           <UnassignedNote outcome={data.last_attempt_outcome} />
         )}
-        {data.families.some((f) => f.motive) && (
-          <ul className="mt-2 space-y-0.5 text-xs text-ink-soft">
-            {data.families
-              .filter((f) => f.motive)
-              .map((f) => (
-                <li key={f.code}>
-                  <span className="font-medium text-ink">{f.label}</span> —{' '}
-                  {f.motive}
+        {motives.length > 0 && (
+          <details className="text-xs text-ink-soft">
+            <summary className="cursor-pointer text-ink-faint">Pourquoi ces sujets</summary>
+            <ul className="mt-1.5 space-y-0.5">
+              {motives.map((family) => (
+                <li key={family.code}>
+                  <span className="font-medium text-ink">{family.label}</span> — {family.motive}
                 </li>
               ))}
-          </ul>
+            </ul>
+          </details>
         )}
-      </section>
+        {data.dossier_uid && (
+          <p>
+            <Link
+              to={`/dossiers/${data.dossier_uid}`}
+              className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline"
+            >
+              Le texte et tout son parcours →
+            </Link>
+          </p>
+        )}
+      </div>
 
-      <section>
-        <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-          Scrutins de ce texte
+      <section className="space-y-3" aria-labelledby="votes-du-texte">
+        <h3 id="votes-du-texte" className="text-sm font-semibold text-ink-soft">
+          {data.scrutin_count} vote{data.scrutin_count > 1 ? 's' : ''}
+          {data.first_vote && data.last_vote && (
+            <>
+              {' · '}
+              {data.first_vote === data.last_vote
+                ? formatDate(data.first_vote)
+                : `du ${formatDate(data.first_vote)} au ${formatDate(data.last_vote)}`}
+            </>
+          )}
         </h3>
-        {data.scrutins.length === 0 ? (
-          <p className="text-sm text-ink-faint">Aucun scrutin listé.</p>
-        ) : (
-          <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
-            {data.scrutins.map((scrutin) => (
-              <li
-                key={scrutin.uid}
-                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 px-4 py-2"
-              >
-                <Link
-                  to={`/scrutins/${scrutin.uid}`}
-                  className="min-w-[min(100%,16rem)] flex-1 text-sm hover:text-accent hover:underline"
-                >
-                  {scrutin.subject}
-                </Link>
-                <p className="max-w-full shrink-0 text-xs text-ink-faint">
-                  {frenchDate(scrutin.date)} · n° {scrutin.number} ·{' '}
-                  {scrutin.outcome_label} · pour {scrutin.votes_for}, contre{' '}
-                  {scrutin.votes_against}, abstention {scrutin.abstentions}
-                </p>
-              </li>
-            ))}
-          </ul>
-        )}
+
+        {data.scrutins.length === 0 && <p className="text-sm text-ink-faint">Aucun vote listé.</p>}
+
+        {whole &&
+          (wholeDetail.data ? (
+            <VoteCard size="full" {...scrutinDetailCard(wholeDetail.data)} />
+          ) : wholeDetail.isError ? (
+            <VoteCard size="compact" {...textScrutinCard(whole)} />
+          ) : (
+            <Card className="px-4 py-6">
+              <Loading>Chargement du vote sur l’ensemble…</Loading>
+            </Card>
+          ))}
+
+        {others.map((scrutin) => (
+          <VoteCard key={scrutin.uid} size="compact" {...textScrutinCard(scrutin)} />
+        ))}
+
         {data.scrutin_count > data.scrutins.length && (
-          <p className="mt-1.5 text-xs text-ink-faint">
-            {data.scrutins.length} scrutins affichés sur {data.scrutin_count}.
+          <p className="text-xs text-ink-faint">
+            {data.scrutins.length} votes affichés sur {data.scrutin_count}.
           </p>
         )}
       </section>
