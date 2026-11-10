@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 import App from './App.tsx'
 import LandingPage from './pages/LandingPage.tsx'
-import AboutPage from './pages/AboutPage.tsx'
 import ThemeGroupEntryPage from './pages/ThemeGroupEntryPage.tsx'
 import DossiersRedirect from './pages/DossiersRedirect.tsx'
 import DossierDetailPage from './pages/DossierDetailPage.tsx'
@@ -34,7 +33,7 @@ createRoot(document.getElementById('root')!).render(
           <Route element={<App />}>
             <Route index element={<LandingPage />} />
             <Route path="par-sujet" element={<ThemeGroupEntryPage />} />
-            <Route path="a-propos" element={<AboutPage />} />
+            <Route path="a-propos" element={<Navigate to="/" replace />} />
             <Route path="dossiers" element={<DossiersRedirect />} />
             <Route path="dossiers/:uid" element={<DossierDetailPage />} />
             <Route path="groupes" element={<GroupListPage />} />
