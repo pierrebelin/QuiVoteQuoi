@@ -175,10 +175,10 @@ export default function DossierFilters({
           sujet à son pictogramme avant d'en lire le libellé. Le thème choisi
           est plein et coché : il ne se distingue pas par la seule couleur. */}
       {families && (
-        <SheetSection title="Thème">
-          <div role="group" aria-label="Thème" className="grid grid-cols-2 gap-1.5">
+        <SheetSection title="Sujet">
+          <div role="group" aria-label="Sujet" className="grid grid-cols-2 gap-1.5">
             <ThemeTile active={!theme} onClick={() => onTheme('')}>
-              <span className="min-w-0">Tous les thèmes</span>
+              <span className="min-w-0">Tous les sujets</span>
             </ThemeTile>
             {families.map((family) => {
               const on = theme === family.code

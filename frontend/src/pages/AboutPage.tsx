@@ -15,7 +15,7 @@ const PRINCIPE = [
   {
     titre: 'Tout est ingéré',
     texte:
-      'Tous les scrutins publiés par l’Assemblée entrent dans la base, sans sélection. Le tri ordonne l’affichage, il ne filtre jamais. Une lacune connue est affichée comme telle.',
+      'Tous les votes publiés par l’Assemblée entrent dans la base, sans sélection. Le tri ordonne l’affichage, il ne filtre jamais. Une lacune connue est affichée comme telle.',
     jugement: false,
   },
   {
@@ -27,7 +27,7 @@ const PRINCIPE = [
   {
     titre: 'Les chiffres sont affichés bruts',
     texte:
-      'Des nombres, pas d’adverbes. La position de chaque député est consultable au détail du scrutin, et chaque page renvoie à la source officielle.',
+      'Des nombres, pas d’adverbes. La position de chaque député est consultable au détail du vote, et chaque page renvoie à la source officielle.',
     jugement: false,
   },
 ]
@@ -55,12 +55,12 @@ const PIECES = [
   {
     titre: 'L’objet exact mis aux voix',
     texte:
-      'Un scrutin porte souvent sur un amendement, un article ou une motion, pas sur l’ensemble du texte. L’intitulé officiel est affiché entier : c’est lui qui dit sur quoi l’accord ou le refus portait.',
+      'Un vote porte souvent sur un amendement, un article ou une motion, pas sur l’ensemble du texte. L’intitulé officiel est affiché entier : c’est lui qui dit sur quoi l’accord ou le refus portait.',
   },
   {
-    titre: 'Le dossier législatif',
+    titre: 'Le texte',
     texte:
-      'Qui a déposé le texte et avec quel exposé des motifs, son passage en commission puis en séance, et son sort : promulgation, rejet, ou dossier sans acte de clôture.',
+      'Qui a déposé le texte et avec quel exposé des motifs, son passage en commission puis en séance, et son sort : promulgation, rejet, ou texte sans acte de clôture.',
   },
   {
     titre: 'La position de chaque député',
@@ -210,7 +210,7 @@ export default function AboutPage() {
         info={<p>{NEVER_SHOWN}</p>}
         surtitre="Le « pourquoi » d’un vote"
         titre="Un décompte ne dit pas les raisons. Les pièces, si."
-        chapo="Un vote isolé se prête à toutes les lectures. Le site ne reconstitue pas les motivations d’un groupe et ne les résume pas à sa place : il rassemble ce qui est attribué, daté et public autour de chaque scrutin, pour que le vote soit lu avec ce qui l’entoure."
+        chapo="Un vote isolé se prête à toutes les lectures. Le site ne reconstitue pas les motivations d’un groupe et ne les résume pas à sa place : il rassemble ce qui est attribué, daté et public autour de chaque vote, pour que le vote soit lu avec ce qui l’entoure."
       >
         <ul className="grid gap-4 sm:grid-cols-2">
           {PIECES.map((piece) => (
@@ -314,7 +314,7 @@ export default function AboutPage() {
       <Section
         surtitre="Transparence"
         titre="La méthode se consulte aussi dans le code"
-        chapo="Le dépôt public permet de vérifier comment les données sont ingérées, rattachées à des thèmes et affichées. Il complète la méthode publiée ; pour chaque chiffre, la source officielle de l’Assemblée nationale reste la référence."
+        chapo="Le dépôt public permet de vérifier comment les données sont ingérées, rattachées à des sujets et affichées. Il complète la méthode publiée ; pour chaque chiffre, la source officielle de l’Assemblée nationale reste la référence."
       >
         <Card className="px-5 py-4">
           <p className="max-w-4xl text-sm leading-relaxed text-ink-soft">
@@ -338,8 +338,8 @@ export default function AboutPage() {
         <Card className="px-5 py-4">
           <p className="max-w-4xl text-sm leading-relaxed text-ink-soft">
             Les données proviennent de l’open data de l’Assemblée nationale, sous
-            Licence Ouverte : scrutins et positions nominales, référentiel des
-            députés et des groupes avec leurs appartenances datées, dossiers
+            Licence Ouverte : votes et positions nominales, référentiel des
+            députés et des groupes avec leurs appartenances datées, textes
             législatifs. Rien n’est saisi à la main, rien n’est corrigé en
             silence. Le Sénat est hors périmètre.
           </p>

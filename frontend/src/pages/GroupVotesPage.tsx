@@ -187,7 +187,7 @@ function MissingStance({ group }: { group: GroupDto }) {
         <span className="text-sm font-semibold text-ink-soft">{group.abbrev}</span>
       </div>
       <p className="mt-1.5 text-xs text-ink-faint">
-        Aucune ligne pour ce groupe sur ce scrutin.
+        Aucune ligne pour ce groupe sur ce vote.
       </p>
     </div>
   )
@@ -224,11 +224,11 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
             to={`/dossiers/${vote.dossier_uid}`}
             className="text-accent underline"
           >
-            Dossier
+            Texte
           </Link>
         )}
         <Link to={`/scrutins/${vote.scrutin_uid}`} className="text-accent underline">
-          Détail du scrutin
+          Détail du vote
         </Link>
       </div>
 
@@ -511,7 +511,7 @@ export default function GroupVotesPage() {
       <p>
         {data.scope_note}{' '}
         <Link to="/scrutins" className="text-accent underline">
-          Voir tous les scrutins
+          Voir tous les votes
         </Link>
       </p>
       <p>
@@ -528,7 +528,7 @@ export default function GroupVotesPage() {
         <p>
           La thématisation est en cours : {data.total_with_family} des{' '}
           {data.total_unfiltered} votes sur l'ensemble portent une
-          famille. Filtrer par thème laisse donc de côté les textes pas
+          famille. Filtrer par sujet laisse donc de côté les textes pas
           encore rattachés.{' '}
           <Link to="/themes/methode" className="text-accent underline">
             Méthode
@@ -572,7 +572,7 @@ export default function GroupVotesPage() {
             ) : null}
           </div>
           <label className="flex items-center gap-2 text-sm font-medium text-ink-soft md:w-72 md:shrink-0">
-            Thème
+            Sujet
             <select
               value={theme}
               onChange={(e) => update({ theme: e.target.value })}

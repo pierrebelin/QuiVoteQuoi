@@ -421,7 +421,7 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
           </div>
         ) : (
           <p className="mt-3 text-sm text-ink-soft">
-            Aucun groupe ne porte de vote final ni d'amendement publié sur ce dossier.
+            Aucun groupe ne porte de vote final ni d'amendement publié sur ce texte.
           </p>
         )}
 

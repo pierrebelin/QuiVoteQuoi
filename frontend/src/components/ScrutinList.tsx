@@ -135,7 +135,7 @@ export function ScrutinRow({
           {scrutin.has_reconstructed_tallies && (
             <Pill
               tone="info"
-              title="La source ne publie pas les groupes sur ce scrutin : la répartition est reconstituée."
+              title="La source ne publie pas les groupes sur ce vote : la répartition est reconstituée."
             >
               répartition reconstituée
             </Pill>

@@ -27,7 +27,7 @@ const PER_PAGE = 20
 */
 const NO_CONCLUSION = 'no_recorded_conclusion'
 const NO_CONCLUSION_HELP =
-  "La source ne publie aucune issue pour ces dossiers. Cela ne dit pas qu'ils avancent : chaque carte donne son étape datée."
+  "La source ne publie aucune issue pour ces textes. Cela ne dit pas qu'ils avancent : chaque carte donne son étape datée."
 
 const outcomes: FilterOption[] = [
   { value: 'promulgated', label: 'Promulgués' },
@@ -200,10 +200,10 @@ export default function DossierListPage() {
 
   const seeLabel =
     !data || isPlaceholderData
-      ? 'Voir les dossiers'
+      ? 'Voir les textes'
       : data.total === 0
-        ? 'Aucun dossier ne correspond'
-        : `Voir ${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''}`
+        ? 'Aucun texte ne correspond'
+        : `Voir ${data.total.toLocaleString('fr-FR')} texte${data.total > 1 ? 's' : ''}`
 
   const resetButton = filtered && (
     <button
@@ -218,18 +218,18 @@ export default function DossierListPage() {
   return (
     <>
       <PageHeader
-        title="Dossiers législatifs"
+        title="Textes"
         lede={
           !data
-            ? 'Les dossiers législatifs, du plus récemment actif au plus ancien.'
+            ? 'Les textes, du plus récemment actif au plus ancien.'
             : filtered
               ? /*
                   Sous filtre, le total affiché n'est plus celui de la base :
                   le dire évite de laisser croire que la législature se réduit
                   à ces dossiers (README.md §2).
                 */
-                `${data.total.toLocaleString('fr-FR')} dossier${data.total > 1 ? 's' : ''} correspond${data.total > 1 ? 'ent' : ''} à ces filtres. Les filtres restreignent l'affichage, jamais la base.${theme ? ' Seuls les dossiers déjà rattachés à un thème y figurent.' : ''}`
-              : `Les ${data.total.toLocaleString('fr-FR')} dossiers terminés (promulgués, retirés ou absorbés), du plus récemment actif au plus ancien. Ceux sans conclusion à ce jour s'ajoutent depuis les filtres.`
+                `${data.total.toLocaleString('fr-FR')} texte${data.total > 1 ? 's' : ''} correspond${data.total > 1 ? 'ent' : ''} à ces filtres. Les filtres restreignent l'affichage, jamais la base.${theme ? ' Seuls les textes déjà rattachés à un sujet y figurent.' : ''}`
+              : `Les ${data.total.toLocaleString('fr-FR')} textes terminés (promulgués, retirés ou absorbés), du plus récemment actif au plus ancien. Ceux sans conclusion à ce jour s'ajoutent depuis les filtres.`
         }
         /*
           Les scrutins ont leur onglet, qui les regroupe par dossier ; ce lien
@@ -241,7 +241,7 @@ export default function DossierListPage() {
             to="/scrutins"
             className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline"
           >
-            Accéder à tous les scrutins →
+            Accéder à tous les votes →
           </Link>
         }
       />
@@ -279,7 +279,7 @@ export default function DossierListPage() {
                 enterKeyHint="search"
                 autoComplete="off"
                 placeholder="Rechercher un titre…"
-                aria-label="Rechercher dans le titre du dossier"
+                aria-label="Rechercher dans le titre du texte"
                 className="h-11 min-w-0 flex-1 bg-transparent pr-3 text-base text-ink outline-none placeholder:text-ink-faint md:text-sm"
               />
             </div>
@@ -351,12 +351,12 @@ export default function DossierListPage() {
             </p>
           )}
 
-          {isLoading && <Loading>Chargement des dossiers…</Loading>}
+          {isLoading && <Loading>Chargement des textes…</Loading>}
           {isError && <ErrorPanel error={error} />}
 
           {data && data.dossiers.length === 0 && (
             <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
-              Aucun dossier ne correspond à ces filtres.
+              Aucun texte ne correspond à ces filtres.
             </p>
           )}
 

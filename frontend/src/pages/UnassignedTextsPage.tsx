@@ -43,7 +43,7 @@ export default function UnassignedTextsPage() {
         <p className="mt-0.5 text-sm text-ink-soft">
           Ces textes n'ont aucune famille. Ils restent consultables et leurs
           votes sont exposés comme les autres : le site ne retire rien faute de
-          thème.
+          sujet.
         </p>
       </div>
 

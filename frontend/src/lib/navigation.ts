@@ -25,7 +25,7 @@ export const NAV_TABS: NavEntry[] = [
 ]
 
 export const NAV_MORE: NavEntry[] = [
-  { to: '/dossiers', label: 'Dossiers', icon: 'dossiers', covers: ['/dossiers'] },
+  { to: '/dossiers', label: 'Textes', icon: 'dossiers', covers: ['/dossiers'] },
   { to: '/comprendre', label: 'Comprendre', icon: 'comprendre', covers: ['/comprendre'] },
   { to: '/a-propos', label: 'À propos', icon: 'apropos', covers: ['/a-propos'] },
 ]

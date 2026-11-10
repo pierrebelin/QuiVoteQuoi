@@ -98,7 +98,7 @@ export function ThemeExcerpts({
   if (candidates.length === 0) {
     return (
       <p className="px-4 py-5 text-sm leading-relaxed text-ink-soft">
-        Choisissez une candidature pour lire ses extraits sur ce thème.
+        Choisissez une candidature pour lire ses extraits sur ce sujet.
       </p>
     )
   }
@@ -144,7 +144,7 @@ export function ThemeExcerpts({
               <p className="animate-pulse text-[13px] text-ink-faint">Chargement…</p>
             ) : proposals.length === 0 ? (
               <p className="text-[13px] leading-snug text-ink-soft">
-                Aucun extrait référencé sur ce thème.
+                Aucun extrait référencé sur ce sujet.
               </p>
             ) : (
               <ul className="space-y-3">

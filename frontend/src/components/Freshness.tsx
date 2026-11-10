@@ -44,7 +44,7 @@ export function FreshnessFooterLine() {
   }
   const late = lateSources(data)
   const lastScrutin = data.last_scrutin_date
-    ? `dernier scrutin publié le ${dateOnly.format(new Date(data.last_scrutin_date))}`
+    ? `dernier vote publié le ${dateOnly.format(new Date(data.last_scrutin_date))}`
     : ''
   if (late.length === 0) {
     return (
@@ -134,7 +134,7 @@ export function FreshnessSection() {
             ))}
           </ul>
           <p className="text-sm text-ink-soft">
-            Dernier scrutin publié :{' '}
+            Dernier vote publié :{' '}
             <strong>
               {data.last_scrutin_date
                 ? dateOnly.format(new Date(data.last_scrutin_date))

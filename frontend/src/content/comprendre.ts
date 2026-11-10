@@ -103,7 +103,7 @@ export const SECTIONS: Section[] = [
           {
             kind: 'p',
             texte:
-              "Sur un site de transparence, choisir ce qu'on montre est déjà un acte éditorial. La contrainte est donc d'exposer tout ce que la source publie, y compris ce qui n'a été rattaché à aucun thème.",
+              "Sur un site de transparence, choisir ce qu'on montre est déjà un acte éditorial. La contrainte est donc d'exposer tout ce que la source publie, y compris ce qui n'a été rattaché à aucun sujet.",
           },
         ],
       },
@@ -236,7 +236,7 @@ export const SECTIONS: Section[] = [
           {
             kind: 'p',
             texte:
-              "Ce regroupement permet de suivre un texte de bout en bout même quand la source ne le relie à aucun dossier législatif. C'est aussi le texte, et non le dossier, qui porte le rattachement à un thème.",
+              "Ce regroupement permet de suivre un texte de bout en bout même quand la source ne le relie à aucun dossier législatif. C'est aussi le texte, et non le dossier, qui porte le rattachement à un sujet.",
           },
         ],
       },
@@ -768,7 +768,7 @@ export const SECTIONS: Section[] = [
           {
             kind: 'p',
             texte:
-              "La méthode de rattachement d'un texte à un thème est publiée à part, avec son taux de couverture et les textes qu'elle laisse non rattachés.",
+              "La méthode de rattachement d'un texte à un sujet est publiée à part, avec son taux de couverture et les textes qu'elle laisse non rattachés.",
           },
         ],
       },

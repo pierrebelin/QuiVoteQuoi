@@ -37,9 +37,9 @@ export default function TextList({
               {text.label}
             </Link>
             <p className="mt-0.5 text-xs text-ink-faint">
-              {text.scrutin_count} scrutin{text.scrutin_count > 1 ? 's' : ''}
+              {text.scrutin_count} vote{text.scrutin_count > 1 ? 's' : ''}
               {period(text) ? ` · ${period(text)}` : ''}
-              {text.dossier_uid ? ' · dossier rattaché' : ''}
+              {text.dossier_uid ? ' · parcours législatif connu' : ''}
             </p>
           </div>
           <div className="max-w-full shrink-0">

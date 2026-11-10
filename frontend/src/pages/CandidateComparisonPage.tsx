@@ -118,7 +118,7 @@ export default function CandidateComparisonPage() {
       <PageHeader
         info={data?.declaration_note && <p>{data.declaration_note}</p>}
         title="Candidats 2027"
-        lede="Comparez des extraits de programmes déclarés par thème, puis consultez les votes des groupes parlementaires explicitement associés à chaque candidature."
+        lede="Comparez des extraits de programmes déclarés par sujet, puis consultez les votes des groupes parlementaires explicitement associés à chaque candidature."
       />
 
       {list.isLoading && <Loading>Chargement des candidatures déclarées…</Loading>}
@@ -134,7 +134,7 @@ export default function CandidateComparisonPage() {
           {data.candidates.length === 0 ? (
             <Card className="px-5 py-5">
               <h3 className="text-base font-semibold">Aucune candidature déclarée n’est encore référencée</h3>
-              <p className="mt-1 text-sm leading-relaxed text-ink-soft">La structure est prête : une candidature sera publiée avec sa déclaration source, son programme et les extraits rattachés aux thèmes.</p>
+              <p className="mt-1 text-sm leading-relaxed text-ink-soft">La structure est prête : une candidature sera publiée avec sa déclaration source, son programme et les extraits rattachés aux sujets.</p>
             </Card>
           ) : (
             <>
@@ -146,13 +146,13 @@ export default function CandidateComparisonPage() {
               />
 
               <section className="space-y-2">
-                <SectionTitle info={data.proposals_note}>Extraits par thème</SectionTitle>
+                <SectionTitle info={data.proposals_note}>Extraits par sujet</SectionTitle>
                 {data.proposals_note && (
                   <Note desktopOnly>
                     {data.proposals_note}
                   </Note>
                 )}
-                {families.isLoading && <Loading>Chargement des thèmes…</Loading>}
+                {families.isLoading && <Loading>Chargement des sujets…</Loading>}
                 {families.isError && <ErrorPanel error={families.error} />}
                 {families.data && (
                   <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
