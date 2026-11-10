@@ -7,7 +7,7 @@ const ITEM_CLASS =
   'flex min-h-10 items-center gap-2.5 rounded-lg px-3 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
 
 /**
- * « Plus » de la barre haute : les pages de fond (dossiers, Comprendre, À
+ * « Plus » de la barre haute : les pages de fond (Comprendre, À
  * propos) dans un menu déroulant, comme sous le pouce sur téléphone. Il se ferme
  * à la navigation, à Échap et au clic dehors.
  */

@@ -37,7 +37,7 @@ const USAGES = [
     texte: 'Logement, salaires, santé, énergie : les textes du quotidien et les votes qu’ils ont produits.',
   },
   {
-    to: '/dossiers',
+    to: '/scrutins?vue=texte',
     titre: 'Savoir d’où vient un texte',
     texte: 'Qui l’a déposé, son passage en commission puis en séance, ce qu’il est devenu.',
   },
