@@ -1,4 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react'
+import { Link } from 'react-router'
 import type { TallyDto } from '../types/scrutins'
 import { Icon } from './icons'
 import { InfoTip } from './InfoTip'
@@ -295,6 +296,30 @@ export function VoteBar({
           ))}
       </div>
     </div>
+  )
+}
+
+/**
+ * Lien de retour en tête de page. Sous 768 px, sa zone de tape atteint 44 px par
+ * un pseudo-élément : le lien garde sa hauteur de texte, et le premier écran ne
+ * perd aucune ligne.
+ */
+export function BackLink({
+  to,
+  children,
+  className = '',
+}: {
+  to: string
+  children: ReactNode
+  className?: string
+}) {
+  return (
+    <Link
+      to={to}
+      className={`relative inline-block text-sm font-medium text-accent hover:underline max-md:after:absolute max-md:after:-inset-x-2 max-md:after:-inset-y-3 max-md:after:content-[''] ${className}`}
+    >
+      ← {children}
+    </Link>
   )
 }
 

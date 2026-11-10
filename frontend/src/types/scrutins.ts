@@ -17,6 +17,25 @@ export function tallySize(tally: TallyDto) {
   return tally.votes_for + tally.votes_against + tally.abstentions + tally.not_voting
 }
 
+export type LeadingPosition = 'for' | 'against' | 'abstention'
+
+/**
+ * Position qui a réuni le plus de députés d'un décompte, lue sur ses comptes bruts.
+ * `null` quand personne ne s'est prononcé ou que deux positions sont à égalité :
+ * aucune position n'est alors choisie au hasard.
+ */
+export function leadingPosition(tally: TallyDto): LeadingPosition | null {
+  const { votes_for, votes_against, abstentions } = tally
+  const counts: [LeadingPosition, number][] = [
+    ['for', votes_for],
+    ['against', votes_against],
+    ['abstention', abstentions],
+  ]
+  const top = Math.max(votes_for, votes_against, abstentions)
+  const leaders = counts.filter(([, n]) => n === top)
+  return top > 0 && leaders.length === 1 ? leaders[0][0] : null
+}
+
 export interface ScrutinSummaryDto {
   uid: string
   number: string

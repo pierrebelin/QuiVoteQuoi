@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { InfoTip } from '../components/InfoTip'
-import { Card, ErrorPanel, Loading, Note, Pill } from '../components/ui'
+import { BackLink, Card, ErrorPanel, Loading, Note, Pill } from '../components/ui'
 import { formatDate } from '../types/scrutins'
 import {
   formatCount,
@@ -155,9 +155,7 @@ export default function GroupDetailPage() {
     return (
       <div className="space-y-3">
         <ErrorPanel error={error} />
-        <Link to="/groupes" className="text-sm text-accent underline">
-          ← Tous les groupes
-        </Link>
+        <BackLink to="/groupes">Tous les groupes</BackLink>
       </div>
     )
   }
@@ -168,12 +166,7 @@ export default function GroupDetailPage() {
   return (
     <div className="space-y-4">
       <div>
-        <Link
-          to="/groupes"
-          className="text-sm font-medium text-accent hover:underline"
-        >
-          ← Tous les groupes
-        </Link>
+        <BackLink to="/groupes">Tous les groupes</BackLink>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
           <GroupDot color={group.color} size="lg" />
           <h2 className="text-2xl font-semibold tracking-tight">
@@ -284,15 +277,18 @@ export default function GroupDetailPage() {
         )}
       </Section>
 
-      <Link
-        to={`/votes-par-groupe?groupes=${encodeURIComponent(group.abbrev)}`}
-        className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-3 shadow-card transition-shadow hover:shadow-card-hover"
-      >
-        <span className="text-sm font-semibold text-ink">
-          Voir les votes de {group.abbrev}, scrutin par scrutin
-        </span>
-        <span className="text-sm text-accent">→</span>
-      </Link>
+      {/* Sans aucun scrutin, le groupe n'est pas au comparateur, qui répondrait 400. */}
+      {group.line_count > 0 && (
+        <Link
+          to={`/votes-par-groupe?groupes=${encodeURIComponent(group.abbrev)}`}
+          className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-3 shadow-card transition-shadow hover:shadow-card-hover"
+        >
+          <span className="text-sm font-semibold text-ink">
+            Voir les votes de {group.abbrev}, scrutin par scrutin
+          </span>
+          <span className="text-sm text-accent">→</span>
+        </Link>
+      )}
 
       {/* Toutes les mises en garde dues (README.md §6) dans un seul encadré :
           cinq blocs empilés pesaient plus que la fiche qu'ils commentent. */}

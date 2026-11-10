@@ -27,7 +27,9 @@ export default function TextList({
           key={text.key}
           className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1.5 px-4 py-3"
         >
-          <div className="min-w-0 flex-1">
+          {/* La largeur minimale renvoie les pastilles à la ligne : sans elle,
+              le titre, de base nulle, se laisse écraser à quelques pixels. */}
+          <div className="min-w-[min(100%,16rem)] flex-1">
             <Link
               to={`/textes/${encodeURIComponent(text.key)}`}
               className="text-[15px] font-semibold leading-snug transition-colors hover:text-accent"
@@ -40,7 +42,7 @@ export default function TextList({
               {text.dossier_uid ? ' · dossier rattaché' : ''}
             </p>
           </div>
-          <div className="shrink-0">
+          <div className="max-w-full shrink-0">
             {showFamilies && text.families.length > 0 ? (
               <FamilyBadges families={text.families} />
             ) : (

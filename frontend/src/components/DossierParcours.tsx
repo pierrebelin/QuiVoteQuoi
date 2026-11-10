@@ -174,8 +174,9 @@ export function DocumentsSource({ documents }: { documents: ParcoursDocumentDto[
     <>
       Documents : archive de l'Assemblée nationale
       {license && `, ${license}`}
-      {retrieved && `, relevés le ${new Date(retrieved).toLocaleDateString('fr-FR')}`}. Survolez un lien
-      pour sa référence officielle.
+      {retrieved && `, relevés le ${new Date(retrieved).toLocaleDateString('fr-FR')}`}.{' '}
+      {/* Au doigt, pas de survol : la référence reste sur la page officielle du lien. */}
+      <span className="[@media(hover:none)]:hidden">Survolez un lien pour sa référence officielle.</span>
     </>
   )
 }
