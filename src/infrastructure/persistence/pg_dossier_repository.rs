@@ -6,7 +6,8 @@ use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
 use super::{db, invalid_row};
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierListing, DossierPage, DossierRepository, RepositoryError,
+    DossierCriteria, DossierListing, DossierOrder, DossierPage, DossierRepository,
+    DossierScrutinTally, RepositoryError,
 };
 use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
@@ -15,6 +16,7 @@ use crate::domain::dossier::{
     LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
     NewLegislativeDossier, Score, StoredDossierState,
 };
+use crate::domain::scrutin::Outcome;
 use crate::domain::theme::FamilyCode;
 
 pub struct PgDossierRepository {
@@ -327,17 +329,24 @@ impl PgDossierRepository {
         Ok(by_dossier)
     }
 
-    /// Nombre de scrutins publics des dossiers d'une page.
-    async fn scrutin_counts_of(
+    /// Décompte des scrutins publics des dossiers d'une page, en une requête.
+    ///
+    /// Adopté se lit dans le code de sort de la source, comme `Outcome` le
+    /// lit pour un scrutin ; tout autre code est un rejet.
+    async fn scrutin_tallies_of(
         &self,
         uids: &[String],
-    ) -> Result<HashMap<String, i64>, RepositoryError> {
+    ) -> Result<HashMap<String, DossierScrutinTally>, RepositoryError> {
         let rows = sqlx::query(
-            "SELECT dossier_uid, count(*) AS total
+            "SELECT dossier_uid, count(*) AS total,
+                    count(*) FILTER (WHERE outcome_code = $2) AS adopted,
+                    count(*) FILTER (WHERE outcome_code <> $2) AS rejected,
+                    max(scrutin_date) AS last_date
              FROM scrutins WHERE dossier_uid = ANY($1)
              GROUP BY dossier_uid",
         )
         .bind(uids)
+        .bind(Outcome::ADOPTED)
         .persistent(false)
         .fetch_all(&self.pool)
         .await
@@ -345,7 +354,17 @@ impl PgDossierRepository {
 
         Ok(rows
             .iter()
-            .map(|row| (row.get("dossier_uid"), row.get("total")))
+            .map(|row| {
+                (
+                    row.get("dossier_uid"),
+                    DossierScrutinTally {
+                        count: row.get("total"),
+                        adopted: row.get("adopted"),
+                        rejected: row.get("rejected"),
+                        last_date: row.get("last_date"),
+                    },
+                )
+            })
             .collect())
     }
 }
@@ -363,6 +382,15 @@ const PAGE_SELECT: &str =
             law_code, law_jo_date, law_legifrance_url,
             merged_into_uid, merge_cause
      FROM legislative_dossiers";
+
+/// Date du dernier scrutin de chaque dossier, jointe seulement quand la liste
+/// est classée sur elle. Jointure externe : un dossier sans scrutin reste,
+/// sauf si les critères l'écartent.
+const LAST_SCRUTIN_JOIN: &str = " LEFT JOIN (
+         SELECT dossier_uid, max(scrutin_date) AS last_scrutin_date
+         FROM scrutins WHERE dossier_uid IS NOT NULL
+         GROUP BY dossier_uid
+     ) last_vote ON last_vote.dossier_uid = legislative_dossiers.uid";
 
 /// Traduit les critères du visiteur en conditions SQL, la même clause servant
 /// au décompte et à la tranche : sinon le total ne dirait pas ce qui est listé.
@@ -410,6 +438,12 @@ fn push_criteria(query: &mut QueryBuilder<'_, Postgres>, criteria: &DossierCrite
         );
         query.push_bind(family.as_str());
         query.push("))");
+    }
+    if criteria.with_scrutins {
+        open(query, &mut separated);
+        query.push(
+            "EXISTS (SELECT 1 FROM scrutins s WHERE s.dossier_uid = legislative_dossiers.uid)",
+        );
     }
 }
 
@@ -492,6 +526,7 @@ impl DossierRepository for PgDossierRepository {
     async fn find_page(
         &self,
         criteria: &DossierCriteria,
+        order: DossierOrder,
         limit: i64,
         offset: i64,
     ) -> Result<DossierPage, RepositoryError> {
@@ -506,10 +541,18 @@ impl DossierRepository for PgDossierRepository {
             .map_err(db)?;
 
         let mut query: QueryBuilder<Postgres> = QueryBuilder::new(PAGE_SELECT);
+        if order == DossierOrder::LastScrutin {
+            query.push(LAST_SCRUTIN_JOIN);
+        }
         push_criteria(&mut query, criteria);
         // `uid` départage les dossiers d'une même journée : sans lui, deux pages
         // successives peuvent renvoyer deux fois la même ligne.
-        query.push(" ORDER BY last_activity_date DESC, uid DESC LIMIT ");
+        query.push(match order {
+            DossierOrder::LastActivity => " ORDER BY last_activity_date DESC, uid DESC LIMIT ",
+            DossierOrder::LastScrutin => {
+                " ORDER BY last_vote.last_scrutin_date DESC NULLS LAST, uid DESC LIMIT "
+            }
+        });
         query.push_bind(limit);
         query.push(" OFFSET ");
         query.push_bind(offset);
@@ -526,7 +569,7 @@ impl DossierRepository for PgDossierRepository {
         let uids: Vec<String> = rows.iter().map(|r| r.uid.clone()).collect();
         let mut initiators = self.initiators_of(&uids).await?;
         let mut families = self.families_of(&uids).await?;
-        let scrutin_counts = self.scrutin_counts_of(&uids).await?;
+        let mut tallies = self.scrutin_tallies_of(&uids).await?;
 
         let items = rows
             .into_iter()
@@ -539,7 +582,7 @@ impl DossierRepository for PgDossierRepository {
                         vec![],
                     )?,
                     families: families.remove(&uid).unwrap_or_default(),
-                    scrutin_count: scrutin_counts.get(&uid).copied().unwrap_or(0),
+                    scrutins: tallies.remove(&uid).unwrap_or_default(),
                 })
             })
             .collect::<Result<_, RepositoryError>>()?;
@@ -577,6 +620,26 @@ impl DossierRepository for PgDossierRepository {
             }
             None => Ok(None),
         }
+    }
+
+    async fn find_by_uids(
+        &self,
+        uids: &[DossierUid],
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        if uids.is_empty() {
+            return Ok(Vec::new());
+        }
+        let uids: Vec<&str> = uids.iter().map(DossierUid::as_str).collect();
+        let rows = sqlx::query_as::<_, DossierRow>(&format!("{PAGE_SELECT} WHERE uid = ANY($1)"))
+            .bind(uids)
+            .persistent(false)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(db)?;
+
+        rows.into_iter()
+            .map(|r| r.into_dossier(vec![], vec![], vec![]))
+            .collect()
     }
 
     async fn find_suggestions(

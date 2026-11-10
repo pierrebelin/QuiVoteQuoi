@@ -27,6 +27,7 @@ pub async fn list_scrutins(
         state.scrutin_repository.as_ref(),
         state.amendment_citation_repository.as_ref(),
         state.actor_repository.as_ref(),
+        state.dossier_repository.as_ref(),
     )
     .execute(filter)
     .await
@@ -102,6 +103,7 @@ pub async fn get_dossier_scrutins(
         state.scrutin_repository.as_ref(),
         state.amendment_citation_repository.as_ref(),
         state.actor_repository.as_ref(),
+        state.dossier_repository.as_ref(),
     )
     .execute(filter)
     .await

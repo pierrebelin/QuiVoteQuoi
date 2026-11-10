@@ -1,5 +1,5 @@
-import { Link } from 'react-router'
-import { FamilyIllustration } from './FamilyIllustration'
+import DossierCardShell, { OutcomeSplit } from './DossierCardShell'
+import { formatShortDate } from '../lib/dossierStatus'
 import type { OutcomeDto } from '../types/dossiers'
 import type { AssignedFamilyDto } from '../types/themes'
 
@@ -25,50 +25,20 @@ export interface DossierCardDto {
   initiators: DossierCardInitiatorDto[]
   families: AssignedFamilyDto[]
   scrutin_count: number
+  /** Adoptés et rejetés selon la source : leur somme fait `scrutin_count`. */
+  adopted_count: number
+  rejected_count: number
+  /** Absent : aucun scrutin public. */
+  last_scrutin_date: string | null
 }
 
-function formatDate(iso: string) {
-  return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-/** Date sans l'année quand elle tombe dans l'année en cours. */
-function formatShortDate(iso: string, today: string) {
-  if (iso.slice(0, 4) !== today.slice(0, 4)) return formatDate(iso)
-  return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-  })
-}
-
-/**
- * Bandeau d'état : le sort quand la source en publie un, sinon l'étape qu'elle
- * atteste. Jamais « en cours » : sur la plupart des dossiers, ce serait une
- * affirmation que personne n'a écrite (README.md §6).
- */
-function banner(dossier: DossierCardDto): { tone: string; text: string } {
-  const { outcome, current_stage: stage } = dossier
-  if (outcome.kind !== 'no_recorded_conclusion') {
-    const tone =
-      outcome.kind === 'promulgated'
-        ? 'bg-yes-soft text-yes'
-        : outcome.kind === 'rejected'
-          ? 'bg-no-soft text-no'
-          : 'bg-surface-soft text-ink-soft'
-    const date = outcome.date ? ` le ${formatDate(outcome.date)}` : ''
-    const law = outcome.law_code ? ` · loi n° ${outcome.law_code}` : ''
-    return { tone, text: `${outcome.label}${date}${law}` }
-  }
-  if (stage) {
-    return {
-      tone: 'bg-info-soft text-info',
-      text: `Étape : ${stage.label}${stage.chamber ? ` — ${stage.chamber}` : ''}`,
-    }
-  }
-  return { tone: 'bg-surface-soft text-ink-soft', text: 'Sans conclusion à ce jour' }
+/** Réponse de `GET /api/dossiers`. */
+export interface DossierPageResponse {
+  page: number
+  per_page: number
+  total: number
+  total_pages: number
+  dossiers: DossierCardDto[]
 }
 
 /**
@@ -108,116 +78,81 @@ function InitiatorTag({ initiator }: { initiator: DossierCardInitiatorDto }) {
 /**
  * Carte d'un dossier dans la liste. Le titre porte le lien, étiré sur toute
  * la carte ; les thèmes restent des boutons à part, qui filtrent la liste.
- * Le bandeau dit où en est le dossier, la rangée du bas qui l'a déposé :
- * pas d'étiquettes, et le nombre de scrutins seulement s'il y en a.
+ * Le bandeau dit où en est le dossier, la rangée du bas qui l'a déposé.
+ * Avec la répartition, le nombre de scrutins passe dans sa portée ; sans
+ * elle, il reste dans la rangée du bas, s'il y en a.
  */
 export default function DossierCard({
   dossier,
   today,
   onFamily,
+  showSplit = false,
 }: {
   dossier: DossierCardDto
   /** Date du jour (AAAA-MM-JJ) : une étape datée après est annoncée à venir. */
   today: string
   onFamily: (code: string) => void
+  /** Répartition adoptés / rejetés sous les thèmes, si le dossier a été voté. */
+  showSplit?: boolean
 }) {
-  const state = banner(dossier)
   const [first, ...others] = dossier.initiators
-  const upcoming = dossier.last_activity_date > today
-  const step = dossier.last_activity_label.replace(/\.$/, '')
+  const split = showSplit && dossier.scrutin_count > 0
 
-  return (
-    <article className="group relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none">
-      <div
-        className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-[18px] py-1.5 text-[13px] font-semibold ${state.tone}`}
-      >
-        <span>{state.text}</span>
-        <span className="text-[12.5px] font-medium text-ink-soft">
-          {upcoming ? 'Prochaine étape' : 'Dernière étape'} : {step} ·{' '}
-          {formatShortDate(dossier.last_activity_date, today)}
-          {upcoming && (
-            <span className="ml-1.5 rounded bg-surface px-1.5 text-[11px] font-semibold text-info">
-              à venir
+  const meta = (
+    <div
+      className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-ink-soft ${split ? 'mt-2.5' : ''}`}
+    >
+      {first ? (
+        <>
+          <InitiatorTag initiator={first} />
+          <span className="text-ink">{first.full_name}</span>
+          {others.length > 0 && (
+            <span className="text-ink-faint">
+              et {others.length} autre{others.length > 1 ? 's' : ''}
             </span>
           )}
-        </span>
-      </div>
+        </>
+      ) : (
+        <span className="text-ink-faint">Auteur non publié</span>
+      )}
+      {dossier.deposit_date && (
+        <>
+          <span className="text-line-strong">·</span>
+          <span>déposé le {formatShortDate(dossier.deposit_date, today)}</span>
+        </>
+      )}
+      {!split && dossier.scrutin_count > 0 && (
+        <>
+          <span className="text-line-strong">·</span>
+          <span className="font-semibold text-ink">
+            {dossier.scrutin_count.toLocaleString('fr-FR')} scrutin
+            {dossier.scrutin_count > 1 ? 's' : ''}
+          </span>
+        </>
+      )}
+    </div>
+  )
 
-      <div className="px-[18px] pt-3 pb-3.5">
-        <h2 className="text-[16.5px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
-          <Link
-            to={`/dossiers/${dossier.uid}`}
-            className="after:absolute after:inset-0 focus:outline-none"
-          >
-            {dossier.title}
-          </Link>
-        </h2>
-
-        <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          {/*
-            Sous 768 px, chaque puce de thème a une zone tactile de 44 px sans
-            grossir : un pseudo-élément déborde de 9 px au-dessus et au-dessous
-            de ses 26 px. Les rangées se touchent exactement quand elles se
-            replient (26 + 18 d'écart = 44) ; plus serrées, deux zones se
-            recouvriraient.
-          */}
-          <div className="flex flex-wrap gap-1.5 max-md:gap-y-[18px]">
-            {dossier.families.length > 0 ? (
-              dossier.families.map((family) => (
-                <button
-                  key={family.code}
-                  type="button"
-                  onClick={() => onFamily(family.code)}
-                  title={`Voir les dossiers du thème « ${family.label} »`}
-                  className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:ring-line-strong"
-                >
-                  <FamilyIllustration
-                    code={family.code}
-                    className="size-[22px] rounded-md"
-                    glyphClassName="size-3.5"
-                  />
-                  {family.label}
-                </button>
-              ))
-            ) : (
-              <span className="text-xs text-ink-faint italic">
-                Aucun thème attribué pour l'instant.
-              </span>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-ink-soft">
-            {first ? (
-              <>
-                <InitiatorTag initiator={first} />
-                <span className="text-ink">{first.full_name}</span>
-                {others.length > 0 && (
-                  <span className="text-ink-faint">
-                    et {others.length} autre{others.length > 1 ? 's' : ''}
-                  </span>
-                )}
-              </>
-            ) : (
-              <span className="text-ink-faint">Auteur non publié</span>
-            )}
-            {dossier.deposit_date && (
-              <>
-                <span className="text-line-strong">·</span>
-                <span>déposé le {formatShortDate(dossier.deposit_date, today)}</span>
-              </>
-            )}
-            {dossier.scrutin_count > 0 && (
-              <>
-                <span className="text-line-strong">·</span>
-                <span className="font-semibold text-ink">
-                  {dossier.scrutin_count.toLocaleString('fr-FR')} scrutin
-                  {dossier.scrutin_count > 1 ? 's' : ''}
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </article>
+  return (
+    <DossierCardShell
+      uid={dossier.uid}
+      title={dossier.title}
+      status={dossier}
+      today={today}
+      families={dossier.families}
+      onFamily={onFamily}
+      stretched
+      themesAside={split ? undefined : meta}
+      split={
+        split && (
+          <OutcomeSplit
+            adopted={dossier.adopted_count}
+            rejected={dossier.rejected_count}
+            scope={`${dossier.scrutin_count.toLocaleString('fr-FR')} scrutin${dossier.scrutin_count > 1 ? 's' : ''}`}
+          />
+        )
+      }
+      below={split ? meta : undefined}
+    />
   )
 }

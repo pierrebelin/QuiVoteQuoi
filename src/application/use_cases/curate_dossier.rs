@@ -73,6 +73,7 @@ mod tests {
         async fn find_page(
             &self,
             _criteria: &crate::application::ports::dossier_repository::DossierCriteria,
+            _order: crate::application::ports::dossier_repository::DossierOrder,
             _limit: i64,
             _offset: i64,
         ) -> Result<crate::application::ports::dossier_repository::DossierPage, RepositoryError>
@@ -84,6 +85,13 @@ mod tests {
             &self,
             _uid: &DossierUid,
         ) -> Result<Option<LegislativeDossier>, RepositoryError> {
+            unreachable!()
+        }
+
+        async fn find_by_uids(
+            &self,
+            _uids: &[crate::domain::dossier::DossierUid],
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
 

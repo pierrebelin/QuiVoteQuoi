@@ -8,15 +8,15 @@ import { GITHUB_REPOSITORY_URL } from './lib/repository'
 
 /*
  * Barre haute, à partir de 768 px : six entrées lisibles. « Accueil » est porté
- * par le logo ; les scrutins s'atteignent depuis les dossiers, dont ils sont le
- * détail ; les fiches de groupes depuis la page qui compare leurs votes, où
+ * par le logo ; les dossiers s'atteignent depuis les scrutins, qui les
+ * regroupent par défaut ; les fiches de groupes depuis la page qui compare leurs votes, où
  * l'on va justement chercher qui est qui. « À propos » conserve la promesse,
  * les sources et les règles déplacées de l'ancien accueil.
  *
  * En dessous, la navigation est la barre basse de `MobileNav`.
  */
 const NAV = [
-  { to: '/dossiers', label: 'Dossiers' },
+  { to: '/scrutins', label: 'Scrutins' },
   { to: '/votes-par-groupe', label: 'Comparer les votes des groupes' },
   { to: '/candidats-2027', label: 'Candidats 2027' },
   { to: '/themes', label: 'Thèmes' },

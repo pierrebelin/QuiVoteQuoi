@@ -1,16 +1,17 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import { FamilyIllustration } from './FamilyIllustration'
+import DossierCardShell, { FamilyChips, OutcomeSplit } from './DossierCardShell'
 import PositionGlyph from './entry/PositionGlyph'
 import { VoteBar } from './ui'
-import { capitalized, typographic } from '../lib/entryFlow'
+import { capitalized } from '../lib/entryFlow'
 import type { CitedAmendmentDto, ScrutinSummaryDto } from '../types/scrutins'
 import type { AssignedFamilyDto } from '../types/themes'
 
-/** Lignes visibles d'un dossier avant dépliage : une séance budgétaire en enchaîne des dizaines. */
-const VISIBLE_ROWS = 5
-
-const DOC_ICON = 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4'
+/**
+ * Lignes visibles d'un dossier avant dépliage : une séance budgétaire en
+ * enchaîne des dizaines, et sur mobile trois lignes tiennent déjà un écran.
+ */
+const VISIBLE_ROWS = 3
 
 type Entry =
   | { kind: 'single'; scrutin: ScrutinSummaryDto }
@@ -24,7 +25,8 @@ interface Day {
 /**
  * Jours, puis dans chaque jour les scrutins successifs d'un même dossier
  * réunis. L'ordre de la source n'est jamais changé : seuls des voisins sont
- * regroupés, et un scrutin seul garde sa carte.
+ * regroupés. Un scrutin seul de son dossier a aussi une carte de dossier ;
+ * seul un scrutin sans dossier garde sa carte propre.
  */
 function groupFeed(scrutins: ScrutinSummaryDto[]): Day[] {
   const days: Day[] = []
@@ -35,21 +37,13 @@ function groupFeed(scrutins: ScrutinSummaryDto[]): Day[] {
       days.push(day)
     }
     const last = day.entries[day.entries.length - 1]
-    if (scrutin.dossier_uid && last) {
-      if (last.kind === 'dossier' && last.dossierUid === scrutin.dossier_uid) {
-        last.scrutins.push(scrutin)
-        continue
-      }
-      if (last.kind === 'single' && last.scrutin.dossier_uid === scrutin.dossier_uid) {
-        day.entries[day.entries.length - 1] = {
-          kind: 'dossier',
-          dossierUid: scrutin.dossier_uid,
-          scrutins: [last.scrutin, scrutin],
-        }
-        continue
-      }
+    if (!scrutin.dossier_uid) {
+      day.entries.push({ kind: 'single', scrutin })
+    } else if (last?.kind === 'dossier' && last.dossierUid === scrutin.dossier_uid) {
+      last.scrutins.push(scrutin)
+    } else {
+      day.entries.push({ kind: 'dossier', dossierUid: scrutin.dossier_uid, scrutins: [scrutin] })
     }
-    day.entries.push({ kind: 'single', scrutin })
   }
   return days
 }
@@ -130,23 +124,6 @@ function CitedAuthor({ cited, compact = false }: { cited: CitedAmendmentDto; com
   )
 }
 
-function FamilyChips({ families }: { families: AssignedFamilyDto[] }) {
-  return (
-    <>
-      {families.map((family) => (
-        <Link
-          key={family.code}
-          to={`/themes/${family.code}`}
-          className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2 pl-0.5 text-[12.5px] font-medium text-ink ring-1 ring-transparent transition hover:ring-line-strong"
-        >
-          <FamilyIllustration code={family.code} className="size-5 rounded-md" glyphClassName="size-3" />
-          {typographic(family.label)}
-        </Link>
-      ))}
-    </>
-  )
-}
-
 function OutcomeTag({ scrutin }: { scrutin: ScrutinSummaryDto }) {
   const adopted = isAdopted(scrutin)
   return (
@@ -209,7 +186,10 @@ function Tally({ scrutin, size }: { scrutin: ScrutinSummaryDto; size: 'large' | 
   )
 }
 
-/** Carte d'un scrutin seul : bandeau d'issue, dossier et thèmes, sujet, exposé, chiffres. */
+/**
+ * Carte d'un scrutin sans dossier : sans état de dossier à montrer, le
+ * bandeau dit l'issue du scrutin. Puis thèmes, sujet, exposé, chiffres.
+ */
 function ScrutinCard({ scrutin }: { scrutin: ScrutinSummaryDto }) {
   const adopted = isAdopted(scrutin)
   const cited = scrutin.cited[0]
@@ -217,7 +197,6 @@ function ScrutinCard({ scrutin }: { scrutin: ScrutinSummaryDto }) {
   const subject = officialSubject(scrutin, title)
   const kind = ballotKind(scrutin.ballot_type)
   const families = scrutin.families ?? []
-  const showDossier = scrutin.dossier_label && title !== scrutin.dossier_label
 
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card transition-colors hover:border-line-strong">
@@ -240,19 +219,8 @@ function ScrutinCard({ scrutin }: { scrutin: ScrutinSummaryDto }) {
 
       <div className="grid items-center gap-x-6 gap-y-3 px-[18px] pt-3 pb-3.5 sm:grid-cols-[minmax(0,1fr)_220px]">
         <div className="min-w-0">
-          {(showDossier || families.length > 0) && (
-            <div className="mb-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] text-ink-soft">
-              {showDossier && (
-                <Link
-                  to={`/dossiers/${scrutin.dossier_uid}`}
-                  className="relative z-10 inline-flex items-center gap-1.5 font-medium hover:text-accent hover:underline"
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="size-4 text-ink-faint">
-                    <path d={DOC_ICON} />
-                  </svg>
-                  {scrutin.dossier_label}
-                </Link>
-              )}
+          {families.length > 0 && (
+            <div className="mb-2">
               <FamilyChips families={families} />
             </div>
           )}
@@ -298,14 +266,17 @@ function ScrutinCard({ scrutin }: { scrutin: ScrutinSummaryDto }) {
   )
 }
 
-/** Une ligne de la carte d'un dossier : issue, sujet, auteur, exposé, objet officiel, chiffres. */
+/**
+ * Une ligne de la carte d'un dossier : issue, sujet, auteur, exposé, objet
+ * officiel, chiffres.
+ */
 function DossierRow({ scrutin }: { scrutin: ScrutinSummaryDto }) {
   const cited = scrutin.cited[0]
   const title = scrutinTitle(scrutin, true)
   const subject = officialSubject(scrutin, title)
-
+  const kind = ballotKind(scrutin.ballot_type)
   return (
-    <li className="group relative grid items-center gap-x-4 gap-y-2 border-t border-line px-[18px] py-2.5 transition-colors first:border-t-0 hover:bg-surface-soft/60 sm:grid-cols-[76px_minmax(0,1fr)_210px]">
+    <li className="group relative grid items-center gap-x-4 gap-y-2 border-t border-line px-[18px] py-2.5 transition-colors hover:bg-surface-soft/60 sm:grid-cols-[76px_minmax(0,1fr)_210px]">
       <OutcomeTag scrutin={scrutin} />
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -315,6 +286,9 @@ function DossierRow({ scrutin }: { scrutin: ScrutinSummaryDto }) {
           >
             {title}
           </Link>
+          {kind !== 'ordinaire' && (
+            <span className="rounded bg-surface-soft px-1.5 text-[11px] leading-[18px] font-bold text-ink">{kind}</span>
+          )}
           {cited && <CitedAuthor cited={cited} compact />}
           {scrutin.cited.length > 1 && (
             <span className="text-xs text-ink-faint">
@@ -336,46 +310,41 @@ function DossierRow({ scrutin }: { scrutin: ScrutinSummaryDto }) {
   )
 }
 
-/** Scrutins successifs d'un même dossier, dans une seule carte. */
-function DossierRun({ dossierUid, scrutins }: { dossierUid: string; scrutins: ScrutinSummaryDto[] }) {
+/**
+ * Scrutins successifs d'un même dossier, dans une seule carte. Un scrutin
+ * seul n'a pas de répartition : sa ligne dit déjà l'issue.
+ */
+function DossierRun({
+  dossierUid,
+  scrutins,
+  today,
+}: {
+  dossierUid: string
+  scrutins: ScrutinSummaryDto[]
+  today: string
+}) {
   const [expanded, setExpanded] = useState(false)
   const adopted = scrutins.filter(isAdopted).length
-  const rejected = scrutins.length - adopted
-  const families = familiesOf(scrutins)
   const hidden = expanded ? 0 : Math.max(0, scrutins.length - VISIBLE_ROWS)
   const shown = hidden > 0 ? scrutins.slice(0, VISIBLE_ROWS) : scrutins
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-line bg-surface shadow-card">
-      <header className="border-b border-line px-[18px] pt-3.5 pb-3">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
-          <Link
-            to={`/dossiers/${dossierUid}`}
-            className="inline-flex min-w-0 items-start gap-2 text-[16.5px] leading-snug font-semibold text-ink hover:text-accent"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 size-[18px] shrink-0 text-ink-faint">
-              <path d={DOC_ICON} />
-            </svg>
-            {scrutins[0].dossier_label ?? dossierUid}
-          </Link>
-          <span className="flex shrink-0 gap-1.5 text-[12.5px] font-semibold">
-            {adopted > 0 && (
-              <span className="rounded-full bg-yes-soft px-2.5 py-0.5 text-yes">
-                {adopted} adopté{adopted > 1 ? 's' : ''}
-              </span>
-            )}
-            {rejected > 0 && (
-              <span className="rounded-full bg-no-soft px-2.5 py-0.5 text-no">
-                {rejected} rejeté{rejected > 1 ? 's' : ''}
-              </span>
-            )}
-          </span>
-        </div>
-        <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1.5 text-[13px] text-ink-faint">
-          <FamilyChips families={families} />
-          <span>{scrutins.length} scrutins à la suite</span>
-        </div>
-      </header>
+    <DossierCardShell
+      uid={dossierUid}
+      title={scrutins[0].dossier_label ?? dossierUid}
+      status={scrutins[0].dossier_status}
+      today={today}
+      families={familiesOf(scrutins)}
+      split={
+        scrutins.length > 1 && (
+          <OutcomeSplit
+            adopted={adopted}
+            rejected={scrutins.length - adopted}
+            scope={`${scrutins.length} scrutins ce jour`}
+          />
+        )
+      }
+    >
       <ul>
         {shown.map((scrutin) => (
           <DossierRow key={scrutin.uid} scrutin={scrutin} />
@@ -393,29 +362,43 @@ function DossierRun({ dossierUid, scrutins }: { dossierUid: string; scrutins: Sc
             : `Afficher les ${hidden} autre${hidden > 1 ? 's' : ''} scrutin${hidden > 1 ? 's' : ''} de ce dossier`}
         </button>
       )}
-    </article>
+    </DossierCardShell>
+  )
+}
+
+function DayHeading({ date }: { date: string }) {
+  return (
+    <h2 className="mb-2.5 flex items-center gap-3 text-[15px] font-semibold text-ink">
+      <time dateTime={date}>{dayLabel(date)}</time>
+      <span aria-hidden className="h-px flex-1 bg-line" />
+    </h2>
   )
 }
 
 /**
- * Fil des scrutins : un intercalaire par jour, une carte par scrutin, et les
- * scrutins successifs d'un même dossier réunis dans une carte commune.
+ * Fil des scrutins, un intercalaire par jour : une carte par scrutin, et les
+ * scrutins successifs d'un même dossier réunis dans une carte commune sous
+ * l'état du dossier.
  */
 export default function ScrutinFeed({ scrutins }: { scrutins: ScrutinSummaryDto[] }) {
+  const today = new Date().toISOString().slice(0, 10)
+
   return (
     <div>
       {groupFeed(scrutins).map((day) => (
         <section key={day.date} className="mt-6 first:mt-0">
-          <h2 className="mb-2.5 flex items-center gap-3 text-[15px] font-semibold text-ink">
-            <time dateTime={day.date}>{dayLabel(day.date)}</time>
-            <span aria-hidden className="h-px flex-1 bg-line" />
-          </h2>
+          <DayHeading date={day.date} />
           <div className="space-y-3">
             {day.entries.map((entry) =>
               entry.kind === 'single' ? (
                 <ScrutinCard key={entry.scrutin.uid} scrutin={entry.scrutin} />
               ) : (
-                <DossierRun key={entry.scrutins[0].uid} dossierUid={entry.dossierUid} scrutins={entry.scrutins} />
+                <DossierRun
+                  key={entry.scrutins[0].uid}
+                  dossierUid={entry.dossierUid}
+                  scrutins={entry.scrutins}
+                  today={today}
+                />
               ),
             )}
           </div>

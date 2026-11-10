@@ -10,6 +10,9 @@ use crate::application::ports::amendment_repository::{
     AmendmentGroupOption, AmendmentPage, AmendmentPageRequest, AmendmentRepository,
     AmendmentSummary, DossierAmendmentCoverage, SignatoryRow,
 };
+use crate::application::ports::dossier_repository::{
+    DossierCriteria, DossierPage, DossierRepository,
+};
 use crate::application::ports::RepositoryError;
 use crate::domain::actor::{
     Actor, ActorDirectory, ActorRegistry, ActorRole, ActorUid, GroupUid, ParliamentaryGroup,
@@ -19,6 +22,10 @@ use crate::application::ports::scrutin_repository::{
 };
 use crate::domain::amendment::Amendment;
 use crate::domain::dataset::DatasetShape;
+use crate::domain::dossier::{
+    CurationStatus, DossierOutcome, DossierUid, LegislativeDossier, LegislativeStage,
+    NewLegislativeDossier, Score, StoredDossierState,
+};
 use crate::domain::scrutin::{Scrutin, ScrutinUid, VoteTally};
 
 /// Ligne de liste d'un scrutin `uid` portant l'objet `subject`.
@@ -173,5 +180,101 @@ impl ActorRepository for FakeActors {
             .unwrap()],
             vec![],
         ))
+    }
+}
+
+/// Dossier `uid` sans actes ni documents, au sort et a l'etape donnes : ce que
+/// la liste des scrutins en lit.
+pub fn listed_dossier(
+    uid: &str,
+    outcome: DossierOutcome,
+    stage: Option<LegislativeStage>,
+) -> LegislativeDossier {
+    LegislativeDossier::new(NewLegislativeDossier {
+        uid: DossierUid::new(uid.into()).unwrap(),
+        title: "Projet de loi de finances pour 2027".into(),
+        procedure: "Projet de loi de finances de l'ann\u{00e9}e".into(),
+        legislature: 17,
+        url: None,
+        summary: None,
+        deposit_date: None,
+        last_activity_date: chrono::NaiveDate::from_ymd_opt(2026, 11, 4).unwrap(),
+        last_activity_label: "R\u{00e9}union de commission".into(),
+        acts: vec![],
+        documents: vec![],
+        score: Score::new(0, 0, 0, 0).unwrap(),
+        current_stage: stage,
+        initiators: vec![],
+        committee: None,
+        curation_status: CurationStatus::New,
+        outcome,
+    })
+}
+
+/// Dossiers semes, lus par uid. `lookups` compte les lectures : la liste des
+/// scrutins doit lire ses dossiers en une fois.
+#[derive(Default)]
+pub struct FakeDossiers {
+    pub dossiers: Vec<LegislativeDossier>,
+    pub lookups: std::sync::Mutex<Vec<Vec<String>>>,
+}
+
+#[async_trait]
+impl DossierRepository for FakeDossiers {
+    async fn save_all(&self, _d: &[LegislativeDossier]) -> Result<usize, RepositoryError> {
+        unreachable!()
+    }
+    async fn load_states(
+        &self,
+    ) -> Result<std::collections::HashMap<String, StoredDossierState>, RepositoryError> {
+        unreachable!()
+    }
+    async fn find_recent(
+        &self,
+        _since: chrono::NaiveDate,
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        unreachable!()
+    }
+    async fn find_page(
+        &self,
+        _c: &DossierCriteria,
+        _order: crate::application::ports::dossier_repository::DossierOrder,
+        _l: i64,
+        _o: i64,
+    ) -> Result<DossierPage, RepositoryError> {
+        unreachable!()
+    }
+    async fn find_by_uid(
+        &self,
+        _u: &DossierUid,
+    ) -> Result<Option<LegislativeDossier>, RepositoryError> {
+        unreachable!()
+    }
+    async fn find_by_uids(
+        &self,
+        uids: &[DossierUid],
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        let asked: Vec<String> = uids.iter().map(|u| u.as_str().to_string()).collect();
+        let found = self
+            .dossiers
+            .iter()
+            .filter(|d| asked.iter().any(|uid| uid == d.uid().as_str()))
+            .cloned()
+            .collect();
+        self.lookups.lock().unwrap().push(asked);
+        Ok(found)
+    }
+    async fn find_suggestions(
+        &self,
+        _count: usize,
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        unreachable!()
+    }
+    async fn update_curation_status(
+        &self,
+        _u: &DossierUid,
+        _s: CurationStatus,
+    ) -> Result<bool, RepositoryError> {
+        unreachable!()
     }
 }

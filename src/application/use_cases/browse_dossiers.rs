@@ -1,6 +1,6 @@
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierListing, DossierRepository, RepositoryError,
+    DossierCriteria, DossierListing, DossierOrder, DossierRepository, RepositoryError,
 };
 use crate::domain::actor::{ActorDirectory, ActorRole, TextTone};
 use crate::domain::dossier::Initiator;
@@ -18,6 +18,7 @@ pub struct DossierQuery {
     page: i64,
     per_page: i64,
     criteria: DossierCriteria,
+    order: DossierOrder,
 }
 
 impl DossierQuery {
@@ -26,7 +27,13 @@ impl DossierQuery {
             page: page.max(1),
             per_page: per_page.clamp(1, MAX_PER_PAGE),
             criteria,
+            order: DossierOrder::default(),
         }
+    }
+
+    /// La même demande, dans un autre ordre que la dernière activité.
+    pub fn ordered_by(self, order: DossierOrder) -> Self {
+        Self { order, ..self }
     }
 
     pub fn page(&self) -> i64 {
@@ -39,6 +46,10 @@ impl DossierQuery {
 
     pub fn criteria(&self) -> &DossierCriteria {
         &self.criteria
+    }
+
+    pub fn order(&self) -> DossierOrder {
+        self.order
     }
 
     fn offset(&self) -> i64 {
@@ -56,8 +67,8 @@ impl Default for DossierQuery {
 ///
 /// Aucun seuil de score, aucune sélection éditoriale : sans critère la liste
 /// est entière (README.md §2), et les critères du visiteur ne restreignent que
-/// son affichage. Le tri porte sur la dernière activité — c'est la date qui dit
-/// où en est un texte.
+/// son affichage. Le tri porte par défaut sur la dernière activité — c'est la
+/// date qui dit où en est un texte — ou, à la demande, sur le dernier scrutin.
 pub struct BrowseDossiers<'a> {
     repository: &'a dyn DossierRepository,
     actors: &'a dyn ActorRepository,
@@ -95,7 +106,12 @@ impl<'a> BrowseDossiers<'a> {
     pub async fn execute(&self, query: DossierQuery) -> Result<DossierCards, RepositoryError> {
         let page = self
             .repository
-            .find_page(query.criteria(), query.per_page(), query.offset())
+            .find_page(
+                query.criteria(),
+                query.order(),
+                query.per_page(),
+                query.offset(),
+            )
             .await?;
 
         // Le référentiel n'est chargé que pour les initiateurs de la page.
@@ -148,7 +164,9 @@ mod tests {
     use chrono::NaiveDate;
     use std::sync::Mutex;
 
-    use crate::application::ports::dossier_repository::DossierPage;
+    use std::collections::HashMap;
+
+    use crate::application::ports::dossier_repository::{DossierPage, DossierScrutinTally};
     use crate::application::use_cases::read_fakes::FakeActors;
     use crate::domain::actor::{ActorUid, GroupUid};
     use crate::domain::dossier::{
@@ -160,6 +178,17 @@ mod tests {
 
     struct InMemoryDossierRepository {
         dossiers: Mutex<Vec<LegislativeDossier>>,
+        /// Scrutins de chaque dossier, par uid ; absent : aucun scrutin.
+        tallies: HashMap<String, DossierScrutinTally>,
+    }
+
+    impl InMemoryDossierRepository {
+        fn tally_of(&self, dossier: &LegislativeDossier) -> DossierScrutinTally {
+            self.tallies
+                .get(dossier.uid().as_str())
+                .copied()
+                .unwrap_or_default()
+        }
     }
 
     #[async_trait]
@@ -189,6 +218,7 @@ mod tests {
         async fn find_page(
             &self,
             criteria: &DossierCriteria,
+            order: DossierOrder,
             limit: i64,
             offset: i64,
         ) -> Result<DossierPage, RepositoryError> {
@@ -196,9 +226,22 @@ mod tests {
             let mut kept: Vec<_> = store
                 .iter()
                 .filter(|d| matches(d, criteria))
+                .filter(|d| !criteria.with_scrutins || self.tally_of(d).count > 0)
                 .cloned()
                 .collect();
-            kept.sort_by(|a, b| b.last_activity_date().cmp(&a.last_activity_date()));
+            match order {
+                DossierOrder::LastActivity => {
+                    kept.sort_by_key(|d| std::cmp::Reverse(d.last_activity_date()))
+                }
+                // `None` passe après toute date : `Option` range `None` en
+                // premier, l'ordre décroissant le renvoie en fin de liste.
+                DossierOrder::LastScrutin => kept.sort_by(|a, b| {
+                    self.tally_of(b)
+                        .last_date
+                        .cmp(&self.tally_of(a).last_date)
+                        .then_with(|| b.uid().as_str().cmp(a.uid().as_str()))
+                }),
+            }
             Ok(DossierPage {
                 total: kept.len() as i64,
                 items: kept
@@ -206,9 +249,9 @@ mod tests {
                     .skip(offset as usize)
                     .take(limit as usize)
                     .map(|dossier| DossierListing {
+                        scrutins: self.tally_of(&dossier),
                         dossier,
                         families: vec![],
-                        scrutin_count: 0,
                     })
                     .collect(),
             })
@@ -218,6 +261,13 @@ mod tests {
             &self,
             _uid: &DossierUid,
         ) -> Result<Option<LegislativeDossier>, RepositoryError> {
+            unreachable!()
+        }
+
+        async fn find_by_uids(
+            &self,
+            _uids: &[crate::domain::dossier::DossierUid],
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
 
@@ -291,6 +341,7 @@ mod tests {
     fn repo(count: u32) -> InMemoryDossierRepository {
         InMemoryDossierRepository {
             dossiers: Mutex::new((1..=count).map(|d| dossier(&format!("D{d}"), d)).collect()),
+            tallies: HashMap::new(),
         }
     }
 
@@ -372,6 +423,7 @@ mod tests {
                 LegislativeDossier::new(proposition),
                 dossier("Loi agricole", 3),
             ]),
+            tallies: HashMap::new(),
         }
     }
 
@@ -472,6 +524,7 @@ mod tests {
                     outcome_kinds: vec!["promulgated".into()],
                     initiative: Some(Initiative::Parliamentary),
                     family: None,
+                    with_scrutins: false,
                 },
             ))
             .await
@@ -486,6 +539,7 @@ mod tests {
         parts.initiators = initiators;
         InMemoryDossierRepository {
             dossiers: Mutex::new(vec![LegislativeDossier::new(parts)]),
+            tallies: HashMap::new(),
         }
     }
 
@@ -553,5 +607,108 @@ mod tests {
         assert_eq!(initiator.full_name, "Claude Martin");
         assert_eq!(initiator.role, None);
         assert_eq!(initiator.group_abbrev, None);
+    }
+
+    fn tally(count: i64, adopted: i64, month: u32, day: u32) -> DossierScrutinTally {
+        DossierScrutinTally {
+            count,
+            adopted,
+            rejected: count - adopted,
+            last_date: NaiveDate::from_ymd_opt(2026, month, day),
+        }
+    }
+
+    /// A : activité récente, vote ancien. B : activité ancienne, vote récent.
+    /// C : activité la plus récente, aucun scrutin.
+    fn voted_repo() -> InMemoryDossierRepository {
+        InMemoryDossierRepository {
+            dossiers: Mutex::new(vec![dossier("A", 5), dossier("B", 1), dossier("C", 9)]),
+            tallies: HashMap::from([
+                ("A".to_string(), tally(3, 1, 5, 2)),
+                ("B".to_string(), tally(2, 2, 6, 10)),
+            ]),
+        }
+    }
+
+    fn uids(cards: &DossierCards) -> Vec<&str> {
+        cards
+            .items
+            .iter()
+            .map(|c| c.listing.dossier.uid().as_str())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn last_scrutin_order_lists_the_most_recently_voted_first() {
+        let page = BrowseDossiers::new(&voted_repo(), &NO_COLOR)
+            .execute(query(1, 20).ordered_by(DossierOrder::LastScrutin))
+            .await
+            .unwrap();
+
+        assert_eq!(uids(&page), vec!["B", "A", "C"]);
+    }
+
+    #[tokio::test]
+    async fn default_order_stays_the_last_activity() {
+        let page = BrowseDossiers::new(&voted_repo(), &NO_COLOR)
+            .execute(query(1, 20))
+            .await
+            .unwrap();
+
+        assert_eq!(uids(&page), vec!["C", "A", "B"]);
+    }
+
+    /// Le filtre ne retire que l'affichage : le total suit, pour que le
+    /// visiteur sache combien de dossiers ont été votés (README.md §2).
+    #[tokio::test]
+    async fn with_scrutins_keeps_only_the_voted_dossiers_and_counts_them() {
+        let page = BrowseDossiers::new(&voted_repo(), &NO_COLOR)
+            .execute(
+                DossierQuery::new(
+                    1,
+                    1,
+                    DossierCriteria {
+                        with_scrutins: true,
+                        ..Default::default()
+                    },
+                )
+                .ordered_by(DossierOrder::LastScrutin),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(uids(&page), vec!["B"]);
+        assert_eq!(page.total, 2);
+    }
+
+    #[tokio::test]
+    async fn card_carries_the_scrutin_tally_of_its_dossier() {
+        let page = BrowseDossiers::new(&voted_repo(), &NO_COLOR)
+            .execute(query(1, 20).ordered_by(DossierOrder::LastScrutin))
+            .await
+            .unwrap();
+
+        let voted = &page.items[1].listing.scrutins;
+        assert_eq!(voted.count, 3);
+        assert_eq!(voted.adopted, 1);
+        assert_eq!(voted.rejected, 2);
+        assert_eq!(voted.last_date, NaiveDate::from_ymd_opt(2026, 5, 2));
+        assert_eq!(
+            page.items[2].listing.scrutins,
+            DossierScrutinTally::default()
+        );
+    }
+
+    #[test]
+    fn sort_parameter_reads_only_the_known_orders() {
+        assert_eq!(
+            DossierOrder::parse("last_scrutin"),
+            Some(DossierOrder::LastScrutin)
+        );
+        assert_eq!(
+            DossierOrder::parse("last_activity"),
+            Some(DossierOrder::LastActivity)
+        );
+        assert_eq!(DossierOrder::parse("score"), None);
     }
 }

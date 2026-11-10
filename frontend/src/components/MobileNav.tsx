@@ -12,12 +12,13 @@ import ThemeToggle from './ThemeToggle'
  */
 const TABS: { to: string; label: string; icon: IconName }[] = [
   { to: '/themes', label: 'Thèmes', icon: 'themes' },
-  { to: '/dossiers', label: 'Dossiers', icon: 'dossiers' },
+  { to: '/scrutins', label: 'Scrutins', icon: 'dossiers' },
   { to: '/votes-par-groupe', label: 'Votes', icon: 'votes' },
   { to: '/candidats-2027', label: 'Candidats 2027', icon: 'candidats' },
 ]
 
 const MORE_LINKS: { to: string; label: string; icon: IconName }[] = [
+  { to: '/dossiers', label: 'Dossiers', icon: 'dossiers' },
   { to: '/comprendre', label: 'Comprendre', icon: 'comprendre' },
   { to: '/a-propos', label: 'À propos', icon: 'apropos' },
 ]

@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::api::dto::{OutcomeDto, StageDto};
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::scrutin_repository::ScrutinFilter;
 use crate::application::use_cases::browse_dossier_amendments::CitedAmendmentView;
@@ -8,6 +9,7 @@ use crate::application::use_cases::get_scrutin_detail::{CitedNumberView, Scrutin
 use crate::application::use_cases::list_scrutins::{ScrutinListItem, ScrutinListPage};
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
 use crate::domain::amendment::SummaryPreview;
+use crate::domain::dossier::LegislativeDossier;
 use crate::domain::final_vote::{is_final_vote_subject, reading_of};
 use crate::domain::scrutin::{scrutin_official_url, VoteTally};
 
@@ -89,6 +91,9 @@ pub struct ScrutinSummaryDto {
     pub tally: TallyDto,
     pub dossier_uid: Option<String>,
     pub dossier_label: Option<String>,
+    /// Ou en est le dossier rattache, avec les memes sort et etape que la liste
+    /// des dossiers. Absent sans dossier, ou quand le dossier n'est pas en base.
+    pub dossier_status: Option<DossierStatusDto>,
     pub has_reconstructed_tallies: bool,
     /// RM-07: le lien source accompagne chaque scrutin, jusque dans la liste.
     pub official_url: String,
@@ -115,6 +120,7 @@ impl From<ScrutinListItem> for ScrutinSummaryDto {
             tally: s.tally.into(),
             dossier_uid: s.dossier_uid,
             dossier_label: s.dossier_label,
+            dossier_status: item.dossier.as_ref().map(DossierStatusDto::from),
             has_reconstructed_tallies: s.has_reconstructed_tallies,
             official_url,
             cited: item
@@ -123,6 +129,30 @@ impl From<ScrutinListItem> for ScrutinSummaryDto {
                 .map(CitedAmendmentDto::from)
                 .collect(),
             families: Vec::new(),
+        }
+    }
+}
+
+/// Etat du dossier d'un scrutin, tel que la liste des dossiers le montre.
+///
+/// Le sort et l'etape sont ceux de `/api/dossiers`, memes types: quand la
+/// source ne conclut rien, le libelle le dit et le dernier acte reste la seule
+/// information (README.md §6).
+#[derive(Serialize)]
+pub struct DossierStatusDto {
+    pub outcome: OutcomeDto,
+    pub current_stage: Option<StageDto>,
+    pub last_activity_label: String,
+    pub last_activity_date: NaiveDate,
+}
+
+impl From<&LegislativeDossier> for DossierStatusDto {
+    fn from(d: &LegislativeDossier) -> Self {
+        Self {
+            outcome: OutcomeDto::from(d.outcome()),
+            current_stage: d.current_stage().map(StageDto::from),
+            last_activity_label: d.last_activity_label().to_string(),
+            last_activity_date: d.last_activity_date(),
         }
     }
 }
@@ -445,7 +475,45 @@ mod tests {
             summary: scrutin_row(uid, subject),
             short_label: ShortLabel::from_subject(subject),
             cited: Vec::new(),
+            dossier: None,
         }
+    }
+
+    #[test]
+    fn should_serve_dossier_outcome_stage_and_last_act_when_scrutin_has_a_dossier() {
+        use crate::application::use_cases::read_fakes::listed_dossier;
+        use crate::domain::dossier::{DossierOutcome, LegislativeStage};
+
+        let mut listed = item("S1", "l'article 3 du projet de loi de finances");
+        listed.dossier = Some(listed_dossier(
+            "DLR5L17N54629",
+            DossierOutcome::Rejected {
+                date: NaiveDate::from_ymd_opt(2026, 11, 4).unwrap(),
+                label: "rejet\u{e9}".into(),
+            },
+            Some(LegislativeStage::FirstReadingAN),
+        ));
+
+        let json = serde_json::to_value(ScrutinSummaryDto::from(listed)).unwrap();
+
+        let status = &json["dossier_status"];
+        assert_eq!(status["outcome"]["kind"], "rejected");
+        assert_eq!(status["outcome"]["label"], "rejet\u{e9}");
+        assert_eq!(status["outcome"]["date"], "2026-11-04");
+        assert_eq!(status["outcome"]["is_final"], false);
+        assert_eq!(
+            status["current_stage"]["chamber"],
+            "Assembl\u{e9}e nationale"
+        );
+        assert_eq!(status["last_activity_label"], "R\u{e9}union de commission");
+        assert_eq!(status["last_activity_date"], "2026-11-04");
+    }
+
+    #[test]
+    fn should_serve_null_dossier_status_when_scrutin_has_no_dossier() {
+        let json = serde_json::to_value(ScrutinSummaryDto::from(item("S1", "l'ensemble"))).unwrap();
+
+        assert!(json["dossier_status"].is_null());
     }
 
     #[test]

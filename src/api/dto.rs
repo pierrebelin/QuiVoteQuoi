@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::api::theme_dto::AssignedFamilyDto;
-use crate::application::ports::dossier_repository::DossierCriteria;
+use crate::application::ports::dossier_repository::{DossierCriteria, DossierOrder};
 use crate::application::use_cases::browse_dossiers::{
     DossierCard, InitiatorView, DEFAULT_PER_PAGE,
 };
@@ -138,6 +138,12 @@ pub struct DossierPageQuery {
     pub initiative: Option<String>,
     /// Code d'une famille de thèmes (`logement`, `sante`…).
     pub family: Option<String>,
+    /// `true` : seuls les dossiers ayant au moins un scrutin public.
+    #[serde(default)]
+    pub with_scrutins: bool,
+    /// Ordre de la liste — à ne pas confondre avec le sort du dossier, qui est
+    /// `outcome` : `last_activity` (défaut) ou `last_scrutin`.
+    pub sort: Option<String>,
 }
 
 fn default_page() -> i64 {
@@ -181,7 +187,19 @@ impl From<&DossierPageQuery> for DossierCriteria {
                 .as_deref()
                 .map(str::trim)
                 .and_then(|code| FamilyCode::parse(code).ok()),
+            with_scrutins: q.with_scrutins,
         }
+    }
+}
+
+/// Un ordre inconnu ou absent laisse l'ordre par défaut, la dernière activité.
+impl From<&DossierPageQuery> for DossierOrder {
+    fn from(q: &DossierPageQuery) -> Self {
+        q.sort
+            .as_deref()
+            .map(str::trim)
+            .and_then(DossierOrder::parse)
+            .unwrap_or_default()
     }
 }
 
@@ -203,6 +221,12 @@ pub struct DossierListItemDto {
     pub initiators: Vec<DossierInitiatorDto>,
     pub families: Vec<AssignedFamilyDto>,
     pub scrutin_count: i64,
+    /// Scrutins adoptés et rejetés selon la source : leur somme fait
+    /// `scrutin_count` (README.md §6, des nombres, pas d'adverbes).
+    pub adopted_count: i64,
+    pub rejected_count: i64,
+    /// Absent : aucun scrutin public.
+    pub last_scrutin_date: Option<NaiveDate>,
 }
 
 impl From<DossierCard> for DossierListItemDto {
@@ -220,7 +244,10 @@ impl From<DossierCard> for DossierListItemDto {
                 .into_iter()
                 .map(AssignedFamilyDto::from)
                 .collect(),
-            scrutin_count: card.listing.scrutin_count,
+            scrutin_count: card.listing.scrutins.count,
+            adopted_count: card.listing.scrutins.adopted,
+            rejected_count: card.listing.scrutins.rejected,
+            last_scrutin_date: card.listing.scrutins.last_date,
         }
     }
 }
@@ -677,5 +704,43 @@ mod tests {
         });
 
         assert_eq!(response.database, "connected");
+    }
+
+    fn page_query(sort: Option<&str>, with_scrutins: bool) -> DossierPageQuery {
+        DossierPageQuery {
+            page: 1,
+            per_page: DEFAULT_PER_PAGE,
+            search: None,
+            outcome: None,
+            initiative: None,
+            family: None,
+            with_scrutins,
+            sort: sort.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn sort_last_scrutin_orders_by_the_last_vote() {
+        let order = DossierOrder::from(&page_query(Some(" last_scrutin "), false));
+
+        assert_eq!(order, DossierOrder::LastScrutin);
+    }
+
+    #[test]
+    fn missing_or_unknown_sort_keeps_the_last_activity() {
+        assert_eq!(
+            DossierOrder::from(&page_query(None, false)),
+            DossierOrder::LastActivity
+        );
+        assert_eq!(
+            DossierOrder::from(&page_query(Some("score"), false)),
+            DossierOrder::LastActivity
+        );
+    }
+
+    #[test]
+    fn with_scrutins_reaches_the_criteria() {
+        assert!(DossierCriteria::from(&page_query(None, true)).with_scrutins);
+        assert!(!DossierCriteria::from(&page_query(None, false)).with_scrutins);
     }
 }

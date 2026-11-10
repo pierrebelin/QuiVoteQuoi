@@ -275,6 +275,7 @@ mod tests {
         async fn find_page(
             &self,
             _criteria: &DossierCriteria,
+            _order: crate::application::ports::dossier_repository::DossierOrder,
             _limit: i64,
             _offset: i64,
         ) -> Result<DossierPage, RepositoryError> {
@@ -289,6 +290,13 @@ mod tests {
                 .0
                 .contains(&uid.as_str())
                 .then(|| sample_dossier(uid.as_str())))
+        }
+
+        async fn find_by_uids(
+            &self,
+            _uids: &[crate::domain::dossier::DossierUid],
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+            unreachable!()
         }
 
         async fn find_suggestions(
