@@ -13,6 +13,7 @@ import { siegesDesGroupes } from '../components/sieges'
 import { InfoTip } from '../components/InfoTip'
 import { CoverageNote } from '../components/ScrutinList'
 import {
+  BackLink,
   Card,
   ErrorPanel,
   Loading,
@@ -30,6 +31,7 @@ import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 import type { CitedAmendmentDto, GroupBreakdownDto, ScrutinDetailDto } from '../types/scrutins'
 import {
   formatDate,
+  leadingPosition,
   positionClasses,
   positionLabels,
   tallySize,
@@ -94,8 +96,13 @@ function HemicycleHelp() {
       >
         plan de l'hémicycle
       </a>
-      ). Survolez un siège pour lire le nom, le groupe et la position ; en
-      gris, aucune position enregistrée.
+      ).{' '}
+      {/* Au doigt, pas de survol : la phrase sur la lecture d'un siège disparaît. */}
+      <span className="[@media(hover:none)]:hidden">
+        Survolez un siège pour lire le nom, le groupe et la position ; en gris,
+        aucune position enregistrée.
+      </span>
+      <span className="[@media(hover:hover)]:hidden">En gris, aucune position enregistrée.</span>
     </>
   )
 }
@@ -275,7 +282,7 @@ function GroupTile({ group }: { group: GroupBreakdownDto }) {
             <TallyLine tally={group.tally} />
             {group.origin === 'reconstructed' && <Pill tone="info">reconstituée</Pill>}
           </span>
-          {published && group.majority_position !== leadingPosition(group) && (
+          {published && group.majority_position !== leadingPosition(group.tally) && (
             <span className="block text-[11px] text-ink-faint">
               Position majoritaire publiée par l'Assemblée : {published}
             </span>
@@ -347,25 +354,6 @@ function GroupTile({ group }: { group: GroupBreakdownDto }) {
   )
 }
 
-type Lead = 'for' | 'against' | 'abstention'
-
-/**
- * Position qui a réuni le plus de députés du groupe, lue sur ses comptes bruts.
- * `null` quand personne ne s'est prononcé ou que deux positions sont à égalité :
- * le groupe va alors à part, jamais dans une colonne choisie au hasard.
- */
-function leadingPosition(group: GroupBreakdownDto): Lead | null {
-  const { votes_for, votes_against, abstentions } = group.tally
-  const counts: [Lead, number][] = [
-    ['for', votes_for],
-    ['against', votes_against],
-    ['abstention', abstentions],
-  ]
-  const top = Math.max(votes_for, votes_against, abstentions)
-  const leaders = counts.filter(([, n]) => n === top)
-  return top > 0 && leaders.length === 1 ? leaders[0][0] : null
-}
-
 /*
  * Les groupes sont rangés selon leurs voix : la colonne dit ce que la plupart
  * de leurs députés ont voté, la barre de chaque tuile dit s'ils étaient
@@ -379,13 +367,13 @@ const COLUMNS = [
 ] as const
 
 function GroupColumns({ groups }: { groups: GroupBreakdownDto[] }) {
-  const others = groups.filter((g) => leadingPosition(g) === null)
+  const others = groups.filter((g) => leadingPosition(g.tally) === null)
 
   return (
     <>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {COLUMNS.map((column) => {
-          const members = groups.filter((g) => leadingPosition(g) === column.key)
+          const members = groups.filter((g) => leadingPosition(g.tally) === column.key)
           return (
             <div key={column.key} className="min-w-0">
               <h4 className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
@@ -447,9 +435,7 @@ export default function ScrutinDetailPage() {
   if (isError) {
     return (
       <div>
-        <Link to="/scrutins" className="mb-4 inline-block text-sm text-accent">
-          ← Retour aux scrutins
-        </Link>
+        <BackLink to="/scrutins" className="mb-4">Retour aux scrutins</BackLink>
         <ErrorPanel error={error} />
       </div>
     )
@@ -467,12 +453,7 @@ export default function ScrutinDetailPage() {
 
   return (
     <div>
-      <Link
-        to="/scrutins"
-        className="mb-4 inline-block text-sm font-medium text-accent hover:underline"
-      >
-        ← Retour aux scrutins
-      </Link>
+      <BackLink to="/scrutins" className="mb-4">Retour aux scrutins</BackLink>
 
       {/*
         De quoi il s'agit : l'issue, la date, la lecture et les thèmes sur une

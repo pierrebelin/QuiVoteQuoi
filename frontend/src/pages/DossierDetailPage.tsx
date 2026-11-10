@@ -15,7 +15,7 @@ import { FamilyIllustration } from '../components/FamilyIllustration'
 import { InfoBox, InitiatorBox, InitiatorsBox } from '../components/InitiatorBox'
 import PositionGlyph from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
-import { Card, ErrorPanel, Loading, Pill } from '../components/ui'
+import { BackLink, Card, ErrorPanel, Loading, Pill } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
 import { typographic } from '../lib/entryFlow'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
@@ -251,9 +251,7 @@ export default function DossierDetailPage() {
   if (isError) {
     return (
       <div>
-        <Link to="/" className="mb-4 inline-block text-sm font-medium text-accent hover:underline">
-          ← Retour aux dossiers
-        </Link>
+        <BackLink to="/" className="mb-4">Retour aux dossiers</BackLink>
         <ErrorPanel error={error} />
       </div>
     )
@@ -274,9 +272,7 @@ export default function DossierDetailPage() {
 
   return (
     <div>
-      <Link to="/" className="mb-4 inline-block text-sm font-medium text-accent hover:underline">
-        ← Retour aux dossiers
-      </Link>
+      <BackLink to="/" className="mb-4">Retour aux dossiers</BackLink>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">

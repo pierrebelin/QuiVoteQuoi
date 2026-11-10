@@ -4,9 +4,8 @@ import { GroupDot } from '../pages/GroupListPage'
 import { GROUP_LOGOS } from '../content/logos'
 import { InfoTip } from './InfoTip'
 import { PoliticalLogo } from './PoliticalLogo'
-import PositionGlyph from './entry/PositionGlyph'
 import { Card, ErrorPanel, Pill, TallyLine, VoteBar } from './ui'
-import { positionClasses, positionLabels } from '../types/scrutins'
+import { leadingPosition, positionLabels } from '../types/scrutins'
 import type {
   DossierGroupActionsResponse,
   FateCountDto,
@@ -88,28 +87,23 @@ function positionLabel(value: string) {
 }
 
 /**
- * Position majoritaire du groupe au vote final, telle que publiée. Le vert, le
- * rouge et l'ocre disent la position, jamais le groupe.
+ * Vote final du groupe : lecture et décompte, sans couleur. La position
+ * majoritaire publiée peut contredire ce décompte : elle ne sert pas de résumé,
+ * le détail du groupe l'affiche à part quand elle en diffère.
  */
 function FinalVoteChip({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
-  const position = vote.majority_position
-  const title = `Scrutin n° ${vote.number} du ${formatDate(vote.date)}${vote.reading ? ` · ${vote.reading}` : ''} — position majoritaire publiée`
-  if (!position || !isPosition(position)) {
-    return (
-      <span title={title} className="rounded-md bg-surface-soft px-2 py-0.5 text-xs font-semibold text-ink-soft ring-1 ring-inset ring-line">
-        Vote final : position non publiée
-      </span>
-    )
-  }
+  const { votes_for, votes_against, abstentions, not_voting } = vote.tally
   return (
     <span
-      title={title}
-      className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${positionClasses[position]}`}
+      title={`Scrutin n° ${vote.number} du ${formatDate(vote.date)}`}
+      className="rounded-md bg-surface-soft px-2 py-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line"
     >
-      {position !== 'not_voting' && (
-        <PositionGlyph position={position} className="size-3" strokeWidth={3.4} />
-      )}
-      Vote final : {positionLabels[position].toLowerCase()}
+      Vote final, {vote.reading ?? formatDate(vote.date)} :{' '}
+      {/* En bloc : sur téléphone, le décompte passe à la ligne d'un seul tenant. */}
+      <span className="inline-block">
+        {votes_for} pour · {votes_against} contre · {abstentions} abst.
+        {not_voting > 0 && ` · ${not_voting} non-votant${not_voting > 1 ? 's' : ''}`}
+      </span>
     </span>
   )
 }
@@ -133,9 +127,9 @@ function FinalVote({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
         <TallyLine tally={vote.tally} />
-        {vote.majority_position && (
+        {vote.majority_position && vote.majority_position !== leadingPosition(vote.tally) && (
           <span className="text-xs text-ink-soft">
-            Position majoritaire publiée : {positionLabel(vote.majority_position).toLowerCase()}
+            Position majoritaire publiée par l'Assemblée : {positionLabel(vote.majority_position).toLowerCase()}
           </span>
         )}
         <a href={vote.official_url} target="_blank" rel="noreferrer" className="text-xs text-accent hover:underline">

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { BackLink } from '../components/ui'
 import { InfoTip } from '../components/InfoTip'
 import TextList from '../components/TextList'
 import { MethodNote, MethodText } from '../components/ThemeBadges'
@@ -42,9 +43,7 @@ export default function ThemeDetailPage() {
   return (
     <div className="space-y-3">
       <div>
-        <Link to="/themes" className="text-sm text-accent hover:underline">
-          ← Tous les thèmes
-        </Link>
+        <BackLink to="/themes">Tous les thèmes</BackLink>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">
             {family?.label ?? code}

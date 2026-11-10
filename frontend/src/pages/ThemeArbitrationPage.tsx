@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { BackLink } from '../components/ui'
 import type {
   FamiliesResponse,
   TextListResponse,
@@ -81,9 +81,7 @@ export default function ThemeArbitrationPage() {
   return (
     <div className="space-y-3">
       <div>
-        <Link to="/themes" className="text-sm text-accent hover:underline">
-          ← Tous les thèmes
-        </Link>
+        <BackLink to="/themes">Tous les thèmes</BackLink>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">
           Arbitrage des rattachements
         </h2>

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
+import { BackLink } from '../components/ui'
 import { FamilyBadges, UnassignedNote } from '../components/ThemeBadges'
 import type { TextDetailResponse } from '../types/themes'
 
@@ -30,9 +31,7 @@ export default function TextDetailPage() {
   return (
     <div className="space-y-3">
       <div>
-        <Link to="/themes" className="text-sm text-accent hover:underline">
-          ← Tous les thèmes
-        </Link>
+        <BackLink to="/themes">Tous les thèmes</BackLink>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">
           {data.label}
         </h2>
@@ -93,11 +92,11 @@ export default function TextDetailPage() {
               >
                 <Link
                   to={`/scrutins/${scrutin.uid}`}
-                  className="min-w-0 flex-1 text-sm hover:text-accent hover:underline"
+                  className="min-w-[min(100%,16rem)] flex-1 text-sm hover:text-accent hover:underline"
                 >
                   {scrutin.subject}
                 </Link>
-                <p className="shrink-0 text-xs text-ink-faint">
+                <p className="max-w-full shrink-0 text-xs text-ink-faint">
                   {frenchDate(scrutin.date)} · n° {scrutin.number} ·{' '}
                   {scrutin.outcome_label} · pour {scrutin.votes_for}, contre{' '}
                   {scrutin.votes_against}, abstention {scrutin.abstentions}

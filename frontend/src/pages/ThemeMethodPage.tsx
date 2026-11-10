@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { BackLink } from '../components/ui'
 import type { MethodResponse } from '../types/themes'
 
 function Row({ label, value }: { label: string; value: number | string }) {
@@ -50,9 +51,7 @@ export default function ThemeMethodPage() {
   return (
     <div className="space-y-3">
       <div className="max-w-3xl">
-        <Link to="/themes" className="text-sm text-accent hover:underline">
-          ← Tous les thèmes
-        </Link>
+        <BackLink to="/themes">Tous les thèmes</BackLink>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">
           Méthode de thématisation
         </h2>
