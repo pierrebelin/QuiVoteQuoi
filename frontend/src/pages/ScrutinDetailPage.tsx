@@ -7,7 +7,7 @@ import Hemicycle from '../components/Hemicycle'
 import { PoliticalLogo } from '../components/PoliticalLogo'
 import { InfoBox, InitiatorBox, InitiatorsBox } from '../components/InitiatorBox'
 import VoteImageExport from '../components/VoteImageExport'
-import PositionGlyph from '../components/entry/PositionGlyph'
+import { VoteCardHeader } from '../components/VoteCard'
 import { FOCUS_RING } from '../components/entry/styles'
 import { siegesDesGroupes } from '../components/sieges'
 import { InfoTip } from '../components/InfoTip'
@@ -20,7 +20,6 @@ import {
   Note,
   Pill,
   SectionTitle,
-  TallyLine,
   VoteBar,
 } from '../components/ui'
 import { GROUP_LOGOS } from '../content/logos'
@@ -28,14 +27,14 @@ import { fetchJson } from '../lib/fetchJson'
 import { capitalized, themeLink, typographic } from '../lib/entryFlow'
 import { amendmentCardPath } from '../types/amendments'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
-import type { CitedAmendmentDto, GroupBreakdownDto, ScrutinDetailDto } from '../types/scrutins'
-import {
-  formatDate,
-  leadingPosition,
-  positionClasses,
-  positionLabels,
-  tallySize,
+import type {
+  CitedAmendmentDto,
+  GroupBreakdownDto,
+  LeadingPosition,
+  ScrutinDetailDto,
+  TallyDto,
 } from '../types/scrutins'
+import { leadingPosition, positionClasses, positionLabels } from '../types/scrutins'
 
 /** Ce que la page lit du dossier : qui l'a déposé, où il en est. */
 interface DossierContextDto {
@@ -202,7 +201,9 @@ function CitedAmendment({
 
       {amendment.summary ? (
         <blockquote className="mt-3 max-w-3xl border-l-[3px] border-line-strong pl-3 text-sm leading-relaxed text-ink-soft">
-          <span className="mb-1 block text-xs text-ink-faint">Exposé sommaire</span>
+          <span className="mb-1 block text-xs text-ink-faint">
+            Exposé sommaire de l’auteur, repris tel quel
+          </span>
           <p className="whitespace-pre-line">
             {collapsible && !open ? amendment.summary_preview : amendment.summary}
             {collapsible && (
@@ -237,56 +238,77 @@ function CitedAmendment({
   )
 }
 
+/** « 15 contre · 16 abst. · 1 non-votant » : les voix hors position de tête. */
+function otherVoices(tally: TallyDto, lead: LeadingPosition | null): string {
+  const parts = [
+    lead !== 'for' && tally.votes_for > 0 && `${tally.votes_for} pour`,
+    lead !== 'against' && tally.votes_against > 0 && `${tally.votes_against} contre`,
+    lead !== 'abstention' && tally.abstentions > 0 && `${tally.abstentions} abst.`,
+    tally.not_voting > 0 && `${tally.not_voting} non-votant${tally.not_voting > 1 ? 's' : ''}`,
+  ].filter(Boolean)
+  return parts.length > 0 ? parts.join(' · ') : 'aucune autre voix'
+}
+
+const LEAD_FIGURE: Record<LeadingPosition, { word: string; color: string }> = {
+  for: { word: 'pour', color: 'text-yes' },
+  against: { word: 'contre', color: 'text-no' },
+  abstention: { word: 'abst.', color: 'text-abstain' },
+}
+
 /**
- * Un groupe dans sa colonne : son logo, la barre de ses positions sur son
- * effectif — la part vide dit les membres sans position —, puis ses chiffres.
- * La tuile s'ouvre sur la liste nominative.
+ * Un groupe sur une ligne : son nom et ses autres voix à gauche, le chiffre de
+ * sa position de tête à droite. La ligne s'ouvre sur la liste nominative.
  */
-function GroupTile({ group }: { group: GroupBreakdownDto }) {
+function GroupRow({ group }: { group: GroupBreakdownDto }) {
   const [open, setOpen] = useState(false)
   const named = group.label ?? group.abbrev ?? group.group_uid ?? 'Positions sans groupe publié'
-  const outOf = group.member_count ?? tallySize(group.tally)
+  const lead = leadingPosition(group.tally)
+  const voters = group.tally.votes_for + group.tally.votes_against + group.tally.abstentions
   const published =
     group.majority_position && group.majority_position in positionLabels
       ? positionLabels[group.majority_position as keyof typeof positionLabels].toLowerCase()
       : null
+  const figure = lead
+    ? {
+        text: `${lead === 'for' ? group.tally.votes_for : lead === 'against' ? group.tally.votes_against : group.tally.abstentions} ${LEAD_FIGURE[lead].word}`,
+        color: LEAD_FIGURE[lead].color,
+      }
+    : { text: voters === 0 ? 'aucun votant' : 'égalité', color: 'text-ink-soft' }
 
   return (
-    <li className="overflow-hidden rounded-xl border border-line bg-surface">
+    <li className="border-t border-line first:border-t-0">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className={`flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-surface-soft ${FOCUS_RING}`}
+        className={`flex w-full items-center gap-3 rounded-lg py-2.5 text-left transition-colors hover:bg-surface-soft sm:px-2 ${FOCUS_RING}`}
       >
         <PoliticalLogo
           logo={group.abbrev ? GROUP_LOGOS[group.abbrev] : undefined}
           fallback={group.abbrev ?? '—'}
           color={group.color}
-          className="h-9 w-14"
+          className="h-8 w-12 shrink-0"
         />
-        <span className="min-w-0 flex-1 space-y-1.5">
+        <span className="min-w-0 flex-1">
           {/* Libellé officiel du groupe, jamais traduit en parti. */}
-          <span className="flex items-baseline justify-between gap-2">
-            <span className="truncate text-[13px] font-semibold" title={named}>
-              {named}
-            </span>
-            {group.member_count !== null && (
-              <span className="shrink-0 text-[11px] text-ink-faint">
-                {group.member_count} membres
-              </span>
-            )}
+          <span className="block text-[14px] leading-snug font-semibold text-ink">{named}</span>
+          <span className="block text-xs text-ink-faint">
+            {otherVoices(group.tally, lead)}
+            {group.member_count !== null && ` · ${group.member_count} membres`}
           </span>
-          <VoteBar tally={group.tally} outOf={outOf} />
-          <span className="flex items-center justify-between gap-2">
-            <TallyLine tally={group.tally} />
-            {group.origin === 'reconstructed' && <Pill tone="info">reconstituée</Pill>}
-          </span>
-          {published && group.majority_position !== leadingPosition(group.tally) && (
-            <span className="block text-[11px] text-ink-faint">
-              Position majoritaire publiée par l'Assemblée : {published}
+          {published && group.majority_position !== lead && (
+            <span className="block text-xs text-ink-faint">
+              Position publiée par l’Assemblée : {published}
             </span>
           )}
+          {group.origin === 'reconstructed' && (
+            <span className="mt-1 block">
+              <Pill tone="info">répartition reconstituée</Pill>
+            </span>
+          )}
+        </span>
+        <span className={`shrink-0 text-right text-[15px] font-semibold tabular-nums ${figure.color}`}>
+          {figure.text}
         </span>
         <svg
           viewBox="0 0 24 24"
@@ -303,7 +325,7 @@ function GroupTile({ group }: { group: GroupBreakdownDto }) {
       </button>
 
       {open && (
-        <div className="divide-y divide-line border-t border-line">
+        <div className="mb-2 divide-y divide-line rounded-lg border border-line bg-surface-soft/40">
           {group.group_uid === null && (
             <p className="px-3 py-2 text-xs text-ink-faint">
               La source ne rattache ces positions à aucun groupe. Elles sont
@@ -355,59 +377,43 @@ function GroupTile({ group }: { group: GroupBreakdownDto }) {
 }
 
 /*
- * Les groupes sont rangés selon leurs voix : la colonne dit ce que la plupart
- * de leurs députés ont voté, la barre de chaque tuile dit s'ils étaient
- * divisés. La position majoritaire publiée par la source n'est jamais
- * recalculée : quand elle diffère, la tuile l'affiche à part (RM-02).
+ * Les groupes sont rangés selon leurs voix : le titre de la rangée dit ce que
+ * la plupart de leurs députés ont voté, la ligne de chaque groupe donne ses
+ * autres voix. Dans une rangée, l'ordre est celui de la source : aucun
+ * classement. La position majoritaire publiée par la source n'est jamais
+ * recalculée : quand elle diffère, la ligne l'affiche à part (RM-02).
  */
-const COLUMNS = [
+const SECTIONS = [
   { key: 'for', title: 'Majoritairement pour', dot: 'bg-yes-bar' },
   { key: 'against', title: 'Majoritairement contre', dot: 'bg-no-bar' },
   { key: 'abstention', title: 'Majoritairement abstention', dot: 'bg-abstain-bar' },
+  { key: null, title: 'Partagés à égalité, ou sans votant', dot: 'bg-line-strong' },
 ] as const
 
-function GroupColumns({ groups }: { groups: GroupBreakdownDto[] }) {
-  const others = groups.filter((g) => leadingPosition(g.tally) === null)
-
+function GroupRows({ groups }: { groups: GroupBreakdownDto[] }) {
   return (
-    <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        {COLUMNS.map((column) => {
-          const members = groups.filter((g) => leadingPosition(g.tally) === column.key)
-          return (
-            <div key={column.key} className="min-w-0">
-              <h4 className="mb-2 flex items-center gap-2 text-[13px] font-semibold">
-                <span className={`size-2.5 rounded-[3px] ${column.dot}`} />
-                {column.title}
-                <span className="font-normal text-ink-faint">{members.length}</span>
-              </h4>
-              {members.length === 0 ? (
-                <p className="text-xs text-ink-faint">Aucun groupe</p>
-              ) : (
-                <ul className="space-y-2">
-                  {members.map((g, i) => (
-                    <GroupTile key={g.group_uid ?? `orphans-${i}`} group={g} />
-                  ))}
-                </ul>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {others.length > 0 && (
-        <div className="mt-5">
-          <h4 className="mb-2 text-[13px] font-semibold text-ink-soft">
-            Partagés à égalité, ou sans votant
-          </h4>
-          <ul className="grid grid-cols-1 gap-2 md:grid-cols-3">
-            {others.map((g, i) => (
-              <GroupTile key={g.group_uid ?? `others-${i}`} group={g} />
-            ))}
-          </ul>
-        </div>
-      )}
-    </>
+    <div className="space-y-4">
+      {SECTIONS.map((section) => {
+        const members = groups.filter((g) => leadingPosition(g.tally) === section.key)
+        if (members.length === 0) return null
+        return (
+          <div key={section.title}>
+            <h4 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
+              <span aria-hidden className={`size-2.5 rounded-[3px] ${section.dot}`} />
+              {section.title}
+              <span className="font-normal text-ink-faint">
+                · {members.length} groupe{members.length > 1 ? 's' : ''}
+              </span>
+            </h4>
+            <ul>
+              {members.map((g, i) => (
+                <GroupRow key={g.group_uid ?? `orphans-${i}`} group={g} />
+              ))}
+            </ul>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 
@@ -450,122 +456,115 @@ export default function ScrutinDetailPage() {
   const unknownActorsNote =
     data.unknown_actors > 0 &&
     `${data.unknown_actors} votant${data.unknown_actors > 1 ? 's' : ''} ne figure${data.unknown_actors > 1 ? 'nt' : ''} pas au référentiel des acteurs : leur identifiant est affiché tel quel, aucun nom n'est deviné.`
+  const hasCited = data.cited.length > 0 || data.unnumbered_identical_amendments
+  const hasDossierContext = Boolean(
+    dossier && (dossier.initiators.length > 0 || dossier.outcome.kind !== 'no_recorded_conclusion'),
+  )
 
   return (
-    <div>
+    <div className="mx-auto max-w-4xl">
       <BackLink to="/scrutins" className="mb-4">Retour aux votes</BackLink>
 
       {/*
-        De quoi il s'agit : l'issue, la date, la lecture et les thèmes sur une
-        ligne ; le dossier en titre, l'intitulé exact mis aux voix en citation ;
-        puis qui a déposé le texte et où il en est.
+        Ordre de lecture : d'abord ce qui a été mis aux voix, puis le résultat,
+        puis les groupes. Le résultat en premier a été écarté : un décompte se
+        lit mal avant de savoir sur quoi il porte.
       */}
-      <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-2 text-[13px] text-ink-soft">
-          <Pill tone={adopted ? 'yes' : 'no'} title={data.outcome_label}>
-            <PositionGlyph
-              position={adopted ? 'for' : 'against'}
-              className="mr-1 size-3"
-              strokeWidth={3.2}
-            />
-            {adopted ? 'Adopté par l’Assemblée' : 'Rejeté par l’Assemblée'}
-          </Pill>
-          <time dateTime={data.date}>{formatDate(data.date)}</time>
-          {data.reading && <Pill tone="info">{capitalized(data.reading)}</Pill>}
-          {data.families.map((family) => (
-            <Link
-              key={family.code}
-              to={themeLink(family.code)}
-              className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
-            >
-              <FamilyIllustration
-                code={family.code}
-                className="size-6 shrink-0 rounded-full"
-                glyphClassName="size-3.5"
-              />
-              {typographic(family.label)}
-            </Link>
-          ))}
-        </div>
-
-        {data.dossier_uid ? (
-          <>
-            <h2 className="mt-3 text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
-              {data.dossier_label || data.dossier_uid}
-            </h2>
-            <blockquote className="mt-3 max-w-4xl border-l-[3px] border-line-strong pl-3 text-[15px] leading-relaxed text-ink-soft">
-              <span className="block text-xs text-ink-faint">Mis aux voix</span>
-              {capitalized(data.subject)}
-            </blockquote>
-          </>
-        ) : (
-          <h2 className="mt-3 max-w-4xl text-2xl leading-tight font-semibold tracking-tight">
-            {capitalized(data.subject)}
-          </h2>
-        )}
-
-        {dossier && (dossier.initiators.length > 0 || dossier.outcome.kind !== 'no_recorded_conclusion') && (
-          <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            {dossier.initiators.length === 1 ? (
-              <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
-            ) : dossier.initiators.length > 1 ? (
-              <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
-            ) : null}
-            {data.dossier_uid && (
-              <OutcomeBox outcome={dossier.outcome} dossierUid={data.dossier_uid} />
-            )}
+      <header className="space-y-2.5">
+        <VoteCardHeader
+          adopted={adopted}
+          outcome={adopted ? 'Adopté' : 'Rejeté'}
+          outcomeTitle={capitalized(data.outcome_label)}
+          reading={data.reading}
+          date={data.date}
+        />
+        <h2 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+          {data.dossier_uid ? data.dossier_label || data.dossier_uid : capitalized(data.subject)}
+        </h2>
+        {data.families.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {data.families.map((family) => (
+              <Link
+                key={family.code}
+                to={themeLink(family.code)}
+                className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
+              >
+                <FamilyIllustration
+                  code={family.code}
+                  className="size-6 shrink-0 rounded-full"
+                  glyphClassName="size-3.5"
+                />
+                {typographic(family.label)}
+              </Link>
+            ))}
           </div>
         )}
-
-        <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1 text-sm">
-          <a
-            href={data.official_url}
-            target="_blank"
-            rel="noreferrer"
-            className="font-medium text-accent hover:underline"
-          >
-            Page officielle du scrutin ↗
-          </a>
-          {data.dossier_uid && (
-            <Link
-              to={`/dossiers/${data.dossier_uid}`}
-              className="font-medium text-accent hover:underline"
-            >
-              Le texte et tout son parcours →
-            </Link>
-          )}
-          <button
-            type="button"
-            onClick={() => setPartage(!partage)}
-            aria-expanded={partage}
-            className="font-medium text-accent hover:underline"
-          >
-            Partager en image
-          </button>
-        </div>
-
-        {/* Ce que le vote recouvre exactement, et ce qu'il ne recouvre pas. */}
-        <p className="mt-3 text-xs leading-relaxed text-ink-faint">
-          Scrutin n° {data.number} · {data.ballot_type_label}
-          {data.requester && ` · demandé par : ${data.requester}`}.{' '}
-          <span className="hidden md:inline">
-            <ScrutinScopeHelp dossierUid={data.dossier_uid} />
-          </span>
-          <InfoTip label="Ce que ce vote recouvre" className="md:hidden">
-            <ScrutinScopeHelp dossierUid={data.dossier_uid} />
-          </InfoTip>
-        </p>
-      </Card>
-
-      {partage && <VoteImageExport scrutin={data} onClose={() => setPartage(false)} />}
+      </header>
 
       {/*
-        Ce qu'a décidé l'Assemblée : les chiffres à gauche, l'hémicycle à
-        droite. Les deux ensemble montrent ce qu'aucun total ne montre : les
-        fractures à l'intérieur des groupes, un non-votant isolé, une abstention
-        unique.
+        Une seule carte pour ce qui a été mis aux voix : l'amendement, son
+        auteur et son exposé tels que publiés, l'intitulé officiel, puis le
+        texte — où il en est, qui l'a déposé.
       */}
-      <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
+      {(hasCited || data.dossier_uid || hasDossierContext) && (
+        <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
+          <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+            Ce qui a été mis aux voix
+          </h3>
+          {hasCited && (
+            <div className="divide-y divide-line">
+              {data.cited.map((c) => (
+                <div key={c.rank} className="py-4 first:pt-0 last:pb-0">
+                  {c.amendment ? (
+                    <CitedAmendment amendment={c.amendment} methodLabels={c.method_labels} />
+                  ) : (
+                    <p className="text-sm text-ink-faint">
+                      {c.cited_number ? `Amendement n° ${c.cited_number} : ` : ''}
+                      {c.cause_label}
+                    </p>
+                  )}
+                </div>
+              ))}
+              {data.unnumbered_identical_amendments && (
+                <p className="py-3 text-xs text-ink-faint">
+                  L'objet annonce des amendements identiques sans en donner le numéro.
+                </p>
+              )}
+            </div>
+          )}
+          {data.dossier_uid &&
+            (hasCited ? (
+              <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-ink-soft">
+                <span className="text-ink-faint">Intitulé officiel : </span>
+                {capitalized(data.subject)}
+              </p>
+            ) : (
+              <p className="text-[15px] leading-relaxed text-ink">{capitalized(data.subject)}</p>
+            ))}
+          {hasDossierContext && dossier && (
+            <div className="mt-4 border-t border-line pt-3">
+              <p className="mb-2 text-xs font-semibold text-ink-faint">Le texte</p>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {data.dossier_uid && (
+                  <OutcomeBox outcome={dossier.outcome} dossierUid={data.dossier_uid} />
+                )}
+                {dossier.initiators.length === 1 ? (
+                  <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
+                ) : dossier.initiators.length > 1 ? (
+                  <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
+                ) : null}
+              </div>
+            </div>
+          )}
+        </Card>
+      )}
+
+      {/*
+        Ce qu'a décidé l'Assemblée : les chiffres, puis l'hémicycle. Les deux
+        ensemble montrent ce qu'aucun total ne montre : les fractures à
+        l'intérieur des groupes, un non-votant isolé, une abstention unique.
+      */}
+      <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
         <h3
           id="hemicycle-scrutin"
           className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase"
@@ -580,7 +579,6 @@ export default function ScrutinDetailPage() {
                   ['pour', s.tally.votes_for, 'text-yes'],
                   ['contre', s.tally.votes_against, 'text-no'],
                   ['abstentions', s.tally.abstentions, 'text-abstain'],
-                  ['non-votants', s.tally.not_voting, 'text-ink-soft'],
                 ] as const
               ).map(([label, value, color]) => (
                 <div key={label}>
@@ -596,7 +594,10 @@ export default function ScrutinDetailPage() {
             </div>
             <p className="mt-3 text-xs leading-relaxed text-ink-faint">
               {s.required} voix requises sur {s.expressed} suffrages exprimés
-              {data.majority_label && ` (${data.majority_label.toLowerCase()})`}.{' '}
+              {data.majority_label && ` (${data.majority_label.toLowerCase()})`}
+              {s.tally.not_voting > 0 &&
+                ` · ${s.tally.not_voting} non-votant${s.tally.not_voting > 1 ? 's' : ''}`}
+              .{' '}
               <span className="hidden md:inline">
                 <ExpressedVotesHelp />
               </span>
@@ -624,34 +625,7 @@ export default function ScrutinDetailPage() {
         </div>
       </Card>
 
-      {(data.cited.length > 0 || data.unnumbered_identical_amendments) && (
-        <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
-          <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
-            Ce qui a été mis aux voix
-          </h3>
-          <div className="divide-y divide-line">
-            {data.cited.map((c) => (
-              <div key={c.rank} className="py-4 first:pt-0 last:pb-0">
-                {c.amendment ? (
-                  <CitedAmendment amendment={c.amendment} methodLabels={c.method_labels} />
-                ) : (
-                  <p className="text-sm text-ink-faint">
-                    {c.cited_number ? `Amendement n° ${c.cited_number} : ` : ''}
-                    {c.cause_label}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-          {data.unnumbered_identical_amendments && (
-            <p className="mt-3 text-xs text-ink-faint">
-              L'objet annonce des amendements identiques sans en donner le numéro.
-            </p>
-          )}
-        </Card>
-      )}
-
-      <Card className="mb-4 px-4 py-4 sm:px-6 sm:py-5">
+      <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
         <h3 className="mb-1 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
           Qui a voté quoi
           <InfoTip label="Comment lire ces votes" className="md:hidden">
@@ -664,9 +638,13 @@ export default function ScrutinDetailPage() {
             <p>{data.coverage_note}</p>
           </InfoTip>
         </h3>
-        <p className="mb-4 hidden text-xs text-ink-faint md:block">
-          Groupe du député à la date du vote. Un groupe n'est pas un parti.{' '}
-          <GuideLink ancre="q-groupe">Pourquoi cette distinction</GuideLink>
+        <p className="mb-3 text-xs text-ink-faint">
+          Touchez un groupe pour le vote de chaque député.
+          <span className="hidden md:inline">
+            {' '}
+            Groupe du député à la date du vote. Un groupe n'est pas un parti.{' '}
+            <GuideLink ancre="q-groupe">Pourquoi cette distinction</GuideLink>
+          </span>
         </p>
         {/* Mention de méthode portée une fois pour toute la section : les
             chiffres marqués « reconstituée » sont produits par le site, pas
@@ -676,13 +654,13 @@ export default function ScrutinDetailPage() {
             {methodNote}
           </p>
         )}
-        <GroupColumns groups={data.groups} />
+        <GroupRows groups={data.groups} />
       </Card>
 
       {data.corrections.length > 0 && (
-        <section className="mb-4">
+        <section className="mt-4">
           <SectionTitle info="Déclarations postérieures au vote. Elles ne modifient ni le résultat ni la répartition ci-dessus.">
-            Mises au point
+            Mises au point · {data.corrections.length}
           </SectionTitle>
           {/* Déclarations postérieures des députés. Elles ne modifient aucun
               décompte publié par l'Assemblée. */}
@@ -715,7 +693,55 @@ export default function ScrutinDetailPage() {
         </section>
       )}
 
-      <div className="space-y-2">
+      {/* Les liens et la référence officielle, en bas : on y va après avoir lu. */}
+      <nav
+        aria-label="Pour aller plus loin"
+        className="mt-6 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+      >
+        {data.dossier_uid && (
+          <Link
+            to={`/dossiers/${data.dossier_uid}`}
+            className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium text-accent hover:bg-surface-soft ${FOCUS_RING}`}
+          >
+            Le texte et tout son parcours
+            <span aria-hidden>→</span>
+          </Link>
+        )}
+        <a
+          href={data.official_url}
+          target="_blank"
+          rel="noreferrer"
+          className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium text-accent hover:bg-surface-soft ${FOCUS_RING}`}
+        >
+          Page officielle du scrutin
+          <span aria-hidden>↗</span>
+        </a>
+        <button
+          type="button"
+          onClick={() => setPartage(!partage)}
+          aria-expanded={partage}
+          className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-sm font-medium text-accent hover:bg-surface-soft ${FOCUS_RING}`}
+        >
+          Partager en image
+          <span aria-hidden>{partage ? '−' : '+'}</span>
+        </button>
+      </nav>
+
+      {partage && <VoteImageExport scrutin={data} onClose={() => setPartage(false)} />}
+
+      {/* Ce que le vote recouvre exactement, et ce qu'il ne recouvre pas. */}
+      <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+        Scrutin n° {data.number} · {data.ballot_type_label}
+        {data.requester && `, demandé par : ${data.requester}`}.{' '}
+        <span className="hidden md:inline">
+          <ScrutinScopeHelp dossierUid={data.dossier_uid} />
+        </span>
+        <InfoTip label="Ce que ce vote recouvre" className="md:hidden">
+          <ScrutinScopeHelp dossierUid={data.dossier_uid} />
+        </InfoTip>
+      </p>
+
+      <div className="mt-4 space-y-2">
         {unknownActorsNote && <Note desktopOnly>{unknownActorsNote}</Note>}
         <CoverageNote note={data.coverage_note} />
       </div>
