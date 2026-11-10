@@ -31,7 +31,7 @@ export default function UnassignedTextsPage() {
   return (
     <div className="space-y-3">
       <div>
-        <BackLink to="/themes">Tous les thèmes</BackLink>
+        <BackLink to="/par-sujet">Votes par sujet</BackLink>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">
             Textes non rattachés

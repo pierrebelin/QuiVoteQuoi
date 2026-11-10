@@ -10,6 +10,9 @@ import type { FinalVoteDto, StanceDto } from '../types/finalVotes'
 
 /* ------------------------------------------------------------------- adresse */
 
+/** Adresse du parcours « votes par sujet ». La racine du site est la page d'accueil. */
+export const ENTRY_PATH = '/par-sujet'
+
 /** Paramètres de l'adresse : le parcours est entièrement dans l'URL, donc partageable. */
 export const PARAM_THEMES = 'sujets'
 export const PARAM_GROUPS = 'suivis'
@@ -41,6 +44,15 @@ export function entrySearch(state: {
   if (state.step === 'themes' && state.themes.length > 0) parts.push(`${PARAM_STEP}=sujets`)
   if (state.step === 'groups') parts.push(`${PARAM_STEP}=groupes`)
   return parts.length > 0 ? `?${parts.join('&')}` : ''
+}
+
+/**
+ * Votes d'un sujet : l'étape 3 du parcours, filtrée sur ce seul sujet. C'est la
+ * destination de toute pastille de sujet du site, depuis que les fiches
+ * `/themes/:code` y renvoient.
+ */
+export function themeLink(code: string): string {
+  return `${ENTRY_PATH}${entrySearch({ themes: [code], followed: [], step: 'votes' })}`
 }
 
 export function toggled<T>(list: T[], item: T): T[] {

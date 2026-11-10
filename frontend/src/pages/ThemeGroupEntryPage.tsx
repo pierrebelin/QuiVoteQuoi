@@ -6,6 +6,7 @@ import ThemeStep from '../components/entry/ThemeStep'
 import VotesStep from '../components/entry/VotesStep'
 import { ErrorPanel, Loading } from '../components/ui'
 import {
+  ENTRY_PATH,
   PARAM_GROUPS,
   PARAM_STEP,
   PARAM_THEMES,
@@ -21,13 +22,13 @@ import type { FinalVoteListResponse } from '../types/finalVotes'
 import type { FamiliesResponse } from '../types/themes'
 
 /**
- * Accueil : trois écrans, une seule adresse. L'état du parcours vit dans
- * l'URL, pour qu'un lien partagé rouvre exactement les mêmes votes.
+ * Votes par sujet : trois écrans, une seule adresse. L'état du parcours vit
+ * dans l'URL, pour qu'un lien partagé rouvre exactement les mêmes votes.
  *
- *   /                                  → 1. sujets
- *   /?sujets=a,b&etape=groupes         → 2. groupes à suivre
- *   /?sujets=a,b                       → 3. votes, tous les groupes
- *   /?sujets=a,b&suivis=GDR,RN         → 3. votes, GDR et RN mis en valeur
+ *   /par-sujet                                  → 1. sujets
+ *   /par-sujet?sujets=a,b&etape=groupes         → 2. groupes à suivre
+ *   /par-sujet?sujets=a,b                       → 3. votes, tous les groupes
+ *   /par-sujet?sujets=a,b&suivis=GDR,RN         → 3. votes, GDR et RN mis en valeur
  *
  * `etape=sujets` rouvre l'écran 1 avec les sujets déjà cochés (retour depuis
  * l'écran 2). Sans `suivis`, tous les groupes sont suivis : aucun groupe n'est
@@ -95,7 +96,7 @@ export default function ThemeGroupEntryPage() {
     if (mode === 'push') pendingFocus.current = true
     navigate(
       {
-        pathname: '/',
+        pathname: ENTRY_PATH,
         search: entrySearch({
           themes: next.themes ?? themes,
           followed: next.followed ?? followed,
@@ -142,7 +143,7 @@ export default function ThemeGroupEntryPage() {
         themesLabel={themesSummary(
           allFamilies.filter((f) => themes.includes(f.code)).map((f) => f.label),
         )}
-        backTo={`/${entrySearch({ themes, followed, step: 'themes' })}`}
+        backTo={`${ENTRY_PATH}${entrySearch({ themes, followed, step: 'themes' })}`}
         onToggle={toggleGroup}
         onAll={() => go({ followed: [] })}
         onNext={() => go({ step: 'votes' }, 'push')}

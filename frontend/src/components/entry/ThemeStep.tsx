@@ -3,7 +3,7 @@ import { FamilyIllustration } from '../FamilyIllustration'
 import type { FamilyDto } from '../../types/themes'
 import { typographic } from '../../lib/entryFlow'
 import { ActionBar, CheckDot, PrimaryButton, StepIntro } from './parts'
-import { choiceTileClass } from './styles'
+import { FOCUS_RING, choiceTileClass } from './styles'
 
 /** Écran 1 : choisir un ou plusieurs sujets. */
 export default function ThemeStep({
@@ -21,13 +21,23 @@ export default function ThemeStep({
 
   return (
     <div className="space-y-7">
-      <StepIntro
-        eyebrow="Étape 1 sur 2"
-        title="Quels sujets vous intéressent&nbsp;?"
-        hint="Choisissez-en un ou plusieurs. Vous verrez ensuite ce qu’ont voté les députés sur ces sujets."
-      />
+      <div>
+        <Link
+          to="/"
+          className={`inline-flex min-h-11 items-center rounded-md text-sm font-medium text-accent hover:underline ${FOCUS_RING}`}
+        >
+          ← Accueil
+        </Link>
+        <StepIntro
+          eyebrow="Étape 1 sur 2"
+          title="Quels sujets vous intéressent&nbsp;?"
+          lead="Choisissez un ou plusieurs sujets, puis les groupes à suivre."
+        />
+      </div>
 
-      <ul className="grid grid-cols-1 gap-3 min-[480px]:grid-cols-2 lg:grid-cols-4">
+      {/* Deux tuiles par ligne dès le téléphone : seize sujets sur une colonne
+          faisaient défiler quatre écrans avant le bouton « Continuer ». */}
+      <ul className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         {families.map((family) => {
           const on = selected.includes(family.code)
           return (
@@ -36,26 +46,31 @@ export default function ThemeStep({
                 type="button"
                 aria-pressed={on}
                 onClick={() => onToggle(family.code)}
-                className={`${choiceTileClass(on)} min-h-[72px] px-3.5 py-3`}
+                className={`${choiceTileClass(on, 'flex-col items-start justify-between gap-2 sm:flex-row sm:items-center sm:justify-start sm:gap-3')} relative h-full min-h-24 p-3 sm:min-h-[72px] sm:px-3.5 sm:py-3`}
               >
                 <FamilyIllustration
                   code={family.code}
-                  className="size-10 shrink-0 rounded-[10px]"
-                  glyphClassName="size-6"
+                  className="size-9 shrink-0 rounded-[10px] sm:size-10"
+                  glyphClassName="size-5 sm:size-6"
                 />
-                <span className="min-w-0 flex-1 text-[15px] leading-snug font-semibold">
+                <span className="min-w-0 text-[13.5px] leading-snug font-semibold sm:flex-1 sm:text-[15px]">
                   {typographic(family.label)}
                 </span>
-                <CheckDot on={on} />
+                <span className="absolute top-2 right-2 sm:static">
+                  <CheckDot on={on} />
+                </span>
               </button>
             </li>
           )
         })}
       </ul>
 
-      <p className="text-sm text-ink-faint">
+      <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-faint">
         <Link to="/themes/methode" className="text-accent underline">
           Comment les textes sont rattachés aux sujets
+        </Link>
+        <Link to="/themes/non-rattaches" className="text-accent underline">
+          Textes sans sujet
         </Link>
       </p>
 

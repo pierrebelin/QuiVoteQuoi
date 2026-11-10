@@ -1,5 +1,6 @@
 import { Link } from 'react-router'
 import { FamilyIllustration } from './FamilyIllustration'
+import { themeLink } from '../lib/entryFlow'
 import { Note } from './ui'
 import type { AssignedFamilyDto } from '../types/themes'
 
@@ -38,7 +39,7 @@ export function FamilyBadges({
         return linkToFamily ? (
           <Link
             key={family.code}
-            to={`/themes/${family.code}`}
+            to={themeLink(family.code)}
             className={`${className} transition-colors hover:bg-surface hover:text-ink hover:ring-line-strong`}
           >
             {content}

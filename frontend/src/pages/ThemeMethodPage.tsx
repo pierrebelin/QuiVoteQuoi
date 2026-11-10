@@ -51,7 +51,7 @@ export default function ThemeMethodPage() {
   return (
     <div className="space-y-3">
       <div className="max-w-3xl">
-        <BackLink to="/themes">Tous les thèmes</BackLink>
+        <BackLink to="/par-sujet">Votes par sujet</BackLink>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">
           Méthode de thématisation
         </h2>

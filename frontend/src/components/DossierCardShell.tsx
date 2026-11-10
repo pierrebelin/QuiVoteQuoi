@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import DossierStatusBanner from './DossierStatusBanner'
 import { FamilyIllustration } from './FamilyIllustration'
-import { typographic } from '../lib/entryFlow'
+import { themeLink, typographic } from '../lib/entryFlow'
 import type { DossierStatusLike } from '../lib/dossierStatus'
 import type { AssignedFamilyDto } from '../types/themes'
 
@@ -63,7 +63,7 @@ export function FamilyChips({
             {content}
           </button>
         ) : (
-          <Link key={family.code} to={`/themes/${family.code}`} className={chip}>
+          <Link key={family.code} to={themeLink(family.code)} className={chip}>
             {content}
           </Link>
         )

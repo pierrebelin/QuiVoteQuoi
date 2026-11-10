@@ -17,7 +17,7 @@ import PositionGlyph from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
 import { BackLink, Card, ErrorPanel, Loading, Pill } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
-import { typographic } from '../lib/entryFlow'
+import { themeLink, typographic } from '../lib/entryFlow'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 
 interface StageDto {
@@ -251,7 +251,7 @@ export default function DossierDetailPage() {
   if (isError) {
     return (
       <div>
-        <BackLink to="/" className="mb-4">Retour aux dossiers</BackLink>
+        <BackLink to="/dossiers" className="mb-4">Retour aux dossiers</BackLink>
         <ErrorPanel error={error} />
       </div>
     )
@@ -272,7 +272,7 @@ export default function DossierDetailPage() {
 
   return (
     <div>
-      <BackLink to="/" className="mb-4">Retour aux dossiers</BackLink>
+      <BackLink to="/dossiers" className="mb-4">Retour aux dossiers</BackLink>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
@@ -285,7 +285,7 @@ export default function DossierDetailPage() {
                   families.map((family) => (
                     <Link
                       key={family.code}
-                      to={`/themes/${family.code}`}
+                      to={themeLink(family.code)}
                       className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
                     >
                       <FamilyIllustration

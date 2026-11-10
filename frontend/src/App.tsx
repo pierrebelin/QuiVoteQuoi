@@ -1,30 +1,22 @@
-import { Outlet, Link, NavLink } from 'react-router'
+import { Outlet, Link, useLocation } from 'react-router'
 import Logo from './components/Logo'
 import MobileNav from './components/MobileNav'
+import NavMoreMenu from './components/NavMoreMenu'
 import ThemeToggle from './components/ThemeToggle'
 import { GitHubIcon } from './components/icons'
 import { FreshnessFooterLine } from './components/Freshness'
+import { NAV_TABS, isActive } from './lib/navigation'
 import { GITHUB_REPOSITORY_URL } from './lib/repository'
 
 /*
- * Barre haute, à partir de 768 px : six entrées lisibles. « Accueil » est porté
- * par le logo ; les dossiers s'atteignent depuis les scrutins, qui les
- * regroupent par défaut ; les fiches de groupes depuis la page qui compare leurs votes, où
- * l'on va justement chercher qui est qui. « À propos » conserve la promesse,
- * les sources et les règles déplacées de l'ancien accueil.
+ * Barre haute, à partir de 768 px : les mêmes entrées que la barre basse du
+ * téléphone (`lib/navigation`), « Plus » ouvrant les pages de fond. « Accueil »
+ * est porté par le logo.
  *
  * En dessous, la navigation est la barre basse de `MobileNav`.
  */
-const NAV = [
-  { to: '/scrutins', label: 'Scrutins' },
-  { to: '/votes-par-groupe', label: 'Comparer les votes des groupes' },
-  { to: '/candidats-2027', label: 'Candidats 2027' },
-  { to: '/themes', label: 'Thèmes' },
-  { to: '/comprendre', label: 'Comprendre' },
-  { to: '/a-propos', label: 'À propos' },
-]
-
 export default function App() {
+  const { pathname } = useLocation()
   return (
     <div className="flex min-h-screen flex-col bg-canvas pb-[var(--mobile-nav-h)] text-ink">
       {/*
@@ -46,21 +38,24 @@ export default function App() {
           </Link>
 
           <nav className="-mx-1 hidden flex-wrap items-center justify-end gap-0.5 md:flex" aria-label="Navigation principale">
-            {NAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  `rounded-lg px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
-                    isActive
+            {NAV_TABS.map((item) => {
+              const active = isActive(pathname, item)
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  aria-current={active ? 'page' : undefined}
+                  className={`rounded-lg px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
+                    active
                       ? 'bg-surface-soft text-ink'
                       : 'text-ink-soft hover:bg-surface-soft hover:text-ink'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
+                  }`}
+                >
+                  {item.label}
+                </Link>
+              )
+            })}
+            <NavMoreMenu />
             <span className="mx-1 h-4 w-px bg-line" aria-hidden />
             <a
               href={GITHUB_REPOSITORY_URL}

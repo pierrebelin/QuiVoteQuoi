@@ -1,55 +1,10 @@
 import type { ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import Hemicycle from '../components/Hemicycle'
 import { InfoTip } from '../components/InfoTip'
-import ScrutinList, { CoverageNote } from '../components/ScrutinList'
-import { siegesDesGroupes, tallyDesVotes } from '../components/sieges'
-import { Card, ErrorPanel, Loading, Note, TallyLine } from '../components/ui'
+import { Card, Note } from '../components/ui'
 import { ALL_LOGOS } from '../content/logos'
 import { PORTRAITS } from '../content/portraits'
-import { fetchJson } from '../lib/fetchJson'
 import { GITHUB_REPOSITORY_URL } from '../lib/repository'
-import type { MethodResponse } from '../types/themes'
-import type { ScrutinDetailDto, ScrutinListResponse } from '../types/scrutins'
-import { formatDate } from '../types/scrutins'
-
-const DERNIERS = 3
-
-/**
- * Portes d’entrée du site, formulées comme des gestes de lecteur et non comme
- * le nom des tables : « confronter un discours à un vote » plutôt que
- * « scrutins ». Chacune mène à une page qui répond entièrement.
- *
- * Aucune ne promet une conclusion : le site fournit la pièce, le rapprochement
- * appartient au lecteur (README.md §6).
- */
-const USAGES = [
-  {
-    to: '/votes-par-groupe',
-    titre: 'Confronter un discours à un vote',
-    texte:
-      'On entend beaucoup ce qu’un groupe défend. Sa position de vote, elle, est datée et publique : pour, contre, abstention, scrutin par scrutin.',
-  },
-  {
-    to: '/scrutins',
-    titre: 'Voir où un groupe se divise',
-    texte:
-      'Un total de groupe efface ses écarts internes. La liste nominale montre qui a voté autrement que les siens, et sur quel texte.',
-  },
-  {
-    to: '/themes',
-    titre: 'Suivre un sujet qui vous concerne',
-    texte:
-      'Logement, salaires, santé, énergie : les textes qui touchent au quotidien, et les votes qu’ils ont produits.',
-  },
-  {
-    to: '/dossiers',
-    titre: 'Savoir d’où vient un texte',
-    texte:
-      'Qui l’a déposé, son passage en commission puis en séance, ce qu’il est devenu. Un vote se lit mal hors de son parcours.',
-  },
-]
 
 /**
  * Ce qui tient la neutralité : trois contraintes vérifiables sur la page, pas
@@ -64,7 +19,7 @@ const PRINCIPE = [
     jugement: false,
   },
   {
-    titre: 'Les textes sont rattachés à des thèmes',
+    titre: 'Les textes sont rattachés à des sujets',
     texte:
       'La méthode est publiée, chaque rattachement est révisable et son historique est conservé.',
     jugement: true,
@@ -209,26 +164,6 @@ function Section({
 const NEVER_SHOWN =
   'Ce qui n’est jamais affiché : une motivation reconstituée, un commentaire de presse, une synthèse rédigée par un modèle de langage. Seules comptent les positions attribuées et publiques.'
 
-/** Légende de l'hémicycle du dernier scrutin. */
-function SeatsHelp() {
-  return (
-    <>
-      Chaque siège porte le vote du député qui l’occupe, à sa place
-      réelle sur le{' '}
-      <a
-        href="https://www.assemblee-nationale.fr/dyn/vos-deputes/hemicycle"
-        target="_blank"
-        rel="noreferrer"
-        className="text-accent hover:underline"
-      >
-        plan de l’hémicycle
-      </a>{' '}
-      publié par l’Assemblée. En gris, les sièges dont aucune position
-      n’a été enregistrée sur ce scrutin.
-    </>
-  )
-}
-
 function ProcedureHelp() {
   return (
     <>
@@ -243,242 +178,32 @@ function ProcedureHelp() {
   )
 }
 
-export default function HomePage() {
-  const scrutins = useQuery({
-    queryKey: ['scrutins', 'accueil'],
-    queryFn: (): Promise<ScrutinListResponse> =>
-      fetchJson(`/api/scrutins?limit=${DERNIERS}&offset=0`),
-    retry: false,
-  })
-
-  const dernier = scrutins.data?.scrutins[0]
-
-  /*
-   * Le résumé de liste ne porte que les totaux. Placer chaque vote sur son
-   * siège demande les positions nominales, donc le détail du scrutin — qui
-   * fournit aussi le numéro de législature affiché en surtitre.
-   */
-  const detail = useQuery({
-    queryKey: ['scrutin', dernier?.uid],
-    enabled: Boolean(dernier),
-    queryFn: (): Promise<ScrutinDetailDto> =>
-      fetchJson(`/api/scrutins/${dernier!.uid}`),
-    retry: false,
-  })
-
-  /* Avancement de la thématisation, affiché avec la porte d’entrée « thèmes » :
-     le rattachement est en cours, le taire laisserait croire à une couverture
-     complète (README.md §2). */
-  const methode = useQuery({
-    queryKey: ['themes', 'method'],
-    queryFn: (): Promise<MethodResponse> =>
-      fetchJson('/api/themes/method'),
-    retry: false,
-  })
-
-  const votesNominaux = detail.data && siegesDesGroupes(detail.data.groups)
-
+/**
+ * À propos : la méthode, la neutralité, les sources et les crédits. La
+ * promesse, les usages et le dernier vote sont sur l'accueil (`LandingPage`) ;
+ * cette page en est la suite pour qui veut vérifier comment le site tient ses
+ * règles.
+ */
+export default function AboutPage() {
   return (
     <div className="space-y-12">
-      {/* ---------------------------------------------------------------- Hero */}
-      <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-            Assemblée nationale
-            {detail.data && <> · {detail.data.legislature}ᵉ législature</>}
-          </p>
-          <h2 className="mt-3 text-4xl font-semibold leading-[1.1] tracking-tight sm:text-5xl">
-            Les votes de l’Assemblée,
-            <br />
-            <span className="text-ink-soft">sur pièces.</span>
-          </h2>
-          <p className="mt-5 max-w-xl text-base leading-relaxed text-ink-soft">
-            Les votes des députés sont publics et horodatés, mais dispersés dans
-            des jeux de données que personne ne consulte. Ce site les rassemble :
-            voici les textes, voici comment chaque groupe a voté, voici la source
-            officielle.
-          </p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link
-              to="/scrutins"
-              className="rounded-lg bg-ink px-4 py-2.5 text-sm font-medium text-surface transition-opacity hover:opacity-85"
-            >
-              Parcourir les scrutins
-            </Link>
-            <Link
-              to="/comprendre"
-              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink"
-            >
-              Comment lire une page de vote
-            </Link>
-          </div>
-        </div>
-
-        <Card className="px-5 py-4">
-          {dernier && votesNominaux ? (
-            <>
-              <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-                <h3
-                  id="hemicycle-accueil"
-                  className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint"
-                >
-                  Dernier scrutin publié
-                  <InfoTip label="Comment lire l’hémicycle" className="md:hidden">
-                    <SeatsHelp />
-                  </InfoTip>
-                </h3>
-                <span className="text-xs text-ink-faint">
-                  {formatDate(dernier.date)}
-                </span>
-              </div>
-
-              <Hemicycle votes={votesNominaux} labelledBy="hemicycle-accueil" />
-
-              <div className="flex justify-center">
-                <TallyLine tally={tallyDesVotes(votesNominaux)} />
-              </div>
-
-              <p className="mt-4 line-clamp-2 text-sm leading-snug text-ink">
-                {dernier.subject}
-              </p>
-
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                <Link
-                  to={`/scrutins/${dernier.uid}`}
-                  className="font-medium text-accent hover:underline"
-                >
-                  Voir le détail du vote →
-                </Link>
-                <a
-                  href={dernier.official_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-ink-faint hover:text-ink-soft hover:underline"
-                >
-                  Source officielle ↗
-                </a>
-              </div>
-
-              <p className="mt-4 hidden border-t border-line pt-3 text-xs leading-relaxed text-ink-faint md:block">
-                <SeatsHelp />
-              </p>
-            </>
-          ) : (
-            <div className="flex min-h-52 flex-col justify-center">
-              {scrutins.isError || detail.isError ? (
-                <>
-                  <p className="text-sm font-semibold text-ink">
-                    Le dernier scrutin n’est pas disponible pour le moment.
-                  </p>
-                  <p className="mt-1 max-w-md text-sm leading-relaxed text-ink-soft">
-                    Les données restent accessibles dès que la connexion est
-                    rétablie. Aucun résultat n’est remplacé par une estimation.
-                  </p>
-                  <Link
-                    to="/scrutins"
-                    className="mt-3 text-sm font-medium text-accent hover:underline"
-                  >
-                    Parcourir les scrutins →
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void scrutins.refetch()}
-                    className="mt-2 w-fit text-xs font-medium text-accent hover:underline"
-                  >
-                    Réessayer
-                  </button>
-                </>
-              ) : (
-                <p className="text-sm text-ink-faint">
-                  Chargement du dernier scrutin…
-                </p>
-              )}
-            </div>
-          )}
-        </Card>
-      </section>
-
-      {/* --------------------------------------------------------- À quoi ça sert */}
-      {/*
-        Première chose après le hero : ce que le lecteur y gagne, pas la taille
-        de la base. Un total de scrutins ne donne envie à personne d’ouvrir une
-        page — l’écart entre ce qu’on croit d’un groupe et ce qu’il vote, si.
-      */}
-      <Section
-        info={
-          <p>
-            <ProcedureHelp />
-          </p>
-        }
-        surtitre="À quoi ça sert"
-        titre="Vous avez déjà un avis sur les groupes. Voici ce qu’ils votent."
-        chapo="Cet avis vient des discours, des reprises, de ce qu’on en dit autour de vous. Un vote, lui, est un acte : daté, nominatif, opposable. Les rapprocher ne demande aucune expertise — seulement d’avoir la page sous les yeux. Là où les deux se rejoignent, là où ils s’écartent : c’est vous qui le constatez, le site ne le conclut jamais à votre place."
-      >
-        <ul className="grid gap-3 sm:grid-cols-2">
-          {USAGES.map((usage) => (
-            <li key={usage.to}>
-              {/* La carte se soulève d'un pixel et sa bordure prend l'accent :
-                  sur quatre cartes identiques, c'est ce qui dit laquelle est
-                  visée. Neutralisé si le système demande moins d'animation. */}
-              <Link
-                to={usage.to}
-                className="group flex h-full flex-col rounded-xl border border-line bg-surface px-5 py-4 shadow-card transition duration-200 hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none"
-              >
-                <p className="text-[15px] font-semibold text-ink transition-colors group-hover:text-accent">
-                  {usage.titre}
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">
-                  {usage.texte}
-                </p>
-                {usage.to === '/themes' && methode.data && (
-                  <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                    Rattachement en cours : {methode.data.texts_assigned} textes
-                    rattachés sur {methode.data.texts_total}. Les autres restent
-                    consultables.
-                  </p>
-                )}
-                <span className="mt-auto flex items-center gap-1 pt-3 text-xs font-medium text-accent">
-                  Ouvrir
-                  <span className="transition-transform duration-200 group-hover:translate-x-1 motion-reduce:transform-none">
-                    →
-                  </span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        <p className="mt-4 hidden max-w-3xl text-sm leading-relaxed text-ink-soft md:block">
+      <header className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
+          À propos
+        </p>
+        <h2 className="mt-3 text-3xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
+          Méthode, neutralité et sources
+        </h2>
+        <p className="mt-4 text-base leading-relaxed text-ink-soft">
+          Les votes des députés sont publics et horodatés, mais dispersés dans
+          des jeux de données que personne ne consulte. Ce site les rassemble :
+          voici les textes, voici comment chaque groupe a voté, voici la source
+          officielle.
+        </p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-soft">
           <ProcedureHelp />
         </p>
-      </Section>
-
-      {/* ------------------------------------------------ Derniers scrutins */}
-      <Section
-        info={scrutins.data && <p>{scrutins.data.coverage_note}</p>}
-        surtitre="Publié récemment"
-        aside={
-          <Link
-            to="/scrutins"
-            className="text-xs font-medium text-accent hover:underline"
-          >
-            Tous les scrutins →
-          </Link>
-        }
-      >
-        {scrutins.isLoading && (
-          <Card className="px-4 py-3">
-            <Loading>Chargement des derniers scrutins…</Loading>
-          </Card>
-        )}
-        {scrutins.isError && <ErrorPanel error={scrutins.error} />}
-        {scrutins.data && (
-          <div className="space-y-3">
-            <ScrutinList scrutins={scrutins.data.scrutins} />
-            <CoverageNote note={scrutins.data.coverage_note} />
-          </div>
-        )}
-      </Section>
+      </header>
 
       {/* ---------------------------------------------------- Le « pourquoi » */}
       <Section

@@ -8,6 +8,7 @@ import type { FinalVoteListResponse, GroupDto } from '../../types/finalVotes'
 import type { FamilyDto } from '../../types/themes'
 import VoteCard from './VoteCard'
 import VotesToolbar from './VotesToolbar'
+import ThemeTexts from './ThemeTexts'
 import { InfoTip } from '../InfoTip'
 
 const PREVIEW_SIZE = 5
@@ -101,6 +102,7 @@ function ThemeSection({
             n’a eu lieu.
           </Note>
         ))}
+      <ThemeTexts family={family} />
     </section>
   )
 }

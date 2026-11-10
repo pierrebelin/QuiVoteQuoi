@@ -25,7 +25,7 @@ import {
 } from '../components/ui'
 import { GROUP_LOGOS } from '../content/logos'
 import { fetchJson } from '../lib/fetchJson'
-import { capitalized, typographic } from '../lib/entryFlow'
+import { capitalized, themeLink, typographic } from '../lib/entryFlow'
 import { amendmentCardPath } from '../types/amendments'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 import type { CitedAmendmentDto, GroupBreakdownDto, ScrutinDetailDto } from '../types/scrutins'
@@ -475,7 +475,7 @@ export default function ScrutinDetailPage() {
           {data.families.map((family) => (
             <Link
               key={family.code}
-              to={`/themes/${family.code}`}
+              to={themeLink(family.code)}
               className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
             >
               <FamilyIllustration
