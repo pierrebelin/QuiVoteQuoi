@@ -22,6 +22,7 @@ const PATHS = {
     </>
   ),
   votes: <path d="M4 20V10M10 20V4M16 20v-7M21 20H3" />,
+  list: <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />,
   candidats: (
     <>
       <circle cx="9" cy="8" r="3.5" />

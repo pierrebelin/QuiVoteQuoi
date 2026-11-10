@@ -112,6 +112,7 @@ mod tests {
         async fn find_page(
             &self,
             _criteria: &crate::application::ports::dossier_repository::DossierCriteria,
+            _order: crate::application::ports::dossier_repository::DossierOrder,
             _limit: i64,
             _offset: i64,
         ) -> Result<crate::application::ports::dossier_repository::DossierPage, RepositoryError>
@@ -125,6 +126,13 @@ mod tests {
         ) -> Result<Option<LegislativeDossier>, RepositoryError> {
             let store = self.dossiers.lock().unwrap();
             Ok(store.get(uid.as_str()).cloned())
+        }
+
+        async fn find_by_uids(
+            &self,
+            _uids: &[crate::domain::dossier::DossierUid],
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+            unreachable!()
         }
 
         async fn find_suggestions(

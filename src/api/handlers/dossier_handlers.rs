@@ -12,7 +12,7 @@ use crate::api::dto::{
 };
 use crate::api::error::ApiError;
 use crate::api::text_brief_dto::{DossierBriefQuery, DossierBriefResponse};
-use crate::application::ports::dossier_repository::DossierCriteria;
+use crate::application::ports::dossier_repository::{DossierCriteria, DossierOrder};
 use crate::application::use_cases::browse_dossiers::{BrowseDossiers, DossierQuery};
 use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::curate_dossier::CurateDossier;
@@ -50,13 +50,14 @@ pub async fn get_recent_dossiers(
     }))
 }
 
-/// Liste paginée des dossiers, du plus récent au plus ancien. Les critères de
+/// Liste paginée des dossiers, par dernière activité ou dernier scrutin. Les critères de
 /// la requête restreignent l'affichage, jamais le contenu de la base.
 pub async fn browse_dossiers(
     State(state): State<AppState>,
     Query(params): Query<DossierPageQuery>,
 ) -> Result<Json<DossierPageResponse>, ApiError> {
-    let query = DossierQuery::new(params.page, params.per_page, DossierCriteria::from(&params));
+    let query = DossierQuery::new(params.page, params.per_page, DossierCriteria::from(&params))
+        .ordered_by(DossierOrder::from(&params));
     let uc = BrowseDossiers::new(
         state.dossier_repository.as_ref(),
         state.actor_repository.as_ref(),

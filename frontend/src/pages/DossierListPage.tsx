@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import { BottomSheet } from '../components/BottomSheet'
-import DossierCard, { type DossierCardDto } from '../components/DossierCard'
+import DossierCard, { type DossierPageResponse } from '../components/DossierCard'
 import DossierFilters, {
   ShortcutChip,
   type FilterOption,
@@ -14,14 +14,6 @@ import { FOCUS, SheetButton } from '../components/SheetControls'
 import { Button, ErrorPanel, Loading, PageHeader } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
 import type { FamiliesResponse } from '../types/themes'
-
-interface DossierPageResponse {
-  page: number
-  per_page: number
-  total: number
-  total_pages: number
-  dossiers: DossierCardDto[]
-}
 
 const PER_PAGE = 20
 
@@ -240,9 +232,9 @@ export default function DossierListPage() {
               : `Les ${data.total.toLocaleString('fr-FR')} dossiers terminés (promulgués, retirés ou absorbés), du plus récemment actif au plus ancien. Ceux sans conclusion à ce jour s'ajoutent depuis les filtres.`
         }
         /*
-          Les scrutins sont le détail d'un dossier avant d'être une rubrique :
-          leur porte d'entrée est ici, à côté du titre, plutôt qu'en septième
-          onglet de la barre de navigation.
+          Les scrutins ont leur onglet, qui les regroupe par dossier ; ce lien
+          en est le pendant, à côté du titre, et la page des scrutins renvoie
+          ici par « Tous les dossiers législatifs ».
         */
         aside={
           <Link

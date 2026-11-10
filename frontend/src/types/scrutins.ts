@@ -1,3 +1,4 @@
+import type { OutcomeDto } from './dossiers'
 import type { AssignedFamilyDto } from './themes'
 
 /**
@@ -36,6 +37,14 @@ export function leadingPosition(tally: TallyDto): LeadingPosition | null {
   return top > 0 && leaders.length === 1 ? leaders[0][0] : null
 }
 
+/** État d'un dossier tel que la liste des scrutins le reçoit. */
+export interface DossierStatusDto {
+  outcome: OutcomeDto
+  current_stage: { label: string; chamber: string } | null
+  last_activity_label: string
+  last_activity_date: string
+}
+
 export interface ScrutinSummaryDto {
   uid: string
   number: string
@@ -50,6 +59,11 @@ export interface ScrutinSummaryDto {
   tally: TallyDto
   dossier_uid: string | null
   dossier_label: string | null
+  /**
+   * Où en est le dossier rattaché : mêmes sort et étape que la liste des
+   * dossiers. Absent sans dossier, ou quand le dossier n'est pas en base.
+   */
+  dossier_status: DossierStatusDto | null
   has_reconstructed_tallies: boolean
   official_url: string
   /** Amendements rapprochés, dans l'ordre de citation ; vide si le scrutin n'est pas rapproché. */

@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::amendment_citation_repository::AmendmentCitationRepository;
+use crate::application::ports::dossier_repository::DossierRepository;
 use crate::application::ports::scrutin_repository::{
     RepositoryError, ScrutinFilter, ScrutinRepository, ScrutinSummary,
 };
@@ -7,15 +10,20 @@ use crate::application::use_cases::browse_dossier_amendments::{
     author_uids, cited_view_of, CitedAmendmentView,
 };
 use crate::domain::actor::ActorDirectory;
+use crate::domain::dossier::{DossierUid, LegislativeDossier};
 use crate::domain::scrutin::{ScrutinUid, ShortLabel};
 
-/// Ligne de la liste: le scrutin publie, son libelle court (RM-09) et les
-/// amendements que son objet cite (RM-05, RM-08).
+/// Ligne de la liste: le scrutin publie, son libelle court (RM-09), les
+/// amendements que son objet cite (RM-05, RM-08) et le dossier auquel la
+/// source le rattache, pour en dire le sort et l'etape.
 #[derive(Debug, Clone)]
 pub struct ScrutinListItem {
     pub summary: ScrutinSummary,
     pub short_label: ShortLabel,
     pub cited: Vec<CitedAmendmentView>,
+    /// Dossier rattache, sans actes ni documents. Absent quand le scrutin n'a
+    /// pas de dossier, ou que ce dossier n'est pas en base.
+    pub dossier: Option<LegislativeDossier>,
 }
 
 #[derive(Debug, Clone)]
@@ -33,6 +41,7 @@ pub struct ListScrutins<'a> {
     repository: &'a dyn ScrutinRepository,
     citations: &'a dyn AmendmentCitationRepository,
     actors: &'a dyn ActorRepository,
+    dossiers: &'a dyn DossierRepository,
 }
 
 impl<'a> ListScrutins<'a> {
@@ -40,11 +49,13 @@ impl<'a> ListScrutins<'a> {
         repository: &'a dyn ScrutinRepository,
         citations: &'a dyn AmendmentCitationRepository,
         actors: &'a dyn ActorRepository,
+        dossiers: &'a dyn DossierRepository,
     ) -> Self {
         Self {
             repository,
             citations,
             actors,
+            dossiers,
         }
     }
 
@@ -74,10 +85,16 @@ impl<'a> ListScrutins<'a> {
             self.actors.load_directory_for(&authors).await?
         };
 
+        let dossiers = self.dossiers_of(&page.items).await?;
+
         let items = page
             .items
             .into_iter()
             .map(|summary| {
+                let dossier = summary
+                    .dossier_uid
+                    .as_ref()
+                    .and_then(|uid| dossiers.get(uid).cloned());
                 let cited = rows
                     .iter()
                     .filter(|row| row.scrutin.as_str() == summary.uid)
@@ -86,6 +103,7 @@ impl<'a> ListScrutins<'a> {
                 ScrutinListItem {
                     short_label: ShortLabel::from_subject(&summary.subject),
                     cited,
+                    dossier,
                     summary,
                 }
             })
@@ -94,6 +112,29 @@ impl<'a> ListScrutins<'a> {
             items,
             total: page.total,
         })
+    }
+
+    /// Les dossiers que la page nomme, en une seule lecture: la liste affiche
+    /// cinquante scrutins, souvent d'une poignee de dossiers.
+    async fn dossiers_of(
+        &self,
+        summaries: &[ScrutinSummary],
+    ) -> Result<HashMap<String, LegislativeDossier>, RepositoryError> {
+        let mut uids: Vec<DossierUid> = summaries
+            .iter()
+            .filter_map(|summary| summary.dossier_uid.clone())
+            .filter_map(|uid| DossierUid::new(uid).ok())
+            .collect();
+        uids.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+        uids.dedup_by(|a, b| a.as_str() == b.as_str());
+        if uids.is_empty() {
+            return Ok(HashMap::new());
+        }
+        let found = self.dossiers.find_by_uids(&uids).await?;
+        Ok(found
+            .into_iter()
+            .map(|dossier| (dossier.uid().as_str().to_string(), dossier))
+            .collect())
     }
 
     /// CU-04 — Scrutins d'un dossier.
@@ -111,12 +152,12 @@ mod tests {
     use crate::application::ports::amendment_citation_repository::{CitationRow, CitedAmendmentRow};
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
     use crate::application::use_cases::read_fakes::{
-        amendment_row, scrutin_row, FakeActors, FakeScrutins,
+        amendment_row, listed_dossier, scrutin_row, FakeActors, FakeDossiers, FakeScrutins,
     };
     use crate::domain::amendment::SummaryPreview;
     use crate::domain::dataset::DatasetShape;
     use crate::domain::amendment_citation::{LinkMethod, UnlinkedCause};
-    use crate::domain::dossier::DossierUid;
+    use crate::domain::dossier::{DossierOutcome, DossierUid, LegislativeStage};
     use crate::domain::scrutin::ScrutinUid;
 
     fn actors() -> FakeActors {
@@ -174,7 +215,7 @@ mod tests {
             shape: DatasetShape::default(),
         };
         let citations = citations(cited);
-        ListScrutins::new(&repository, &citations, &actors())
+        ListScrutins::new(&repository, &citations, &actors(), &FakeDossiers::default())
             .execute(ScrutinFilter::default())
             .await
             .unwrap()
@@ -215,10 +256,15 @@ mod tests {
             shape: DatasetShape::default(),
         };
 
-        let page = ListScrutins::new(&repository, &citations(vec![]), &actors())
-            .execute(ScrutinFilter::default())
-            .await
-            .unwrap();
+        let page = ListScrutins::new(
+            &repository,
+            &citations(vec![]),
+            &actors(),
+            &FakeDossiers::default(),
+        )
+        .execute(ScrutinFilter::default())
+        .await
+        .unwrap();
 
         let uids: Vec<&str> = page.items.iter().map(|i| i.summary.uid.as_str()).collect();
         assert_eq!(uids, vec!["S3", "S1", "S2"]);
@@ -302,5 +348,113 @@ mod tests {
             .map(|i| (i.summary.uid.as_str(), i.cited.len()))
             .collect();
         assert_eq!(shape, vec![("S3", 1), ("S1", 0), ("S2", 1)]);
+    }
+
+    fn in_dossier(uid: &str, dossier: &str) -> ScrutinSummary {
+        let mut row = scrutin_row(uid, "l'article 3 du projet de loi de finances");
+        row.dossier_uid = Some(dossier.into());
+        row.dossier_label = Some("Projet de loi de finances pour 2027".into());
+        row
+    }
+
+    async fn list_with_dossiers(
+        rows: Vec<ScrutinSummary>,
+        dossiers: &FakeDossiers,
+    ) -> ScrutinListPage {
+        let total = rows.len() as i64;
+        let repository = FakeScrutins {
+            rows,
+            total,
+            shape: DatasetShape::default(),
+        };
+        ListScrutins::new(&repository, &citations(vec![]), &actors(), dossiers)
+            .execute(ScrutinFilter::default())
+            .await
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn should_attach_its_dossier_to_each_scrutin_when_source_links_one() {
+        let rejected = DossierOutcome::Rejected {
+            date: chrono::NaiveDate::from_ymd_opt(2026, 11, 4).unwrap(),
+            label: "rejet\u{e9}".into(),
+        };
+        let dossiers = FakeDossiers {
+            dossiers: vec![listed_dossier(
+                "DLR5L17N54629",
+                rejected.clone(),
+                Some(LegislativeStage::FirstReadingAN),
+            )],
+            ..Default::default()
+        };
+
+        let page = list_with_dossiers(
+            vec![
+                in_dossier("S1", "DLR5L17N54629"),
+                scrutin_row("S2", "l'ensemble du projet de loi"),
+            ],
+            &dossiers,
+        )
+        .await;
+
+        let first = page.items[0].dossier.as_ref().unwrap();
+        assert_eq!(first.uid().as_str(), "DLR5L17N54629");
+        assert_eq!(first.outcome(), &rejected);
+        assert_eq!(
+            first.current_stage(),
+            Some(LegislativeStage::FirstReadingAN)
+        );
+        assert!(page.items[1].dossier.is_none());
+    }
+
+    #[tokio::test]
+    async fn should_read_dossiers_once_per_page_when_several_scrutins_share_one() {
+        let dossiers = FakeDossiers {
+            dossiers: vec![
+                listed_dossier("DLR5L17N1", DossierOutcome::NoRecordedConclusion, None),
+                listed_dossier("DLR5L17N2", DossierOutcome::NoRecordedConclusion, None),
+            ],
+            ..Default::default()
+        };
+
+        let page = list_with_dossiers(
+            vec![
+                in_dossier("S1", "DLR5L17N2"),
+                in_dossier("S2", "DLR5L17N1"),
+                in_dossier("S3", "DLR5L17N2"),
+            ],
+            &dossiers,
+        )
+        .await;
+
+        assert_eq!(
+            *dossiers.lookups.lock().unwrap(),
+            vec![vec!["DLR5L17N1".to_string(), "DLR5L17N2".to_string()]]
+        );
+        assert!(page.items.iter().all(|i| i.dossier.is_some()));
+    }
+
+    #[tokio::test]
+    async fn should_not_read_dossiers_when_no_scrutin_of_page_has_one() {
+        let dossiers = FakeDossiers::default();
+
+        list_with_dossiers(
+            vec![scrutin_row("S1", "l'ensemble du projet de loi")],
+            &dossiers,
+        )
+        .await;
+
+        assert!(dossiers.lookups.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn should_give_no_dossier_when_linked_dossier_is_not_stored() {
+        let page = list_with_dossiers(
+            vec![in_dossier("S1", "DLR5L17N404")],
+            &FakeDossiers::default(),
+        )
+        .await;
+
+        assert!(page.items[0].dossier.is_none());
     }
 }
