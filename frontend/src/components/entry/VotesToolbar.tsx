@@ -3,43 +3,12 @@ import { PoliticalLogo } from '../PoliticalLogo'
 import { GROUP_LOGOS } from '../../content/logos'
 import type { GroupDto } from '../../types/finalVotes'
 import type { FamilyDto } from '../../types/themes'
-import type { GroupPosition } from '../../lib/entryFlow'
 import { groupShortName, groupsSummary, themesSummary, typographic } from '../../lib/entryFlow'
 import { ToggleChip } from './parts'
-import PositionGlyph from './PositionGlyph'
-import { FOCUS_RING, SWATCH_CLASS } from './styles'
+import { FOCUS_RING } from './styles'
 import { useHeaderHeight } from './useHeaderHeight'
 
 type Panel = 'themes' | 'groups'
-
-const LEGEND: { position: GroupPosition; label: string }[] = [
-  { position: 'for', label: 'Pour' },
-  { position: 'against', label: 'Contre' },
-  { position: 'abstention', label: 'Abstention' },
-  { position: 'split', label: 'Partagé' },
-  { position: 'nobody', label: 'Personne n’a voté' },
-]
-
-function Legend({ className = '' }: { className?: string }) {
-  return (
-    <ul
-      aria-label="Légende des positions"
-      className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-ink-soft ${className}`}
-    >
-      {LEGEND.map(({ position, label }) => (
-        <li key={position} className="flex items-center gap-1.5">
-          <span
-            aria-hidden
-            className={`flex size-4 items-center justify-center rounded-[4px] ${SWATCH_CLASS[position]}`}
-          >
-            <PositionGlyph position={position} className="size-2.5" strokeWidth={3.5} />
-          </span>
-          {label}
-        </li>
-      ))}
-    </ul>
-  )
-}
 
 function PanelButton({
   name,
@@ -109,7 +78,8 @@ function PanelBody({
 
 /**
  * Barre collée sous l'en-tête de l'écran des votes : deux menus (sujets,
- * groupes) qui s'ouvrent en panneaux de pastilles, et la légende des positions.
+ * groupes) qui s'ouvrent en panneaux de pastilles. Les positions se lisent sur
+ * chaque carte, rangée par rangée : plus de légende à décoder.
  * Les choix s'appliquent à mesure ; « Valider » referme le panneau.
  */
 export default function VotesToolbar({
@@ -169,11 +139,6 @@ export default function VotesToolbar({
             panelId={groupsPanelId}
             onClick={() => toggle('groups')}
           />
-          {/* Sur petit écran la légende quitte la barre collée : cinq lignes de
-              légende prendraient le tiers de l'écran à chaque défilement. */}
-          <div className="hidden min-w-0 flex-1 justify-end md:flex">
-            <Legend />
-          </div>
         </div>
 
         {open === 'themes' && (
@@ -221,7 +186,6 @@ export default function VotesToolbar({
           </PanelBody>
         )}
       </div>
-      <Legend className="-mt-3 md:hidden" />
     </>
   )
 }

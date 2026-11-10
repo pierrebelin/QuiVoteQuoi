@@ -56,7 +56,7 @@ export default function DossierScrutins({ uid }: { uid: string }) {
   return (
     <section className="mb-6">
       <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-        Scrutins
+        Votes
         {data && data.total > 0 && (
           <span className="ml-2 font-normal normal-case tracking-normal text-ink-faint">
             {data.total}
@@ -90,7 +90,7 @@ export default function DossierScrutins({ uid }: { uid: string }) {
         <SegmentedControl label="Type" options={ballotTypes} value={ballotType} onChange={reset(setBallotType)} />
       </div>
 
-      {isLoading && <p className="animate-pulse text-sm text-ink-faint">Chargement des scrutins…</p>}
+      {isLoading && <p className="animate-pulse text-sm text-ink-faint">Chargement des votes…</p>}
       {isError && <p className="text-sm text-no">Erreur : {error instanceof Error ? error.message : 'inconnue'}</p>}
 
       {data && (
@@ -98,10 +98,10 @@ export default function DossierScrutins({ uid }: { uid: string }) {
           {data.total === 0 ? (
             <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
               {search || outcome || ballotType
-                ? 'Aucun scrutin ne correspond à ces filtres.'
-                : 'La source ne rattache aucun scrutin public à ce dossier. Cela ne signifie pas qu’aucun vote n’a eu lieu sur ce texte.'}{' '}
+                ? 'Aucun vote ne correspond à ces filtres.'
+                : 'La source ne rattache aucun vote public à ce texte. Cela ne signifie pas qu’aucun vote n’a eu lieu.'}{' '}
               {!search && !outcome && !ballotType && (
-                <GuideLink ancre="q-sans-dossier">Pourquoi la plupart des scrutins n'ont pas de dossier</GuideLink>
+                <GuideLink ancre="q-sans-dossier">Pourquoi un vote n'est pas toujours relié à son texte</GuideLink>
               )}
             </p>
           ) : (

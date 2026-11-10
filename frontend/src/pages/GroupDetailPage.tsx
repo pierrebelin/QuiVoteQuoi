@@ -201,7 +201,7 @@ export default function GroupDetailPage() {
             {formatCount(group.total_member_count)}
           </Fact>
           {group.published_member_range && (
-            <Fact label="Effectif publié sur les scrutins">
+            <Fact label="Effectif publié sur les votes">
               {group.published_member_range.stable
                 ? formatCount(group.published_member_range.min)
                 : `de ${formatCount(group.published_member_range.min)} à ${formatCount(
@@ -216,12 +216,12 @@ export default function GroupDetailPage() {
           ))}
         </Section>
 
-        <Section title="Présence dans les scrutins">
-          <Fact label="Scrutins portant une ligne pour ce groupe">
+        <Section title="Présence dans les votes">
+          <Fact label="Votes portant une ligne pour ce groupe">
             {formatCount(group.line_count)}
           </Fact>
           {group.first_scrutin_date && group.last_scrutin_date && (
-            <Fact label="Du premier au dernier scrutin">
+            <Fact label="Du premier au dernier vote">
               {formatDate(group.first_scrutin_date)} → {formatDate(group.last_scrutin_date)}
             </Fact>
           )}
@@ -231,7 +231,7 @@ export default function GroupDetailPage() {
             </Fact>
           )}
           {group.silent_line_count > 0 && (
-            <Fact label="Scrutins sans aucun membre du groupe">
+            <Fact label="Votes sans aucun membre du groupe">
               {formatCount(group.silent_line_count)}
             </Fact>
           )}
@@ -270,7 +270,7 @@ export default function GroupDetailPage() {
             </div>
             <p className="mt-2 text-xs text-ink-faint">
               Rapportés à {formatCount(counts.published_positions)} positions
-              publiées, sur {formatCount(group.line_count)} scrutin
+              publiées, sur {formatCount(group.line_count)} vote
               {group.line_count > 1 ? 's' : ''}.
             </p>
           </>
@@ -284,7 +284,7 @@ export default function GroupDetailPage() {
           className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-3 shadow-card transition-shadow hover:shadow-card-hover"
         >
           <span className="text-sm font-semibold text-ink">
-            Voir les votes de {group.abbrev}, scrutin par scrutin
+            Voir les votes de {group.abbrev}, vote par vote
           </span>
           <span className="text-sm text-accent">→</span>
         </Link>

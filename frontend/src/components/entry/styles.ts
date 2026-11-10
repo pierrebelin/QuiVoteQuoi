@@ -52,9 +52,13 @@ export const BADGE_WORD: Record<GroupPosition, string> = {
 export const FOCUS_RING =
   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 
-/** Classes d'une grande tuile de choix (sujet, groupe, « tous les groupes »). */
-export function choiceTileClass(on: boolean): string {
-  return `group flex w-full items-center gap-3 rounded-2xl border-2 text-left text-ink transition-colors ${FOCUS_RING} ${
+/**
+ * Classes d'une grande tuile de choix (sujet, groupe, « tous les groupes »).
+ * `layout` remplace la disposition par défaut (une ligne centrée) : deux
+ * classes d'alignement concurrentes dans un même attribut ne se départagent pas.
+ */
+export function choiceTileClass(on: boolean, layout = 'items-center gap-3'): string {
+  return `group flex w-full ${layout} rounded-2xl border-2 text-left text-ink transition-colors ${FOCUS_RING} ${
     on
       ? 'border-accent bg-accent-soft'
       : 'border-line bg-surface hover:border-line-strong'

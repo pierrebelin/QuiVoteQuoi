@@ -51,7 +51,7 @@ export default function ThemeMethodPage() {
   return (
     <div className="space-y-3">
       <div className="max-w-3xl">
-        <BackLink to="/themes">Tous les thèmes</BackLink>
+        <BackLink to="/par-sujet">Votes par sujet</BackLink>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight">
           Méthode de thématisation
         </h2>
@@ -59,11 +59,11 @@ export default function ThemeMethodPage() {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
-        <Block title="Ce qui porte le thème">
+        <Block title="Ce qui porte le sujet">
           <p className="text-sm text-ink-soft">{data.extraction_rule}</p>
           <p className="mt-1.5 text-sm text-ink-soft">
-            Un scrutin reçoit les familles du texte qu'il met aux voix. Le lien
-            entre un dossier législatif et un texte est établi par les scrutins
+            Un vote reçoit les familles du texte qu'il met aux voix. Le lien
+            entre un dossier législatif et un texte est établi par les votes
             que la source rattache aux deux — aucun rapprochement de libellés
             n'est deviné.
           </p>
@@ -114,16 +114,16 @@ export default function ThemeMethodPage() {
           <Row label="Textes jamais soumis" value={data.texts_never_attempted} />
         </Block>
 
-        <Block title="Scrutins">
-          <Row label="Scrutins publiés par la source" value={data.scrutins_total} />
-          <Row label="Scrutins rattachés à un texte" value={data.scrutins_with_text} />
+        <Block title="Votes">
+          <Row label="Votes publiés par la source" value={data.scrutins_total} />
+          <Row label="Votes rattachés à un texte" value={data.scrutins_with_text} />
           <Row
             label="Objets ne nommant aucun texte"
             value={data.scrutins_without_text}
           />
-          <Row label="Scrutins portant au moins une famille" value={data.scrutins_assigned} />
+          <Row label="Votes portant au moins une famille" value={data.scrutins_assigned} />
           <p className="mt-1.5 text-xs text-ink-faint">
-            Les scrutins sans texte et les textes sans famille restent
+            Les votes sans texte et les textes sans famille restent
             consultables :{' '}
             <Link to="/themes/non-rattaches" className="text-accent underline">
               liste des non rattachés
@@ -136,21 +136,21 @@ export default function ThemeMethodPage() {
           <Row label="Dossiers ingérés" value={data.dossiers_total} />
           <Row label="Dossiers reliés à un texte voté" value={data.dossiers_linked_to_text} />
           <Row
-            label="Dossiers sans scrutin, classés sur leur titre"
+            label="Dossiers sans vote, classés sur leur titre"
             value={data.dossiers_without_text}
           />
           <Row label="Dossiers portant une famille" value={data.dossiers_assigned} />
           <p className="mt-1.5 text-xs text-ink-faint">
             Un dossier relié à un texte voté reçoit les familles de ce texte : il
-            n'est jamais soumis séparément. Seuls les dossiers qu'aucun scrutin ne
+            n'est jamais soumis séparément. Seuls les dossiers qu'aucun vote ne
             relie à un texte sont classés sur leur propre titre.
           </p>
         </Block>
 
-        <Block title="Rapprochement scrutins–amendements">
+        <Block title="Rapprochement votes–amendements">
           <p className="mb-1.5 text-sm text-ink-soft">
-            L'objet d'un scrutin cite des numéros d'amendement. Chaque numéro
-            est cherché dans le dossier que la source rattache au scrutin : il
+            L'objet d'un vote cite des numéros d'amendement. Chaque numéro
+            est cherché dans le texte que la source rattache au vote : il
             est relié à l'amendement unique qui le porte, ou reste sans lien,
             avec sa cause.
           </p>

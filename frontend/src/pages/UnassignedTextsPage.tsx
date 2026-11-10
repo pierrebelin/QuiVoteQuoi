@@ -31,7 +31,7 @@ export default function UnassignedTextsPage() {
   return (
     <div className="space-y-3">
       <div>
-        <BackLink to="/themes">Tous les thèmes</BackLink>
+        <BackLink to="/par-sujet">Votes par sujet</BackLink>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 className="text-2xl font-semibold tracking-tight">
             Textes non rattachés
@@ -43,7 +43,7 @@ export default function UnassignedTextsPage() {
         <p className="mt-0.5 text-sm text-ink-soft">
           Ces textes n'ont aucune famille. Ils restent consultables et leurs
           votes sont exposés comme les autres : le site ne retire rien faute de
-          thème.
+          sujet.
         </p>
       </div>
 

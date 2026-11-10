@@ -44,11 +44,14 @@ export function StepIntro({
   eyebrow,
   title,
   hint,
+  lead,
 }: {
   eyebrow: string
   title: string
   /** Mode d'emploi : derrière une tape sur téléphone, écrit à partir de 768 px. */
   hint?: ReactNode
+  /** Une phrase d'aide assez courte pour rester à l'écran sur téléphone. */
+  lead?: ReactNode
 }) {
   return (
     <header className="max-w-3xl">
@@ -65,6 +68,7 @@ export function StepIntro({
           </InfoTip>
         )}
       </h2>
+      {lead && <p className="mt-2 text-sm leading-relaxed text-ink-soft sm:text-base">{lead}</p>}
       {hint && (
         <p className="mt-3 hidden text-base leading-relaxed text-ink-soft md:block sm:text-[17px]">{hint}</p>
       )}

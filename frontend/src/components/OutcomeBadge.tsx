@@ -53,7 +53,7 @@ export function OutcomePanel({
       <Card className="px-4 py-3">
         <p className="text-sm font-semibold">Sans conclusion à ce jour</p>
         <p className="text-xs text-ink-soft mt-0.5">
-          L'Assemblée n'a publié aucun acte de clôture pour ce dossier. Dernier
+          L'Assemblée n'a publié aucun acte de clôture pour ce texte. Dernier
           acte connu : {lastActivityLabel}, le {formatDate(lastActivityDate)}.
         </p>
       </Card>
@@ -94,7 +94,7 @@ export function OutcomePanel({
 
       {outcome.merged_into_uid && (
         <p className="text-xs text-ink-soft mt-1.5">
-          Suite de l'examen dans le dossier{' '}
+          Suite de l'examen dans le texte{' '}
           <a
             href={`/dossiers/${outcome.merged_into_uid}`}
             className="text-accent hover:underline"

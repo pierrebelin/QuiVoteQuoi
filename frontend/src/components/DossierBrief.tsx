@@ -328,7 +328,7 @@ function Body({ data }: { data: DossierBriefResponse }) {
     return (
       <p className="text-sm text-ink-soft">
         {data.versions.length === 0
-          ? "Aucune version du texte n'est publiée pour ce dossier pour l'instant."
+          ? "Aucune version n'est publiée pour ce texte pour l'instant."
           : "Aucune version de ce texte n'est publiée par l'Assemblée nationale : « En bref » n'a rien à résumer pour l'instant."}
       </p>
     )
@@ -387,7 +387,7 @@ export default function DossierBrief({ uid }: { uid: string }) {
   } else if (isError && version && error.message === 'HTTP 404') {
     content = (
       <p className="text-sm text-ink-soft">
-        Cette version n'existe pas pour ce dossier.{' '}
+        Cette version n'existe pas pour ce texte.{' '}
         <button
           type="button"
           onClick={() => selectVersion(null)}

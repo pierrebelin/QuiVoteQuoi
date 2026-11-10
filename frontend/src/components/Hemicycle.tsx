@@ -66,7 +66,7 @@ function Infobulle({ place }: { place: Place }) {
           {/* La source ne publie pas qui occupe un siège resté muet : on ne peut
               donc pas nommer le député, seulement constater l'absence. */}
           <p className="mt-0.5 text-xs leading-tight text-ink-soft">
-            Aucune position enregistrée sur ce scrutin
+            Aucune position enregistrée sur ce vote
           </p>
         </>
       )}

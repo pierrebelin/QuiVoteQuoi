@@ -10,6 +10,9 @@ import type { FinalVoteDto, StanceDto } from '../types/finalVotes'
 
 /* ------------------------------------------------------------------- adresse */
 
+/** Adresse du parcours « votes par sujet ». La racine du site est la page d'accueil. */
+export const ENTRY_PATH = '/par-sujet'
+
 /** Paramètres de l'adresse : le parcours est entièrement dans l'URL, donc partageable. */
 export const PARAM_THEMES = 'sujets'
 export const PARAM_GROUPS = 'suivis'
@@ -41,6 +44,15 @@ export function entrySearch(state: {
   if (state.step === 'themes' && state.themes.length > 0) parts.push(`${PARAM_STEP}=sujets`)
   if (state.step === 'groups') parts.push(`${PARAM_STEP}=groupes`)
   return parts.length > 0 ? `?${parts.join('&')}` : ''
+}
+
+/**
+ * Votes d'un sujet : l'étape 3 du parcours, filtrée sur ce seul sujet. C'est la
+ * destination de toute pastille de sujet du site, depuis que les fiches
+ * `/themes/:code` y renvoient.
+ */
+export function themeLink(code: string): string {
+  return `${ENTRY_PATH}${entrySearch({ themes: [code], followed: [], step: 'votes' })}`
 }
 
 export function toggled<T>(list: T[], item: T): T[] {
@@ -150,7 +162,7 @@ export function groupPosition(stance: StanceDto | undefined): GroupPosition {
 }
 
 export function findStance(
-  vote: FinalVoteDto,
+  vote: Pick<FinalVoteDto, 'stances'>,
   group: { uid: string; abbrev: string },
 ): StanceDto | undefined {
   return (
@@ -234,28 +246,6 @@ export function stanceSentence(stance: StanceDto | undefined): string {
 /** Apostrophes droites des libellés de l'API → apostrophes typographiques. */
 export function typographic(text: string): string {
   return text.replaceAll("'", '’')
-}
-
-const LEADING_FORMS = [
-  'proposition de loi visant à ',
-  'projet de loi visant à ',
-  'proposition de loi relative à ',
-]
-
-/**
- * Titre lisible d'un vote sur l'ensemble : l'intitulé du dossier quand il
- * existe, sinon le libellé officiel du texte sans sa formule d'ouverture,
- * première lettre en capitale. Déterministe, aucun modèle de langage : le
- * libellé officiel complet reste porté par l'infobulle du lien.
- */
-export function voteTitle(vote: Pick<FinalVoteDto, 'dossier_label' | 'text_label'>): string {
-  const dossier = vote.dossier_label?.trim()
-  if (dossier) return typographic(dossier)
-  let label = vote.text_label.trim()
-  const lower = label.toLowerCase()
-  const prefix = LEADING_FORMS.find((form) => lower.startsWith(form))
-  if (prefix) label = label.slice(prefix.length)
-  return typographic(label.charAt(0).toUpperCase() + label.slice(1))
 }
 
 export function capitalized(text: string): string {

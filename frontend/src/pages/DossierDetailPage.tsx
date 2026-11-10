@@ -17,7 +17,7 @@ import PositionGlyph from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
 import { BackLink, Card, ErrorPanel, Loading, Pill } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
-import { typographic } from '../lib/entryFlow'
+import { themeLink, typographic } from '../lib/entryFlow'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 
 interface StageDto {
@@ -151,7 +151,7 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
             to={`/dossiers/${outcome.merged_into_uid}`}
             className="ml-2 font-medium text-accent hover:underline"
           >
-            Voir le dossier →
+            Voir le texte →
           </Link>
         )}
       </span>
@@ -246,12 +246,12 @@ export default function DossierDetailPage() {
     enabled: !!uid,
   })
 
-  if (isLoading) return <Loading>Chargement du dossier…</Loading>
+  if (isLoading) return <Loading>Chargement du texte…</Loading>
 
   if (isError) {
     return (
       <div>
-        <BackLink to="/" className="mb-4">Retour aux dossiers</BackLink>
+        <BackLink to="/dossiers" className="mb-4">Retour aux textes</BackLink>
         <ErrorPanel error={error} />
       </div>
     )
@@ -272,7 +272,7 @@ export default function DossierDetailPage() {
 
   return (
     <div>
-      <BackLink to="/" className="mb-4">Retour aux dossiers</BackLink>
+      <BackLink to="/dossiers" className="mb-4">Retour aux textes</BackLink>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
@@ -285,7 +285,7 @@ export default function DossierDetailPage() {
                   families.map((family) => (
                     <Link
                       key={family.code}
-                      to={`/themes/${family.code}`}
+                      to={themeLink(family.code)}
                       className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
                     >
                       <FamilyIllustration
@@ -297,7 +297,7 @@ export default function DossierDetailPage() {
                     </Link>
                   ))
                 ) : (
-                  <span className="text-xs text-ink-faint italic">Aucun thème attribué pour l'instant.</span>
+                  <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
                 )}
               </div>
               <h2 className="mt-3 max-w-4xl text-2xl leading-tight font-semibold tracking-tight sm:text-[26px]">
@@ -309,7 +309,7 @@ export default function DossierDetailPage() {
                 rel="noopener noreferrer"
                 className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
               >
-                Dossier sur assemblee-nationale.fr ↗
+                Dossier législatif sur assemblee-nationale.fr ↗
               </a>
             </div>
           </Card>
@@ -320,7 +320,7 @@ export default function DossierDetailPage() {
 
           <div
             role="tablist"
-            aria-label="Contenu du dossier"
+            aria-label="Contenu du texte"
             className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-surface-soft p-1 ring-1 ring-inset ring-line"
           >
             <TabButton active={activeTab === 'groupes'} count={undefined} onClick={() => selectTab('groupes')}>
@@ -331,7 +331,7 @@ export default function DossierDetailPage() {
               count={scrutinTotal?.total}
               onClick={() => selectTab('scrutins')}
             >
-              Scrutins publics
+              Votes publics
             </TabButton>
             <TabButton
               active={activeTab === 'amendements'}
