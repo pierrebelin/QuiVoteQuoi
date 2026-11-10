@@ -1,4 +1,5 @@
 import DossierCardShell, { OutcomeSplit } from './DossierCardShell'
+import { Icon } from './icons'
 import { formatShortDate } from '../lib/dossierStatus'
 import type { OutcomeDto } from '../types/dossiers'
 import type { AssignedFamilyDto } from '../types/themes'
@@ -77,7 +78,7 @@ function InitiatorTag({ initiator }: { initiator: DossierCardInitiatorDto }) {
 
 /**
  * Carte d'un dossier dans la liste. Le titre porte le lien, étiré sur toute
- * la carte ; les thèmes restent des boutons à part, qui filtrent la liste.
+ * la carte ; les sujets restent des liens à part, vers le parcours par sujet.
  * Le bandeau dit où en est le dossier, la rangée du bas qui l'a déposé.
  * Avec la répartition, le nombre de scrutins passe dans sa portée ; sans
  * elle, il reste dans la rangée du bas, s'il y en a.
@@ -91,12 +92,17 @@ export default function DossierCard({
   dossier: DossierCardDto
   /** Date du jour (AAAA-MM-JJ) : une étape datée après est annoncée à venir. */
   today: string
-  onFamily: (code: string) => void
-  /** Répartition adoptés / rejetés sous les thèmes, si le dossier a été voté. */
+  /** Sans lui, une puce de sujet mène au parcours par sujet. */
+  onFamily?: (code: string) => void
+  /**
+   * Répartition adoptés / rejetés sous les sujets ; à sa place, pour un texte
+   * jamais voté, la mention qu'il n'a eu aucun vote public.
+   */
   showSplit?: boolean
 }) {
   const [first, ...others] = dossier.initiators
-  const split = showSplit && dossier.scrutin_count > 0
+  const split = showSplit
+  const voted = dossier.scrutin_count > 0
 
   const meta = (
     <div
@@ -121,7 +127,7 @@ export default function DossierCard({
           <span>déposé le {formatShortDate(dossier.deposit_date, today)}</span>
         </>
       )}
-      {!split && dossier.scrutin_count > 0 && (
+      {!split && voted && (
         <>
           <span className="text-line-strong">·</span>
           <span className="font-semibold text-ink">
@@ -144,13 +150,19 @@ export default function DossierCard({
       stretched
       themesAside={split ? undefined : meta}
       split={
-        split && (
+        split &&
+        (voted ? (
           <OutcomeSplit
             adopted={dossier.adopted_count}
             rejected={dossier.rejected_count}
             scope={`${dossier.scrutin_count.toLocaleString('fr-FR')} vote${dossier.scrutin_count > 1 ? 's' : ''}`}
           />
-        )
+        ) : (
+          <p className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-ink-faint">
+            <Icon name="info" className="size-4 shrink-0" />
+            Aucun vote public à l'Assemblée
+          </p>
+        ))
       }
       below={split ? meta : undefined}
     />

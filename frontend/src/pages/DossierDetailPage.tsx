@@ -251,7 +251,7 @@ export default function DossierDetailPage() {
   if (isError) {
     return (
       <div>
-        <BackLink to="/dossiers" className="mb-4">Retour aux textes</BackLink>
+        <BackLink to="/scrutins?vue=texte" className="mb-4">Retour aux textes</BackLink>
         <ErrorPanel error={error} />
       </div>
     )
@@ -272,7 +272,7 @@ export default function DossierDetailPage() {
 
   return (
     <div>
-      <BackLink to="/dossiers" className="mb-4">Retour aux textes</BackLink>
+      <BackLink to="/scrutins?vue=texte" className="mb-4">Retour aux textes</BackLink>
 
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
