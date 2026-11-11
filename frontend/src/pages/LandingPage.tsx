@@ -270,6 +270,9 @@ function Credits() {
 
 const EXTERNAL_LINK = 'text-sm font-medium link'
 
+/** Carte qui n'existe qu'à partir de 768 px : en dessous, son bloc parent encadre déjà. */
+const DESKTOP_CARD = 'md:rounded md:border md:border-line md:bg-surface md:p-5 md:shadow-card'
+
 /**
  * Accueil : ce que fait le site, en un écran, puis où aller ; ensuite ce qu'on
  * trouve derrière un vote, les règles qui tiennent la neutralité, les sources.
@@ -300,14 +303,14 @@ export default function LandingPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8 md:space-y-12">
-      <div className="grid items-start gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] md:gap-10">
+      <div className="grid items-start gap-8 md:gap-14">
         <section aria-labelledby="promesse" className="md:pt-6">
           <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
             Assemblée nationale
           </p>
           <h2
             id="promesse"
-            className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px]"
+            className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px]"
           >
             Les votes de l’Assemblée, sur pièces.
           </h2>
@@ -331,7 +334,7 @@ export default function LandingPage() {
             </Link>
             <Link
               to="/candidats-2027"
-              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full lg:basis-auto ${FOCUS_RING}`}
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
             >
               Comparer les programmes de 2027
               <Arrow />
@@ -345,7 +348,7 @@ export default function LandingPage() {
             Dernier vote sur l’ensemble d’un texte
           </h3>
           {vote ? (
-            <VoteCard size="full" {...finalVoteCard(vote, groups)} />
+            <VoteCard size="full" wide {...finalVoteCard(vote, groups)} />
           ) : (
             <Card className="px-4 py-6">
               {latest.isError ? (
@@ -374,27 +377,29 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <div className="grid items-start gap-8 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:gap-10">
+      {/* Sous 768 px : liste, puis une carte pour les règles et les refus. Au-delà :
+          tuiles, puis deux cartes de même hauteur. */}
+      <div className="grid items-start gap-8 md:gap-4 md:border-t md:border-line md:pt-12">
         <section aria-labelledby="usages">
-          <h3 id="usages" className="heading-4">
+          <h3 id="usages" className="heading-4 md:heading-2">
             À quoi ça sert
           </h3>
-          <ul className="mt-2">
+          <ul className="mt-2 md:mt-5 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-4">
             {USAGES.map((usage) => (
               <li key={usage.titre}>
                 <Link
                   to={usage.to}
-                  className={`group flex items-center gap-3 border-t border-line py-3 ${FOCUS_RING}`}
+                  className={`group flex items-center gap-3 border-t border-line py-3 md:h-full md:items-start md:rounded md:border md:bg-surface md:px-5 md:py-4 md:shadow-card md:transition-colors md:hover:border-line-strong ${FOCUS_RING}`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14.5px] font-semibold text-ink transition-colors group-hover:text-accent">
+                    <span className="block text-[14.5px] font-semibold text-ink transition-colors group-hover:text-accent md:text-base">
                       {usage.titre}
                     </span>
-                    <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft">
+                    <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft md:mt-1.5 md:text-sm md:leading-normal">
                       {usage.texte}
                     </span>
                   </span>
-                  <Arrow className="size-4 shrink-0 text-ink-faint transition-colors group-hover:text-accent" />
+                  <Arrow className="size-4 shrink-0 text-ink-faint transition-colors group-hover:text-accent md:mt-1 md:text-accent" />
                 </Link>
               </li>
             ))}
@@ -403,40 +408,44 @@ export default function LandingPage() {
 
         <section
           aria-labelledby="regles"
-          className="rounded border border-line bg-surface p-4 shadow-card sm:p-5"
+          className="rounded border border-line bg-surface p-4 shadow-card sm:p-5 md:grid md:grid-cols-2 md:gap-3 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
         >
-          <h3 id="regles" className="text-[15px] font-semibold">
-            Trois règles
-          </h3>
-          <ul className="mt-3 space-y-2.5">
-            {REGLES.map((regle) => (
-              <li key={regle.titre} className="flex items-start gap-2.5">
-                <CheckBullet />
-                <span className="text-[13.5px] leading-snug text-ink-soft">
-                  <b className="font-semibold text-ink">{regle.titre}</b> {regle.texte}
-                  {regle.lien && (
-                    <>
-                      {' '}
-                      <Link to={regle.lien.to} className="font-medium link">
-                        {regle.lien.label}
-                      </Link>
-                    </>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-          <h4 className="mt-4 border-t border-line pt-3.5 text-[13.5px] font-semibold text-ink">
-            Ce que ce site ne fait pas
-          </h4>
-          <ul className="mt-2 space-y-1.5">
-            {REFUS.map((refus) => (
-              <li key={refus} className="flex items-start gap-2 text-[13px] leading-snug text-ink-soft">
-                <span aria-hidden className="mt-[7px] h-px w-2.5 shrink-0 bg-ink-faint" />
-                {refus}
-              </li>
-            ))}
-          </ul>
+          <div className={DESKTOP_CARD}>
+            <h3 id="regles" className="text-[15px] font-semibold md:text-base">
+              Trois règles
+            </h3>
+            <ul className="mt-3 space-y-2.5">
+              {REGLES.map((regle) => (
+                <li key={regle.titre} className="flex items-start gap-2.5">
+                  <CheckBullet />
+                  <span className="text-[13.5px] leading-snug text-ink-soft">
+                    <b className="font-semibold text-ink">{regle.titre}</b> {regle.texte}
+                    {regle.lien && (
+                      <>
+                        {' '}
+                        <Link to={regle.lien.to} className="font-medium link">
+                          {regle.lien.label}
+                        </Link>
+                      </>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className={DESKTOP_CARD}>
+            <h4 className="mt-4 border-t border-line pt-3.5 text-[13.5px] font-semibold text-ink md:mt-0 md:border-t-0 md:pt-0 md:text-base">
+              Ce que ce site ne fait pas
+            </h4>
+            <ul className="mt-2 space-y-1.5">
+              {REFUS.map((refus) => (
+                <li key={refus} className="flex items-start gap-2 text-[13px] leading-snug text-ink-soft">
+                  <span aria-hidden className="mt-[7px] h-px w-2.5 shrink-0 bg-ink-faint" />
+                  {refus}
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
       </div>
 
