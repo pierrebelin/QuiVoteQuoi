@@ -146,6 +146,7 @@ mod tests {
             declaration_source_label: "Déclaration".into(),
             official_site_url: None,
             program_url: None,
+            has_program_excerpts: true,
             organizations: vec![PoliticalOrganizationRecord {
                 label: "Organisation A".into(),
                 official_url: None,

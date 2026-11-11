@@ -65,6 +65,7 @@ pub struct CandidateDto {
     pub declaration_source_label: String,
     pub official_site_url: Option<String>,
     pub program_url: Option<String>,
+    pub has_program_excerpts: bool,
     pub political_organizations: Vec<PoliticalOrganizationDto>,
 }
 
@@ -78,6 +79,7 @@ impl From<&CandidateRecord> for CandidateDto {
             declaration_source_label: value.declaration_source_label.clone(),
             official_site_url: value.official_site_url.clone(),
             program_url: value.program_url.clone(),
+            has_program_excerpts: value.has_program_excerpts,
             political_organizations: value
                 .organizations
                 .iter()
