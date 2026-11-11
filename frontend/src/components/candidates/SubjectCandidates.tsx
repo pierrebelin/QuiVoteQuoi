@@ -60,7 +60,7 @@ export function SubjectCandidates({
   if (query.isLoading) return <Loading>Chargement des extraits…</Loading>
   if (query.isError && !data) {
     return (
-      <p role="alert" className="rounded-xl border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-no">
+      <p role="alert" className="rounded border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-no">
         Les extraits ne se chargent pas pour le moment
         {query.error instanceof Error ? ` (${query.error.message})` : ''}.
       </p>
@@ -89,7 +89,7 @@ export function SubjectCandidates({
       </p>
 
       {withExcerpt.length > 0 && (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+        <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
           {withExcerpt.map((candidate) => (
             // La clé porte le sujet : une ligne ouverte se referme quand il change.
             <CandidateExcerptRow
@@ -181,7 +181,7 @@ function CandidateExcerptRow({
               <p className="text-sm leading-[1.5] text-ink">« {proposal.excerpt} »</p>
               <figcaption className="mt-1 text-xs leading-[1.3] text-ink-soft">
                 <a
-                  className="inline-flex items-start gap-1 text-accent underline underline-offset-2 [overflow-wrap:anywhere]"
+                  className="inline-flex items-start gap-1 link [overflow-wrap:anywhere]"
                   href={excerptSourceUrl(proposal.source_url, proposal.excerpt)}
                   target="_blank"
                   rel="noreferrer"
@@ -210,7 +210,7 @@ function FaceToFaceButton({ candidate, faceToFace }: { candidate: CandidateDto; 
         disabled={blocked}
         aria-pressed={selected}
         onClick={() => faceToFace.toggle(candidate.id)}
-        className={`flex h-10 w-full items-center justify-center gap-1.5 rounded-[10px] border border-line text-[13.5px] font-semibold transition-colors md:w-auto md:px-4 ${FOCUS} ${
+        className={`flex h-10 w-full items-center justify-center gap-1.5 rounded border border-line text-[13.5px] font-semibold transition-colors md:w-auto md:px-4 ${FOCUS} ${
           blocked ? 'cursor-not-allowed text-ink-faint' : 'text-ink hover:bg-surface-soft'
         }`}
       >
@@ -231,7 +231,7 @@ function WithoutExcerptGroup({ candidates }: { candidates: CandidateDto[] }) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
   return (
-    <div className="mt-3 overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+    <div className="mt-3 overflow-hidden rounded border border-line bg-surface shadow-card">
       <button
         type="button"
         aria-expanded={open}

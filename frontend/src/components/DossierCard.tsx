@@ -49,12 +49,12 @@ export interface DossierPageResponse {
  */
 function InitiatorTag({ initiator }: { initiator: DossierCardInitiatorDto }) {
   const neutral =
-    'inline-flex items-center rounded-md bg-surface-soft px-1.5 py-px text-[11px] font-semibold text-ink-soft ring-1 ring-inset ring-line'
+    'inline-flex items-center rounded bg-surface-soft px-1.5 py-px text-[11px] font-semibold text-ink-soft ring-1 ring-inset ring-line'
   if (initiator.group_abbrev && initiator.group_color) {
     return (
       <span
         title={initiator.group_label ?? undefined}
-        className="inline-flex items-center rounded-md px-1.5 py-px text-[11px] font-bold tracking-wide ring-1 ring-inset ring-badge-edge"
+        className="inline-flex items-center rounded px-1.5 py-px text-[11px] font-bold tracking-wide ring-1 ring-inset ring-badge-edge"
         style={{
           backgroundColor: initiator.group_color,
           color: initiator.group_text_tone === 'white' ? '#ffffff' : '#000000',

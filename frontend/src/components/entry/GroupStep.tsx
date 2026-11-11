@@ -39,7 +39,7 @@ export default function GroupStep({
     <div className="space-y-6">
       <Link
         to={backTo}
-        className={`inline-flex min-h-11 items-center rounded-md text-sm font-medium text-accent hover:underline ${FOCUS_RING}`}
+        className={`inline-flex min-h-11 items-center rounded text-sm font-medium link ${FOCUS_RING}`}
       >
         ← Sujets&nbsp;: {themesLabel}
       </Link>
@@ -64,7 +64,7 @@ export default function GroupStep({
 
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <p className="text-sm text-ink-soft">Ou choisissez-en quelques-uns&nbsp;:</p>
-        <Link to="/groupes" className="text-sm text-accent underline">
+        <Link to="/groupes" className="text-sm link">
           Composition des groupes
         </Link>
       </div>
@@ -85,7 +85,7 @@ export default function GroupStep({
                   logo={GROUP_LOGOS[group.abbrev]}
                   fallback={group.abbrev}
                   color={null}
-                  className="h-9 w-14 rounded-lg"
+                  className="h-9 w-14 rounded"
                 />
                 <span className="min-w-0 flex-1 text-sm leading-snug font-semibold">
                   {groupShortName(group)}

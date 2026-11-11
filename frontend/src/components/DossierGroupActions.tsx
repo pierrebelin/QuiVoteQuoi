@@ -43,7 +43,7 @@ function SourceLinks({ sources }: { sources: SummarySourceDto[] }) {
             href={source.official_url}
             target="_blank"
             rel="noreferrer"
-            className="text-accent hover:underline"
+            className="link"
           >
             {source.label} ↗
           </a>
@@ -69,7 +69,7 @@ function FateChip({ fate }: { fate: FateCountDto }) {
       ? 'bg-no-soft text-no'
       : 'bg-surface-soft text-ink-soft ring-1 ring-inset ring-line'
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs font-semibold ${tone}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${tone}`}>
       {fate.label || 'Sort non publié'}
       <span className="tabular-nums">{fate.count.toLocaleString('fr-FR')}</span>
     </span>
@@ -96,7 +96,7 @@ function FinalVoteChip({ vote }: { vote: GroupActionsDto['final_votes'][number] 
   return (
     <span
       title={`Scrutin n° ${vote.number} du ${formatDate(vote.date)}`}
-      className="rounded-md bg-surface-soft px-2 py-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line"
+      className="rounded bg-surface-soft px-2 py-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line"
     >
       Vote final, {vote.reading ?? formatDate(vote.date)} :{' '}
       {/* En bloc : sur téléphone, le décompte passe à la ligne d'un seul tenant. */}
@@ -110,9 +110,9 @@ function FinalVoteChip({ vote }: { vote: GroupActionsDto['final_votes'][number] 
 
 function FinalVote({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
   return (
-    <div className="rounded-lg border border-line bg-surface px-3 py-2">
+    <div className="rounded border border-line bg-surface px-3 py-2">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <Link to={`/scrutins/${vote.scrutin_uid}`} className="text-sm font-medium text-accent hover:underline">
+        <Link to={`/scrutins/${vote.scrutin_uid}`} className="text-sm font-medium link">
           Scrutin n° {vote.number}
         </Link>
         <span className="text-xs text-ink-faint">{formatDate(vote.date)}</span>
@@ -132,7 +132,7 @@ function FinalVote({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
             Position majoritaire publiée par l'Assemblée : {positionLabel(vote.majority_position).toLowerCase()}
           </span>
         )}
-        <a href={vote.official_url} target="_blank" rel="noreferrer" className="text-xs text-accent hover:underline">
+        <a href={vote.official_url} target="_blank" rel="noreferrer" className="text-xs link">
           Source officielle ↗
         </a>
       </div>
@@ -151,7 +151,7 @@ function GroupDetails({ group }: { group: GroupActionsDto }) {
         </p>
       )}
       {group.summary ? (
-        <div className="rounded-lg bg-surface-soft px-3 py-2">
+        <div className="rounded bg-surface-soft px-3 py-2">
           <Pill tone="info">{group.summary.label}</Pill>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{group.summary.text}</p>
           <SourceLinks sources={group.summary.sources} />
@@ -264,10 +264,10 @@ function GroupRow({
           <span className="hidden text-xs font-medium text-accent group-open/row:inline">Replier</span>
         </span>
       </summary>
-      <div className="mb-3 rounded-xl border border-line bg-surface-soft/50 px-4 py-3">
+      <div className="mb-3 rounded border border-line bg-surface-soft/50 px-4 py-3">
         <GroupDetails group={group} />
         {group.amendment_count > 0 && (
-          <Link to={amendmentsHref(group)} className="mt-3 inline-block text-sm font-medium text-accent hover:underline">
+          <Link to={amendmentsHref(group)} className="mt-3 inline-block text-sm font-medium link">
             Voir ses {group.amendment_count.toLocaleString('fr-FR')} amendement
             {group.amendment_count > 1 ? 's' : ''} →
           </Link>
@@ -305,7 +305,7 @@ function ComparedGroup({ group, onRemove }: { group: GroupActionsDto; onRemove: 
           type="button"
           onClick={onRemove}
           aria-label={`Retirer ${group.abbrev} de la comparaison`}
-          className="rounded-md px-1.5 text-lg leading-none text-ink-faint hover:bg-surface-soft hover:text-ink"
+          className="rounded px-1.5 text-lg leading-none text-ink-faint hover:bg-surface-soft hover:text-ink"
         >
           ×
         </button>
@@ -382,7 +382,7 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
                 updated.delete('avis_groupes')
                 setParams(updated, { replace: true, preventScrollReset: true })
               }}
-              className="text-xs font-medium text-accent hover:underline"
+              className="text-xs font-medium link"
             >
               Tout retirer
             </button>

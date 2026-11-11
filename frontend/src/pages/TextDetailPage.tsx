@@ -46,7 +46,7 @@ export default function TextDetailPage() {
       <div className="space-y-2">
         <BackLink to="/scrutins">Votes</BackLink>
         <p className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">Texte</p>
-        <h2 className="text-2xl leading-tight font-semibold tracking-tight">{data.label}</h2>
+        <h2 className="heading-2">{data.label}</h2>
         {data.families.length > 0 ? (
           <FamilyBadges families={data.families} />
         ) : (
@@ -68,7 +68,7 @@ export default function TextDetailPage() {
           <p>
             <Link
               to={`/dossiers/${data.dossier_uid}`}
-              className="inline-flex min-h-11 items-center text-sm font-medium text-accent hover:underline"
+              className="inline-flex min-h-11 items-center text-sm font-medium link"
             >
               Le texte et tout son parcours →
             </Link>

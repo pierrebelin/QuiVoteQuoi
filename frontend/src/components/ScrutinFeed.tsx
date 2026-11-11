@@ -115,7 +115,7 @@ function DossierRun({
           type="button"
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
-          className="w-full border-t border-line bg-surface-soft/50 px-[18px] py-2 text-left text-[13px] font-medium text-accent hover:bg-surface-soft"
+          className="w-full border-t border-line bg-surface-soft/50 px-[18px] py-2 text-left text-[13px] font-medium link hover:bg-surface-soft"
         >
           {expanded
             ? 'Replier'

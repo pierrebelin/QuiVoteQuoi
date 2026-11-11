@@ -11,7 +11,7 @@ export default function CitedAuthor({ cited, compact = false }: { cited: CitedAm
       {abbrev &&
         (cited.author_group_color ? (
           <span
-            className="rounded-md px-1.5 text-[11px] leading-[18px] font-bold tracking-wide ring-1 ring-inset ring-badge-edge"
+            className="rounded px-1.5 text-[11px] leading-[18px] font-bold tracking-wide ring-1 ring-inset ring-badge-edge"
             style={{
               backgroundColor: cited.author_group_color,
               color: cited.author_text_tone === 'white' ? '#ffffff' : '#000000',
@@ -20,7 +20,7 @@ export default function CitedAuthor({ cited, compact = false }: { cited: CitedAm
             {abbrev}
           </span>
         ) : (
-          <span className="rounded-md bg-surface-soft px-1.5 text-[11px] leading-[18px] font-semibold ring-1 ring-line ring-inset">
+          <span className="rounded bg-surface-soft px-1.5 text-[11px] leading-[18px] font-semibold ring-1 ring-line ring-inset">
             {abbrev}
           </span>
         ))}

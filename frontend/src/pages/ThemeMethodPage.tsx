@@ -20,7 +20,7 @@ function Block({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded-lg border border-line bg-surface px-4 py-3">
+    <section className="rounded border border-line bg-surface px-4 py-3">
       <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
         {title}
       </h3>
@@ -52,7 +52,7 @@ export default function ThemeMethodPage() {
     <div className="space-y-3">
       <div className="max-w-3xl">
         <BackLink to="/par-sujet">Votes par sujet</BackLink>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight">
+        <h2 className="mt-1 heading-2">
           Méthode de thématisation
         </h2>
         <p className="mt-1 text-sm text-ink-soft">{data.method_note}</p>
@@ -125,7 +125,7 @@ export default function ThemeMethodPage() {
           <p className="mt-1.5 text-xs text-ink-faint">
             Les votes sans texte et les textes sans famille restent
             consultables :{' '}
-            <Link to="/themes/non-rattaches" className="text-accent underline">
+            <Link to="/themes/non-rattaches" className="link">
               liste des non rattachés
             </Link>
             .

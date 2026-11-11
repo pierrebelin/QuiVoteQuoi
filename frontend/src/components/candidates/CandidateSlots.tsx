@@ -41,13 +41,13 @@ export function CandidateSlots({
         {slots.map((candidate, index) => (
           <li key={index} className="min-w-0">
             {candidate ? (
-              <div className="flex items-stretch rounded-xl bg-surface shadow-card ring-[1.5px] ring-ink ring-inset">
+              <div className="flex items-stretch rounded bg-surface shadow-card ring-[1.5px] ring-ink ring-inset">
                 <button
                   type="button"
                   aria-haspopup="dialog"
                   aria-label={`Candidature ${index + 1} : ${candidate.display_name}. Changer`}
                   onClick={() => setOpenSlot(index)}
-                  className={`grid min-h-[52px] min-w-0 flex-1 grid-cols-[34px_minmax(0,1fr)_16px] items-center gap-2 rounded-xl py-1.5 pr-2 pl-2 text-left transition-colors hover:bg-surface-soft ${FOCUS}`}
+                  className={`grid min-h-[52px] min-w-0 flex-1 grid-cols-[34px_minmax(0,1fr)_16px] items-center gap-2 rounded py-1.5 pr-2 pl-2 text-left transition-colors hover:bg-surface-soft ${FOCUS}`}
                 >
                   <CandidatePortrait candidate={candidate} className="size-[34px]" />
                   <span className="text-[13.5px] leading-[1.15] font-semibold [overflow-wrap:anywhere] text-ink">
@@ -60,7 +60,7 @@ export function CandidateSlots({
                   onClick={() => onClear(index)}
                   aria-label={`Vider la case : ${candidate.display_name}`}
                   title="Vider la case"
-                  className={`hidden size-11 shrink-0 items-center justify-center self-center rounded-xl text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink md:flex ${FOCUS}`}
+                  className={`hidden size-11 shrink-0 items-center justify-center self-center rounded text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink md:flex ${FOCUS}`}
                 >
                   <Icon name="close" className="size-4" />
                 </button>
@@ -71,7 +71,7 @@ export function CandidateSlots({
                 aria-haspopup="dialog"
                 aria-label={`Candidature ${index + 1} : choisir une candidature`}
                 onClick={() => setOpenSlot(index)}
-                className={`flex min-h-[52px] w-full items-center gap-2 rounded-xl border-[1.5px] border-dashed border-line-strong bg-surface px-3 py-1.5 text-left text-[13.5px] leading-[1.15] font-semibold text-accent transition-colors hover:bg-surface-soft ${FOCUS}`}
+                className={`flex min-h-[52px] w-full items-center gap-2 rounded border-[1.5px] border-dashed border-line-strong bg-surface px-3 py-1.5 text-left text-[13.5px] leading-[1.15] font-semibold text-accent transition-colors hover:bg-surface-soft ${FOCUS}`}
               >
                 <Icon name="add" className="size-4" />
                 Choisir une candidature
@@ -134,7 +134,7 @@ function CandidatePicker({
 
   return (
     <>
-      <label className="mx-3.5 mb-2 flex h-11 shrink-0 items-center gap-2 rounded-xl bg-surface-soft px-3 text-ink-faint">
+      <label className="mx-3.5 mb-2 flex h-11 shrink-0 items-center gap-2 rounded bg-surface-soft px-3 text-ink-faint">
         <Icon name="search" />
         <input
           type="search"
@@ -158,7 +158,7 @@ function CandidatePicker({
                 disabled={isTaken}
                 aria-pressed={isCurrent}
                 onClick={() => onPick(candidate.id)}
-                className={`grid min-h-[54px] w-full grid-cols-[40px_minmax(0,1fr)_26px] items-center gap-2.5 rounded-xl px-2 py-1.5 text-left transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent ${FOCUS} ${
+                className={`grid min-h-[54px] w-full grid-cols-[40px_minmax(0,1fr)_26px] items-center gap-2.5 rounded px-2 py-1.5 text-left transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent ${FOCUS} ${
                   isCurrent ? 'bg-surface-soft' : ''
                 }`}
               >
@@ -195,7 +195,7 @@ function CandidatePicker({
           <button
             type="button"
             onClick={onClear}
-            className={`flex min-h-11 w-full items-center justify-center rounded-xl border border-line-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS}`}
+            className={`flex min-h-11 w-full items-center justify-center rounded border border-line-strong bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS}`}
           >
             Vider cette case
           </button>

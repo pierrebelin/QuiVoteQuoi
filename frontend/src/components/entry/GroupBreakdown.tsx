@@ -98,7 +98,7 @@ function BreakdownFigures({ stance }: { stance: StanceDto | undefined }) {
         </p>
       )}
       {note && (
-        <p className="rounded-lg bg-surface-soft px-2.5 py-2 text-xs leading-snug text-ink-soft">
+        <p className="rounded bg-surface-soft px-2.5 py-2 text-xs leading-snug text-ink-soft">
           {note}.
         </p>
       )}
@@ -170,7 +170,7 @@ function BreakdownPopover({
             aria-label={`Répartition des votes : ${group.label}`}
             initialFocus={closeButtonRef}
             finalFocus={false}
-            className="w-80 rounded-[14px] border border-line-strong bg-surface px-4 py-3.5 text-ink shadow-[0_12px_34px_rgb(0_0_0/0.3)] outline-none"
+            className="w-80 rounded border border-line-strong bg-surface px-4 py-3.5 text-ink shadow-[0_12px_34px_rgb(0_0_0/0.3)] outline-none"
           >
             <Popover.Arrow
               className={(state) =>
@@ -190,7 +190,7 @@ function BreakdownPopover({
               <Popover.Close
                 ref={closeButtonRef}
                 aria-label="Fermer"
-                className={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft hover:bg-surface-soft hover:text-ink [&_svg]:size-4 ${FOCUS_RING}`}
+                className={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded text-ink-soft hover:bg-surface-soft hover:text-ink [&_svg]:size-4 ${FOCUS_RING}`}
               >
                 <Icon name="close" />
               </Popover.Close>

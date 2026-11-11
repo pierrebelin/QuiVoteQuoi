@@ -217,7 +217,7 @@ function SectionHead({
   return (
     <>
       <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">{surtitre}</p>
-      <h3 id={id} className="mt-1.5 text-xl font-semibold tracking-tight sm:text-2xl">
+      <h3 id={id} className="mt-1.5 heading-3 sm:heading-2">
         {titre}
         {(chapo || info) && (
           <InfoTip label={`En savoir plus : ${surtitre}`} className="md:hidden">
@@ -254,7 +254,7 @@ function Credits() {
       <ul className="mt-2 space-y-1 text-xs">
         {credits.map((credit, index) => (
           <li key={`${index}-${credit.file}`}>
-            <a href={credit.page} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+            <a href={credit.page} target="_blank" rel="noreferrer" className="link">
               {credit.file}
             </a>{' '}
             · {credit.author} · {credit.license}
@@ -265,7 +265,7 @@ function Credits() {
   )
 }
 
-const EXTERNAL_LINK = 'text-sm font-medium text-accent hover:underline'
+const EXTERNAL_LINK = 'text-sm font-medium link'
 
 /**
  * Accueil : ce que fait le site, en un écran, puis où aller ; ensuite ce qu'on
@@ -304,7 +304,7 @@ export default function LandingPage() {
           </p>
           <h2
             id="promesse"
-            className="mt-2 text-[30px] leading-[1.12] font-semibold tracking-tight sm:text-5xl"
+            className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px]"
           >
             Les votes de l’Assemblée, sur pièces.
           </h2>
@@ -315,20 +315,20 @@ export default function LandingPage() {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Link
               to={ENTRY_PATH}
-              className={`inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded-xl bg-accent px-5 text-[15px] font-semibold text-surface transition-colors hover:bg-accent-strong ${FOCUS_RING}`}
+              className={`inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded bg-accent px-5 text-[15px] font-semibold text-surface transition-colors hover:bg-accent-strong ${FOCUS_RING}`}
             >
               Voir les votes par sujet
               <Arrow />
             </Link>
             <Link
               to="/scrutins"
-              className={`inline-flex min-h-12 items-center justify-center rounded-xl border-[1.5px] border-line bg-surface px-5 text-[15px] font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS_RING}`}
+              className={`inline-flex min-h-12 items-center justify-center rounded border-[1.5px] border-line bg-surface px-5 text-[15px] font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS_RING}`}
             >
               Derniers votes
             </Link>
             <Link
               to="/candidats-2027"
-              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full lg:basis-auto ${FOCUS_RING}`}
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full lg:basis-auto ${FOCUS_RING}`}
             >
               Comparer les programmes de 2027
               <Arrow />
@@ -338,7 +338,7 @@ export default function LandingPage() {
         </section>
 
         <section aria-labelledby="dernier-vote" className="space-y-2.5">
-          <h3 id="dernier-vote" className="text-lg font-semibold tracking-tight">
+          <h3 id="dernier-vote" className="heading-4">
             Dernier vote sur l’ensemble d’un texte
           </h3>
           {vote ? (
@@ -356,7 +356,7 @@ export default function LandingPage() {
                   <button
                     type="button"
                     onClick={() => void latest.refetch()}
-                    className="text-sm font-medium text-accent hover:underline"
+                    className="text-sm font-medium link"
                   >
                     Réessayer
                   </button>
@@ -373,7 +373,7 @@ export default function LandingPage() {
 
       <div className="grid items-start gap-8 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:gap-10">
         <section aria-labelledby="usages">
-          <h3 id="usages" className="text-lg font-semibold tracking-tight">
+          <h3 id="usages" className="heading-4">
             À quoi ça sert
           </h3>
           <ul className="mt-2">
@@ -400,7 +400,7 @@ export default function LandingPage() {
 
         <section
           aria-labelledby="regles"
-          className="rounded-2xl border border-line bg-surface p-4 shadow-card sm:p-5"
+          className="rounded border border-line bg-surface p-4 shadow-card sm:p-5"
         >
           <h3 id="regles" className="text-[15px] font-semibold">
             Trois règles
@@ -414,7 +414,7 @@ export default function LandingPage() {
                   {regle.lien && (
                     <>
                       {' '}
-                      <Link to={regle.lien.to} className="font-medium text-accent hover:underline">
+                      <Link to={regle.lien.to} className="font-medium link">
                         {regle.lien.label}
                       </Link>
                     </>
@@ -450,7 +450,7 @@ export default function LandingPage() {
             <li key={piece.titre}>
               <Card className="h-full px-4 py-3.5">
                 <h4 className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-md bg-accent-soft text-[11px] font-semibold text-accent tabular-nums">
+                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded bg-accent-soft text-[11px] font-semibold text-accent tabular-nums">
                     {index + 1}
                   </span>
                   {piece.titre}

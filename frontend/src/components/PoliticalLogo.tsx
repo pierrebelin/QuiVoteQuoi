@@ -20,7 +20,7 @@ export function PoliticalLogo({
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 ring-1 ring-inset ring-black/10 ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded bg-white p-1 ring-1 ring-inset ring-black/10 ${className}`}
     >
       {logo ? (
         <img src={logo.src} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />

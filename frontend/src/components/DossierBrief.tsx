@@ -72,7 +72,7 @@ function waitingWord(article: ArticleBriefDto) {
 
 function OfficialLink({ officialUrl, children }: { officialUrl: string; children: ReactNode }) {
   return (
-    <a href={officialUrl} target="_blank" rel="noreferrer" className="text-accent hover:underline">
+    <a href={officialUrl} target="_blank" rel="noreferrer" className="link">
       {children}
     </a>
   )
@@ -131,7 +131,7 @@ function WaitingArticles({
   ].filter((count) => count !== null)
   const link = articles.length > 2 ? 'à' : 'et'
   return (
-    <details className="group/waiting my-1.5 rounded-lg bg-surface-soft text-[13.5px] text-ink-soft">
+    <details className="group/waiting my-1.5 rounded bg-surface-soft text-[13.5px] text-ink-soft">
       <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-2.5 py-2 [&::-webkit-details-marker]:hidden">
         <Chevron openedBy="group-open/waiting:rotate-90" />
         <span className="font-semibold">
@@ -144,7 +144,7 @@ function WaitingArticles({
           <li
             key={`${article.label}-${index}`}
             title={`${fullName(article)} : ${waitingWord(article)}`}
-            className={`rounded-md bg-surface px-1.5 py-px ${article.state === 'pending' ? '' : 'text-ink-faint line-through'}`}
+            className={`rounded bg-surface px-1.5 py-px ${article.state === 'pending' ? '' : 'text-ink-faint line-through'}`}
           >
             {article.label}
             <span className="sr-only"> : {waitingWord(article)}</span>
@@ -226,7 +226,7 @@ function Articles({
         part.key === null ? (
           <DivisionBlock key={index} heading={null} articles={part.articles} officialUrl={officialUrl} />
         ) : (
-          <details key={index} open={index === firstNamedPart} className="group/part rounded-xl border border-line">
+          <details key={index} open={index === firstNamedPart} className="group/part rounded border border-line">
             <summary className="flex cursor-pointer list-none items-start gap-2 px-3.5 py-3 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
               <Chevron openedBy="group-open/part:rotate-90" />
               <span className="min-w-0">
@@ -264,7 +264,7 @@ function VersionPicker({
       <select
         value={data.shown?.document_uid ?? ''}
         onChange={(event) => onSelect(event.target.value)}
-        className="min-w-0 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft"
+        className="min-w-0 rounded border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft"
       >
         {data.shown === null && (
           <option value="" disabled>
@@ -293,7 +293,7 @@ function ShownVersion({ shown }: { shown: TextVersionDto }) {
           href={shown.official_url}
           target="_blank"
           rel="noreferrer"
-          className="text-xs font-medium text-accent hover:underline"
+          className="text-xs font-medium link"
         >
           Lire le texte officiel ↗
         </a>
@@ -391,7 +391,7 @@ export default function DossierBrief({ uid }: { uid: string }) {
         <button
           type="button"
           onClick={() => selectVersion(null)}
-          className="font-medium text-accent hover:underline"
+          className="font-medium link"
         >
           Voir la dernière version
         </button>

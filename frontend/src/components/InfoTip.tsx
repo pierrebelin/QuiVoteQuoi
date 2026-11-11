@@ -90,7 +90,7 @@ export function InfoTip({
             initialFocus={popupRef}
             onClick={(event) => event.stopPropagation()}
             style={{ width: `calc(100vw - ${2 * VIEWPORT_MARGIN}px)` }}
-            className="max-h-[60vh] space-y-1.5 overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface px-3.5 py-3 text-[13px] leading-relaxed font-normal tracking-normal text-ink-soft normal-case shadow-card-hover outline-none"
+            className="max-h-[60vh] space-y-1.5 overflow-y-auto overscroll-contain rounded border border-line bg-surface px-3.5 py-3 text-[13px] leading-relaxed font-normal tracking-normal text-ink-soft normal-case shadow-card-hover outline-none"
           >
             {children}
           </Popover.Popup>

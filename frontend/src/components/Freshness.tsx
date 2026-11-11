@@ -50,7 +50,7 @@ export function FreshnessFooterLine() {
     return (
       <span className="text-ink-soft">
         {['Données synchronisées', ...(lastScrutin ? [lastScrutin] : [])].join(' · ')} ·{' '}
-        <Link to="/comprendre#fraicheur" className="text-accent">
+        <Link to="/comprendre#fraicheur" className="link">
           détail
         </Link>
       </span>
@@ -75,7 +75,7 @@ export function FreshnessFooterLine() {
   return (
     <span role="status" className="text-info">
       {parts.join(' · ')} ·{' '}
-      <Link to="/comprendre#fraicheur" className="text-accent">
+      <Link to="/comprendre#fraicheur" className="link">
         détail
       </Link>
     </span>
@@ -97,7 +97,7 @@ export function FreshnessSection() {
   const { data, isLoading, isError } = useFreshness()
   return (
     <section id="fraicheur" className="scroll-mt-6 space-y-3">
-      <h2 className="text-lg font-semibold">Fraîcheur des données</h2>
+      <h2 className="heading-4">Fraîcheur des données</h2>
       <p className="text-sm text-ink-soft">
         Une source passe « en retard » après 6 h sans synchronisation réussie.
         Le motif d'un échec n'est pas publié.
@@ -114,7 +114,7 @@ export function FreshnessSection() {
             {data.sources.map((source) => (
               <li
                 key={source.source}
-                className="grid gap-x-4 gap-y-1 rounded-xl border border-line px-4 py-3 text-sm sm:grid-cols-[1.2fr_auto_1fr_1fr]"
+                className="grid gap-x-4 gap-y-1 rounded border border-line px-4 py-3 text-sm sm:grid-cols-[1.2fr_auto_1fr_1fr]"
               >
                 <span className="font-semibold">{source.label}</span>
                 <span className="font-semibold">{source.status_label}</span>

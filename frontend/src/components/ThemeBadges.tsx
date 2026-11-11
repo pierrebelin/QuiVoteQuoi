@@ -25,12 +25,12 @@ export function FamilyBadges({
     <div className="flex flex-wrap gap-1.5">
       {families.map((family) => {
         const className =
-          'inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2 pl-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line'
+          'inline-flex items-center gap-1.5 rounded bg-surface-soft py-0.5 pr-2 pl-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line'
         const content = (
           <>
             <FamilyIllustration
               code={family.code}
-              className="size-5 rounded-md"
+              className="size-5 rounded"
               glyphClassName="size-3.5"
             />
             {family.label}
@@ -69,7 +69,7 @@ export function MethodText({ note }: { note: string }) {
   return (
     <>
       {note}{' '}
-      <Link to="/themes/methode" className="text-accent underline">
+      <Link to="/themes/methode" className="link">
         Méthode complète
       </Link>
     </>

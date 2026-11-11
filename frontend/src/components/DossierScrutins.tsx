@@ -82,7 +82,7 @@ export default function DossierScrutins({ uid }: { uid: string }) {
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Rechercher dans l'objet…"
-            className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none sm:w-64 sm:flex-none"
+            className="min-w-0 flex-1 rounded border border-line bg-surface px-3 py-1.5 text-sm placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none sm:w-64 sm:flex-none"
           />
           <Button type="submit">Rechercher</Button>
         </form>
@@ -96,7 +96,7 @@ export default function DossierScrutins({ uid }: { uid: string }) {
       {data && (
         <div className="space-y-2">
           {data.total === 0 ? (
-            <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+            <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
               {search || outcome || ballotType
                 ? 'Aucun vote ne correspond à ces filtres.'
                 : 'La source ne rattache aucun vote public à ce texte. Cela ne signifie pas qu’aucun vote n’a eu lieu.'}{' '}

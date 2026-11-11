@@ -36,7 +36,7 @@ export default function FamilyFilter({
               onClick={() => onTheme(on ? '' : family.code)}
               icon={
                 on ? undefined : (
-                  <FamilyIllustration code={family.code} className="size-8 rounded-lg" glyphClassName="size-5" />
+                  <FamilyIllustration code={family.code} className="size-8 rounded" glyphClassName="size-5" />
                 )
               }
             >
@@ -69,7 +69,7 @@ function ThemeTile({
       aria-pressed={active}
       onClick={onClick}
       title={title}
-      className={`flex min-h-12 min-w-0 items-center gap-2 rounded-xl py-1 pr-2 ${
+      className={`flex min-h-12 min-w-0 items-center gap-2 rounded py-1 pr-2 ${
         active || icon ? 'pl-1.5' : 'pl-3'
       } text-left text-[12.5px] leading-tight transition-colors ${FOCUS} ${
         active

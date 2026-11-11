@@ -59,7 +59,7 @@ export function StepIntro({
       <h2
         id="entry-heading"
         tabIndex={-1}
-        className="mt-2 text-3xl leading-[1.15] font-semibold tracking-tight outline-none sm:text-4xl"
+        className="mt-2 heading-1 outline-none"
       >
         {title}
         {hint && (
@@ -102,7 +102,7 @@ export function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex min-h-12 items-center justify-center rounded-xl bg-accent px-6 text-base font-semibold text-surface transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-faint ${FOCUS_RING}`}
+      className={`inline-flex min-h-12 items-center justify-center rounded bg-accent px-6 text-base font-semibold text-surface transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-faint ${FOCUS_RING}`}
     >
       {children}
     </button>

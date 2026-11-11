@@ -42,13 +42,13 @@ export function FamilyChips({
     return <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
   }
   const chip =
-    'relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:ring-line-strong'
+    'relative z-10 inline-flex items-center gap-1.5 rounded bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:ring-line-strong'
   return (
     <div className="flex flex-wrap gap-1.5 max-md:gap-y-[18px]">
       {families.map((family) => {
         const content = (
           <>
-            <FamilyIllustration code={family.code} className="size-[22px] rounded-md" glyphClassName="size-3.5" />
+            <FamilyIllustration code={family.code} className="size-[22px] rounded" glyphClassName="size-3.5" />
             {typographic(family.label)}
           </>
         )
@@ -110,7 +110,7 @@ export default function DossierCardShell({
 
   return (
     <article
-      className={`group relative overflow-hidden rounded-2xl border border-line bg-surface shadow-card ${stretched ? 'transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
+      className={`group relative overflow-hidden rounded border border-line bg-surface shadow-card ${stretched ? 'transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
     >
       {status && <DossierStatusBanner dossier={status} today={today} />}
 

@@ -92,7 +92,7 @@ function BlocView({ bloc }: { bloc: Bloc }) {
         href={bloc.lien}
         target="_blank"
         rel="noreferrer"
-        className="text-accent underline underline-offset-2"
+        className="link"
       >
         {bloc.libelle}
       </a>
@@ -240,7 +240,7 @@ export default function ComprendrePage() {
   return (
     <div className="max-w-3xl space-y-6">
       <div>
-        <h2 className="text-2xl font-semibold tracking-tight">Comprendre</h2>
+        <h2 className="heading-2">Comprendre</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-soft">
           Ce que ce site affiche, ce que les mots recouvrent, et ce que les
           données ne permettent pas de dire.
@@ -253,13 +253,13 @@ export default function ComprendrePage() {
         <Tabs.List
           activateOnFocus
           aria-label="Niveau de lecture"
-          className="inline-flex gap-0.5 rounded-lg bg-surface-soft p-0.5"
+          className="inline-flex gap-0.5 rounded bg-surface-soft p-0.5"
         >
           {NIVEAUX.map((item) => (
             <Tabs.Tab
               key={item.valeur}
               value={item.valeur}
-              className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
                 niveau === item.valeur
                   ? 'bg-surface text-ink shadow-card'
                   : 'text-ink-soft hover:text-ink'
@@ -292,7 +292,7 @@ export default function ComprendrePage() {
           <button
             type="button"
             onClick={() => appliquerNiveau('detaille')}
-            className="text-accent underline underline-offset-2"
+            className="link"
           >
             Passer au niveau détaillé
           </button>{' '}
@@ -306,7 +306,7 @@ export default function ComprendrePage() {
         La méthode de rattachement aux sujets est publiée à part :{' '}
         <Link
           to="/themes/methode"
-          className="text-accent underline underline-offset-2"
+          className="link"
         >
           méthode de thématisation
         </Link>

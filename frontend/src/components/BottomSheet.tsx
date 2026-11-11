@@ -90,7 +90,7 @@ export function BottomSheet({
           <Drawer.Popup
             ref={panelRef}
             initialFocus={initialFocus ?? panelRef}
-            className={`relative mx-auto flex max-h-[88dvh] min-h-0 w-full flex-col rounded-t-[18px] bg-surface pb-[env(safe-area-inset-bottom)] text-ink shadow-card outline-none md:max-w-lg ${SWIPE_RELEASE} ${
+            className={`relative mx-auto flex max-h-[88dvh] min-h-0 w-full flex-col rounded-t bg-surface pb-[env(safe-area-inset-bottom)] text-ink shadow-card outline-none md:max-w-lg ${SWIPE_RELEASE} ${
               sideOnWide
                 ? `${side ? SWIPE_RIGHT : SWIPE_DOWN} motion-safe:animate-sheet-in lg:mx-0 lg:h-full lg:max-h-none lg:w-[420px] lg:max-w-[420px] lg:rounded-none lg:motion-safe:animate-fade-in`
                 : `${SWIPE_DOWN} motion-safe:animate-sheet-in`
@@ -107,7 +107,7 @@ export function BottomSheet({
                 type="button"
                 onClick={onClose}
                 aria-label="Fermer"
-                className="flex size-11 shrink-0 items-center justify-center rounded-xl text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+                className="flex size-11 shrink-0 items-center justify-center rounded text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
               >
                 <Icon name="close" />
               </button>

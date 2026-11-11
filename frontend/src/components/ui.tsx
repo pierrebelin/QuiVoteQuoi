@@ -39,7 +39,7 @@ export function PageHeader({
   return (
     <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
       <div className="min-w-0">
-        <h2 className="text-2xl font-semibold tracking-tight text-ink">
+        <h2 className="heading-2 text-ink">
           {title}
           {(lede || info) && (
             <InfoTip label={`À propos de cette page : ${title}`} className="md:hidden">
@@ -102,7 +102,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded-xl border border-line bg-surface shadow-card ${className}`}
+      className={`rounded border border-line bg-surface shadow-card ${className}`}
       style={style}
     >
       {children}
@@ -123,7 +123,7 @@ export function ListCard({
 }) {
   return (
     <div
-      className={`divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card transition-opacity ${
+      className={`divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card transition-opacity ${
         muted ? 'opacity-50' : ''
       }`}
     >
@@ -147,7 +147,7 @@ export function Note({
 }) {
   return (
     <div
-      className={`rounded-lg border border-line bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft ${
+      className={`rounded border border-line bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft ${
         desktopOnly ? 'hidden md:block' : ''
       }`}
     >
@@ -158,7 +158,7 @@ export function Note({
 
 export function ErrorPanel({ error }: { error: unknown }) {
   return (
-    <div className="rounded-xl border border-no/25 bg-no-soft px-4 py-3">
+    <div className="rounded border border-no/25 bg-no-soft px-4 py-3">
       <p className="text-sm text-no">
         Erreur : {error instanceof Error ? error.message : 'inconnue'}
       </p>
@@ -199,7 +199,7 @@ export function Pill({
   return (
     <span
       title={title}
-      className={`inline-flex shrink-0 items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${pillTones[tone]}`}
+      className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${pillTones[tone]}`}
     >
       {children}
     </span>
@@ -316,7 +316,7 @@ export function BackLink({
   return (
     <Link
       to={to}
-      className={`relative inline-block text-sm font-medium text-accent hover:underline max-md:after:absolute max-md:after:-inset-x-2 max-md:after:-inset-y-3 max-md:after:content-[''] ${className}`}
+      className={`relative inline-block text-sm font-medium link max-md:after:absolute max-md:after:-inset-x-2 max-md:after:-inset-y-3 max-md:after:content-[''] ${className}`}
     >
       ← {children}
     </Link>
@@ -382,7 +382,7 @@ export function SegmentedControl({
           {label}
         </span>
       )}
-      <div className="flex min-w-0 flex-wrap gap-0.5 rounded-lg bg-surface-soft p-0.5">
+      <div className="flex min-w-0 flex-wrap gap-0.5 rounded bg-surface-soft p-0.5">
         {options.map((option) => {
           const active = value === option.value
           return (
@@ -391,7 +391,7 @@ export function SegmentedControl({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(option.value)}
-              className={`inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
                 active
                   ? 'bg-surface text-ink shadow-card ring-1 ring-line-strong ring-inset'
                   : 'text-ink-soft hover:text-ink'
@@ -423,7 +423,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface"
+      className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface"
     >
       {children}
     </button>
@@ -445,7 +445,7 @@ export function Stat({
 }) {
   return (
     <div>
-      <p className="text-xl font-semibold tracking-tight text-ink">{value}</p>
+      <p className="figure text-[27px] text-ink">{value}</p>
       <p className="text-xs text-ink-soft">{label}</p>
       {hint && <p className="mt-0.5 text-[11px] text-ink-faint">{hint}</p>}
     </div>

@@ -116,7 +116,7 @@ function Rate({
           aria-hidden
         />
         <span className="text-xs text-ink-soft">{label}</span>
-        <span className="ml-auto text-lg font-semibold tracking-tight">
+        <span className="ml-auto figure text-[21px]">
           {formatPerMille(perMille)}
         </span>
       </div>
@@ -169,7 +169,7 @@ export default function GroupDetailPage() {
         <BackLink to="/groupes">Tous les groupes</BackLink>
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
           <GroupDot color={group.color} size="lg" />
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="heading-2">
             {group.abbrev}
           </h2>
           <span className="text-sm text-ink-soft">{group.label}</span>
@@ -281,7 +281,7 @@ export default function GroupDetailPage() {
       {group.line_count > 0 && (
         <Link
           to={`/votes-par-groupe?groupes=${encodeURIComponent(group.abbrev)}`}
-          className="flex items-center justify-between gap-4 rounded-xl border border-line bg-surface px-4 py-3 shadow-card transition-shadow hover:shadow-card-hover"
+          className="flex items-center justify-between gap-4 rounded border border-line bg-surface px-4 py-3 shadow-card transition-shadow hover:shadow-card-hover"
         >
           <span className="text-sm font-semibold text-ink">
             Voir les votes de {group.abbrev}, vote par vote

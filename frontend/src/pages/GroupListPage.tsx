@@ -103,7 +103,7 @@ export default function GroupListPage() {
             <p>{data!.party_note}</p>
             <p>
               {data!.hand_vote_note}{' '}
-              <Link to="/scrutins" className="text-accent underline">
+              <Link to="/scrutins" className="link">
                 Voir tous les votes
               </Link>
             </p>
@@ -119,7 +119,7 @@ export default function GroupListPage() {
         }
       />
 
-      <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+      <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
         {data!.groups.map((group) => (
           <GroupRow key={group.uid} group={group} />
         ))}
@@ -131,7 +131,7 @@ export default function GroupListPage() {
         <p>{data!.party_note}</p>
         <p className="mt-1">
           {data!.hand_vote_note}{' '}
-          <Link to="/scrutins" className="text-accent underline">
+          <Link to="/scrutins" className="link">
             Voir tous les votes
           </Link>
         </p>

@@ -159,10 +159,10 @@ function FollowedBanner({ group, stance }: { group: GroupDto; stance: StanceDto 
   const position = groupPosition(stance)
   return (
     <div
-      className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-3 py-2.5 ${BANNER_CLASS[position]}`}
+      className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded px-3 py-2.5 ${BANNER_CLASS[position]}`}
     >
       <span
-        className={`min-w-[84px] shrink-0 rounded-lg px-3 py-1.5 text-center text-[15px] font-bold tracking-wide uppercase ${BADGE_CLASS[position]}`}
+        className={`min-w-[84px] shrink-0 rounded px-3 py-1.5 text-center text-[15px] font-bold tracking-wide uppercase ${BADGE_CLASS[position]}`}
       >
         {BADGE_WORD[position]}
       </span>
@@ -206,7 +206,7 @@ function GroupsByPosition({ groups, stances, followed = [] }: VoteCardGroups) {
               <div className="flex min-h-[30px] items-center gap-1.5">
                 <span
                   aria-hidden
-                  className={`inline-flex size-5 shrink-0 items-center justify-center rounded-md ${SWATCH_CLASS[row.key]}`}
+                  className={`inline-flex size-5 shrink-0 items-center justify-center rounded ${SWATCH_CLASS[row.key]}`}
                 >
                   <PositionGlyph position={row.key} className="size-3" />
                 </span>
@@ -231,7 +231,7 @@ function GroupsByPosition({ groups, stances, followed = [] }: VoteCardGroups) {
                           setOpened(isOpen ? null : { group, anchor: event.currentTarget })
                         }
                         // Le logo reste à 30 px de haut, la zone de toucher atteint 44 px.
-                        className={`relative flex h-[30px] w-11 items-center justify-center rounded-lg bg-white p-[3px] ring-1 ring-black/10 ring-inset transition-opacity after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${FOCUS_RING} ${
+                        className={`relative flex h-[30px] w-11 items-center justify-center rounded bg-white p-[3px] ring-1 ring-black/10 ring-inset transition-opacity after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${FOCUS_RING} ${
                           on ? 'ring-2 ring-ink' : ''
                         } ${isOpen ? 'outline-2 outline-offset-1 outline-accent' : ''} ${
                           dimOthers && !on && !isOpen ? 'opacity-35 hover:opacity-80' : ''
@@ -292,7 +292,7 @@ export default function VoteCard({
       className={`group relative flex flex-col gap-2.5 ${
         bare
           ? 'px-4 py-3.5 sm:px-[18px]'
-          : 'rounded-2xl border border-line bg-surface p-4 shadow-card sm:px-5'
+          : 'rounded border border-line bg-surface p-4 shadow-card sm:px-5'
       } ${compact ? 'transition-colors hover:bg-surface-soft/50' : ''}`}
     >
       <div className="space-y-1.5">
@@ -305,13 +305,13 @@ export default function VoteCard({
         />
         {kicker && <p className="text-[12.5px] font-medium text-ink-soft">{kicker}</p>}
         <h3
-          className={`leading-snug font-semibold tracking-tight text-ink ${
-            compact ? 'text-[15px]' : 'text-[17px] sm:text-[19px]'
+          className={`text-ink ${
+            compact ? 'text-[15px] leading-snug font-semibold tracking-tight' : 'heading-5'
           }`}
         >
           <Link
             to={to}
-            className={`rounded-md transition-colors hover:text-accent group-hover:text-accent ${FOCUS_RING} ${stretched}`}
+            className={`rounded transition-colors hover:text-accent group-hover:text-accent ${FOCUS_RING} ${stretched}`}
           >
             {title}
           </Link>

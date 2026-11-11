@@ -33,7 +33,7 @@ export default function UnassignedTextsPage() {
       <div>
         <BackLink to="/par-sujet">Votes par sujet</BackLink>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="text-2xl font-semibold tracking-tight">
+          <h2 className="heading-2">
             Textes non rattachés
           </h2>
           <span className="text-xs text-ink-faint">
@@ -54,7 +54,7 @@ export default function UnassignedTextsPage() {
           type="button"
           disabled={offset === 0}
           onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-          className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40"
+          className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40"
         >
           Précédent
         </button>
@@ -67,7 +67,7 @@ export default function UnassignedTextsPage() {
           type="button"
           disabled={offset + PAGE_SIZE >= data.total}
           onClick={() => setOffset(offset + PAGE_SIZE)}
-          className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40"
+          className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40"
         >
           Suivant
         </button>

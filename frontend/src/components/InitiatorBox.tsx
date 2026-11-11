@@ -20,7 +20,7 @@ function shortDate(iso: string) {
 /** Vignette d'information de l'en-tête : un visuel à gauche, trois lignes à droite. */
 export function InfoBox({ visual, children }: { visual: ReactNode; children: ReactNode }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl bg-surface-soft px-3 py-2.5 text-sm leading-snug">
+    <div className="flex items-center gap-3 rounded bg-surface-soft px-3 py-2.5 text-sm leading-snug">
       {visual}
       <div className="min-w-0">{children}</div>
     </div>
@@ -45,7 +45,7 @@ export function InitiatorBox({ initiator, kind }: { initiator: InitiatorDto; kin
             className="h-11 w-16"
           />
         ) : (
-          <span className="flex h-11 w-16 shrink-0 items-center justify-center rounded-lg bg-surface text-xs font-semibold text-ink-soft ring-1 ring-inset ring-line">
+          <span className="flex h-11 w-16 shrink-0 items-center justify-center rounded bg-surface text-xs font-semibold text-ink-soft ring-1 ring-inset ring-line">
             {initiator.role ?? '—'}
           </span>
         )
@@ -58,7 +58,7 @@ export function InitiatorBox({ initiator, kind }: { initiator: InitiatorDto; kin
             href={initiator.official_url}
             target="_blank"
             rel="noreferrer"
-            className="font-semibold hover:text-accent hover:underline"
+            className="font-semibold hover:link"
           >
             {initiator.full_name}
           </a>
@@ -89,7 +89,7 @@ export function InitiatorsBox({ initiators, kind }: { initiators: InitiatorDto[]
   return (
     <InfoBox
       visual={
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface text-ink-soft ring-1 ring-inset ring-line">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded bg-surface text-ink-soft ring-1 ring-inset ring-line">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -118,7 +118,7 @@ export function InitiatorsBox({ initiators, kind }: { initiators: InitiatorDto[]
                   target="_blank"
                   rel="noreferrer"
                   title={initiator.role ?? undefined}
-                  className="font-semibold hover:text-accent hover:underline"
+                  className="font-semibold hover:link"
                 >
                   {initiator.full_name}
                 </a>
