@@ -7,8 +7,8 @@ use sha2::{Digest, Sha256};
 
 use crate::application::ports::assembly_source::{AssemblySource, SourceError};
 use crate::domain::dossier::{
-    Committee, CurationStatus, DossierUid, Initiative, Initiator, LegislativeAct,
-    LegislativeDocument, LegislativeDossier, NewLegislativeDossier,
+    Committee, DossierUid, Initiative, Initiator, LegislativeAct, LegislativeDocument,
+    LegislativeDossier, NewLegislativeDossier,
 };
 use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scoring::compute_score;
@@ -145,7 +145,6 @@ impl NationalAssemblyClient {
                 current_stage,
                 initiators,
                 committee,
-                curation_status: CurationStatus::New,
                 outcome,
             }),
             initiator_refs,

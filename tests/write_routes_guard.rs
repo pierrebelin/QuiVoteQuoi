@@ -45,14 +45,13 @@ use quivotequoi::AppState;
 
 const SECRET: &str = "0123456789abcdef0123456789abcdef";
 
-/// Les neuf routes d'ecriture de l'API. Toute route ajoutee ici sans garde
+/// Les huit routes d'ecriture de l'API. Toute route ajoutee ici sans garde
 /// fait echouer `every_write_route_requires_a_token`.
-const WRITE_ROUTES: [&str; 9] = [
+const WRITE_ROUTES: [&str; 8] = [
     "/api/refresh",
     "/api/registry/refresh",
     "/api/scrutins/refresh",
     "/api/amendements/refresh",
-    "/api/dossiers/DLR5L15N47160/curate",
     "/api/dossiers/DLR5L15N47160/save",
     "/api/themes/extract",
     "/api/themes/propose",

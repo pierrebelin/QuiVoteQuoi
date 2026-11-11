@@ -202,7 +202,7 @@ mod tests {
         FakeBriefGenerator, InMemoryBriefLineRepository, InMemoryTextVersionRepository,
     };
     use crate::domain::dossier::{
-        CurationStatus, DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
+        DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
     };
     use crate::domain::law_text::{ArticleFingerprint, NewVersionArticle, VersionArticle};
     use crate::domain::text_brief::BriefStatus;
@@ -240,7 +240,6 @@ mod tests {
             current_stage: None,
             initiators: vec![],
             committee: None,
-            curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
         })
     }
@@ -296,21 +295,6 @@ mod tests {
             &self,
             _uids: &[crate::domain::dossier::DossierUid],
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_suggestions(
-            &self,
-            _count: usize,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn update_curation_status(
-            &self,
-            _uid: &DossierUid,
-            _status: CurationStatus,
-        ) -> Result<bool, RepositoryError> {
             unreachable!()
         }
     }

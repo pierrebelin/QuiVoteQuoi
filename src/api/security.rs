@@ -7,8 +7,8 @@
 //! transparence, il n'a rien a cacher (README.md §2).
 //!
 //! Ce qui est applicable : les routes d'ecriture sont des commandes
-//! d'administration (ingestion Assemblee nationale, curation, thematisation
-//! LLM), aucune n'est utilisee par un parcours de consultation. Elles exigent
+//! d'administration (ingestion Assemblee nationale, thematisation LLM),
+//! aucune n'est utilisee par un parcours de consultation. Elles exigent
 //! le jeton du jour, derive de `ADMIN_TOKEN_SECRET` (voir
 //! `infrastructure::security`).
 //!

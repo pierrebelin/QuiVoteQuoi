@@ -66,7 +66,7 @@ mod tests {
     use crate::application::ports::dossier_repository::RepositoryError;
     use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
     use crate::domain::dossier::{
-        CurationStatus, DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
+        DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
     };
 
     struct FakeSource {
@@ -161,21 +161,6 @@ mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
-
-        async fn find_suggestions(
-            &self,
-            _count: usize,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn update_curation_status(
-            &self,
-            _uid: &DossierUid,
-            _status: CurationStatus,
-        ) -> Result<bool, RepositoryError> {
-            unreachable!()
-        }
     }
 
     #[tokio::test]
@@ -200,7 +185,6 @@ mod tests {
                     current_stage: None,
                     initiators: vec![],
                     committee: None,
-                    curation_status: CurationStatus::New,
                     outcome: DossierOutcome::NoRecordedConclusion,
                 }),
                 vec!["PA111111".into()],

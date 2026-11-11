@@ -207,8 +207,8 @@ pub(crate) mod tests {
         MembershipPeriod, MembershipQuality, ParliamentaryGroup,
     };
     use crate::domain::dossier::{
-        CurationStatus, DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier,
-        NewLegislativeDossier, Score, StoredDossierState,
+        DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
+        Score, StoredDossierState,
     };
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
@@ -449,24 +449,6 @@ pub(crate) mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
-
-        async fn find_suggestions(
-            &self,
-            _count: usize,
-        ) -> Result<
-            Vec<LegislativeDossier>,
-            crate::application::ports::dossier_repository::RepositoryError,
-        > {
-            unreachable!()
-        }
-
-        async fn update_curation_status(
-            &self,
-            _uid: &DossierUid,
-            _status: CurationStatus,
-        ) -> Result<bool, crate::application::ports::dossier_repository::RepositoryError> {
-            unreachable!()
-        }
     }
 
     /// Elements d'un dossier de la source, avant construction: un test qui veut
@@ -496,7 +478,6 @@ pub(crate) mod tests {
             current_stage: None,
             initiators: vec![],
             committee: None,
-            curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
         }
     }

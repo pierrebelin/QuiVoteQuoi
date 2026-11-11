@@ -4,9 +4,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 
 use crate::application::ports::theme_repository::AssignedFamily;
-use crate::domain::dossier::{
-    CurationStatus, DossierUid, Initiative, LegislativeDossier, StoredDossierState,
-};
+use crate::domain::dossier::{DossierUid, Initiative, LegislativeDossier, StoredDossierState};
 use crate::domain::theme::FamilyCode;
 
 pub use super::RepositoryError;
@@ -129,13 +127,4 @@ pub trait DossierRepository: Send + Sync {
         &self,
         uids: &[DossierUid],
     ) -> Result<Vec<LegislativeDossier>, RepositoryError>;
-    async fn find_suggestions(
-        &self,
-        count: usize,
-    ) -> Result<Vec<LegislativeDossier>, RepositoryError>;
-    async fn update_curation_status(
-        &self,
-        uid: &DossierUid,
-        status: CurationStatus,
-    ) -> Result<bool, RepositoryError>;
 }
