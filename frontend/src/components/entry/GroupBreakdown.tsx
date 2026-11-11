@@ -1,5 +1,5 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { createPortal } from 'react-dom'
+import { useEffect, useRef } from 'react'
+import { Popover } from '@base-ui/react/popover'
 import { BottomSheet } from '../BottomSheet'
 import { Icon } from '../icons'
 import { PoliticalLogo } from '../PoliticalLogo'
@@ -123,99 +123,83 @@ function BreakdownPopover({
   anchor: HTMLElement
   onClose: () => void
 }) {
-  const bubbleRef = useRef<HTMLDivElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const [place, setPlace] = useState({ top: 0, left: 0, arrow: 0, below: false })
   const turnout = stanceTurnout(stance)
 
-  // Avant peinture : la hauteur dépend du groupe, aucun saut visible.
-  useLayoutEffect(() => {
-    const bubble = bubbleRef.current
-    if (!bubble) return
-    const tile = anchor.getBoundingClientRect()
-    const center = tile.left + tile.width / 2
-    const left = Math.max(
-      VIEWPORT_MARGIN,
-      Math.min(
-        window.innerWidth - bubble.offsetWidth - VIEWPORT_MARGIN,
-        center - bubble.offsetWidth / 2,
-      ),
-    )
-    const above = tile.top - ANCHOR_GAP - bubble.offsetHeight
-    const below = above < VIEWPORT_MARGIN
-    setPlace({ top: below ? tile.bottom + ANCHOR_GAP : above, left, arrow: center - left, below })
-  }, [anchor, stance])
-
   useEffect(() => {
-    closeButtonRef.current?.focus({ preventScroll: true })
-  }, [anchor])
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose()
-        anchor.focus({ preventScroll: true })
-      } else if (event.key === 'Tab') {
-        // Le seul élément focalisable est le bouton de fermeture.
-        event.preventDefault()
-      }
-    }
-    const onPointerDown = (event: PointerEvent) => {
-      const target = event.target as Node
-      if (bubbleRef.current?.contains(target) || anchor.closest('ul')?.contains(target)) return
-      onClose()
-    }
-    document.addEventListener('keydown', onKeyDown)
-    document.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('scroll', onClose, true)
     window.addEventListener('resize', onClose)
     return () => {
-      document.removeEventListener('keydown', onKeyDown)
-      document.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('scroll', onClose, true)
       window.removeEventListener('resize', onClose)
     }
-  }, [anchor, onClose])
+  }, [onClose])
 
-  return createPortal(
-    <div
-      ref={bubbleRef}
-      role="dialog"
-      aria-label={`Répartition des votes : ${group.label}`}
-      style={{ top: place.top, left: place.left }}
-      className="fixed z-[60] w-80 rounded-[14px] border border-line-strong bg-surface px-4 py-3.5 text-ink shadow-[0_12px_34px_rgb(0_0_0/0.3)]"
+  return (
+    <Popover.Root
+      open
+      // La bulle n'a pas de déclencheur à elle : la tuile reste gérée par la
+      // carte. Une tape sur une tuile de la même rangée remplace la bulle au lieu
+      // de la fermer ; Échap et « Fermer » rendent le focus à la tuile.
+      modal="trap-focus"
+      onOpenChange={(open, details) => {
+        if (open) return
+        if (
+          details.reason === 'outside-press' &&
+          anchor.closest('ul')?.contains(details.event.target as Node)
+        ) {
+          details.cancel()
+          return
+        }
+        onClose()
+        if (details.reason === 'escape-key' || details.reason === 'close-press') {
+          anchor.focus({ preventScroll: true })
+        }
+      }}
     >
-      <span
-        aria-hidden
-        style={{ left: place.arrow }}
-        className={`absolute -ml-1.5 size-3 rotate-45 bg-surface ${
-          place.below
-            ? '-top-[7px] border-t border-l border-line-strong'
-            : '-bottom-[7px] border-r border-b border-line-strong'
-        }`}
-      />
-      <div className="mb-3 flex items-start gap-2.5">
-        <GroupLogo group={group} />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm leading-tight font-semibold">{group.label}</p>
-          {turnout && <p className="mt-0.5 text-xs text-ink-soft">{turnout}</p>}
-        </div>
-        <button
-          ref={closeButtonRef}
-          type="button"
-          aria-label="Fermer"
-          onClick={() => {
-            onClose()
-            anchor.focus({ preventScroll: true })
-          }}
-          className={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft hover:bg-surface-soft hover:text-ink [&_svg]:size-4 ${FOCUS_RING}`}
+      <Popover.Portal>
+        <Popover.Positioner
+          anchor={anchor}
+          positionMethod="fixed"
+          side="top"
+          sideOffset={ANCHOR_GAP}
+          collisionPadding={VIEWPORT_MARGIN}
+          className="z-[60]"
         >
-          <Icon name="close" />
-        </button>
-      </div>
-      <BreakdownFigures stance={stance} />
-    </div>,
-    document.body,
+          <Popover.Popup
+            aria-label={`Répartition des votes : ${group.label}`}
+            initialFocus={closeButtonRef}
+            finalFocus={false}
+            className="w-80 rounded-[14px] border border-line-strong bg-surface px-4 py-3.5 text-ink shadow-[0_12px_34px_rgb(0_0_0/0.3)] outline-none"
+          >
+            <Popover.Arrow
+              className={(state) =>
+                `size-3 rotate-45 bg-surface ${
+                  state.side === 'bottom'
+                    ? '-top-[7px] border-t border-l border-line-strong'
+                    : '-bottom-[7px] border-r border-b border-line-strong'
+                }`
+              }
+            />
+            <div className="mb-3 flex items-start gap-2.5">
+              <GroupLogo group={group} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm leading-tight font-semibold">{group.label}</p>
+                {turnout && <p className="mt-0.5 text-xs text-ink-soft">{turnout}</p>}
+              </div>
+              <Popover.Close
+                ref={closeButtonRef}
+                aria-label="Fermer"
+                className={`flex size-7 shrink-0 cursor-pointer items-center justify-center rounded-lg text-ink-soft hover:bg-surface-soft hover:text-ink [&_svg]:size-4 ${FOCUS_RING}`}
+              >
+                <Icon name="close" />
+              </Popover.Close>
+            </div>
+            <BreakdownFigures stance={stance} />
+          </Popover.Popup>
+        </Popover.Positioner>
+      </Popover.Portal>
+    </Popover.Root>
   )
 }
 
