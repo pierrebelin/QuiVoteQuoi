@@ -1,10 +1,13 @@
 import { useState } from 'react'
+import { readingKey, readingLabel } from '../lib/dossierStatus'
 
 export interface ParcoursActDto {
   date: string
   label: string
   /** Code publié par l'Assemblée : « AN1-DEPOT », « SN1-COM-FOND-RAPPORT »… */
   code?: string | null
+  /** Scrutin que la source rattache à une décision de séance (`voteRefs`). */
+  decision_scrutin_uid?: string | null
 }
 
 export interface ParcoursDocumentDto {
@@ -19,25 +22,6 @@ export interface ParcoursDocumentDto {
 
 /** Phases au-delà desquelles le parcours se replie : un texte budgétaire en compte des dizaines. */
 const VISIBLE_PHASES = 4
-
-/**
- * Lecture désignée par le préfixe du code d'acte. Le libellé n'est qu'un nom
- * de lecture : il ne dit rien du sort, que seuls les actes publiés portent.
- */
-const PHASE_LABELS: Record<string, string> = {
-  AN1: 'Assemblée · 1re lecture',
-  SN1: 'Sénat · 1re lecture',
-  AN2: 'Assemblée · 2e lecture',
-  SN2: 'Sénat · 2e lecture',
-  AN3: 'Assemblée · 3e lecture',
-  SN3: 'Sénat · 3e lecture',
-  CMP: 'Commission mixte paritaire',
-  ANNLEC: 'Assemblée · nouvelle lecture',
-  SNNLEC: 'Sénat · nouvelle lecture',
-  ANLDEF: 'Assemblée · lecture définitive',
-  CC: 'Conseil constitutionnel',
-  PROM: 'Promulgation',
-}
 
 interface Step {
   label: string
@@ -54,10 +38,6 @@ interface Phase {
   last: string
   steps: Step[]
   documents: ParcoursDocumentDto[]
-}
-
-function phaseKey(code: string | null | undefined) {
-  return (code ?? '').split('-')[0]
 }
 
 function chamberOf(key: string): 'AN' | 'SN' | null {
@@ -101,12 +81,12 @@ function range(first: string, last: string) {
 function buildPhases(acts: ParcoursActDto[], documents: ParcoursDocumentDto[]) {
   const phases: Phase[] = []
   for (const act of acts) {
-    const key = phaseKey(act.code)
+    const key = readingKey(act.code)
     let phase = phases[phases.length - 1]
     if (!phase || phase.key !== key) {
       phase = {
         key,
-        label: PHASE_LABELS[key] ?? 'Autres actes',
+        label: readingLabel(key) ?? 'Autres actes',
         chamber: chamberOf(key),
         first: act.date,
         last: act.date,

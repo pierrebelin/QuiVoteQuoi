@@ -18,6 +18,7 @@ import PositionGlyph from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
 import { BackLink, Card, ErrorPanel, Loading, Pill } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
+import { REJECTION_NOT_FINAL, readingKey, readingLabel } from '../lib/dossierStatus'
 import { themeLink, typographic } from '../lib/entryFlow'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 
@@ -55,6 +56,10 @@ interface TotalDto {
 }
 
 type Tab = 'groupes' | 'scrutins' | 'amendements'
+
+function capitalize(text: string) {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
 
 function formatDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
@@ -97,19 +102,36 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
     </span>
   )
 
-  if (outcome.kind === 'promulgated' || outcome.kind === 'rejected') {
-    const promulgated = outcome.kind === 'promulgated'
+  if (outcome.kind === 'rejected') {
+    // La lecture vient de l'acte de décision du jour du rejet : « Assemblée ·
+    // 1re lecture ». Sans acte daté, le libellé de la source suffit.
+    const decision = [...dossier.acts]
+      .reverse()
+      .find((act) => act.date === outcome.date && act.code?.endsWith('-DEC'))
+    const reading = decision ? readingLabel(readingKey(decision.code)) : undefined
     return (
-      <div
-        className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm font-semibold sm:px-6 ${promulgated ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'}`}
-      >
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-info-soft px-4 py-2 text-sm font-semibold text-info sm:px-6">
+        <span>
+          {capitalize(outcome.label)}
+          {reading && ` · ${reading}`}
+          {outcome.date && ` · ${formatDate(outcome.date)}`}
+          <span className="font-medium"> — {REJECTION_NOT_FINAL}</span>
+        </span>
+        {lastStep}
+      </div>
+    )
+  }
+
+  if (outcome.kind === 'promulgated') {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-yes-soft px-4 py-2 text-sm font-semibold text-yes sm:px-6">
         <span className="inline-flex items-center gap-1.5">
-          <PositionGlyph position={promulgated ? 'for' : 'against'} className="size-3.5" strokeWidth={3.2} />
+          <PositionGlyph position="for" className="size-3.5" strokeWidth={3.2} />
           {outcome.label}
           {outcome.date && ` le ${formatDate(outcome.date)}`}
           {outcome.law_code && ` · loi n° ${outcome.law_code}`}
         </span>
-        {promulgated && (outcome.law_jo_date || outcome.legifrance_url) ? (
+        {outcome.law_jo_date || outcome.legifrance_url ? (
           <span className="text-[12.5px] font-medium text-ink-soft">
             {outcome.law_jo_date && `JO du ${formatDate(outcome.law_jo_date)}`}
             {outcome.law_jo_date && outcome.legifrance_url && ' · '}
@@ -314,7 +336,7 @@ export default function DossierDetailPage() {
 
           <DossierBrief uid={data.uid} />
 
-          <DossierFinalScrutin uid={data.uid} />
+          <DossierFinalScrutin uid={data.uid} acts={data.acts} />
 
           {/* Chaque onglet charge sa liste : les flèches déplacent le focus,
               Entrée ou Espace l'activent. */}

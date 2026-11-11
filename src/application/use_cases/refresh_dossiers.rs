@@ -472,6 +472,7 @@ pub(crate) mod tests {
                 date: last_activity,
                 label: "D\u{00e9}p\u{00f4}t".into(),
                 code: Some("AN1-DEPOT".into()),
+                decision_vote: None,
             }],
             documents: vec![],
             score: Score::new(2, 4, 2, 23).unwrap(),
@@ -801,6 +802,7 @@ mod incremental_tests {
             date: act_date,
             label: "R\u{00e9}union de commission".into(),
             code: Some("AN1-COM-FOND-REUNION".into()),
+            decision_vote: None,
         });
         dossier.last_activity_date = act_date;
         dossier.last_activity_label = "R\u{00e9}union de commission".into();
@@ -848,6 +850,7 @@ mod incremental_tests {
             date: date(2025, 9, 3),
             label: "Nomination de rapporteur".into(),
             code: Some("AN1-COM-FOND-NOMIN".into()),
+            decision_vote: None,
         });
 
         let source = FakeSource {

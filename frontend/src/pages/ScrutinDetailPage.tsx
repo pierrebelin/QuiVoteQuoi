@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
+import { REJECTION_NOT_FINAL } from '../lib/dossierStatus'
 import { FamilyIllustration } from '../components/FamilyIllustration'
 import GuideLink from '../components/GuideLink'
 import Hemicycle from '../components/Hemicycle'
@@ -112,7 +113,7 @@ function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: 
     outcome.kind === 'promulgated'
       ? 'bg-yes-soft text-yes'
       : outcome.kind === 'rejected'
-        ? 'bg-no-soft text-no'
+        ? 'bg-info-soft text-info'
         : 'bg-surface text-ink-soft ring-1 ring-inset ring-line'
   return (
     <InfoBox
@@ -137,6 +138,9 @@ function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: 
       <p className="font-semibold">
         {outcome.label}
         {outcome.law_code && ` : loi n° ${outcome.law_code}`}
+        {outcome.kind === 'rejected' && (
+          <span className="font-normal text-ink-soft"> · {REJECTION_NOT_FINAL}</span>
+        )}
       </p>
       <p className="text-xs">
         {outcome.date && <span className="text-ink-faint">{shortDate(outcome.date)} · </span>}
