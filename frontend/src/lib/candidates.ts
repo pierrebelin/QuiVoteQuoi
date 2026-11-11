@@ -33,6 +33,28 @@ export function sortByFamilyName(candidates: CandidateDto[]): CandidateDto[] {
   )
 }
 
+/** Hachage FNV-1a 32 bits : une clé stable pour un tirage reproductible. */
+function hash32(text: string): number {
+  let value = 0x811c9dc5
+  for (let index = 0; index < text.length; index += 1) {
+    value ^= text.charCodeAt(index)
+    value = Math.imul(value, 0x01000193)
+  }
+  return value >>> 0
+}
+
+/**
+ * Ordre tiré au hasard, identique pour une même graine. La page tire sa graine
+ * à l'arrivée : aucune candidature n'est toujours en tête, et l'ordre ne bouge
+ * plus pendant la visite, d'un sujet à l'autre ou après un rechargement des données.
+ */
+export function shuffleWithSeed(candidates: CandidateDto[], seed: number): CandidateDto[] {
+  const rank = new Map(candidates.map((candidate) => [candidate.id, hash32(`${seed}:${candidate.id}`)]))
+  return [...candidates].sort(
+    (a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0) || a.id.localeCompare(b.id),
+  )
+}
+
 /** Premier parti ou soutien déclaré, tel que la source le nomme. */
 export function organizationLabel(candidate: CandidateDto): string {
   return candidate.political_organizations[0]?.label ?? ''
