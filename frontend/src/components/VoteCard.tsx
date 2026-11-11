@@ -63,6 +63,9 @@ export interface VoteCardProps {
   groups?: VoteCardGroups
   /** Sans cadre : la carte est une ligne d'un bloc qui l'encadre déjà. */
   bare?: boolean
+  /** Carte seule en pleine largeur : à partir de 1024 px, l'intitulé à gauche,
+   * les groupes et le décompte à droite. */
+  wide?: boolean
 }
 
 const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`
@@ -282,6 +285,7 @@ export default function VoteCard({
   tally,
   groups,
   bare = false,
+  wide = false,
 }: VoteCardProps) {
   const compact = size === 'compact'
   // En compacte, rien d'autre ne se touche : le lien du titre couvre la carte.
@@ -293,7 +297,11 @@ export default function VoteCard({
         bare
           ? 'px-4 py-3.5 sm:px-[18px]'
           : 'rounded border border-line bg-surface p-4 shadow-card sm:px-5'
-      } ${compact ? 'transition-colors hover:bg-surface-soft/50' : ''}`}
+      } ${compact ? 'transition-colors hover:bg-surface-soft/50' : ''} ${
+        wide
+          ? 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-x-10 lg:px-7 lg:py-6'
+          : ''
+      }`}
     >
       <div className="space-y-1.5">
         <VoteCardHeader
@@ -306,7 +314,9 @@ export default function VoteCard({
         {kicker && <p className="text-[12.5px] font-medium text-ink-soft">{kicker}</p>}
         <h3
           className={`text-ink ${
-            compact ? 'text-[15px] leading-snug font-semibold tracking-tight' : 'heading-5'
+            compact
+              ? 'text-[15px] leading-snug font-semibold tracking-tight'
+              : `heading-5 ${wide ? 'lg:text-2xl lg:leading-[30px]' : ''}`
           }`}
         >
           <Link
@@ -325,9 +335,10 @@ export default function VoteCard({
         {notes}
       </div>
 
-      {!compact && groups && <GroupsByPosition {...groups} />}
-
-      <AssemblyFooter tally={tally} />
+      <div className="flex flex-col gap-2.5">
+        {!compact && groups && <GroupsByPosition {...groups} />}
+        <AssemblyFooter tally={tally} />
+      </div>
     </article>
   )
 }
