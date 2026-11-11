@@ -170,8 +170,7 @@ mod tests {
     use crate::application::use_cases::read_fakes::FakeActors;
     use crate::domain::actor::{ActorUid, GroupUid};
     use crate::domain::dossier::{
-        CurationStatus, DossierOutcome, DossierUid, Initiative, LegislativeDossier,
-        NewLegislativeDossier,
+        DossierOutcome, DossierUid, Initiative, LegislativeDossier, NewLegislativeDossier,
     };
     use crate::domain::dossier::{Initiator, InitiatorGroup};
     use crate::domain::scoring::compute_score;
@@ -270,21 +269,6 @@ mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
-
-        async fn find_suggestions(
-            &self,
-            _count: usize,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn update_curation_status(
-            &self,
-            _uid: &DossierUid,
-            _status: CurationStatus,
-        ) -> Result<bool, RepositoryError> {
-            unreachable!()
-        }
     }
 
     /// Le fake reproduit les critères que le dépôt applique en SQL : sans cela
@@ -327,7 +311,6 @@ mod tests {
             current_stage: None,
             initiators: vec![],
             committee: None,
-            curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
         }
     }

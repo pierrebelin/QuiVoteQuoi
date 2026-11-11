@@ -53,7 +53,6 @@ fn read_routes() -> Router<AppState> {
             "/api/dossiers/{uid}/en-bref",
             get(dossier_handlers::get_dossier_brief),
         )
-        .route("/api/suggestions", get(dossier_handlers::get_suggestions))
         .route(
             "/api/dossiers/{uid}/scrutins",
             get(scrutin_handlers::get_dossier_scrutins),
@@ -96,7 +95,7 @@ fn read_routes() -> Router<AppState> {
         .route("/api/texts/{key}", get(theme_handlers::get_text_detail))
 }
 
-/// Administration. Ingestion depuis l'Assemblee nationale, curation,
+/// Administration. Ingestion depuis l'Assemblee nationale et
 /// thematisation LLM : aucune n'est appelee par un parcours de consultation,
 /// toutes coutent du temps machine ou de la cle Anthropic. Jeton du jour
 /// obligatoire (`api::security`).
@@ -105,10 +104,6 @@ fn write_routes(guard: AdminGuard) -> Router<AppState> {
         .route(
             "/api/dossiers/{uid}/save",
             post(dossier_handlers::save_dossier),
-        )
-        .route(
-            "/api/dossiers/{uid}/curate",
-            post(dossier_handlers::curate_dossier),
         )
         .route(
             "/api/scrutins/refresh",

@@ -12,8 +12,8 @@ use crate::application::ports::dossier_repository::{
 use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
 use crate::domain::dossier::{
-    Committee, CurationStatus, DossierOutcome, DossierUid, Initiator, InitiatorGroup,
-    LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
+    Committee, DossierOutcome, DossierUid, Initiator, InitiatorGroup, LawPublication,
+    LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
     NewLegislativeDossier, Score, StoredDossierState,
 };
 use crate::domain::scrutin::Outcome;
@@ -106,8 +106,8 @@ impl PgDossierRepository {
             };
 
             sqlx::query(
-                "INSERT INTO legislative_dossiers (uid, title, procedure_label, last_activity_date, last_activity_label, score_progress, score_magnitude, score_momentum, score_total, current_stage_code, committee, curation_status, legislature, url, summary, deposit_date, outcome_kind, outcome_date, outcome_label, law_code, law_jo_date, law_legifrance_url, merged_into_uid, merge_cause)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+                "INSERT INTO legislative_dossiers (uid, title, procedure_label, last_activity_date, last_activity_label, score_progress, score_magnitude, score_momentum, score_total, current_stage_code, committee, legislature, url, summary, deposit_date, outcome_kind, outcome_date, outcome_label, law_code, law_jo_date, law_legifrance_url, merged_into_uid, merge_cause)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
                  ON CONFLICT (uid) DO UPDATE SET
                     outcome_kind = EXCLUDED.outcome_kind,
                     outcome_date = EXCLUDED.outcome_date,
@@ -144,7 +144,6 @@ impl PgDossierRepository {
             .bind(dossier.score().total() as i16)
             .bind(&stage_code)
             .bind(dossier.committee().map(|c| c.as_str()))
-            .bind(dossier.curation_status().as_str())
             .bind(dossier.legislature() as i16)
             .bind(dossier.url())
             .bind(dossier.summary())
@@ -376,7 +375,7 @@ const BATCH_SIZE: usize = 50;
 const PAGE_SELECT: &str =
     "SELECT uid, title, procedure_label, last_activity_date, last_activity_label,
             score_progress, score_magnitude, score_momentum, score_total,
-            current_stage_code, committee, curation_status,
+            current_stage_code, committee,
             legislature, url, summary, deposit_date,
             outcome_kind, outcome_date, outcome_label,
             law_code, law_jo_date, law_legifrance_url,
@@ -504,7 +503,7 @@ impl DossierRepository for PgDossierRepository {
         let rows = sqlx::query_as::<_, DossierRow>(
             "SELECT uid, title, procedure_label, last_activity_date, last_activity_label,
                     score_progress, score_magnitude, score_momentum, score_total,
-                    current_stage_code, committee, curation_status,
+                    current_stage_code, committee,
                     legislature, url, summary, deposit_date,
                     outcome_kind, outcome_date, outcome_label,
                     law_code, law_jo_date, law_legifrance_url,
@@ -597,7 +596,7 @@ impl DossierRepository for PgDossierRepository {
         let row = sqlx::query_as::<_, DossierRow>(
             "SELECT uid, title, procedure_label, last_activity_date, last_activity_label,
                     score_progress, score_magnitude, score_momentum, score_total,
-                    current_stage_code, committee, curation_status,
+                    current_stage_code, committee,
                     legislature, url, summary, deposit_date,
                     outcome_kind, outcome_date, outcome_label,
                     law_code, law_jo_date, law_legifrance_url,
@@ -641,50 +640,6 @@ impl DossierRepository for PgDossierRepository {
             .map(|r| r.into_dossier(vec![], vec![], vec![]))
             .collect()
     }
-
-    async fn find_suggestions(
-        &self,
-        count: usize,
-    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-        let rows = sqlx::query_as::<_, DossierRow>(
-            "SELECT uid, title, procedure_label, last_activity_date, last_activity_label,
-                    score_progress, score_magnitude, score_momentum, score_total,
-                    current_stage_code, committee, curation_status,
-                    legislature, url, summary, deposit_date,
-                    outcome_kind, outcome_date, outcome_label,
-                    law_code, law_jo_date, law_legifrance_url,
-                    merged_into_uid, merge_cause
-             FROM legislative_dossiers
-             WHERE curation_status = 'new'
-             ORDER BY score_total DESC
-             LIMIT $1",
-        )
-        .bind(count as i64)
-        .fetch_all(&self.pool)
-        .await
-        .map_err(db)?;
-
-        rows.into_iter()
-            .map(|r| r.into_dossier(vec![], vec![], vec![]))
-            .collect()
-    }
-
-    async fn update_curation_status(
-        &self,
-        uid: &DossierUid,
-        status: CurationStatus,
-    ) -> Result<bool, RepositoryError> {
-        let result = sqlx::query(
-            "UPDATE legislative_dossiers SET curation_status = $1, updated_at = NOW() WHERE uid = $2",
-        )
-        .bind(status.as_str())
-        .bind(uid.as_str())
-        .execute(&self.pool)
-        .await
-        .map_err(db)?;
-
-        Ok(result.rows_affected() > 0)
-    }
 }
 
 #[derive(sqlx::FromRow)]
@@ -708,7 +663,6 @@ struct DossierRow {
     score_total: i16,
     current_stage_code: Option<String>,
     committee: Option<String>,
-    curation_status: String,
     legislature: i16,
     url: Option<String>,
     summary: Option<String>,
@@ -797,8 +751,6 @@ impl DossierRow {
                 .map(Committee::new)
                 .transpose()
                 .map_err(invalid_row)?,
-            curation_status: CurationStatus::parse(&self.curation_status)
-                .unwrap_or(CurationStatus::New),
             outcome,
         }))
     }

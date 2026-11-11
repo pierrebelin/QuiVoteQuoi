@@ -7,7 +7,7 @@ use crate::application::use_cases::browse_dossiers::{
     DossierCard, InitiatorView, DEFAULT_PER_PAGE,
 };
 use crate::application::use_cases::check_health::HealthReport;
-use crate::domain::dossier::{CurationStatus, DossierOutcome, Initiative, LegislativeDossier};
+use crate::domain::dossier::{DossierOutcome, Initiative, LegislativeDossier};
 use crate::domain::theme::FamilyCode;
 
 #[derive(Deserialize)]
@@ -33,7 +33,6 @@ pub struct DossierDto {
     pub score_total: u8,
     pub current_stage: Option<StageDto>,
     pub committee: Option<String>,
-    pub curation_status: String,
     pub outcome: OutcomeDto,
 }
 
@@ -112,7 +111,6 @@ impl From<LegislativeDossier> for DossierDto {
             score_total: d.score().total(),
             current_stage: d.current_stage().map(StageDto::from),
             committee: d.committee().map(|c| c.as_str().to_string()),
-            curation_status: d.curation_status().as_str().to_string(),
         }
     }
 }
@@ -573,7 +571,6 @@ pub struct DossierDetailDto {
     pub current_stage: Option<StageDto>,
     pub initiators: Vec<InitiatorDto>,
     pub committee: Option<String>,
-    pub curation_status: String,
     pub outcome: OutcomeDto,
     /// Familles rattachees au dossier, posees par le handler.
     pub families: Vec<AssignedFamilyDto>,
@@ -636,30 +633,8 @@ impl DossierDetailDto {
                 .map(InitiatorDto::from)
                 .collect(),
             committee: d.committee().map(|c| c.as_str().to_string()),
-            curation_status: d.curation_status().as_str().to_string(),
         }
     }
-}
-
-#[derive(Deserialize)]
-pub struct SuggestionsQuery {
-    #[serde(default = "default_count")]
-    pub count: usize,
-}
-
-fn default_count() -> usize {
-    3
-}
-
-#[derive(Serialize)]
-pub struct SuggestionsResponse {
-    pub count: usize,
-    pub suggestions: Vec<DossierDto>,
-}
-
-#[derive(Deserialize)]
-pub struct CurateBody {
-    pub status: CurationStatus,
 }
 
 /// Reponse du health check. Le serveur repond, donc `status` vaut toujours

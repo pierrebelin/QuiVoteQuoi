@@ -6,7 +6,6 @@ pub mod browse_final_votes;
 pub mod browse_groups;
 pub mod browse_themes;
 pub mod check_health;
-pub mod curate_dossier;
 pub mod describe_dataset;
 pub mod describe_freshness;
 pub mod describe_method;
@@ -29,7 +28,6 @@ pub mod refresh_dossiers;
 pub mod refresh_scrutins;
 pub mod refresh_text_briefs;
 pub mod save_dossier;
-pub mod suggest_dossiers;
 #[cfg(test)]
 pub mod theme_fakes;
 #[cfg(test)]

@@ -23,8 +23,8 @@ use crate::application::ports::scrutin_repository::{
 use crate::domain::amendment::Amendment;
 use crate::domain::dataset::DatasetShape;
 use crate::domain::dossier::{
-    CurationStatus, DossierOutcome, DossierUid, LegislativeDossier, LegislativeStage,
-    NewLegislativeDossier, Score, StoredDossierState,
+    DossierOutcome, DossierUid, LegislativeDossier, LegislativeStage, NewLegislativeDossier, Score,
+    StoredDossierState,
 };
 use crate::domain::scrutin::{Scrutin, ScrutinUid, VoteTally};
 
@@ -206,7 +206,6 @@ pub fn listed_dossier(
         current_stage: stage,
         initiators: vec![],
         committee: None,
-        curation_status: CurationStatus::New,
         outcome,
     })
 }
@@ -263,18 +262,5 @@ impl DossierRepository for FakeDossiers {
             .collect();
         self.lookups.lock().unwrap().push(asked);
         Ok(found)
-    }
-    async fn find_suggestions(
-        &self,
-        _count: usize,
-    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-        unreachable!()
-    }
-    async fn update_curation_status(
-        &self,
-        _u: &DossierUid,
-        _s: CurationStatus,
-    ) -> Result<bool, RepositoryError> {
-        unreachable!()
     }
 }

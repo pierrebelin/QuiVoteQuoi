@@ -1,5 +1,5 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::actor::{
     ActorDirectory, ActorRole, ActorUid, GroupUid, MembershipQuality, ParliamentaryGroup,
@@ -385,36 +385,6 @@ impl Initiative {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum CurationStatus {
-    New,
-    Selected,
-    Dismissed,
-    Published,
-}
-
-impl CurationStatus {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::New => "new",
-            Self::Selected => "selected",
-            Self::Dismissed => "dismissed",
-            Self::Published => "published",
-        }
-    }
-
-    pub fn parse(s: &str) -> Option<Self> {
-        match s {
-            "new" => Some(Self::New),
-            "selected" => Some(Self::Selected),
-            "dismissed" => Some(Self::Dismissed),
-            "published" => Some(Self::Published),
-            _ => None,
-        }
-    }
-}
-
 /// Publication au Journal officiel d'une loi promulguee.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LawPublication {
@@ -531,7 +501,6 @@ pub struct LegislativeDossier {
     current_stage: Option<LegislativeStage>,
     initiators: Vec<Initiator>,
     committee: Option<Committee>,
-    curation_status: CurationStatus,
     outcome: DossierOutcome,
 }
 
@@ -558,7 +527,6 @@ pub struct NewLegislativeDossier {
     pub current_stage: Option<LegislativeStage>,
     pub initiators: Vec<Initiator>,
     pub committee: Option<Committee>,
-    pub curation_status: CurationStatus,
     pub outcome: DossierOutcome,
 }
 
@@ -665,7 +633,6 @@ impl LegislativeDossier {
             current_stage: parts.current_stage,
             initiators: parts.initiators,
             committee: parts.committee,
-            curation_status: parts.curation_status,
             outcome: parts.outcome,
         }
     }
@@ -715,16 +682,8 @@ impl LegislativeDossier {
     pub fn committee(&self) -> Option<&Committee> {
         self.committee.as_ref()
     }
-    pub fn curation_status(&self) -> CurationStatus {
-        self.curation_status
-    }
     pub fn outcome(&self) -> &DossierOutcome {
         &self.outcome
-    }
-
-    /// Remplace l'etat de curation du dossier (nouveau, retenu, ecarte, publie).
-    pub fn change_curation_status(&mut self, status: CurationStatus) {
-        self.curation_status = status;
     }
 
     /// Un dossier n'est reecrit que si la source a bouge.
@@ -865,7 +824,6 @@ mod tests {
             current_stage: None,
             initiators: vec![],
             committee: None,
-            curation_status: CurationStatus::New,
             outcome: DossierOutcome::NoRecordedConclusion,
         })
     }
@@ -1309,23 +1267,6 @@ mod tests {
     }
 
     #[test]
-    fn curation_status_roundtrip() {
-        for status in [
-            CurationStatus::New,
-            CurationStatus::Selected,
-            CurationStatus::Dismissed,
-            CurationStatus::Published,
-        ] {
-            assert_eq!(CurationStatus::parse(status.as_str()), Some(status));
-        }
-    }
-
-    #[test]
-    fn curation_status_parse_invalid() {
-        assert_eq!(CurationStatus::parse("invalid"), None);
-    }
-
-    #[test]
     fn initiative_roundtrip() {
         for initiative in [Initiative::Government, Initiative::Parliamentary] {
             assert_eq!(Initiative::parse(initiative.as_str()), Some(initiative));
@@ -1634,7 +1575,6 @@ mod tests {
             current_stage: Some(LegislativeStage::FirstReadingAN),
             initiators: vec![initiator],
             committee: Some(Committee::new("Finances".into()).unwrap()),
-            curation_status: CurationStatus::Selected,
             outcome: DossierOutcome::Withdrawn {
                 date: date(2025, 7, 1),
             },
@@ -1658,23 +1598,11 @@ mod tests {
         );
         assert_eq!(dossier.initiators()[0].full_name(), "Jean Dupont");
         assert_eq!(dossier.committee().map(Committee::as_str), Some("Finances"));
-        assert_eq!(dossier.curation_status(), CurationStatus::Selected);
         assert_eq!(
             *dossier.outcome(),
             DossierOutcome::Withdrawn {
                 date: date(2025, 7, 1)
             }
         );
-    }
-
-    #[test]
-    fn changing_the_curation_status_replaces_it_and_leaves_the_rest_untouched() {
-        let mut dossier = dossier_deposited_on(Some(date(2025, 5, 13)));
-
-        dossier.change_curation_status(CurationStatus::Dismissed);
-
-        assert_eq!(dossier.curation_status(), CurationStatus::Dismissed);
-        assert_eq!(dossier.uid().as_str(), "D1");
-        assert_eq!(dossier.deposit_date(), Some(date(2025, 5, 13)));
     }
 }

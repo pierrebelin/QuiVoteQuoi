@@ -6,16 +6,14 @@ use chrono::Utc;
 use crate::AppState;
 use crate::api::dossier_group_actions_dto::DossierGroupActionsResponse;
 use crate::api::dto::{
-    CurateBody, DossierDetailDto, DossierDto, DossierListItemDto, DossierPageQuery,
-    DossierPageResponse, RecentActivityQuery, RecentDossiersResponse, RefreshQuery,
-    RefreshResponse, RegistryResponse, SuggestionsQuery, SuggestionsResponse,
+    DossierDetailDto, DossierDto, DossierListItemDto, DossierPageQuery, DossierPageResponse,
+    RecentActivityQuery, RecentDossiersResponse, RefreshQuery, RefreshResponse, RegistryResponse,
 };
 use crate::api::error::ApiError;
 use crate::api::text_brief_dto::{DossierBriefQuery, DossierBriefResponse};
 use crate::application::ports::dossier_repository::{DossierCriteria, DossierOrder};
 use crate::application::use_cases::browse_dossiers::{BrowseDossiers, DossierQuery};
 use crate::application::use_cases::browse_themes::BrowseThemes;
-use crate::application::use_cases::curate_dossier::CurateDossier;
 use crate::application::use_cases::fetch_recent_dossiers::FetchRecentDossiers;
 use crate::application::use_cases::get_dossier_brief::{GetDossierBrief, GetDossierBriefError};
 use crate::application::use_cases::get_dossier_detail::GetDossierDetail;
@@ -27,7 +25,6 @@ use crate::application::use_cases::refresh_dossier_group_summaries::RefreshDossi
 use crate::application::use_cases::refresh_dossiers::RefreshScope;
 use crate::application::use_cases::refresh_text_briefs::RefreshTextBriefs;
 use crate::application::use_cases::save_dossier::SaveDossier;
-use crate::application::use_cases::suggest_dossiers::SuggestDossiers;
 use crate::domain::dossier::DossierUid;
 use crate::infrastructure::config;
 
@@ -171,41 +168,6 @@ pub async fn save_dossier(
     );
 
     uc.execute(&uid).await.map_err(ApiError::internal)?;
-
-    Ok(StatusCode::NO_CONTENT)
-}
-
-pub async fn get_suggestions(
-    State(state): State<AppState>,
-    Query(params): Query<SuggestionsQuery>,
-) -> Result<Json<SuggestionsResponse>, ApiError> {
-    let uc = SuggestDossiers::new(state.dossier_repository.as_ref());
-
-    let dossiers = uc.execute(params.count).await.map_err(ApiError::internal)?;
-
-    let dtos: Vec<DossierDto> = dossiers.into_iter().map(DossierDto::from).collect();
-
-    Ok(Json(SuggestionsResponse {
-        count: dtos.len(),
-        suggestions: dtos,
-    }))
-}
-
-pub async fn curate_dossier(
-    State(state): State<AppState>,
-    Path(uid): Path<String>,
-    Json(body): Json<CurateBody>,
-) -> Result<StatusCode, ApiError> {
-    let uid = DossierUid::new(uid).map_err(ApiError::bad_request)?;
-
-    let uc = CurateDossier::new(state.dossier_repository.as_ref());
-
-    uc.execute(&uid, body.status).await.map_err(|e| match &e {
-        crate::application::use_cases::curate_dossier::CurateError::NotFound(_) => {
-            ApiError::not_found(e)
-        }
-        _ => ApiError::internal(e),
-    })?;
 
     Ok(StatusCode::NO_CONTENT)
 }
