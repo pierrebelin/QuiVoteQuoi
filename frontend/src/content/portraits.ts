@@ -8,8 +8,12 @@ import type { Logo } from './logos'
  * en tire la mention de crédit. L'année est celle de la prise de vue — un
  * portrait ancien reste daté plutôt que présenté comme actuel.
  *
- * Indexé par identifiant de candidature. Sans portrait libre, la page affiche
- * une silhouette neutre : jamais une image d'une autre source.
+ * Faute de portrait libre, la photo publiée par la campagne elle-même (site,
+ * page publique) est reprise, réduite de même, créditée à sa source et marquée
+ * « droits réservés » ; sa date de prise de vue est inconnue.
+ *
+ * Indexé par identifiant de candidature. Sans portrait libre ni photo de
+ * campagne, la page affiche une silhouette neutre.
  */
 export interface Portrait extends Logo {
   year: string | null
@@ -130,5 +134,45 @@ export const PORTRAITS: Record<string, Portrait> = {
     src: '/candidats/natacha-polony.jpg',
     credit: { file: 'Natacha Polony Cannes 2015.jpg', page: 'https://commons.wikimedia.org/wiki/File:Natacha_Polony_Cannes_2015.jpg', license: 'CC BY-SA 3.0', author: 'Georges Biard' },
     year: '2015',
+  },
+  'gilles-platret': {
+    src: '/candidats/gilles-platret.jpg',
+    credit: { file: 'GPlatret.jpg', page: 'https://commons.wikimedia.org/wiki/File:GPlatret.jpg', license: 'CC0', author: 'Jérémy Viger' },
+    year: '2017',
+  },
+  'teddy-riner': {
+    src: '/candidats/teddy-riner.jpg',
+    credit: { file: 'Teddy Riner Cannes 2016.jpg', page: 'https://commons.wikimedia.org/wiki/File:Teddy_Riner_Cannes_2016.jpg', license: 'CC BY-SA 3.0', author: 'Georges Biard' },
+    year: '2016',
+  },
+  'antoine-mikolajczak': {
+    src: '/candidats/antoine-mikolajczak.jpg',
+    credit: { file: 'Photo de campagne d’Antoine Mikolajczak', page: 'https://parti-equinoxe.fr/qui-est-antoine-mikolajczak/', license: 'droits réservés', author: 'Équinoxe' },
+    year: null,
+  },
+  'benoit-mathieu': {
+    src: '/candidats/benoit-mathieu.jpg',
+    credit: { file: 'Photo de profil de Benoît Mathieu', page: 'https://media.licdn.com/dms/image/v2/D4E03AQEDfrdcqEhVrA/profile-displayphoto-scale_400_400/B4EZz7dDKDHAAk-/0/1773745224186?e=2147483647&v=beta&t=DvlPV-9R-qdZpgbgQbMHdSsV_hIiiFcWM7RdzXXUyd8', license: 'droits réservés', author: 'LinkedIn de Benoît Mathieu' },
+    year: null,
+  },
+  'erwan-rohou': {
+    src: '/candidats/erwan-rohou.jpg',
+    credit: { file: 'Photo de campagne d’Erwan Rohou', page: 'https://2027presidentielle.fr/uploads/candidates/f8ad5364302eb50a50d0f9e3764e0ae6.jpg', license: 'droits réservés', author: '2027presidentielle.fr' },
+    year: null,
+  },
+  'jean-francois-legendre': {
+    src: '/candidats/jean-francois-legendre.jpg',
+    credit: { file: 'Photo de campagne de Jean-François Legendre', page: 'https://www.anousmaintenant.fr/', license: 'droits réservés', author: 'À nous maintenant' },
+    year: null,
+  },
+  'mira-markovic': {
+    src: '/candidats/mira-markovic.jpg',
+    credit: { file: 'Photo de campagne de Mira Markovic', page: 'https://parti-animaliste.fr/mira-markovic-2027', license: 'droits réservés', author: 'Parti animaliste' },
+    year: null,
+  },
+  'selma-labib': {
+    src: '/candidats/selma-labib.jpg',
+    credit: { file: 'Photo de campagne de Selma Labib', page: 'https://npa-revolutionnaires.org/wp-content/uploads/2024/05/1_Selma-LABIB.webp', license: 'droits réservés', author: 'NPA-Révolutionnaires' },
+    year: null,
   },
 }

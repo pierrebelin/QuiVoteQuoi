@@ -235,7 +235,8 @@ function SectionHead({
   )
 }
 
-/** Crédits des logos et des portraits (Wikimedia Commons), dus par leur licence. */
+/** Crédits des logos et des portraits : Wikimedia Commons, dus par leur licence,
+ * ou photos de campagne reprises de leur source. */
 function Credits() {
   const credits = [
     ...ALL_LOGOS.map((logo) => logo.credit),
@@ -248,7 +249,9 @@ function Credits() {
       </summary>
       <p className="mt-2 leading-relaxed">
         Logos des groupes et des partis, portraits des candidats : Wikimedia Commons, sous la
-        licence indiquée. Les portraits sont réduits, réencodés et datés de leur prise de vue.
+        licence indiquée. À défaut de portrait libre, la photo publiée par la campagne est
+        reprise de la source citée. Les portraits sont réduits, réencodés et, quand on la
+        connaît, datés de leur prise de vue.
         Un logo identifie une organisation et ne l’engage en rien envers ce site.
       </p>
       <ul className="mt-2 space-y-1 text-xs">
