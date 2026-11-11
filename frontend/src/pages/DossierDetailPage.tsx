@@ -118,7 +118,7 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
                 href={outcome.legifrance_url}
                 target="_blank"
                 rel="noreferrer"
-                className="font-semibold text-accent hover:underline"
+                className="font-semibold link"
               >
                 Légifrance ↗
               </a>
@@ -150,7 +150,7 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
         {outcome.kind === 'merged_into' && outcome.merged_into_uid && (
           <Link
             to={`/dossiers/${outcome.merged_into_uid}`}
-            className="ml-2 font-medium text-accent hover:underline"
+            className="ml-2 font-medium link"
           >
             Voir le texte →
           </Link>
@@ -165,7 +165,7 @@ function CommitteeBox({ committee }: { committee: string }) {
   return (
     <InfoBox
       visual={
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-surface text-ink-soft ring-1 ring-inset ring-line">
+        <span className="flex size-11 shrink-0 items-center justify-center rounded bg-surface text-ink-soft ring-1 ring-inset ring-line">
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -201,7 +201,7 @@ function TabButton({
   return (
     <Tabs.Tab
       value={value}
-      className={`inline-flex items-center gap-2 rounded-[9px] px-3.5 py-1.5 text-sm font-medium transition-colors ${FOCUS_RING} ${
+      className={`inline-flex items-center gap-2 rounded px-3.5 py-1.5 text-sm font-medium transition-colors ${FOCUS_RING} ${
         active ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
       }`}
     >
@@ -298,14 +298,14 @@ export default function DossierDetailPage() {
                   <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
                 )}
               </div>
-              <h2 className="mt-3 max-w-4xl text-2xl leading-tight font-semibold tracking-tight sm:text-[26px]">
+              <h2 className="mt-3 max-w-4xl heading-2">
                 {data.title}
               </h2>
               <a
                 href={data.url ?? `https://www.assemblee-nationale.fr/dyn/17/dossiers/${data.uid}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 inline-block text-sm font-medium text-accent hover:underline"
+                className="mt-3 inline-block text-sm font-medium link"
               >
                 Dossier législatif sur assemblee-nationale.fr ↗
               </a>
@@ -321,7 +321,7 @@ export default function DossierDetailPage() {
           <Tabs.Root value={activeTab} onValueChange={(tab: Tab) => selectTab(tab)}>
             <Tabs.List
               aria-label="Contenu du texte"
-              className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-surface-soft p-1 ring-1 ring-inset ring-line"
+              className="mb-4 inline-flex flex-wrap gap-1 rounded bg-surface-soft p-1 ring-1 ring-inset ring-line"
             >
               <TabButton value="groupes" active={activeTab === 'groupes'} count={undefined}>
                 Groupes

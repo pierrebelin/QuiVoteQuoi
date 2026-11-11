@@ -151,19 +151,19 @@ export default function VoteImageExport({
         <button
           type="button"
           onClick={onClose}
-          className="text-xs font-medium text-accent hover:underline"
+          className="text-xs font-medium link"
         >
           Fermer
         </button>
       </div>
 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_16rem]">
-        <div className="flex min-w-0 items-center justify-center gap-3 rounded-lg bg-surface-soft p-3">
+        <div className="flex min-w-0 items-center justify-center gap-3 rounded bg-surface-soft p-3">
           <canvas
             ref={canvasRef}
             role="img"
             aria-label={`Aperçu de l'image du scrutin n° ${scrutin.number}`}
-            className={`block h-auto max-h-[28rem] w-auto rounded-md shadow-card ${
+            className={`block h-auto max-h-[28rem] w-auto rounded shadow-card ${
               avecContenu ? 'min-w-0 max-w-[48%]' : 'max-w-full'
             }`}
           />
@@ -172,7 +172,7 @@ export default function VoteImageExport({
               ref={canvasContenuRef}
               role="img"
               aria-label={`Aperçu de la seconde image du scrutin n° ${scrutin.number} : l'exposé`}
-              className="block h-auto max-h-[28rem] w-auto min-w-0 max-w-[48%] rounded-md shadow-card"
+              className="block h-auto max-h-[28rem] w-auto min-w-0 max-w-[48%] rounded shadow-card"
             />
           )}
         </div>
@@ -185,7 +185,7 @@ export default function VoteImageExport({
             <div
               role="radiogroup"
               aria-label="Réseau"
-              className="grid grid-cols-3 gap-0.5 rounded-lg bg-surface-soft p-0.5"
+              className="grid grid-cols-3 gap-0.5 rounded bg-surface-soft p-0.5"
             >
               {Object.entries(RESEAUX).map(([valeur, r]) => (
                 <button
@@ -194,7 +194,7 @@ export default function VoteImageExport({
                   role="radio"
                   aria-checked={reseau === valeur}
                   onClick={() => setReseau(valeur as ReseauImage)}
-                  className={`truncate rounded-md px-1.5 py-1 text-xs font-medium transition-colors ${
+                  className={`truncate rounded px-1.5 py-1 text-xs font-medium transition-colors ${
                     reseau === valeur
                       ? 'bg-surface text-ink shadow-card'
                       : 'text-ink-soft hover:text-ink'

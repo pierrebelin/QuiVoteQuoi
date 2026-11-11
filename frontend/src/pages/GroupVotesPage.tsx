@@ -85,12 +85,12 @@ function NoSelectionHelp({ maxGroups }: { maxGroups: number }) {
       </p>
       <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
         Les sigles ne vous parlent pas ? La{' '}
-        <Link to="/groupes" className="text-accent underline">
+        <Link to="/groupes" className="link">
           liste des groupes
         </Link>{' '}
         donne pour chacun son intitulé complet, son effectif et ses dates
         d'existence. Un groupe parlementaire n'est pas un parti :{' '}
-        <Link to="/comprendre#q-groupe" className="text-accent underline">
+        <Link to="/comprendre#q-groupe" className="link">
           pourquoi cette distinction
         </Link>
         .
@@ -115,9 +115,9 @@ function StanceCard({ stance }: { stance: StanceDto }) {
     stance.majority !== null && share?.leading !== null && stance.majority !== share?.leading
 
   return (
-    <div className="min-w-0 rounded-lg border border-line bg-canvas px-3 py-2.5">
+    <div className="min-w-0 rounded border border-line bg-canvas px-3 py-2.5">
       <div className="flex items-center gap-1.5">
-        <GroupMark abbrev={stance.abbrev} color={stance.color} className="h-6 w-10 rounded-md p-0.5" />
+        <GroupMark abbrev={stance.abbrev} color={stance.color} className="h-6 w-10 rounded p-0.5" />
         <span className="text-sm font-semibold">{stance.abbrev}</span>
         {leading ? (
           <span
@@ -181,9 +181,9 @@ function StanceCard({ stance }: { stance: StanceDto }) {
  */
 function MissingStance({ group }: { group: GroupDto }) {
   return (
-    <div className="min-w-0 rounded-lg border border-dashed border-line px-3 py-2.5">
+    <div className="min-w-0 rounded border border-dashed border-line px-3 py-2.5">
       <div className="flex items-center gap-1.5">
-        <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-10 rounded-md p-0.5 opacity-60" />
+        <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-10 rounded p-0.5 opacity-60" />
         <span className="text-sm font-semibold text-ink-soft">{group.abbrev}</span>
       </div>
       <p className="mt-1.5 text-xs text-ink-faint">
@@ -222,25 +222,25 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
         {vote.dossier_uid && (
           <Link
             to={`/dossiers/${vote.dossier_uid}`}
-            className="text-accent underline"
+            className="link"
           >
             Texte
           </Link>
         )}
-        <Link to={`/scrutins/${vote.scrutin_uid}`} className="text-accent underline">
+        <Link to={`/scrutins/${vote.scrutin_uid}`} className="link">
           Détail du vote
         </Link>
       </div>
 
       {vote.official_text ? (
-        <div className="mt-2 rounded-md bg-surface-soft px-3 py-2 text-xs text-ink-soft">
+        <div className="mt-2 rounded bg-surface-soft px-3 py-2 text-xs text-ink-soft">
           <p>
             Version liée au vote :{' '}
             <a
               href={vote.official_text.official_url}
               target="_blank"
               rel="noreferrer"
-              className="font-medium text-accent underline"
+              className="font-medium link"
             >
               {vote.official_text.version_label}
             </a>{' '}
@@ -253,7 +253,7 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
               href={vote.official_text.mapping_source_url}
               target="_blank"
               rel="noreferrer"
-              className="text-accent underline"
+              className="link"
             >
               voir la source du rattachement
             </a>
@@ -331,7 +331,7 @@ function GroupPicker({
                   aria-haspopup="dialog"
                   aria-label="Ajouter un groupe"
                   onClick={() => setOpen(true)}
-                  className={`flex min-h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded-xl border-[1.5px] border-dashed border-line-strong px-0.5 py-1 text-xs leading-tight font-medium text-ink-soft transition-colors hover:bg-surface-soft ${FOCUS}`}
+                  className={`flex min-h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded border-[1.5px] border-dashed border-line-strong px-0.5 py-1 text-xs leading-tight font-medium text-ink-soft transition-colors hover:bg-surface-soft ${FOCUS}`}
                 >
                   <Icon name="add" className="size-[18px]" />
                   Ajouter
@@ -341,12 +341,12 @@ function GroupPicker({
                   type="button"
                   aria-label={`Retirer ${abbrev}${group ? ` (${group.label})` : ''}`}
                   onClick={() => onToggle(abbrev)}
-                  className={`relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded-xl bg-ink px-0.5 py-1 text-xs leading-tight font-semibold text-surface transition-opacity hover:opacity-90 ${FOCUS}`}
+                  className={`relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded bg-ink px-0.5 py-1 text-xs leading-tight font-semibold text-surface transition-opacity hover:opacity-90 ${FOCUS}`}
                 >
                   <GroupMark
                     abbrev={abbrev}
                     color={group?.color ?? null}
-                    className="h-[22px] w-9 rounded-md p-0.5"
+                    className="h-[22px] w-9 rounded p-0.5"
                   />
                   <span className="max-w-full truncate">{abbrev}</span>
                   <span
@@ -392,7 +392,7 @@ function GroupPicker({
                 <GroupMark
                   abbrev={group.abbrev}
                   color={group.color}
-                  className="h-6 w-10 rounded-md p-0.5"
+                  className="h-6 w-10 rounded p-0.5"
                 />
                 <span className="min-w-0 py-1 leading-tight">
                   {group.abbrev}
@@ -510,7 +510,7 @@ export default function GroupVotesPage() {
     <div className="space-y-1">
       <p>
         {data.scope_note}{' '}
-        <Link to="/scrutins" className="text-accent underline">
+        <Link to="/scrutins" className="link">
           Voir tous les votes
         </Link>
       </p>
@@ -530,7 +530,7 @@ export default function GroupVotesPage() {
           {data.total_unfiltered} votes sur l'ensemble portent une
           famille. Filtrer par sujet laisse donc de côté les textes pas
           encore rattachés.{' '}
-          <Link to="/themes/methode" className="text-accent underline">
+          <Link to="/themes/methode" className="link">
             Méthode
           </Link>
         </p>
@@ -549,7 +549,7 @@ export default function GroupVotesPage() {
       <p className="mb-2 text-xs text-ink-faint">
         <Link
           to="/votes-par-groupe/methode"
-          className="inline-flex min-h-11 items-center text-accent underline"
+          className="inline-flex min-h-11 items-center link"
         >
           Comment sont retenus les votes sur l’ensemble ?
         </Link>
@@ -576,7 +576,7 @@ export default function GroupVotesPage() {
             <select
               value={theme}
               onChange={(e) => update({ theme: e.target.value })}
-              className="h-11 min-w-0 flex-1 rounded-xl border border-line-strong bg-surface px-3 text-base font-normal text-ink focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none md:text-sm"
+              className="h-11 min-w-0 flex-1 rounded border border-line-strong bg-surface px-3 text-base font-normal text-ink focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none md:text-sm"
             >
               <option value="">Tous</option>
               {(families.data?.families ?? []).map((family) => (
@@ -594,7 +594,7 @@ export default function GroupVotesPage() {
              demande qui ils recouvrent, pas trois pages plus tôt. */
           <Link
             to="/groupes"
-            className="inline-flex min-h-11 items-center text-xs font-medium text-accent hover:underline"
+            className="inline-flex min-h-11 items-center text-xs font-medium link"
           >
             Qui est qui : effectifs et composition des {groups.length} groupes →
           </Link>

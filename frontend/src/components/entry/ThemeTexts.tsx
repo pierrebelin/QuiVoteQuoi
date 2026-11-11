@@ -11,7 +11,7 @@ import { FOCUS_RING } from './styles'
 const PAGE_SIZE = 50
 
 const PAGER_CLASS =
-  'min-h-11 rounded-lg border border-line bg-surface px-3 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40'
+  'min-h-11 rounded border border-line bg-surface px-3 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40'
 
 /**
  * Tous les textes rattachés à un sujet, votés sur l'ensemble ou non.
@@ -46,7 +46,7 @@ export default function ThemeTexts({ family }: { family: FamilyDto }) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className={`inline-flex min-h-11 items-center gap-1.5 rounded-md text-sm font-medium text-accent hover:underline ${FOCUS_RING}`}
+        className={`inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium link ${FOCUS_RING}`}
       >
         <svg
           viewBox="0 0 24 24"
@@ -100,7 +100,7 @@ export default function ThemeTexts({ family }: { family: FamilyDto }) {
               )}
               <p className="text-xs text-ink-faint">
                 Aucun texte n’est retiré du site faute de sujet :{' '}
-                <Link to="/themes/non-rattaches" className="text-accent underline">
+                <Link to="/themes/non-rattaches" className="link">
                   voir les textes sans sujet
                 </Link>
                 .

@@ -24,7 +24,7 @@ export default function ThemeStep({
       <div>
         <Link
           to="/"
-          className={`inline-flex min-h-11 items-center rounded-md text-sm font-medium text-accent hover:underline ${FOCUS_RING}`}
+          className={`inline-flex min-h-11 items-center rounded text-sm font-medium link ${FOCUS_RING}`}
         >
           ← Accueil
         </Link>
@@ -50,7 +50,7 @@ export default function ThemeStep({
               >
                 <FamilyIllustration
                   code={family.code}
-                  className="size-9 shrink-0 rounded-[10px] sm:size-10"
+                  className="size-9 shrink-0 rounded sm:size-10"
                   glyphClassName="size-5 sm:size-6"
                 />
                 <span className="min-w-0 text-[13.5px] leading-snug font-semibold sm:flex-1 sm:text-[15px]">
@@ -66,10 +66,10 @@ export default function ThemeStep({
       </ul>
 
       <p className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-faint">
-        <Link to="/themes/methode" className="text-accent underline">
+        <Link to="/themes/methode" className="link">
           Comment les textes sont rattachés aux sujets
         </Link>
-        <Link to="/themes/non-rattaches" className="text-accent underline">
+        <Link to="/themes/non-rattaches" className="link">
           Textes sans sujet
         </Link>
       </p>

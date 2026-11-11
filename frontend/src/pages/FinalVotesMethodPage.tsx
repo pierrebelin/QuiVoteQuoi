@@ -68,11 +68,11 @@ export default function FinalVotesMethodPage() {
           référencement distinct avant leur affichage.
         </p>
         <p className="mt-3 text-sm text-ink-soft">
-          <Link to="/votes-par-groupe" className="text-accent underline underline-offset-2">
+          <Link to="/votes-par-groupe" className="link">
             Retour aux votes des groupes
           </Link>
           {' · '}
-          <Link to="/scrutins" className="text-accent underline underline-offset-2">
+          <Link to="/scrutins" className="link">
             Voir tous les votes
           </Link>
         </p>

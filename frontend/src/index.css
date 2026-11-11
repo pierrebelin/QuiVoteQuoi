@@ -8,6 +8,14 @@
  */
 @import "@fontsource-variable/inter/wght.css";
 
+/*
+ * Bricolage Grotesque, auto-hébergée de la même façon, pour les titres et les
+ * grands nombres. La feuille `opsz` porte l'axe de taille optique en plus de
+ * la graisse : à 46 px le dessin se resserre, à 20 px il s'ouvre, ce que la
+ * feuille `wght` seule figerait sur une taille moyenne.
+ */
+@import "@fontsource-variable/bricolage-grotesque/opsz.css";
+
 /**
  * Tokens sémantiques du thème clair.
  *
@@ -21,29 +29,42 @@
  */
 @theme {
   --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-heading: 'Bricolage Grotesque Variable', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 
-  /* Fonds */
-  --color-canvas: #fafafa;
+  /*
+   * Rayon unique : cartes, champs, boutons, tiroirs, vignettes. Les pastilles
+   * restent pleines (`rounded-full`). Une seule valeur évite les coins qui ne
+   * s'emboîtent pas d'une carte à l'élément qu'elle contient.
+   */
+  --radius: 18px;
+
+  /* Fonds : un papier chaud, des cartes blanches posées dessus sans ombre. */
+  --color-canvas: #f0efeb;
   --color-surface: #ffffff;
-  --color-surface-soft: #f4f4f5;
+  --color-surface-soft: #ecebe7;
 
   /* Traits */
-  --color-line: #e8e8ea;
-  --color-line-strong: #d1d1d6;
+  --color-line: #e4e3df;
+  --color-line-strong: #cbc9c2;
 
   /* Texte */
-  --color-ink: #18181b;
-  --color-ink-soft: #52525b;
-  --color-ink-faint: #8e8e97;
+  --color-ink: #121212;
+  --color-ink-soft: #4c4c4c;
+  --color-ink-faint: #737373;
 
-  /* Lien / mise en avant */
-  --color-accent: #2563eb;
-  --color-accent-strong: #1d4ed8;
-  --color-accent-soft: #eff4ff;
+  /*
+   * Accent cyan profond (5,4:1 sur blanc). Il colore les boutons pleins, les
+   * états actifs et le soulignement des liens, jamais le texte d'un lien : le
+   * lien reste à l'encre (utilitaire `link`).
+   */
+  --color-accent: #0e7490;
+  --color-accent-strong: #155e75;
+  --color-accent-soft: #e2f3f7;
 
-  /* Étape législative, information neutre */
-  --color-info: #4f46e5;
-  --color-info-soft: #eef1fe;
+  /* Étape législative, information neutre : sans teinte propre, pour ne pas
+     faire concurrence à l'accent. */
+  --color-info: #4c4c4c;
+  --color-info-soft: #ecebe7;
 
   /*
    * Positions de vote. Les teintes des barres sont volontairement moins
@@ -65,7 +86,7 @@
    * que le trait des cartes : présent, donc compté, mais sans rien affirmer sur
    * son occupant.
    */
-  --color-seat-empty: #ededef;
+  --color-seat-empty: #e9e6df;
 
   /*
    * Trait des pastilles et pavés aux couleurs officielles des groupes. Les
@@ -78,10 +99,11 @@
   --color-chip-edge: rgb(0 0 0 / 0.1);
   --color-badge-edge: transparent;
 
-  /* Cartes et ligne de liste : le relief vient d'une ombre d'un pixel, pas
-     d'un dégradé ni d'une bordure épaisse. */
-  --shadow-card: 0 1px 2px 0 rgb(24 24 27 / 0.04), 0 1px 3px 0 rgb(24 24 27 / 0.03);
-  --shadow-card-hover: 0 2px 4px 0 rgb(24 24 27 / 0.06), 0 4px 12px -2px rgb(24 24 27 / 0.06);
+  /* Cartes : sans ombre, le blanc se détache seul du fond chaud. Les rôles
+     restent nommés pour que les vues n'aient pas à changer si un relief
+     revient. */
+  --shadow-card: 0 0 #0000;
+  --shadow-card-hover: 0 0 #0000;
 
   /* Tiroirs du mobile (BottomSheet) : le fond se fond, le panneau monte. */
   --animate-fade-in: fade-in 0.2s ease-out;
@@ -135,25 +157,28 @@
  * contre rouge se lit comme un feu tricolore, donc comme un jugement.
  */
 html[data-theme='dark'] {
-  --color-canvas: #0b0b0f;
-  --color-surface: #151519;
-  --color-surface-soft: #1e1e24;
+  /* Le même gris chaud que le papier clair, éteint. */
+  --color-canvas: #121110;
+  --color-surface: #1b1a18;
+  --color-surface-soft: #25241f;
 
-  --color-line: #27272e;
-  --color-line-strong: #3b3b45;
+  --color-line: #2e2d29;
+  --color-line-strong: #46443e;
 
-  --color-ink: #f4f4f5;
-  --color-ink-soft: #a1a1aa;
-  /* #71717a ne donnait que 3,8:1 sur la surface des cartes et 4,1:1 sur le
-     canevas : sous le seuil AA (4,5:1) pour du texte de 12 px. */
-  --color-ink-faint: #8b8b95;
+  --color-ink: #f1efea;
+  --color-ink-soft: #b7b4ac;
+  /* 5,4:1 sur la surface des cartes, 4,8:1 sur la surface douce : au-dessus
+     du seuil AA (4,5:1) pour du texte de 12 px. */
+  --color-ink-faint: #928f87;
 
-  --color-accent: #60a5fa;
-  --color-accent-strong: #93c5fd;
-  --color-accent-soft: rgb(37 99 235 / 0.16);
+  /* Cyan éclairci : 7,3:1 sur les cartes, 6,5:1 sur la surface douce. Les
+     boutons pleins y posent le texte en `text-surface` (sombre), 7,6:1. */
+  --color-accent: #3fb6d0;
+  --color-accent-strong: #6ccbdf;
+  --color-accent-soft: rgb(14 116 144 / 0.26);
 
-  --color-info: #a5b4fc;
-  --color-info-soft: rgb(79 70 229 / 0.18);
+  --color-info: #b7b4ac;
+  --color-info-soft: #25241f;
 
   --color-yes: #34d399;
   --color-yes-soft: rgb(4 120 87 / 0.2);
@@ -169,7 +194,7 @@ html[data-theme='dark'] {
   --color-abstain-soft: rgb(154 91 6 / 0.24);
   --color-abstain-bar: #c98f2d;
 
-  --color-seat-empty: #23232a;
+  --color-seat-empty: #2c2b27;
 
   --color-chip-edge: rgb(255 255 255 / 0.3);
   --color-badge-edge: rgb(255 255 255 / 0.3);
@@ -179,10 +204,6 @@ html[data-theme='dark'] {
   --color-logo-blue: #4568b3;
   --color-logo-red: #c44550;
 
-  /* Sur fond sombre, une ombre noire ne se voit pas : le relief vient d'un
-     trait clair au-dessus de la carte plutôt que d'une ombre portée. */
-  --shadow-card: 0 1px 0 0 rgb(255 255 255 / 0.03) inset;
-  --shadow-card-hover: 0 1px 0 0 rgb(255 255 255 / 0.06) inset;
 }
 
 html {
@@ -205,6 +226,78 @@ body {
  */
 body {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Titres : Bricolage Grotesque allégée (460), interlignage serré. Cinq
+ * niveaux, du titre d'accueil (`heading-1`) au titre de carte (`heading-5`) ;
+ * en dessous de 20 px, les titres de section restent en Inter. L'approche
+ * resserrée grandit avec la taille, comme le dessin optique de la police.
+ */
+@utility heading-1 {
+  font-family: var(--font-heading);
+  font-weight: 460;
+  font-size: 46px;
+  line-height: 46px;
+  letter-spacing: -0.02em;
+}
+
+@utility heading-2 {
+  font-family: var(--font-heading);
+  font-weight: 460;
+  font-size: 32px;
+  line-height: 34px;
+  letter-spacing: -0.02em;
+}
+
+@utility heading-3 {
+  font-family: var(--font-heading);
+  font-weight: 460;
+  font-size: 27px;
+  line-height: 30px;
+  letter-spacing: -0.02em;
+}
+
+@utility heading-4 {
+  font-family: var(--font-heading);
+  font-weight: 460;
+  font-size: 21px;
+  line-height: 26px;
+  letter-spacing: -0.01em;
+}
+
+@utility heading-5 {
+  font-family: var(--font-heading);
+  font-weight: 460;
+  font-size: 20px;
+  line-height: 25px;
+  letter-spacing: -0.01em;
+}
+
+/* Grand nombre (décompte d'un vote, total) : même police, plus appuyée pour
+   tenir face au texte. La taille reste celle de la vue. */
+@utility figure {
+  font-family: var(--font-heading);
+  font-weight: 560;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+/*
+ * Lien de texte : à l'encre, souligné de 2 px en cyan. Seul le soulignement
+ * porte l'accent ; au survol il passe à l'encre, sans déplacer le texte.
+ */
+@utility link {
+  color: var(--color-ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--color-accent);
+  transition: text-decoration-color 0.15s;
+
+  &:hover {
+    text-decoration-color: currentColor;
+  }
 }
 
 /*

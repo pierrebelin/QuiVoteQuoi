@@ -69,7 +69,7 @@ function ThemeSection({
         <h2
           id={first ? 'entry-heading' : `theme-${family.code}`}
           tabIndex={first ? -1 : undefined}
-          className="text-xl font-semibold tracking-tight outline-none"
+          className="heading-3 outline-none"
         >
           {typographic(family.label)}{' '}
           <span className="text-[15px] font-normal text-ink-soft">· dernières lois{' '}
@@ -87,7 +87,7 @@ function ThemeSection({
         {total > 0 && (
           <Link
             to={allVotesLink(family.code, followed)}
-            className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline"
+            className="inline-flex min-h-11 items-center text-sm font-medium link"
           >
             {total > 1 ? `Voir les ${total} votes` : 'Voir le vote'}
           </Link>

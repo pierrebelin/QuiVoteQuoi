@@ -7,7 +7,7 @@ const CLE = 'theme'
 /** Couleur de `--color-surface` dans chaque apparence : celle de l'en-tête. */
 const COULEUR_BARRE: Record<Theme, string> = {
   light: '#ffffff',
-  dark: '#151519',
+  dark: '#1b1a18',
 }
 
 /**
@@ -86,7 +86,7 @@ export default function ThemeToggle({ variant = 'icon' }: { variant?: 'icon' | '
       onClick={() => setTheme(sombre ? 'light' : 'dark')}
       aria-label={label}
       title={sombre ? 'Thème clair' : 'Thème sombre'}
-      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink"
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink"
     >
       {glyph}
     </button>

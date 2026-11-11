@@ -248,7 +248,7 @@ export default function CandidateComparisonPage() {
                       </Note>
                     )}
                     {families.data && (
-                      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+                      <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
                         {families.data.families.map((family) => (
                           <ThemeRow
                             key={family.code}
@@ -271,11 +271,11 @@ export default function CandidateComparisonPage() {
                       </Note>
                     )}
                     {visible.length === 0 ? (
-                      <p className="rounded-xl border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-ink-soft shadow-card">
+                      <p className="rounded border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-ink-soft shadow-card">
                         Choisissez une candidature pour lire sa déclaration, ses sources et les groupes parlementaires qui lui sont associés.
                       </p>
                     ) : (
-                      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+                      <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
                         {visible.map((candidate) => (
                           <CandidateDetails
                             key={candidate.id}
@@ -319,7 +319,7 @@ function ViewTabs({
     { value: 'face', label: 'Face-à-face' },
   ]
   return (
-    <div role="group" aria-label="Vue" className="grid w-full grid-cols-2 gap-1 rounded-[10px] bg-surface-soft p-[3px] md:w-80">
+    <div role="group" aria-label="Vue" className="grid w-full grid-cols-2 gap-1 rounded bg-surface-soft p-[3px] md:w-80">
       {options.map((option) => {
         const on = view === option.value
         return (
@@ -328,7 +328,7 @@ function ViewTabs({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(option.value)}
-            className={`flex min-h-9 items-center justify-center gap-1.5 rounded-lg px-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors md:text-sm ${FOCUS} ${
+            className={`flex min-h-9 items-center justify-center gap-1.5 rounded px-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors md:text-sm ${FOCUS} ${
               on ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
             }`}
           >

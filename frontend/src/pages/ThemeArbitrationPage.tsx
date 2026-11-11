@@ -82,7 +82,7 @@ export default function ThemeArbitrationPage() {
     <div className="space-y-3">
       <div>
         <BackLink to="/par-sujet">Votes par sujet</BackLink>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight">
+        <h2 className="mt-1 heading-2">
           Arbitrage des rattachements
         </h2>
         <p className="mt-0.5 text-sm text-ink-soft">
@@ -92,7 +92,7 @@ export default function ThemeArbitrationPage() {
         </p>
       </div>
 
-      <div className="grid gap-3 rounded-lg border border-line bg-surface px-4 py-3 sm:grid-cols-3">
+      <div className="grid gap-3 rounded border border-line bg-surface px-4 py-3 sm:grid-cols-3">
         <AdminTokenField />
         <label className="block text-sm">
           <span className="text-xs text-ink-faint">Auteur de la décision</span>
@@ -124,7 +124,7 @@ export default function ThemeArbitrationPage() {
       </div>
 
       {selected && (
-        <div className="space-y-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3">
+        <div className="space-y-2 rounded border border-accent/30 bg-accent-soft px-4 py-3">
           <div>
             <p className="text-sm font-medium">{selected.label}</p>
             <p className="text-xs text-ink-faint">
@@ -213,7 +213,7 @@ export default function ThemeArbitrationPage() {
       {texts.isLoading ? (
         <p className="animate-pulse text-ink-faint">Chargement…</p>
       ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+        <ul className="divide-y divide-line rounded border border-line bg-surface">
           {texts.data?.items.map((text) => (
             <li
               key={text.key}

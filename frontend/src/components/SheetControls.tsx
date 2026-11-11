@@ -85,7 +85,7 @@ export function SheetButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex min-h-11 items-center justify-center rounded-xl px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS} ${
+      className={`inline-flex min-h-11 items-center justify-center rounded px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS} ${
         primary
           ? 'min-w-0 flex-1 bg-ink text-surface'
           : 'bg-surface text-ink ring-1 ring-line-strong ring-inset hover:bg-surface-soft disabled:hover:bg-surface'

@@ -45,7 +45,7 @@ export default function App() {
                   key={item.to}
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
-                  className={`rounded-lg px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
+                  className={`rounded px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
                     active
                       ? 'bg-surface-soft text-ink'
                       : 'text-ink-soft hover:bg-surface-soft hover:text-ink'
@@ -63,7 +63,7 @@ export default function App() {
               rel="noreferrer"
               aria-label="Consulter le code source sur GitHub"
               title="Code source sur GitHub"
-              className="rounded-lg p-1.5 text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink"
+              className="rounded p-1.5 text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink"
             >
               <GitHubIcon className="h-4 w-4" />
             </a>

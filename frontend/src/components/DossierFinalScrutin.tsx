@@ -58,7 +58,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
 
   if (!finalVote || !scrutin.data) {
     return (
-      <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+      <p className="mb-6 rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
         Aucun vote final publié n'est rattaché à ce texte. Les votes éventuellement disponibles restent consultables dans l'onglet dédié.
       </p>
     )
@@ -75,7 +75,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
             Vote final publié
           </h3>
           <p className="mt-1 text-sm text-ink-soft">
-            <Link to={`/scrutins/${data.uid}`} className="font-medium text-accent hover:underline">
+            <Link to={`/scrutins/${data.uid}`} className="font-medium link">
               Scrutin n° {data.number}
             </Link>
             {' '}— {new Date(data.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
@@ -94,7 +94,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
             {votes.length > 0 ? (
               <Hemicycle votes={votes} labelledBy="dossier-scrutin-final" />
             ) : (
-              <p className="rounded-lg border border-line bg-surface-soft px-3 py-2 text-sm text-ink-soft">
+              <p className="rounded border border-line bg-surface-soft px-3 py-2 text-sm text-ink-soft">
                 La source ne publie aucune position nominale exploitable pour représenter l'hémicycle de ce vote.
               </p>
             )}
@@ -107,7 +107,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
               <span><b className="font-semibold text-ink-soft">{data.synthesis.tally.not_voting}</b> non-votants</span>
             </div>
             <VoteBar tally={data.synthesis.tally} />
-            <a href={data.official_url} target="_blank" rel="noreferrer" className="text-xs text-accent hover:underline">
+            <a href={data.official_url} target="_blank" rel="noreferrer" className="text-xs link">
               Source officielle ↗
             </a>
           </div>

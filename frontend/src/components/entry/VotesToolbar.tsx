@@ -29,7 +29,7 @@ function PanelButton({
       aria-expanded={open}
       aria-controls={panelId}
       onClick={onClick}
-      className={`inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded-xl border px-3 text-left text-sm font-semibold transition-colors md:w-auto ${FOCUS_RING} ${
+      className={`inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded border px-3 text-left text-sm font-semibold transition-colors md:w-auto ${FOCUS_RING} ${
         open
           ? 'border-accent bg-accent-soft text-ink'
           : 'border-line-strong bg-surface text-ink hover:bg-surface-soft'

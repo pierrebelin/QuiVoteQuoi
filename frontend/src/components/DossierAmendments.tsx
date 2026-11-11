@@ -123,7 +123,7 @@ function AmendmentRow({ amendment }: { amendment: AmendmentDto }) {
                 <span>Mis aux voix ·</span>
                 <Link
                   to={`/scrutins/${vote.scrutin_uid}`}
-                  className="font-medium text-accent hover:underline"
+                  className="font-medium link"
                 >
                   scrutin n° {vote.scrutin_number}
                 </Link>
@@ -249,9 +249,9 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Rechercher un amendement…"
-            className="min-w-0 flex-1 rounded-lg border border-line bg-surface px-3 py-1.5 text-sm placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none sm:w-64 sm:flex-none"
+            className="min-w-0 flex-1 rounded border border-line bg-surface px-3 py-1.5 text-sm placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none sm:w-64 sm:flex-none"
           />
-          <button type="submit" className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-soft hover:bg-surface-soft">
+          <button type="submit" className="rounded border border-line px-2.5 py-1 text-xs text-ink-soft hover:bg-surface-soft">
             Rechercher
           </button>
         </form>
@@ -259,7 +259,7 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
           aria-label="Filtrer par sort"
           value={fate}
           onChange={(event) => reset(setFate)(event.target.value)}
-          className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft"
+          className="rounded border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft"
         >
           {fates.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
@@ -267,7 +267,7 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
           aria-label="Filtrer par groupe politique"
           value={group}
           onChange={(event) => reset(setGroup)(event.target.value)}
-          className="w-full min-w-0 rounded-lg border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft sm:w-auto sm:max-w-xs"
+          className="w-full min-w-0 rounded border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft sm:w-auto sm:max-w-xs"
         >
           <option value="">Tous les groupes</option>
           {data?.groups.map((option) => (
@@ -277,12 +277,12 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
       </div>
 
       {number && (
-        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-line bg-surface-soft px-3 py-2 text-xs text-ink-soft">
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded border border-line bg-surface-soft px-3 py-2 text-xs text-ink-soft">
           <span>Amendement n° {number}, ouvert depuis un vote.</span>
           <button
             type="button"
             onClick={showAll}
-            className="font-medium text-accent hover:underline"
+            className="font-medium link"
           >
             Afficher tous les amendements du texte
           </button>
@@ -306,7 +306,7 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
               a été ingéré — et aucun des deux n'autorise à parler au nom de
               l'Assemblée (README.md §2).
             */
-            <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+            <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
               {data.coverage.base_total === 0
                 ? "Les amendements ne sont pas encore ingérés sur ce site. Cette section restera vide jusqu'à la première passe d'ingestion."
                 : number
@@ -331,8 +331,8 @@ export default function DossierAmendments({ uid, initialGroup = '' }: { uid: str
                   {offset + 1}–{offset + data.count} sur {data.total}
                 </span>
                 <div className="flex gap-2">
-                  <button type="button" disabled={!hasPrevious} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-soft disabled:opacity-40 enabled:hover:bg-surface-soft">Précédents</button>
-                  <button type="button" disabled={!hasNext} onClick={() => setOffset(offset + PAGE_SIZE)} className="rounded-md border border-line px-2.5 py-1 text-xs text-ink-soft disabled:opacity-40 enabled:hover:bg-surface-soft">Suivants</button>
+                  <button type="button" disabled={!hasPrevious} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))} className="rounded border border-line px-2.5 py-1 text-xs text-ink-soft disabled:opacity-40 enabled:hover:bg-surface-soft">Précédents</button>
+                  <button type="button" disabled={!hasNext} onClick={() => setOffset(offset + PAGE_SIZE)} className="rounded border border-line px-2.5 py-1 text-xs text-ink-soft disabled:opacity-40 enabled:hover:bg-surface-soft">Suivants</button>
                 </div>
               </div>
             </>

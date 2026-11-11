@@ -83,7 +83,7 @@ export function OutcomePanel({
                 href={outcome.legifrance_url}
                 target="_blank"
                 rel="noreferrer"
-                className="text-accent hover:underline"
+                className="link"
               >
                 texte sur Légifrance
               </a>
@@ -97,7 +97,7 @@ export function OutcomePanel({
           Suite de l'examen dans le texte{' '}
           <a
             href={`/dossiers/${outcome.merged_into_uid}`}
-            className="text-accent hover:underline"
+            className="link"
           >
             {outcome.merged_into_uid}
           </a>

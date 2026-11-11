@@ -29,7 +29,7 @@ function Infobulle({ place }: { place: Place }) {
 
   return (
     <div
-      className={`pointer-events-none absolute z-10 w-max max-w-[15rem] -translate-x-1/2 rounded-xl border border-line bg-surface px-3 py-2 shadow-card-hover ${
+      className={`pointer-events-none absolute z-10 w-max max-w-[15rem] -translate-x-1/2 rounded border border-line bg-surface px-3 py-2 shadow-card-hover ${
         dessus ? '-translate-y-[calc(100%+0.75rem)]' : 'translate-y-3'
       }`}
       style={{

@@ -150,7 +150,7 @@ function DocumentLink({ document }: { document: ParcoursDocumentDto }) {
       target="_blank"
       rel="noreferrer"
       title={title}
-      className="font-medium text-accent hover:underline"
+      className="font-medium link"
     >
       {label} ↗
     </a>
@@ -206,7 +206,7 @@ export default function DossierParcours({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mb-3 text-xs font-medium text-accent hover:underline"
+          className="mb-3 text-xs font-medium link"
         >
           Afficher {hidden} lecture{hidden > 1 ? 's' : ''} antérieure{hidden > 1 ? 's' : ''}
         </button>

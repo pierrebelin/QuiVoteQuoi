@@ -6,7 +6,7 @@ import { Icon } from '../icons'
 import { SectionTitle } from '../ui'
 import { CandidateLogo, CandidatePortrait } from './CandidateIdentity'
 
-const LINK = 'text-accent underline underline-offset-2'
+const LINK = 'link'
 
 /** Déclaration publique, organisations sourcées, site et programme : ce que
  * README.md §8.2 exige de publier pour chaque candidature. */

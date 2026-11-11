@@ -91,7 +91,7 @@ function HemicycleHelp() {
         href="https://www.assemblee-nationale.fr/dyn/vos-deputes/hemicycle"
         target="_blank"
         rel="noreferrer"
-        className="text-accent hover:underline"
+        className="link"
       >
         plan de l'hémicycle
       </a>
@@ -117,7 +117,7 @@ function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: 
   return (
     <InfoBox
       visual={
-        <span className={`flex size-11 shrink-0 items-center justify-center rounded-lg ${tone}`}>
+        <span className={`flex size-11 shrink-0 items-center justify-center rounded ${tone}`}>
           <svg
             viewBox="0 0 24 24"
             fill="none"
@@ -140,7 +140,7 @@ function OutcomeBox({ outcome, dossierUid }: { outcome: OutcomeDto; dossierUid: 
       </p>
       <p className="text-xs">
         {outcome.date && <span className="text-ink-faint">{shortDate(outcome.date)} · </span>}
-        <Link to={`/dossiers/${dossierUid}`} className="font-medium text-accent hover:underline">
+        <Link to={`/dossiers/${dossierUid}`} className="font-medium link">
           Voir le texte et son parcours →
         </Link>
       </p>
@@ -210,7 +210,7 @@ function CitedAmendment({
               <button
                 type="button"
                 onClick={() => setOpen(!open)}
-                className={`ml-1 text-xs font-medium text-accent underline hover:text-ink ${FOCUS_RING}`}
+                className={`ml-1 text-xs font-medium link ${FOCUS_RING}`}
               >
                 {open ? 'Replier' : 'Lire la suite'}
               </button>
@@ -229,7 +229,7 @@ function CitedAmendment({
             le renvoi mène à sa carte, dans son dossier. */}
         <Link
           to={amendmentCardPath(amendment.dossier_uid, amendment.number)}
-          className="font-medium text-accent hover:underline"
+          className="font-medium link"
         >
           Voir l'amendement dans son texte →
         </Link>
@@ -281,7 +281,7 @@ function GroupRow({ group }: { group: GroupBreakdownDto }) {
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className={`flex w-full items-center gap-3 rounded-lg py-2.5 text-left transition-colors hover:bg-surface-soft sm:px-2 ${FOCUS_RING}`}
+        className={`flex w-full items-center gap-3 rounded py-2.5 text-left transition-colors hover:bg-surface-soft sm:px-2 ${FOCUS_RING}`}
       >
         <PoliticalLogo
           logo={group.abbrev ? GROUP_LOGOS[group.abbrev] : undefined}
@@ -325,7 +325,7 @@ function GroupRow({ group }: { group: GroupBreakdownDto }) {
       </button>
 
       {open && (
-        <div className="mb-2 divide-y divide-line rounded-lg border border-line bg-surface-soft/40">
+        <div className="mb-2 divide-y divide-line rounded border border-line bg-surface-soft/40">
           {group.group_uid === null && (
             <p className="px-3 py-2 text-xs text-ink-faint">
               La source ne rattache ces positions à aucun groupe. Elles sont
@@ -345,7 +345,7 @@ function GroupRow({ group }: { group: GroupBreakdownDto }) {
                       href={v.official_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="hover:text-accent hover:underline"
+                      className="hover:link"
                     >
                       {v.full_name}
                     </a>
@@ -363,7 +363,7 @@ function GroupRow({ group }: { group: GroupBreakdownDto }) {
                   )}
                 </span>
                 <span
-                  className={`shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${positionClasses[v.position]}`}
+                  className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${positionClasses[v.position]}`}
                 >
                   {positionLabels[v.position]}
                 </span>
@@ -478,7 +478,7 @@ export default function ScrutinDetailPage() {
           reading={data.reading}
           date={data.date}
         />
-        <h2 className="text-2xl leading-tight font-semibold tracking-tight sm:text-[28px]">
+        <h2 className="heading-2">
           {data.dossier_uid ? data.dossier_label || data.dossier_uid : capitalized(data.subject)}
         </h2>
         {data.families.length > 0 && (
@@ -582,7 +582,7 @@ export default function ScrutinDetailPage() {
                 ] as const
               ).map(([label, value, color]) => (
                 <div key={label}>
-                  <p className={`text-[32px] leading-none font-semibold tracking-tight ${color}`}>
+                  <p className={`figure text-[48px] ${color}`}>
                     {value}
                   </p>
                   <p className="mt-1 text-xs text-ink-faint">{label}</p>
@@ -650,7 +650,7 @@ export default function ScrutinDetailPage() {
             chiffres marqués « reconstituée » sont produits par le site, pas
             publiés par l'Assemblée. */}
         {methodNote && (
-          <p className="mb-4 hidden rounded-lg bg-info-soft px-3 py-2 text-xs leading-relaxed text-info ring-1 ring-info/15 ring-inset md:block">
+          <p className="mb-4 hidden rounded bg-info-soft px-3 py-2 text-xs leading-relaxed text-info ring-1 ring-info/15 ring-inset md:block">
             {methodNote}
           </p>
         )}
@@ -668,7 +668,7 @@ export default function ScrutinDetailPage() {
             Déclarations postérieures au vote. Elles ne modifient ni le
             résultat ni la répartition ci-dessus.
           </p>
-          <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card">
+          <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
             {data.corrections.map((c) => (
               <div key={c.actor_uid} className="flex items-center justify-between gap-3 px-4 py-1.5">
                 <span className="truncate text-sm">
@@ -682,7 +682,7 @@ export default function ScrutinDetailPage() {
                 <span className="shrink-0 text-xs text-ink-soft">
                   souhaitait voter{' '}
                   <span
-                    className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${positionClasses[c.claimed_position]}`}
+                    className={`rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${positionClasses[c.claimed_position]}`}
                   >
                     {positionLabels[c.claimed_position]}
                   </span>
@@ -696,12 +696,12 @@ export default function ScrutinDetailPage() {
       {/* Les liens et la référence officielle, en bas : on y va après avoir lu. */}
       <nav
         aria-label="Pour aller plus loin"
-        className="mt-6 divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface shadow-card"
+        className="mt-6 divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card"
       >
         {data.dossier_uid && (
           <Link
             to={`/dossiers/${data.dossier_uid}`}
-            className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium text-accent hover:bg-surface-soft ${FOCUS_RING}`}
+            className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium link hover:bg-surface-soft ${FOCUS_RING}`}
           >
             Le texte et tout son parcours
             <span aria-hidden>→</span>
@@ -711,7 +711,7 @@ export default function ScrutinDetailPage() {
           href={data.official_url}
           target="_blank"
           rel="noreferrer"
-          className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium text-accent hover:bg-surface-soft ${FOCUS_RING}`}
+          className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium link hover:bg-surface-soft ${FOCUS_RING}`}
         >
           Page officielle du scrutin
           <span aria-hidden>↗</span>
@@ -720,7 +720,7 @@ export default function ScrutinDetailPage() {
           type="button"
           onClick={() => setPartage(!partage)}
           aria-expanded={partage}
-          className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-sm font-medium text-accent hover:bg-surface-soft ${FOCUS_RING}`}
+          className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-sm font-medium link hover:bg-surface-soft ${FOCUS_RING}`}
         >
           Partager en image
           <span aria-hidden>{partage ? '−' : '+'}</span>

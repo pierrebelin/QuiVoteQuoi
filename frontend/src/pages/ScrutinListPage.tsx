@@ -120,7 +120,7 @@ function ChipGroup({
 function PageCount({ total, label }: { total: number; label: string }) {
   return (
     <div className="shrink-0 text-right">
-      <p className="text-3xl leading-none font-semibold tracking-tight tabular-nums">{total.toLocaleString('fr-FR')}</p>
+      <p className="figure text-[40px] tabular-nums">{total.toLocaleString('fr-FR')}</p>
       <p className="mt-1 text-xs text-ink-faint">{label}</p>
     </div>
   )
@@ -165,7 +165,7 @@ function ViewToggle({ view, onChange }: { view: ListView; onChange: (view: ListV
     <div
       role="group"
       aria-label="Regrouper les votes"
-      className="grid w-full grid-cols-2 gap-1 rounded-xl bg-surface-soft p-[3px] md:w-80"
+      className="grid w-full grid-cols-2 gap-1 rounded bg-surface-soft p-[3px] md:w-80"
     >
       {views.map((option) => {
         const on = view === option.value
@@ -175,7 +175,7 @@ function ViewToggle({ view, onChange }: { view: ListView; onChange: (view: ListV
             type="button"
             aria-pressed={on}
             onClick={() => onChange(option.value)}
-            className={`flex min-h-11 items-center justify-center gap-1.5 rounded-[9px] px-2 text-sm whitespace-nowrap transition-colors ${FOCUS} ${
+            className={`flex min-h-11 items-center justify-center gap-1.5 rounded px-2 text-sm whitespace-nowrap transition-colors ${FOCUS} ${
               on ? 'bg-surface font-semibold text-ink shadow-card' : 'font-medium text-ink-soft hover:text-ink'
             }`}
           >
@@ -205,7 +205,7 @@ function SheetChoice({
       <div
         role="group"
         aria-label={label}
-        className="grid auto-cols-fr grid-flow-col gap-1 rounded-xl bg-surface-soft p-[3px]"
+        className="grid auto-cols-fr grid-flow-col gap-1 rounded bg-surface-soft p-[3px]"
       >
         {options.map((option) => {
           const on = value === option.value
@@ -215,7 +215,7 @@ function SheetChoice({
               type="button"
               aria-pressed={on}
               onClick={() => onChange(option.value)}
-              className={`flex min-h-11 items-center justify-center gap-1 rounded-[9px] px-1 text-[13px] whitespace-nowrap transition-colors ${FOCUS} ${
+              className={`flex min-h-11 items-center justify-center gap-1 rounded px-1 text-[13px] whitespace-nowrap transition-colors ${FOCUS} ${
                 on ? 'bg-ink font-semibold text-surface' : 'font-medium text-ink-soft hover:text-ink'
               }`}
             >
@@ -236,7 +236,7 @@ function FiltersButton({ count, onClick, className = '' }: { count: number; onCl
       type="button"
       aria-haspopup="dialog"
       onClick={onClick}
-      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl bg-surface px-3.5 text-sm font-semibold text-ink ring-1 ring-line-strong ring-inset transition-colors hover:bg-surface-soft ${FOCUS} ${className}`}
+      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded bg-surface px-3.5 text-sm font-semibold text-ink ring-1 ring-line-strong ring-inset transition-colors hover:bg-surface-soft ${FOCUS} ${className}`}
     >
       <Icon name="tune" className="size-[18px]" />
       Filtres
@@ -442,7 +442,7 @@ export default function ScrutinListPage() {
       <div className="mb-5">
         {/* Le compteur reste sur la ligne du titre dans les deux vues, quelle que soit la longueur de son libellé. */}
         <div className="flex items-end justify-between gap-4">
-          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">
+          <h1 className="heading-2">
             Votes
             <InfoTip label="À propos de cette page : Votes" className="md:hidden">
               <p>{lede}</p>
@@ -481,11 +481,11 @@ export default function ScrutinListPage() {
         }}
         className="mb-5 flex gap-2 md:hidden"
       >
-        <div className="flex h-11 min-w-0 flex-1 items-center rounded-xl border border-line-strong bg-surface text-ink-soft focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+        <div className="flex h-11 min-w-0 flex-1 items-center rounded border border-line-strong bg-surface text-ink-soft focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
           <button
             type="submit"
             aria-label="Lancer la recherche"
-            className={`flex size-11 shrink-0 items-center justify-center rounded-xl hover:text-ink ${FOCUS}`}
+            className={`flex size-11 shrink-0 items-center justify-center rounded hover:text-ink ${FOCUS}`}
           >
             <Icon name="search" />
           </button>
@@ -504,7 +504,7 @@ export default function ScrutinListPage() {
       </form>
 
       {/* Recherche et filtres dans une seule carte, au-dessus de la liste. */}
-      <div className="hidden flex-wrap items-center gap-x-5 gap-y-2.5 rounded-2xl border border-line bg-surface px-3.5 py-3 shadow-card md:flex">
+      <div className="hidden flex-wrap items-center gap-x-5 gap-y-2.5 rounded border border-line bg-surface px-3.5 py-3 shadow-card md:flex">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -512,7 +512,7 @@ export default function ScrutinListPage() {
           }}
           className="flex min-w-0 flex-[1_1_320px] gap-1.5"
         >
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-line bg-surface px-2.5 py-1.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+          <label className="flex min-w-0 flex-1 items-center gap-2 rounded border border-line bg-surface px-2.5 py-1.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -583,7 +583,7 @@ export default function ScrutinListPage() {
           {dossiers.data && (
             <>
               {dossiers.data.dossiers.length === 0 ? (
-                <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
+                <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
                   {allTexts ? 'Aucun texte ne correspond à ces filtres.' : 'Aucun texte voté ne correspond à ces filtres.'}
                 </p>
               ) : (
@@ -602,7 +602,7 @@ export default function ScrutinListPage() {
               {/* Par défaut, seuls les textes votés : ceux qui ne l'ont pas
                   été sont dits, et à un geste (README.md §2). */}
               {!allTexts && unvotedTotal !== undefined && unvotedTotal > 0 && (
-                <div className="mt-5 flex items-start gap-3 rounded-2xl border border-dashed border-line-strong bg-surface px-4 py-3.5">
+                <div className="mt-5 flex items-start gap-3 rounded border border-dashed border-line-strong bg-surface px-4 py-3.5">
                   <Icon name="info" className="mt-0.5 size-4 shrink-0 text-ink-faint" />
                   <div>
                     <p className="text-[13.5px] leading-snug text-ink-soft">
@@ -618,7 +618,7 @@ export default function ScrutinListPage() {
                         setScope(SCOPE_ALL)
                         window.scrollTo({ top: 0 })
                       }}
-                      className={`mt-1 inline-flex min-h-11 items-center gap-1 rounded-lg text-sm font-semibold text-accent hover:underline ${FOCUS}`}
+                      className={`mt-1 inline-flex min-h-11 items-center gap-1 rounded text-sm font-semibold link ${FOCUS}`}
                     >
                       Les inclure
                       <Icon name="chevron" className="size-4" />
@@ -637,7 +637,7 @@ export default function ScrutinListPage() {
       {view === 'scrutin' && data && (
         <>
           {data.count === 0 ? (
-            <p className="rounded-xl border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
+            <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
               Aucun vote ne correspond à ces filtres.
             </p>
           ) : (
