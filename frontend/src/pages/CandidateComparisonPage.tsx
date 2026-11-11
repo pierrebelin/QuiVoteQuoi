@@ -64,10 +64,13 @@ export default function CandidateComparisonPage() {
   const max = list.data?.max_compared_candidates ?? 4
   const slotCount = wide ? max : Math.min(NARROW_SLOTS, max)
 
-  // L'URL peut porter jusqu'à `max` noms, ou un nom que la liste ne connaît
-  // plus : seuls les connus comptent. Le mobile n'en montre que les premiers.
+  // L'URL peut porter jusqu'à `max` noms, un nom que la liste ne connaît plus
+  // ou une candidature sans programme : seules les comparables comptent. Le
+  // mobile n'en montre que les premières.
   const requested = useMemo(() => {
-    const known = new Set(all.map((candidate) => candidate.id))
+    const known = new Set(
+      all.filter((candidate) => candidate.has_program_excerpts).map((candidate) => candidate.id),
+    )
     return parseCandidateIds(params.get('candidats')).filter((id) => known.has(id))
   }, [all, params])
   const slots = useMemo(() => {

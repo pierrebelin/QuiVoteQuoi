@@ -15,6 +15,9 @@ pub struct CandidateRecord {
     pub declaration_source_label: String,
     pub official_site_url: Option<String>,
     pub program_url: Option<String>,
+    /// Au moins un extrait de programme enregistré, tous thèmes confondus :
+    /// sans extrait, la candidature n'a rien à comparer.
+    pub has_program_excerpts: bool,
     pub organizations: Vec<PoliticalOrganizationRecord>,
 }
 

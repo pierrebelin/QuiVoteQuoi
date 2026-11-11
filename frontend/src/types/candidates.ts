@@ -14,6 +14,8 @@ export interface CandidateDto {
   declaration_source_label: string
   official_site_url: string | null
   program_url: string | null
+  /** Au moins un extrait de programme, tous thèmes confondus : sans, rien à comparer. */
+  has_program_excerpts: boolean
   political_organizations: PoliticalOrganizationDto[]
 }
 

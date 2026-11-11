@@ -76,7 +76,10 @@ impl CandidateRepository for PgCandidateRepository {
     async fn list_candidates(&self) -> Result<Vec<CandidateRecord>, RepositoryError> {
         let candidate_rows = sqlx::query(
             "SELECT id, display_name, declared_on, declaration_source_url,
-                    declaration_source_label, official_site_url, program_url
+                    declaration_source_label, official_site_url, program_url,
+                    EXISTS (SELECT 1 FROM candidate_program_proposals proposal
+                             WHERE proposal.candidate_id = presidential_candidates.id)
+                      AS has_program_excerpts
                FROM presidential_candidates
               ORDER BY declared_on, display_name, id",
         )
@@ -123,6 +126,7 @@ impl CandidateRepository for PgCandidateRepository {
                     declaration_source_label: row.get("declaration_source_label"),
                     official_site_url: row.get("official_site_url"),
                     program_url: row.get("program_url"),
+                    has_program_excerpts: row.get("has_program_excerpts"),
                 })
             })
             .collect()

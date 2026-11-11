@@ -105,9 +105,11 @@ export function CandidateSlots({
 }
 
 /**
- * Contenu du tiroir : recherche insensible aux accents, puis toutes les
- * candidatures. Celles qui occupent déjà une autre case sont désactivées, et le
- * disent. Monté à l'ouverture seulement : la recherche repart vide à chaque fois.
+ * Contenu du tiroir : recherche insensible aux accents, puis les candidatures
+ * comparables. Celles qui occupent déjà une autre case sont désactivées, et le
+ * disent. Celles sans aucun extrait de programme sont mises de côté en bas, non
+ * choisissables : leur colonne serait vide. Monté à l'ouverture seulement : la
+ * recherche repart vide à chaque fois.
  */
 function CandidatePicker({
   candidates,
@@ -131,6 +133,8 @@ function CandidatePicker({
           normalizeText(organizationLabel(candidate)).includes(query),
       )
     : candidates
+  const comparable = shown.filter((candidate) => candidate.has_program_excerpts)
+  const withoutProgram = shown.filter((candidate) => !candidate.has_program_excerpts)
 
   return (
     <>
@@ -148,7 +152,7 @@ function CandidatePicker({
       </label>
 
       <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 pb-2">
-        {shown.map((candidate) => {
+        {comparable.map((candidate) => {
           const isCurrent = candidate.id === current?.id
           const isTaken = taken.has(candidate.id)
           return (
@@ -183,6 +187,32 @@ function CandidatePicker({
             </li>
           )
         })}
+        {withoutProgram.length > 0 && (
+          <li className="mt-2 border-t border-line pt-3">
+            <p className="px-2 text-[13px] leading-[18px] font-semibold text-ink">Pas encore de programme</p>
+            <p className="mt-0.5 mb-1 px-2 text-[12.5px] leading-[17px] text-ink-soft">
+              Aucun extrait de programme publié pour l'instant : comparaison impossible.
+            </p>
+            <ul aria-label="Candidatures sans programme">
+              {withoutProgram.map((candidate) => (
+                <li
+                  key={candidate.id}
+                  className="grid min-h-[54px] grid-cols-[40px_minmax(0,1fr)] items-center gap-2.5 px-2 py-1.5 opacity-55"
+                >
+                  <CandidatePortrait candidate={candidate} className="size-10 grayscale" />
+                  <span className="min-w-0">
+                    <span className="block text-[14.5px] leading-tight font-semibold text-ink">
+                      {candidate.display_name}
+                    </span>
+                    <span className="block truncate text-[12.5px] leading-tight text-ink-soft">
+                      {organizationLabel(candidate)}
+                    </span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </li>
+        )}
         {shown.length === 0 && (
           <li className="px-3 py-6 text-center text-sm text-ink-soft">
             Aucune candidature ne correspond à cette recherche.
