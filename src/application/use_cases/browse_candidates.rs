@@ -84,7 +84,26 @@ impl<'a> BrowseCandidates<'a> {
             .collect();
 
         let (proposals, parliamentary_groups) = if selected_ids.is_empty() {
-            (Vec::new(), Vec::new())
+            // Sans sélection, un sujet donne les extraits de toutes les
+            // candidatures : la vue « un sujet » les liste toutes, la borne
+            // ne vaut que pour le face-à-face.
+            match selected_family {
+                Some(family) => {
+                    let all_ids: Vec<CandidateId> = candidates
+                        .iter()
+                        .map(|candidate| candidate.id.clone())
+                        .collect();
+                    let proposals = if all_ids.is_empty() {
+                        Vec::new()
+                    } else {
+                        self.repository
+                            .program_proposals(&all_ids, Some(family))
+                            .await?
+                    };
+                    (proposals, Vec::new())
+                }
+                None => (Vec::new(), Vec::new()),
+            }
         } else {
             tokio::try_join!(
                 self.repository
@@ -113,7 +132,37 @@ mod tests {
         ChangedSourceRecord, PoliticalOrganizationRecord,
     };
 
-    struct InMemoryCandidateRepository;
+    #[derive(Default)]
+    struct InMemoryCandidateRepository {
+        requested_proposals: std::sync::Mutex<Vec<(Vec<String>, Option<FamilyCode>)>>,
+    }
+
+    fn candidate(id: &str) -> CandidateRecord {
+        CandidateRecord {
+            id: CandidateId::new(id.into()).unwrap(),
+            display_name: format!("Candidate {id}"),
+            declared_on: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
+            declaration_source_url: "https://example.test/declaration".into(),
+            declaration_source_label: "Déclaration".into(),
+            official_site_url: None,
+            program_url: None,
+            organizations: vec![PoliticalOrganizationRecord {
+                label: "Organisation A".into(),
+                official_url: None,
+                source_url: "https://example.test/organisation".into(),
+                source_label: "Source".into(),
+            }],
+        }
+    }
+
+    const REGISTRY: [&str; 6] = [
+        "candidate-a",
+        "candidate-b",
+        "candidate-c",
+        "candidate-d",
+        "candidate-e",
+        "candidate-f",
+    ];
 
     #[async_trait]
     impl CandidateRepository for InMemoryCandidateRepository {
@@ -124,27 +173,17 @@ mod tests {
             Ok(Vec::new())
         }
         async fn list_candidates(&self) -> Result<Vec<CandidateRecord>, RepositoryError> {
-            Ok(vec![CandidateRecord {
-                id: CandidateId::new("candidate-a".into()).unwrap(),
-                display_name: "Candidate A".into(),
-                declared_on: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-                declaration_source_url: "https://example.test/declaration".into(),
-                declaration_source_label: "Déclaration".into(),
-                official_site_url: None,
-                program_url: None,
-                organizations: vec![PoliticalOrganizationRecord {
-                    label: "Organisation A".into(),
-                    official_url: None,
-                    source_url: "https://example.test/organisation".into(),
-                    source_label: "Source".into(),
-                }],
-            }])
+            Ok(REGISTRY.iter().map(|id| candidate(id)).collect())
         }
         async fn program_proposals(
             &self,
-            _: &[CandidateId],
-            _: Option<FamilyCode>,
+            candidate_ids: &[CandidateId],
+            family: Option<FamilyCode>,
         ) -> Result<Vec<CandidateProgramProposalRecord>, RepositoryError> {
+            self.requested_proposals.lock().unwrap().push((
+                candidate_ids.iter().map(|id| id.as_str().to_string()).collect(),
+                family,
+            ));
             Ok(Vec::new())
         }
         async fn parliamentary_groups(
@@ -157,7 +196,7 @@ mod tests {
 
     #[tokio::test]
     async fn deduplicates_requested_candidates_without_selecting_anyone_else() {
-        let view = BrowseCandidates::new(&InMemoryCandidateRepository)
+        let view = BrowseCandidates::new(&InMemoryCandidateRepository::default())
             .execute(BrowseCandidatesCommand {
                 candidate_ids: vec!["candidate-a".into(), "candidate-a".into()],
                 family: None,
@@ -170,7 +209,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_a_candidate_not_in_the_declared_registry() {
-        let error = BrowseCandidates::new(&InMemoryCandidateRepository)
+        let error = BrowseCandidates::new(&InMemoryCandidateRepository::default())
             .execute(BrowseCandidatesCommand {
                 candidate_ids: vec!["unknown".into()],
                 family: None,
@@ -178,5 +217,50 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(error, BrowseCandidatesError::UnknownCandidate(_)));
+    }
+
+    #[tokio::test]
+    async fn a_theme_without_selection_reads_the_excerpts_of_every_candidate() {
+        let repository = InMemoryCandidateRepository::default();
+        let view = BrowseCandidates::new(&repository)
+            .execute(BrowseCandidatesCommand {
+                candidate_ids: Vec::new(),
+                family: Some("protection-sociale-retraites".into()),
+            })
+            .await
+            .unwrap();
+        assert!(view.selected.is_empty());
+        let requested = repository.requested_proposals.lock().unwrap();
+        assert_eq!(requested.len(), 1);
+        assert_eq!(requested[0].0, REGISTRY.map(String::from).to_vec());
+        assert_eq!(
+            requested[0].1.map(|family| family.as_str().to_string()),
+            Some("protection-sociale-retraites".to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn no_theme_and_no_selection_reads_no_excerpt() {
+        let repository = InMemoryCandidateRepository::default();
+        BrowseCandidates::new(&repository)
+            .execute(BrowseCandidatesCommand::default())
+            .await
+            .unwrap();
+        assert!(repository.requested_proposals.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn the_face_to_face_stays_bounded() {
+        let error = BrowseCandidates::new(&InMemoryCandidateRepository::default())
+            .execute(BrowseCandidatesCommand {
+                candidate_ids: REGISTRY[..MAX_COMPARED_CANDIDATES + 1]
+                    .iter()
+                    .map(|id| id.to_string())
+                    .collect(),
+                family: Some("protection-sociale-retraites".into()),
+            })
+            .await
+            .unwrap_err();
+        assert!(matches!(error, BrowseCandidatesError::TooManyCandidates));
     }
 }
