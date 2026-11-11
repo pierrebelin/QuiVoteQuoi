@@ -1,5 +1,6 @@
 import { useParams, Link, useSearchParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
+import { Tabs } from '@base-ui/react/tabs'
 import DossierAmendments from '../components/DossierAmendments'
 import DossierScrutins from '../components/DossierScrutins'
 import DossierBrief from '../components/DossierBrief'
@@ -187,22 +188,19 @@ function CommitteeBox({ committee }: { committee: string }) {
 }
 
 function TabButton({
+  value,
   active,
   count,
-  onClick,
   children,
 }: {
+  value: Tab
   active: boolean
   count: number | undefined
-  onClick: () => void
   children: string
 }) {
   return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
+    <Tabs.Tab
+      value={value}
       className={`inline-flex items-center gap-2 rounded-[9px] px-3.5 py-1.5 text-sm font-medium transition-colors ${FOCUS_RING} ${
         active ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
       }`}
@@ -215,7 +213,7 @@ function TabButton({
           {count.toLocaleString('fr-FR')}
         </span>
       )}
-    </button>
+    </Tabs.Tab>
   )
 }
 
@@ -318,35 +316,34 @@ export default function DossierDetailPage() {
 
           <DossierFinalScrutin uid={data.uid} />
 
-          <div
-            role="tablist"
-            aria-label="Contenu du texte"
-            className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-surface-soft p-1 ring-1 ring-inset ring-line"
-          >
-            <TabButton active={activeTab === 'groupes'} count={undefined} onClick={() => selectTab('groupes')}>
-              Groupes
-            </TabButton>
-            <TabButton
-              active={activeTab === 'scrutins'}
-              count={scrutinTotal?.total}
-              onClick={() => selectTab('scrutins')}
+          {/* Chaque onglet charge sa liste : les flèches déplacent le focus,
+              Entrée ou Espace l'activent. */}
+          <Tabs.Root value={activeTab} onValueChange={(tab: Tab) => selectTab(tab)}>
+            <Tabs.List
+              aria-label="Contenu du texte"
+              className="mb-4 inline-flex flex-wrap gap-1 rounded-xl bg-surface-soft p-1 ring-1 ring-inset ring-line"
             >
-              Votes publics
-            </TabButton>
-            <TabButton
-              active={activeTab === 'amendements'}
-              count={amendmentTotal?.total}
-              onClick={() => selectTab('amendements')}
-            >
-              Amendements
-            </TabButton>
-          </div>
+              <TabButton value="groupes" active={activeTab === 'groupes'} count={undefined}>
+                Groupes
+              </TabButton>
+              <TabButton value="scrutins" active={activeTab === 'scrutins'} count={scrutinTotal?.total}>
+                Votes publics
+              </TabButton>
+              <TabButton
+                value="amendements"
+                active={activeTab === 'amendements'}
+                count={amendmentTotal?.total}
+              >
+                Amendements
+              </TabButton>
+            </Tabs.List>
 
-          {activeTab === 'groupes' && <DossierGroupActions uid={data.uid} />}
-          {activeTab === 'scrutins' && <DossierScrutins uid={data.uid} />}
-          {activeTab === 'amendements' && (
-            <DossierAmendments uid={data.uid} initialGroup={searchParams.get('amendements_group') ?? ''} />
-          )}
+            {activeTab === 'groupes' && <DossierGroupActions uid={data.uid} />}
+            {activeTab === 'scrutins' && <DossierScrutins uid={data.uid} />}
+            {activeTab === 'amendements' && (
+              <DossierAmendments uid={data.uid} initialGroup={searchParams.get('amendements_group') ?? ''} />
+            )}
+          </Tabs.Root>
         </div>
 
         <aside className="space-y-4">

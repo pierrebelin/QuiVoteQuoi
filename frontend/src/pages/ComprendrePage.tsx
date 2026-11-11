@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { Tabs } from '@base-ui/react/tabs'
 import { FreshnessSection } from '../components/Freshness'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import {
@@ -246,19 +247,18 @@ export default function ComprendrePage() {
         </p>
       </div>
 
-      <div>
-        <div
-          role="tablist"
+      {/* Changer de niveau est immédiat : les flèches activent l'onglet qu'elles
+          atteignent. */}
+      <Tabs.Root value={niveau} onValueChange={(valeur: Niveau) => appliquerNiveau(valeur)}>
+        <Tabs.List
+          activateOnFocus
           aria-label="Niveau de lecture"
           className="inline-flex gap-0.5 rounded-lg bg-surface-soft p-0.5"
         >
           {NIVEAUX.map((item) => (
-            <button
+            <Tabs.Tab
               key={item.valeur}
-              type="button"
-              role="tab"
-              aria-selected={niveau === item.valeur}
-              onClick={() => appliquerNiveau(item.valeur)}
+              value={item.valeur}
               className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
                 niveau === item.valeur
                   ? 'bg-surface text-ink shadow-card'
@@ -266,13 +266,13 @@ export default function ComprendrePage() {
               }`}
             >
               {item.label}
-            </button>
+            </Tabs.Tab>
           ))}
-        </div>
+        </Tabs.List>
         <p className="mt-1.5 text-xs text-ink-faint">
           {NIVEAUX.find((item) => item.valeur === niveau)!.aide}
         </p>
-      </div>
+      </Tabs.Root>
 
       <div className="space-y-6">
         {SECTIONS.map((section) => (
