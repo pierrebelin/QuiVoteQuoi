@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::{DateTime, NaiveDate, Utc};
 use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 
@@ -21,6 +21,9 @@ use crate::domain::sitting_record::{
 const RESULT_MARKER: &str = "Voici le résultat du scrutin";
 const INTERJECTION_GRAMMAR_PREFIX: &str = "INTERRUPTION";
 const PRESIDING_ROLE: &str = "president";
+/// La plupart des paroles de la presidence n'ont pas d'attribut `roledebat`:
+/// seul le nom de l'orateur les distingue.
+const PRESIDING_SPEAKER_NAMES: [&str; 2] = ["M. le président", "Mme la présidente"];
 
 /// Archive des comptes rendus de la legislature: pas de sous-ensemble a demander.
 const SITTING_RECORDS_URL: &str = "https://data.assemblee-nationale.fr/static/openData/repository/17/vp/syceronbrut/syseron.xml.zip";
@@ -34,6 +37,7 @@ enum Capture {
     Meta(String),
     Heading(u8),
     ParagraphText,
+    SpeakerName,
 }
 
 #[derive(Default)]
@@ -178,6 +182,9 @@ impl SittingRecordClient {
                             ("texte", Some("paragraphe")) if paragraph.is_some() => {
                                 Some(Capture::ParagraphText)
                             }
+                            ("nom", Some("orateur")) if paragraph.is_some() => {
+                                Some(Capture::SpeakerName)
+                            }
                             _ => None,
                         };
                         if let Some(next) = next {
@@ -218,6 +225,12 @@ impl SittingRecordClient {
                                         p.text = value;
                                     }
                                 }
+                                Some(Capture::SpeakerName) => {
+                                    if let Some(p) = paragraph.as_mut() {
+                                        p.presiding |=
+                                            PRESIDING_SPEAKER_NAMES.contains(&value.as_str());
+                                    }
+                                }
                                 None => {}
                             }
                         }
@@ -246,11 +259,9 @@ impl SittingRecordClient {
             .and_then(|day| NaiveDate::parse_from_str(day, "%Y%m%d").ok())
             .ok_or("invalid dateSeance")?;
         let generated_at = meta.generated_at.ok_or("missing heureGeneration")?;
-        let generated_at = generated_at
-            .get(..14)
-            .and_then(|time| NaiveDateTime::parse_from_str(time, "%Y%m%d%H%M%S").ok())
-            .ok_or("invalid heureGeneration")?
-            .and_utc();
+        let generated_at = DateTime::parse_from_rfc3339(&generated_at)
+            .map_err(|_| "invalid heureGeneration")?
+            .with_timezone(&Utc);
 
         Ok(SittingRecord::new(NewSittingRecord {
             uid: SittingRecordUid::new(uid).map_err(|e| e.to_string())?,
@@ -303,7 +314,7 @@ mod tests {
     <numSeance>6</numSeance>
     <legislature>17</legislature>
     <version>8</version>
-    <heureGeneration>20251014102349000</heureGeneration>
+    <heureGeneration>2025-10-14T12:23:49.000+02:00</heureGeneration>
   </metadonnees>
   <contenu>
     <quantiemes><journee>Deuxième séance du lundi 13 octobre 2025</journee></quantiemes>
@@ -324,7 +335,7 @@ mod tests {
           <orateurs><orateur><nom>M. Jean Dupont</nom><id>PA2000</id></orateur></orateurs>
           <texte>- C'est faux !</texte>
         </paragraphe>
-        <paragraphe id_acteur="PA3000" code_grammaire="PAROLE_GENERIQUE" roledebat="president" id_syceron="102">
+        <paragraphe id_acteur="PA3000" code_grammaire="PAROLE_GENERIQUE" id_syceron="102">
           <orateurs><orateur><nom>M. le président</nom><id>PA3000</id></orateur></orateurs>
           <texte>Nous allons procéder au scrutin.</texte>
         </paragraphe>
@@ -347,7 +358,10 @@ mod tests {
 
         assert_eq!(record.uid().as_str(), "CRSANR5L17S2025O1N006");
         assert_eq!(record.sitting_ref().as_str(), "RUANR5L17S2025IDS29344");
-        assert_eq!(record.date(), NaiveDate::from_ymd_opt(2025, 10, 13).unwrap());
+        assert_eq!(
+            record.date(),
+            NaiveDate::from_ymd_opt(2025, 10, 13).unwrap()
+        );
         assert_eq!(record.version(), "8");
         assert_eq!(
             record.generated_at(),
@@ -369,7 +383,10 @@ mod tests {
             .collect();
         assert_eq!(
             headings,
-            vec![(1, "Projet de loi de finances"), (3, "Explications de vote")]
+            vec![
+                (1, "Projet de loi de finances"),
+                (3, "Explications de vote")
+            ]
         );
     }
 
