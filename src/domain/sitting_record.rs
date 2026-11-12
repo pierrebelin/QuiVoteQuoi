@@ -44,6 +44,19 @@ non_blank_newtype!(SittingRecordUid, EmptySittingRecordUid);
 non_blank_newtype!(SittingRef, EmptySittingRef);
 non_blank_newtype!(SpeechAnchor, EmptySpeechAnchor);
 
+/// Racine des comptes rendus de séance sur le site de l'Assemblée (ADR-005).
+const OFFICIAL_REPORT_ROOT: &str = "https://www.assemblee-nationale.fr/dyn/17/comptes-rendus/seance";
+
+impl SittingRecordUid {
+    /// Lien vers le compte rendu officiel, ancré sur un paragraphe s'il est donné (RM-12).
+    pub fn official_url(&self, anchor: Option<&SpeechAnchor>) -> String {
+        match anchor {
+            Some(anchor) => format!("{OFFICIAL_REPORT_ROOT}/{}#{}", self.0, anchor.as_str()),
+            None => format!("{OFFICIAL_REPORT_ROOT}/{}", self.0),
+        }
+    }
+}
+
 /// Entree d'un compte rendu, dans l'ordre du document.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SittingEntry {

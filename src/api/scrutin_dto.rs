@@ -5,7 +5,10 @@ use crate::api::dto::{OutcomeDto, StageDto};
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::scrutin_repository::ScrutinFilter;
 use crate::application::use_cases::browse_dossier_amendments::CitedAmendmentView;
-use crate::application::use_cases::get_scrutin_detail::{CitedNumberView, ScrutinDetail};
+use crate::application::use_cases::get_scrutin_detail::{
+    CitedNumberView, ExplanationView, ExplanationsView, ScrutinDetail,
+};
+use crate::domain::vote_explanation::ExplanationsState;
 use crate::application::use_cases::list_scrutins::{ScrutinListItem, ScrutinListPage};
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
 use crate::domain::amendment::SummaryPreview;
@@ -346,6 +349,91 @@ pub struct ScrutinDetailDto {
     /// Mention de lecture d'un vote sur l'ensemble, reprise telle quelle de
     /// l'objet (« lecture definitive »). Absente sur tout autre vote.
     pub reading: Option<String>,
+    /// RM-09: `None` hors vote sur l'ensemble.
+    pub explanations: Option<ExplanationsDto>,
+}
+
+#[derive(Serialize)]
+pub struct GroupWithoutSpeakerDto {
+    pub group_uid: String,
+    pub abbrev: Option<String>,
+    pub label: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ExplanationDto {
+    pub rank: u16,
+    pub speaker_uid: String,
+    pub speaker_name: Option<String>,
+    pub group_uid: Option<String>,
+    pub group_basis: String,
+    pub speaker_position: Option<String>,
+    pub group_tally: Option<TallyDto>,
+    pub preview: Option<String>,
+    pub preview_truncated: bool,
+    pub text: String,
+    pub official_url: String,
+}
+
+#[derive(Serialize)]
+pub struct ExplanationsDto {
+    pub state: String,
+    pub source_url: Option<String>,
+    pub report_version: Option<String>,
+    pub items: Vec<ExplanationDto>,
+    pub groups_without_speaker: Vec<GroupWithoutSpeakerDto>,
+}
+
+/// Etat code d'une section d'explications (RM-09): le libelle est au front.
+fn explanations_state_code(state: ExplanationsState) -> &'static str {
+    match state {
+        ExplanationsState::NotPublished => "report_not_published",
+        ExplanationsState::NotAttached => "not_attached",
+        ExplanationsState::NoExplanation => "no_explanation",
+        ExplanationsState::Explained => "explained",
+    }
+}
+
+impl From<&ExplanationView> for ExplanationDto {
+    fn from(view: &ExplanationView) -> Self {
+        let (preview, preview_truncated) = match &view.preview {
+            SummaryPreview::Text { text, truncated } => (Some(text.clone()), *truncated),
+            SummaryPreview::Unpublished => (None, false),
+        };
+        Self {
+            rank: view.rank,
+            speaker_uid: view.speaker_uid.clone(),
+            speaker_name: view.speaker_name.clone(),
+            group_uid: view.group_uid.clone(),
+            group_basis: view.group_basis.to_string(),
+            speaker_position: view.speaker_position.map(|p| p.as_str().to_string()),
+            group_tally: view.group_tally.map(TallyDto::from),
+            preview,
+            preview_truncated,
+            text: view.text.clone(),
+            official_url: view.url.clone(),
+        }
+    }
+}
+
+impl From<&ExplanationsView> for ExplanationsDto {
+    fn from(view: &ExplanationsView) -> Self {
+        Self {
+            state: explanations_state_code(view.state).to_string(),
+            source_url: view.source_url.clone(),
+            report_version: view.report_version.clone(),
+            items: view.items.iter().map(ExplanationDto::from).collect(),
+            groups_without_speaker: view
+                .groups_without_speaker
+                .iter()
+                .map(|group| GroupWithoutSpeakerDto {
+                    group_uid: group.group_uid.clone(),
+                    abbrev: group.abbrev.clone(),
+                    label: group.label.clone(),
+                })
+                .collect(),
+        }
+    }
 }
 
 /// Seul un vote sur l'ensemble porte une mention de lecture: sur un
@@ -432,6 +520,7 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
             unnumbered_identical_amendments: detail.unnumbered_identical_amendments,
             coverage_note: SHOW_OF_HANDS_NOTE,
             families: Vec::new(),
+            explanations: detail.explanations.as_ref().map(ExplanationsDto::from),
         }
     }
 }
@@ -468,7 +557,8 @@ mod tests {
     use crate::domain::actor::TextTone;
     use crate::domain::amendment::SummaryPreview;
     use crate::domain::amendment_citation::LinkMethod;
-    use crate::domain::scrutin::ShortLabel;
+    use crate::domain::scrutin::{ShortLabel, VotePosition};
+    use crate::application::use_cases::get_scrutin_detail::GroupWithoutSpeakerView;
 
     fn item(uid: &str, subject: &str) -> ScrutinListItem {
         ScrutinListItem {
@@ -644,5 +734,134 @@ mod tests {
             labels,
             vec!["Vote sur l'ensemble du texte", "objet inconnu de la source"]
         );
+    }
+
+    fn final_vote_detail(explanations: ExplanationsView) -> ScrutinDetail {
+        use crate::domain::scrutin::{
+            BallotType, NewScrutin, Outcome, Scrutin, ScrutinUid, VoteSynthesis,
+        };
+
+        let scrutin = Scrutin::new(NewScrutin {
+            uid: ScrutinUid::new("V1".into()).unwrap(),
+            number: "1".into(),
+            legislature: 17,
+            date: NaiveDate::from_ymd_opt(2025, 3, 27).unwrap(),
+            session_ref: None,
+            sitting_ref: Some("RUANR5L17S2025IDS1".into()),
+            place: None,
+            ballot_type: BallotType::new("SPO".into(), "ordinaire".into(), None).unwrap(),
+            outcome: Outcome::new("adopt\u{e9}".into(), "adopt\u{e9}".into()).unwrap(),
+            requester: None,
+            subject: "l'ensemble du projet de loi".into(),
+            synthesis: VoteSynthesis {
+                voters: 3,
+                expressed: 3,
+                required: 2,
+                announcement: "annonce".into(),
+                tally: VoteTally::default(),
+            },
+            group_tallies: Vec::new(),
+            nominal_votes: Vec::new(),
+            corrections: Vec::new(),
+            dossier: None,
+        })
+        .unwrap();
+        ScrutinDetail {
+            scrutin,
+            groups: Vec::new(),
+            corrections: Vec::new(),
+            unknown_actors: 0,
+            cited: Vec::new(),
+            unnumbered_identical_amendments: false,
+            explanations: Some(explanations),
+        }
+    }
+
+    fn explanation_view(preview: SummaryPreview) -> ExplanationView {
+        ExplanationView {
+            rank: 1,
+            speaker_uid: "PA1".into(),
+            speaker_name: Some("Marie Dupont".into()),
+            group_uid: Some("PO_A".into()),
+            group_basis: "membership",
+            speaker_position: Some(VotePosition::Against),
+            group_tally: Some(VoteTally {
+                votes_for: 2,
+                votes_against: 5,
+                abstentions: 1,
+                ..VoteTally::default()
+            }),
+            preview,
+            text: "Texte complet de l'explication.".into(),
+            url: "https://www.assemblee-nationale.fr/dyn/17/comptes-rendus/seance/CRSANR5L17S2025IDS1#point_3".into(),
+        }
+    }
+
+    #[test]
+    fn maps_explanations_with_state_preview_and_official_link() {
+        let view = ExplanationsView {
+            state: ExplanationsState::Explained,
+            items: vec![explanation_view(SummaryPreview::Text {
+                text: "Texte complet".into(),
+                truncated: true,
+            })],
+            groups_without_speaker: vec![GroupWithoutSpeakerView {
+                group_uid: "PO_B".into(),
+                abbrev: Some("LFI".into()),
+                label: Some("La France insoumise".into()),
+            }],
+            source_url: None,
+            report_version: Some("v2".into()),
+        };
+
+        let json = serde_json::to_value(ScrutinDetailDto::from(final_vote_detail(view))).unwrap();
+
+        let explanations = &json["explanations"];
+        assert_eq!(explanations["state"], "explained");
+        assert_eq!(explanations["report_version"], "v2");
+        let item = &explanations["items"][0];
+        assert_eq!(item["rank"], 1);
+        assert_eq!(item["speaker_name"], "Marie Dupont");
+        assert_eq!(item["group_uid"], "PO_A");
+        assert_eq!(item["group_basis"], "membership");
+        assert_eq!(item["speaker_position"], "against");
+        assert_eq!(item["group_tally"]["votes_against"], 5);
+        assert_eq!(item["preview"], "Texte complet");
+        assert_eq!(item["preview_truncated"], true);
+        assert_eq!(item["text"], "Texte complet de l'explication.");
+        assert_eq!(
+            item["official_url"],
+            "https://www.assemblee-nationale.fr/dyn/17/comptes-rendus/seance/CRSANR5L17S2025IDS1#point_3"
+        );
+        assert_eq!(explanations["groups_without_speaker"][0]["group_uid"], "PO_B");
+        assert_eq!(explanations["groups_without_speaker"][0]["abbrev"], "LFI");
+    }
+
+    #[test]
+    fn maps_an_undetermined_speaker_group_without_group_uid() {
+        let mut item = explanation_view(SummaryPreview::Unpublished);
+        item.group_uid = None;
+        item.group_basis = "undetermined";
+        item.group_tally = None;
+        item.speaker_position = None;
+        let view = ExplanationsView {
+            state: ExplanationsState::Explained,
+            items: vec![item],
+            groups_without_speaker: Vec::new(),
+            source_url: None,
+            report_version: None,
+        };
+
+        let json = serde_json::to_value(ScrutinDetailDto::from(final_vote_detail(view))).unwrap();
+
+        let item = &json["explanations"]["items"][0];
+        assert_eq!(item["group_basis"], "undetermined");
+        assert!(item["group_uid"].is_null());
+        assert!(item["group_tally"].is_null());
+        assert!(item["speaker_position"].is_null());
+        assert!(item["preview"].is_null());
+        assert_eq!(item["preview_truncated"], false);
+        assert_eq!(json["explanations"]["groups_without_speaker"], serde_json::json!([]));
+        assert!(json["explanations"]["report_version"].is_null());
     }
 }

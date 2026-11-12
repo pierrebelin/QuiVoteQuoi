@@ -6,16 +6,19 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use crate::application::ports::vote_explanation_repository::{
-    StoredSitting, StoredVersion, VoteExplanationRepository,
+    ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion, VoteExplanationRepository,
 };
 use crate::application::ports::RepositoryError;
-use crate::domain::sitting_record::SittingRecordUid;
+use crate::domain::scrutin::ScrutinUid;
+use crate::domain::sitting_record::{SittingRecordUid, SittingRef};
 
 #[derive(Default)]
 pub struct InMemoryVoteExplanations {
     versions: HashMap<SittingRecordUid, StoredVersion>,
     failing_on: Option<SittingRecordUid>,
     written: Mutex<Vec<StoredSitting>>,
+    sittings: Vec<StoredSitting>,
+    reads: Mutex<usize>,
 }
 
 impl InMemoryVoteExplanations {
@@ -33,6 +36,19 @@ impl InMemoryVoteExplanations {
             failing_on: Some(uid),
             ..Self::default()
         }
+    }
+
+    /// Dépôt qui porte déjà ces séances entières, pour la lecture d'un scrutin.
+    pub fn with_sittings(sittings: Vec<StoredSitting>) -> Self {
+        Self {
+            sittings,
+            ..Self::default()
+        }
+    }
+
+    /// Nombre de lectures `explanations_for` faites.
+    pub fn reads(&self) -> usize {
+        *self.reads.lock().unwrap()
     }
 
     pub fn written(&self) -> Vec<StoredSitting> {
@@ -54,5 +70,33 @@ impl VoteExplanationRepository for InMemoryVoteExplanations {
         }
         self.written.lock().unwrap().push(sitting.clone());
         Ok(())
+    }
+
+    async fn explanations_for(
+        &self,
+        scrutin: &ScrutinUid,
+        sitting_ref: &SittingRef,
+    ) -> Result<ScrutinExplanationsRead, RepositoryError> {
+        *self.reads.lock().unwrap() += 1;
+        let Some(sitting) = self.sittings.iter().find(|s| &s.sitting_ref == sitting_ref) else {
+            return Ok(ScrutinExplanationsRead::default());
+        };
+        Ok(ScrutinExplanationsRead {
+            report: Some(StoredReport {
+                record_uid: sitting.record_uid.clone(),
+                version: sitting.version.clone(),
+            }),
+            attached: sitting
+                .attached
+                .iter()
+                .find(|(uid, _)| uid == scrutin)
+                .map(|(_, has_block)| *has_block),
+            explanations: sitting
+                .explanations
+                .iter()
+                .filter(|e| e.scrutin_uid() == scrutin)
+                .cloned()
+                .collect(),
+        })
     }
 }

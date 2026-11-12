@@ -60,6 +60,28 @@ impl SpeakerGroup {
     }
 }
 
+/// Quatre états fermés de la section d'explications d'un vote sur l'ensemble (RM-09).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExplanationsState {
+    NotPublished,
+    NotAttached,
+    NoExplanation,
+    Explained,
+}
+
+impl ExplanationsState {
+    /// État décidé par la ligne lue (RM-09): jamais une absence rendue comme une liste vide.
+    /// `attached`: `None` = scrutin non rattaché; `Some(bloc présent)`.
+    pub fn decide(report_stored: bool, attached: Option<bool>, explained: bool) -> Self {
+        match (report_stored, attached) {
+            (false, _) => ExplanationsState::NotPublished,
+            (true, None) => ExplanationsState::NotAttached,
+            (true, Some(_)) if explained => ExplanationsState::Explained,
+            (true, Some(_)) => ExplanationsState::NoExplanation,
+        }
+    }
+}
+
 pub struct NewVoteExplanation {
     pub scrutin_uid: ScrutinUid,
     pub sitting_record_uid: SittingRecordUid,

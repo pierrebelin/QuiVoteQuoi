@@ -8,10 +8,15 @@ use sqlx::PgPool;
 
 use super::db;
 use crate::application::ports::vote_explanation_repository::{
-    StoredSitting, StoredVersion, VoteExplanationRepository,
+    ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion, VoteExplanationRepository,
 };
 use crate::application::ports::RepositoryError;
-use crate::domain::sitting_record::{SittingKeysFingerprint, SittingRecordUid};
+use crate::domain::actor::{ActorUid, GroupUid};
+use crate::domain::scrutin::ScrutinUid;
+use crate::domain::sitting_record::{
+    SittingKeysFingerprint, SittingRecordUid, SittingRef, SpeechAnchor,
+};
+use crate::domain::vote_explanation::{NewVoteExplanation, SpeakerGroup, VoteExplanation};
 
 pub struct PgVoteExplanationRepository {
     pool: PgPool,
@@ -21,6 +26,25 @@ impl PgVoteExplanationRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+}
+
+/// Ligne de lecture: séance, rattachement du scrutin, puis une explication éventuelle.
+type ExplanationRow = (
+    String,
+    String,
+    Option<bool>,
+    Option<i32>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+fn corrupt(error: impl ToString) -> RepositoryError {
+    RepositoryError::Database(error.to_string())
 }
 
 fn count(value: usize) -> Result<i32, RepositoryError> {
@@ -115,5 +139,64 @@ impl VoteExplanationRepository for PgVoteExplanationRepository {
             .map_err(db)?;
         }
         tx.commit().await.map_err(db)
+    }
+
+    async fn explanations_for(
+        &self,
+        scrutin: &ScrutinUid,
+        sitting_ref: &SittingRef,
+    ) -> Result<ScrutinExplanationsRead, RepositoryError> {
+        let rows: Vec<ExplanationRow> = sqlx::query_as(
+            "SELECT r.uid, r.version, s.has_block, e.rank, e.speaker_uid, e.speaker_name,
+                    e.group_basis, e.group_uid, e.anchor, e.heading, e.text
+             FROM sitting_records r
+             LEFT JOIN sitting_record_scrutins s
+                    ON s.sitting_record_uid = r.uid AND s.scrutin_uid = $1
+             LEFT JOIN vote_explanations e
+                    ON e.sitting_record_uid = r.uid AND e.scrutin_uid = $1
+             WHERE r.sitting_ref = $2
+             ORDER BY r.generated_at DESC, r.uid, e.rank",
+        )
+        .bind(scrutin.as_str())
+        .bind(sitting_ref.as_str())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let Some(first) = rows.first() else {
+            return Ok(ScrutinExplanationsRead::default());
+        };
+        let record_uid = SittingRecordUid::new(first.0.clone()).map_err(corrupt)?;
+        let report = StoredReport {
+            record_uid: record_uid.clone(),
+            version: first.1.clone(),
+        };
+        let attached = first.2;
+        let mut explanations = Vec::new();
+        for row in rows.into_iter().filter(|row| row.0 == record_uid.as_str()) {
+            if let (Some(rank), Some(speaker), Some(basis), Some(anchor), Some(heading), Some(text)) =
+                (row.3, row.4, row.6, row.8, row.9, row.10)
+            {
+                let group_uid = row.7.map(GroupUid::new).transpose().map_err(corrupt)?;
+                let group = SpeakerGroup::parse(&basis, group_uid)
+                    .ok_or_else(|| corrupt("unknown speaker group basis"))?;
+                explanations.push(VoteExplanation::new(NewVoteExplanation {
+                    scrutin_uid: scrutin.clone(),
+                    sitting_record_uid: record_uid.clone(),
+                    rank: u16::try_from(rank).map_err(corrupt)?,
+                    speaker_uid: ActorUid::new(speaker).map_err(corrupt)?,
+                    speaker_name: row.5,
+                    group,
+                    anchor: SpeechAnchor::new(anchor).map_err(corrupt)?,
+                    heading,
+                    text,
+                }));
+            }
+        }
+        Ok(ScrutinExplanationsRead {
+            report: Some(report),
+            attached,
+            explanations,
+        })
     }
 }

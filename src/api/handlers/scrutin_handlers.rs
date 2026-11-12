@@ -70,6 +70,7 @@ pub async fn get_scrutin_detail(
         state.scrutin_repository.as_ref(),
         state.amendment_citation_repository.as_ref(),
         state.actor_repository.as_ref(),
+        state.vote_explanation_repository.as_ref(),
     )
     .execute(&uid)
     .await
