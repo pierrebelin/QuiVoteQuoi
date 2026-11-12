@@ -302,7 +302,7 @@ export default function LandingPage() {
   const groups = latest.data?.groups ?? []
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8 md:space-y-12">
+    <div className="space-y-8 md:space-y-12">
       <div className="grid items-start gap-8 md:gap-14">
         <section aria-labelledby="promesse" className="md:pt-6">
           <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">

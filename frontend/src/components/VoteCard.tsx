@@ -182,7 +182,12 @@ function FollowedBanner({ group, stance }: { group: GroupDto; stance: StanceDto 
  * chaque rangée. Toucher un logo ouvre la répartition du groupe. Les groupes
  * suivis portent un anneau ; les autres s'estompent sans disparaître.
  */
-function GroupsByPosition({ groups, stances, followed = [] }: VoteCardGroups) {
+function GroupsByPosition({
+  groups,
+  stances,
+  followed = [],
+  wide = false,
+}: VoteCardGroups & { wide?: boolean }) {
   const [opened, setOpened] = useState<{ group: GroupDto; anchor: HTMLElement } | null>(null)
   const close = useCallback(() => setOpened(null), [])
   const dimOthers = followed.length > 0
@@ -204,7 +209,10 @@ function GroupsByPosition({ groups, stances, followed = [] }: VoteCardGroups) {
           return (
             <div
               key={row.key}
-              className="grid grid-cols-[92px_minmax(0,1fr)] items-start gap-2 border-t border-line py-2"
+              // En large, la colonne tient « Aucun votant » sur une ligne.
+              className={`grid grid-cols-[92px_minmax(0,1fr)] items-start gap-2 border-t border-line py-2 ${
+                wide ? 'lg:grid-cols-[112px_minmax(0,1fr)]' : ''
+              }`}
             >
               <div className="flex min-h-[30px] items-center gap-1.5">
                 <span
@@ -336,7 +344,7 @@ export default function VoteCard({
       </div>
 
       <div className="flex flex-col gap-2.5">
-        {!compact && groups && <GroupsByPosition {...groups} />}
+        {!compact && groups && <GroupsByPosition {...groups} wide={wide} />}
         <AssemblyFooter tally={tally} />
       </div>
     </article>
