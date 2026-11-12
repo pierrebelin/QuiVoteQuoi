@@ -7,6 +7,7 @@ pub mod browse_groups;
 pub mod browse_themes;
 pub mod check_health;
 pub mod describe_dataset;
+pub mod describe_explanation_coverage;
 pub mod describe_freshness;
 pub mod describe_method;
 pub mod extract_debated_texts;

@@ -2,7 +2,9 @@
 
 use super::actor::{ActorDirectory, ActorUid, GroupUid};
 use super::scrutin::{Scrutin, ScrutinUid};
-use super::sitting_record::{SittingRecordUid, SpeechAnchor};
+use super::sitting_record::{
+    AttachmentCounters, ExplanationCounters, SittingRecordUid, SpeechAnchor,
+};
 
 /// Provenance du groupe d'un orateur: trois issues fermees, jamais devine.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -157,6 +159,51 @@ impl VoteExplanation {
 
     pub fn text(&self) -> &str {
         &self.text
+    }
+}
+
+/// Votes sur l'ensemble et orateurs que le rattachement n'a pas placés (RM-13).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct FinalVoteAttachmentCounts {
+    pub unattached: u32,
+    pub without_block: u32,
+    pub speakers_without_group: u32,
+}
+
+/// Compteurs du rattachement, sur toutes les séances stockées (RM-10, RM-13).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct ExplanationCoverage {
+    pub results_attached: u32,
+    pub results_unmatched: u32,
+    pub results_ambiguous: u32,
+    pub final_votes_unattached: u32,
+    pub final_votes_without_block: u32,
+    pub blocks_unattached: u32,
+    pub headings_unrecognized: u32,
+    pub speakers_without_group: u32,
+}
+
+impl ExplanationCoverage {
+    pub fn of(
+        sittings: &[(AttachmentCounters, ExplanationCounters)],
+        final_votes: FinalVoteAttachmentCounts,
+    ) -> Self {
+        let total = |pick: fn(&(AttachmentCounters, ExplanationCounters)) -> usize| {
+            sittings
+                .iter()
+                .map(|s| u32::try_from(pick(s)).unwrap_or(u32::MAX))
+                .fold(0u32, u32::saturating_add)
+        };
+        Self {
+            results_attached: total(|s| s.0.results_attached),
+            results_unmatched: total(|s| s.0.results_unmatched),
+            results_ambiguous: total(|s| s.0.results_ambiguous),
+            final_votes_unattached: final_votes.unattached,
+            final_votes_without_block: final_votes.without_block,
+            blocks_unattached: total(|s| s.1.blocks_unattached),
+            headings_unrecognized: total(|s| s.1.headings_unrecognized),
+            speakers_without_group: final_votes.speakers_without_group,
+        }
     }
 }
 

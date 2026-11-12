@@ -6,11 +6,15 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use crate::application::ports::vote_explanation_repository::{
-    ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion, VoteExplanationRepository,
+    ExplanationMention, ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion,
+    VoteExplanationRepository,
 };
 use crate::application::ports::RepositoryError;
 use crate::domain::scrutin::ScrutinUid;
-use crate::domain::sitting_record::{SittingRecordUid, SittingRef};
+use crate::domain::sitting_record::{
+    AttachmentCounters, ExplanationCounters, SittingRecordUid, SittingRef,
+};
+use crate::domain::vote_explanation::FinalVoteAttachmentCounts;
 
 #[derive(Default)]
 pub struct InMemoryVoteExplanations {
@@ -19,6 +23,7 @@ pub struct InMemoryVoteExplanations {
     written: Mutex<Vec<StoredSitting>>,
     sittings: Vec<StoredSitting>,
     reads: Mutex<usize>,
+    final_votes: FinalVoteAttachmentCounts,
 }
 
 impl InMemoryVoteExplanations {
@@ -46,6 +51,14 @@ impl InMemoryVoteExplanations {
         }
     }
 
+    /// Compteurs des votes sur l'ensemble que le dépôt rend.
+    pub fn with_final_vote_counts(self, final_votes: FinalVoteAttachmentCounts) -> Self {
+        Self {
+            final_votes,
+            ..self
+        }
+    }
+
     /// Nombre de lectures `explanations_for` faites.
     pub fn reads(&self) -> usize {
         *self.reads.lock().unwrap()
@@ -58,6 +71,46 @@ impl InMemoryVoteExplanations {
 
 #[async_trait]
 impl VoteExplanationRepository for InMemoryVoteExplanations {
+    async fn coverage(
+        &self,
+    ) -> Result<
+        (
+            Vec<(AttachmentCounters, ExplanationCounters)>,
+            FinalVoteAttachmentCounts,
+        ),
+        RepositoryError,
+    > {
+        Ok((
+            self.sittings
+                .iter()
+                .map(|s| (s.counters, s.block_counters))
+                .collect(),
+            self.final_votes,
+        ))
+    }
+
+    async fn mentions_for(
+        &self,
+        scrutins: &[ScrutinUid],
+    ) -> Result<Vec<ExplanationMention>, RepositoryError> {
+        *self.reads.lock().unwrap() += 1;
+        Ok(self
+            .sittings
+            .iter()
+            .flat_map(|sitting| sitting.explanations.iter())
+            .filter(|e| scrutins.contains(e.scrutin_uid()))
+            .filter_map(|e| {
+                Some(ExplanationMention {
+                    scrutin_uid: e.scrutin_uid().clone(),
+                    group_uid: e.group().group_uid()?.clone(),
+                    rank: e.rank(),
+                    speaker_uid: e.speaker_uid().clone(),
+                    speaker_name: e.speaker_name().map(str::to_string),
+                })
+            })
+            .collect())
+    }
+
     async fn stored_versions(
         &self,
     ) -> Result<HashMap<SittingRecordUid, StoredVersion>, RepositoryError> {

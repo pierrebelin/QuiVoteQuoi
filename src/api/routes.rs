@@ -69,6 +69,10 @@ fn read_routes() -> Router<AppState> {
             "/api/votes-finaux",
             get(final_vote_handlers::list_final_votes),
         )
+        .route(
+            "/api/votes-finaux/methode",
+            get(final_vote_handlers::get_final_votes_method),
+        )
         // Groupes parlementaires: liste et fiche. Un groupe repond a son
         // identifiant comme a son sigle, ancien ou courant (README.md §8.1).
         .route("/api/groupes", get(group_handlers::list_groups))

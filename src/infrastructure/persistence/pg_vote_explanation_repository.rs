@@ -6,9 +6,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 
-use super::db;
+use super::{db, FINAL_VOTE_PREDICATE};
 use crate::application::ports::vote_explanation_repository::{
-    ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion, VoteExplanationRepository,
+    ExplanationMention, ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion,
+    VoteExplanationRepository,
 };
 use crate::application::ports::RepositoryError;
 use crate::domain::actor::{ActorUid, GroupUid};
@@ -53,6 +54,100 @@ fn count(value: usize) -> Result<i32, RepositoryError> {
 
 #[async_trait]
 impl VoteExplanationRepository for PgVoteExplanationRepository {
+    async fn coverage(
+        &self,
+    ) -> Result<
+        (
+            Vec<(
+                crate::domain::sitting_record::AttachmentCounters,
+                crate::domain::sitting_record::ExplanationCounters,
+            )>,
+            crate::domain::vote_explanation::FinalVoteAttachmentCounts,
+        ),
+        RepositoryError,
+    > {
+        use crate::domain::sitting_record::{AttachmentCounters, ExplanationCounters};
+        use crate::domain::vote_explanation::FinalVoteAttachmentCounts;
+
+        let to_usize = |v: i32| usize::try_from(v).map_err(corrupt);
+        let rows: Vec<(i32, i32, i32, i32, i32)> = sqlx::query_as(
+            "SELECT results_attached, results_unmatched, results_ambiguous,
+                    blocks_unattached, headings_unrecognized
+             FROM sitting_records",
+        )
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+        let mut sittings = Vec::with_capacity(rows.len());
+        for (attached, unmatched, ambiguous, blocks, headings) in rows {
+            sittings.push((
+                AttachmentCounters {
+                    results_attached: to_usize(attached)?,
+                    results_unmatched: to_usize(unmatched)?,
+                    results_ambiguous: to_usize(ambiguous)?,
+                },
+                ExplanationCounters {
+                    blocks_unattached: to_usize(blocks)?,
+                    headings_unrecognized: to_usize(headings)?,
+                },
+            ));
+        }
+
+        let (unattached, without_block, speakers_without_group): (i64, i64, i64) =
+            sqlx::query_as(&format!(
+                "SELECT
+                    COUNT(*) FILTER (WHERE r.scrutin_uid IS NULL),
+                    COUNT(*) FILTER (WHERE r.has_block = FALSE),
+                    (SELECT COUNT(DISTINCT (sitting_record_uid, anchor))
+                     FROM vote_explanations WHERE group_uid IS NULL)
+                 FROM scrutins s
+                 LEFT JOIN sitting_record_scrutins r ON r.scrutin_uid = s.uid
+                 WHERE {FINAL_VOTE_PREDICATE}"
+            ))
+            .persistent(false)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(db)?;
+        let to_u32 = |v: i64| u32::try_from(v).map_err(corrupt);
+        Ok((
+            sittings,
+            FinalVoteAttachmentCounts {
+                unattached: to_u32(unattached)?,
+                without_block: to_u32(without_block)?,
+                speakers_without_group: to_u32(speakers_without_group)?,
+            },
+        ))
+    }
+
+    async fn mentions_for(
+        &self,
+        scrutins: &[ScrutinUid],
+    ) -> Result<Vec<ExplanationMention>, RepositoryError> {
+        let uids: Vec<&str> = scrutins.iter().map(ScrutinUid::as_str).collect();
+        let rows: Vec<(String, String, i32, String, Option<String>)> = sqlx::query_as(
+            "SELECT scrutin_uid, group_uid, rank, speaker_uid, speaker_name
+             FROM vote_explanations
+             WHERE scrutin_uid = ANY($1) AND group_uid IS NOT NULL
+             ORDER BY scrutin_uid, rank",
+        )
+        .bind(uids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+        rows.into_iter()
+            .map(|(scrutin, group, rank, speaker, speaker_name)| {
+                Ok(ExplanationMention {
+                    scrutin_uid: ScrutinUid::new(scrutin).map_err(corrupt)?,
+                    group_uid: GroupUid::new(group).map_err(corrupt)?,
+                    rank: u16::try_from(rank).map_err(corrupt)?,
+                    speaker_uid: ActorUid::new(speaker).map_err(corrupt)?,
+                    speaker_name,
+                })
+            })
+            .collect()
+    }
+
     async fn stored_versions(
         &self,
     ) -> Result<HashMap<SittingRecordUid, StoredVersion>, RepositoryError> {

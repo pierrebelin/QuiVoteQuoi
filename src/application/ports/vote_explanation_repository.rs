@@ -3,11 +3,12 @@ use std::collections::HashMap;
 use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 
+use crate::domain::actor::{ActorUid, GroupUid};
 use crate::domain::scrutin::ScrutinUid;
 use crate::domain::sitting_record::{
     AttachmentCounters, ExplanationCounters, SittingKeysFingerprint, SittingRecordUid, SittingRef,
 };
-use crate::domain::vote_explanation::VoteExplanation;
+use crate::domain::vote_explanation::{FinalVoteAttachmentCounts, VoteExplanation};
 
 pub use super::RepositoryError;
 
@@ -52,8 +53,35 @@ pub struct ScrutinExplanationsRead {
     pub explanations: Vec<VoteExplanation>,
 }
 
+/// Mention d'un orateur rattaché à un scrutin, sous le groupe que la base lui donne (RM-09).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExplanationMention {
+    pub scrutin_uid: ScrutinUid,
+    pub group_uid: GroupUid,
+    pub rank: u16,
+    pub speaker_uid: ActorUid,
+    pub speaker_name: Option<String>,
+}
+
 #[async_trait]
 pub trait VoteExplanationRepository: Send + Sync {
+    /// Mentions des orateurs au groupe établi, pour ces scrutins: une lecture (RM-09).
+    async fn mentions_for(
+        &self,
+        scrutins: &[ScrutinUid],
+    ) -> Result<Vec<ExplanationMention>, RepositoryError>;
+
+    /// Compteurs du rattachement de chaque séance stockée et ceux des votes sur l'ensemble (RM-10, RM-13).
+    async fn coverage(
+        &self,
+    ) -> Result<
+        (
+            Vec<(AttachmentCounters, ExplanationCounters)>,
+            FinalVoteAttachmentCounts,
+        ),
+        RepositoryError,
+    >;
+
     async fn stored_versions(
         &self,
     ) -> Result<HashMap<SittingRecordUid, StoredVersion>, RepositoryError>;

@@ -8,6 +8,7 @@ use crate::application::use_cases::browse_final_votes::{
 };
 use crate::domain::final_vote::{GroupStance, OfficialTextVersion, VoterShare};
 use crate::domain::scrutin::{VotePosition, VoteTally};
+use crate::domain::vote_explanation::ExplanationCoverage;
 
 /// Perimetre de la page, affiche en tete (README.md §2): la restriction est
 /// annoncee, et le reste des scrutins reste accessible.
@@ -297,6 +298,34 @@ impl From<(FinalVoteView, i64)> for FinalVoteListResponse {
     }
 }
 
+/// Compteurs du rattachement des explications de vote (RM-10), publies tels quels.
+#[derive(Debug, Serialize)]
+pub struct ExplanationCoverageDto {
+    pub results_attached: u32,
+    pub results_unmatched: u32,
+    pub results_ambiguous: u32,
+    pub final_votes_unattached: u32,
+    pub final_votes_without_block: u32,
+    pub blocks_unattached: u32,
+    pub headings_unrecognized: u32,
+    pub speakers_without_group: u32,
+}
+
+impl From<ExplanationCoverage> for ExplanationCoverageDto {
+    fn from(coverage: ExplanationCoverage) -> Self {
+        Self {
+            results_attached: coverage.results_attached,
+            results_unmatched: coverage.results_unmatched,
+            results_ambiguous: coverage.results_ambiguous,
+            final_votes_unattached: coverage.final_votes_unattached,
+            final_votes_without_block: coverage.final_votes_without_block,
+            blocks_unattached: coverage.blocks_unattached,
+            headings_unrecognized: coverage.headings_unrecognized,
+            speakers_without_group: coverage.speakers_without_group,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -331,5 +360,34 @@ mod tests {
 
         assert!(!command.all_groups);
         assert_eq!(command.groups, vec!["RN", "SOC"]);
+    }
+
+    #[test]
+    fn maps_every_explanation_coverage_counter() {
+        let dto = ExplanationCoverageDto::from(ExplanationCoverage {
+            results_attached: 1,
+            results_unmatched: 2,
+            results_ambiguous: 3,
+            final_votes_unattached: 4,
+            final_votes_without_block: 5,
+            blocks_unattached: 6,
+            headings_unrecognized: 7,
+            speakers_without_group: 8,
+        });
+
+        let json = serde_json::to_value(&dto).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({
+                "results_attached": 1,
+                "results_unmatched": 2,
+                "results_ambiguous": 3,
+                "final_votes_unattached": 4,
+                "final_votes_without_block": 5,
+                "blocks_unattached": 6,
+                "headings_unrecognized": 7,
+                "speakers_without_group": 8,
+            })
+        );
     }
 }

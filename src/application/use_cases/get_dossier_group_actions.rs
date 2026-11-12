@@ -3,27 +3,38 @@ use sha2::{Digest, Sha256};
 use crate::application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, DossierSummaryRepository, RepositoryError,
 };
+use crate::application::ports::vote_explanation_repository::{
+    ExplanationMention, VoteExplanationRepository,
+};
 use crate::domain::dossier_group_facts::DossierGroupFacts;
 use crate::domain::dossier_summary::{FactsFingerprint, StoredGroupSummary};
+use crate::domain::scrutin::ScrutinUid;
 
 #[derive(Debug, Clone)]
 pub struct DossierGroupActions {
     pub facts: DossierGroupFacts,
     pub facts_fingerprint: FactsFingerprint,
     pub summaries: Vec<StoredGroupSummary>,
+    pub explanations: Vec<ExplanationMention>,
 }
 
 pub struct GetDossierGroupActions<'a> {
     facts: &'a dyn DossierGroupActionsRepository,
     summaries: &'a dyn DossierSummaryRepository,
+    explanations: &'a dyn VoteExplanationRepository,
 }
 
 impl<'a> GetDossierGroupActions<'a> {
     pub fn new(
         facts: &'a dyn DossierGroupActionsRepository,
         summaries: &'a dyn DossierSummaryRepository,
+        explanations: &'a dyn VoteExplanationRepository,
     ) -> Self {
-        Self { facts, summaries }
+        Self {
+            facts,
+            summaries,
+            explanations,
+        }
     }
 
     pub async fn execute(
@@ -48,10 +59,40 @@ impl<'a> GetDossierGroupActions<'a> {
             })
             .collect();
 
+        let mut scrutins: Vec<ScrutinUid> = facts
+            .groups
+            .iter()
+            .flat_map(|group| {
+                group
+                    .final_votes
+                    .iter()
+                    .map(|vote| vote.scrutin_uid.clone())
+            })
+            .collect();
+        scrutins.sort();
+        scrutins.dedup();
+        let mut explanations: Vec<ExplanationMention> = self
+            .explanations
+            .mentions_for(&scrutins)
+            .await?
+            .into_iter()
+            .filter(|mention| {
+                facts.groups.iter().any(|group| {
+                    group.uid == mention.group_uid
+                        && group
+                            .final_votes
+                            .iter()
+                            .any(|vote| vote.scrutin_uid == mention.scrutin_uid)
+                })
+            })
+            .collect();
+        explanations.sort_by_key(|mention| mention.rank);
+
         Ok(Some(DossierGroupActions {
             facts,
             facts_fingerprint,
             summaries,
+            explanations,
         }))
     }
 }
@@ -67,15 +108,20 @@ mod tests {
     use super::*;
     use async_trait::async_trait;
     use chrono::NaiveDate;
+    use std::collections::HashMap;
     use std::sync::Mutex;
 
     use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
-    use crate::domain::actor::GroupUid;
+    use crate::application::ports::vote_explanation_repository::{
+        ScrutinExplanationsRead, StoredSitting, StoredVersion,
+    };
+    use crate::domain::actor::{ActorUid, GroupUid};
     use crate::domain::amendment::AmendmentUid;
     use crate::domain::dossier::DossierUid;
     use crate::domain::dossier_group_facts::{AmendmentFact, FinalVoteFact, GroupFacts};
     use crate::domain::dossier_summary::{SummarySource, SummaryStatus};
     use crate::domain::scrutin::{ScrutinUid, VoteTally};
+    use crate::domain::sitting_record::{SittingRecordUid, SittingRef};
 
     fn facts() -> DossierGroupFacts {
         DossierGroupFacts {
@@ -239,12 +285,144 @@ mod tests {
                 official_url: None,
             }],
         }]));
-        let result = GetDossierGroupActions::new(&FakeFacts(facts), &summaries)
-            .execute("D1")
-            .await
-            .unwrap()
-            .unwrap();
+        let result =
+            GetDossierGroupActions::new(&FakeFacts(facts), &summaries, &FakeMentions(vec![]))
+                .execute("D1")
+                .await
+                .unwrap()
+                .unwrap();
         assert!(result.summaries.is_empty());
         assert_eq!(result.facts.groups.len(), 1);
+    }
+
+    // Local: rend les mentions dans l'ordre donné, sans les trier, pour que le tri soit celui du cas d'usage.
+    struct FakeMentions(Vec<ExplanationMention>);
+    #[async_trait]
+    impl VoteExplanationRepository for FakeMentions {
+        async fn coverage(
+            &self,
+        ) -> Result<
+            (
+                Vec<(
+                    crate::domain::sitting_record::AttachmentCounters,
+                    crate::domain::sitting_record::ExplanationCounters,
+                )>,
+                crate::domain::vote_explanation::FinalVoteAttachmentCounts,
+            ),
+            RepositoryError,
+        > {
+            unreachable!()
+        }
+        async fn stored_versions(
+            &self,
+        ) -> Result<HashMap<SittingRecordUid, StoredVersion>, RepositoryError> {
+            unreachable!()
+        }
+        async fn replace_sitting(&self, _: &StoredSitting) -> Result<(), RepositoryError> {
+            unreachable!()
+        }
+        async fn explanations_for(
+            &self,
+            _: &ScrutinUid,
+            _: &SittingRef,
+        ) -> Result<ScrutinExplanationsRead, RepositoryError> {
+            unreachable!()
+        }
+        async fn mentions_for(
+            &self,
+            scrutins: &[ScrutinUid],
+        ) -> Result<Vec<ExplanationMention>, RepositoryError> {
+            Ok(self
+                .0
+                .iter()
+                .filter(|m| scrutins.contains(&m.scrutin_uid))
+                .cloned()
+                .collect())
+        }
+    }
+
+    fn mention(scrutin: &str, group: &str, rank: u16, speaker: &str) -> ExplanationMention {
+        ExplanationMention {
+            scrutin_uid: ScrutinUid::new(scrutin.to_string()).unwrap(),
+            group_uid: GroupUid::new(group.to_string()).unwrap(),
+            rank,
+            speaker_uid: ActorUid::new(speaker.to_string()).unwrap(),
+            speaker_name: Some(format!("Orateur {speaker}")),
+        }
+    }
+
+    async fn run_with(mentions: Vec<ExplanationMention>) -> DossierGroupActions {
+        let summaries = FakeSummaries(Mutex::new(vec![]));
+        GetDossierGroupActions::new(
+            &FakeFacts(two_groups_facts()),
+            &summaries,
+            &FakeMentions(mentions),
+        )
+        .execute("D1")
+        .await
+        .unwrap()
+        .unwrap()
+    }
+
+    /// G1 a un vote final sur S1, G2 un vote final sur S2.
+    fn two_groups_facts() -> DossierGroupFacts {
+        let mut facts = facts();
+        let mut second = facts.groups[0].clone();
+        second.uid = GroupUid::new("G2".to_string()).unwrap();
+        second.final_votes[0].scrutin_uid = ScrutinUid::new("S2".to_string()).unwrap();
+        facts.groups.push(second);
+        facts
+    }
+
+    #[tokio::test]
+    async fn lists_one_mention_per_attached_speaker_under_the_group_final_vote_in_report_order() {
+        let result = run_with(vec![
+            mention("S1", "G1", 3, "PA3"),
+            mention("S1", "G1", 1, "PA1"),
+            mention("S1", "G1", 2, "PA2"),
+        ])
+        .await;
+
+        let speakers: Vec<(u16, &str)> = result
+            .explanations
+            .iter()
+            .map(|m| (m.rank, m.speaker_uid.as_str()))
+            .collect();
+        assert_eq!(speakers, vec![(1, "PA1"), (2, "PA2"), (3, "PA3")]);
+    }
+
+    #[tokio::test]
+    async fn lists_no_mention_for_a_group_without_attached_speaker() {
+        let result = run_with(vec![mention("S1", "G1", 1, "PA1")]).await;
+
+        assert!(result
+            .explanations
+            .iter()
+            .all(|m| m.group_uid.as_str() != "G2"));
+        assert_eq!(result.explanations.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn drops_a_mention_whose_group_has_no_final_vote_on_that_scrutin() {
+        let result = run_with(vec![
+            mention("S1", "G2", 1, "PA1"),
+            mention("S1", "G1", 2, "PA2"),
+        ])
+        .await;
+
+        let kept: Vec<(&str, &str)> = result
+            .explanations
+            .iter()
+            .map(|m| (m.group_uid.as_str(), m.speaker_uid.as_str()))
+            .collect();
+        assert_eq!(kept, vec![("G1", "PA2")]);
+    }
+
+    #[tokio::test]
+    async fn keeps_the_facts_fingerprint_unchanged_when_explanations_exist() {
+        let result = run_with(vec![mention("S1", "G1", 1, "PA1")]).await;
+
+        assert_eq!(result.explanations.len(), 1);
+        assert_eq!(result.facts_fingerprint, fingerprint(&two_groups_facts()));
     }
 }

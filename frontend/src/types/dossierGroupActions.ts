@@ -61,4 +61,13 @@ export interface FinalVoteDto {
   member_count: number | null
   tally: TallyDto
   official_url: string
+  /** Orateurs rattachés à ce scrutin sous ce groupe, dans l'ordre du compte rendu (RM-09). */
+  explanations: ExplanationMentionDto[]
+}
+
+export interface ExplanationMentionDto {
+  speaker_uid: string
+  speaker_name: string | null
+  scrutin_uid: string
+  rank: number
 }

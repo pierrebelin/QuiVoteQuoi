@@ -26,7 +26,11 @@ use sqlx::PgPool;
 const RECORD_A: &str = "CRREADBACKA";
 const RECORD_B: &str = "CRREADBACKB";
 const RECORD_C: &str = "CRREADBACKC";
+const RECORD_D: &str = "CRREADBACKD";
 const SITTING_REF: &str = "RUREADBACK1";
+
+/// Un compteur de la table entière se lit sans qu'un autre test la remplisse en parallèle.
+static WHOLE_TABLE_COUNT: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 fn at(hour: u32) -> DateTime<Utc> {
     Utc.with_ymd_and_hms(2026, 11, 2, hour, 30, 0).unwrap()
@@ -109,6 +113,7 @@ async fn remove_fixture(pool: &PgPool, records: [&str; 2]) {
 #[tokio::test]
 #[ignore = "base Postgres jetable à poser dans DATABASE_URL"]
 async fn a_replaced_sitting_keeps_only_its_new_attachments_and_explanations() {
+    let _alone = WHOLE_TABLE_COUNT.lock().await;
     let pool = connect([RECORD_A, RECORD_A]).await;
     let repository = PgVoteExplanationRepository::new(pool.clone());
     let keys = SittingKeysFingerprint::of(&[key("VTREADBACK1", 10)]);
@@ -191,4 +196,34 @@ async fn stored_versions_return_the_generation_time_and_keys_fingerprint_of_each
     let b = &versions[&SittingRecordUid::new(RECORD_C.into()).unwrap()];
     assert_eq!((a.generated_at, &a.keys), (at(9), &keys_a));
     assert_eq!((b.generated_at, &b.keys), (at(14), &keys_b));
+}
+
+#[tokio::test]
+#[ignore = "base Postgres jetable à poser dans DATABASE_URL"]
+async fn a_speaker_without_group_in_a_shared_block_counts_once_across_its_scrutins() {
+    let _alone = WHOLE_TABLE_COUNT.lock().await;
+    let pool = connect([RECORD_D, RECORD_D]).await;
+    let repository = PgVoteExplanationRepository::new(pool.clone());
+    let (_, before) = repository.coverage().await.unwrap();
+    repository
+        .replace_sitting(&sitting(
+            RECORD_D,
+            at(9),
+            SittingKeysFingerprint::of(&[key("VTREADBACK4", 10), key("VTREADBACK5", 10)]),
+            vec![("VTREADBACK4", true), ("VTREADBACK5", true)],
+            vec![
+                explanation(RECORD_D, "VTREADBACK4", 0, "ANCHOR-SHARED", "Bloc commun."),
+                explanation(RECORD_D, "VTREADBACK5", 0, "ANCHOR-SHARED", "Bloc commun."),
+            ],
+        ))
+        .await
+        .unwrap();
+
+    let (_, after) = repository.coverage().await.unwrap();
+    remove_fixture(&pool, [RECORD_D, RECORD_D]).await;
+
+    assert_eq!(
+        after.speakers_without_group - before.speakers_without_group,
+        1
+    );
 }

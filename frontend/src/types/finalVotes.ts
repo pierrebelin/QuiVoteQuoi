@@ -96,3 +96,15 @@ export interface FinalVoteListResponse {
   share_note: string
   outcome_note: string
 }
+
+/** Compteurs du rattachement des explications de vote (RM-10, RM-13). */
+export interface ExplanationCoverageDto {
+  results_attached: number
+  results_unmatched: number
+  results_ambiguous: number
+  final_votes_unattached: number
+  final_votes_without_block: number
+  blocks_unattached: number
+  headings_unrecognized: number
+  speakers_without_group: number
+}

@@ -114,6 +114,7 @@ pub async fn get_dossier_group_actions(
     let result = GetDossierGroupActions::new(
         state.dossier_group_actions_repository.as_ref(),
         state.dossier_summary_repository.as_ref(),
+        state.vote_explanation_repository.as_ref(),
     )
     .execute(&uid)
     .await
