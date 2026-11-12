@@ -17,10 +17,12 @@ pub mod ingestion_journal;
 pub mod legal_text_source;
 pub mod scrutin_repository;
 pub mod scrutin_source;
+pub mod sitting_record_source;
 pub mod text_version_repository;
 pub mod text_version_source;
 pub mod theme_classifier;
 pub mod theme_repository;
+pub mod vote_explanation_repository;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SourceError {

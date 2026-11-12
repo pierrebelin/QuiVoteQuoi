@@ -381,6 +381,12 @@ mod tests {
             unreachable!()
         }
 
+        async fn sitting_keys(
+            &self,
+        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {
+            unreachable!()
+        }
+
         async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
             unreachable!()
         }

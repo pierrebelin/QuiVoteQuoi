@@ -21,6 +21,10 @@ use quivotequoi::application::ports::health_probe::HealthProbe;
 use quivotequoi::application::ports::legal_text_source::LegalTextSource;
 use quivotequoi::application::ports::scrutin_repository::ScrutinRepository;
 use quivotequoi::application::ports::scrutin_source::ScrutinSource;
+use quivotequoi::application::ports::sitting_record_source::SittingRecordSource;
+use quivotequoi::application::ports::vote_explanation_repository::VoteExplanationRepository;
+use quivotequoi::infrastructure::national_assembly::sitting_record_client::SittingRecordClient;
+use quivotequoi::infrastructure::persistence::pg_vote_explanation_repository::PgVoteExplanationRepository;
 use quivotequoi::application::ports::text_version_repository::TextVersionRepository;
 use quivotequoi::application::ports::text_version_source::TextVersionSource;
 use quivotequoi::application::ports::theme_classifier::ThemeClassifier;
@@ -102,6 +106,10 @@ async fn main() {
         Arc::new(PgTextVersionRepository::new(db.clone()));
     let brief_line_repository: Arc<dyn BriefLineRepository> =
         Arc::new(PgBriefLineRepository::new(db.clone()));
+    let sitting_record_source: Arc<dyn SittingRecordSource> =
+        Arc::new(SittingRecordClient::new());
+    let vote_explanation_repository: Arc<dyn VoteExplanationRepository> =
+        Arc::new(PgVoteExplanationRepository::new(db.clone()));
     let health_probe: Arc<dyn HealthProbe> = Arc::new(PgHealthProbe::new(db.clone()));
 
     let llm_provider = match LlmProvider::from_env() {
@@ -281,6 +289,8 @@ async fn main() {
         legal_text_source,
         brief_generator,
         brief_line_repository,
+        sitting_record_source,
+        vote_explanation_repository,
     };
 
     let app = api::routes::create_router(state, admin_guard);

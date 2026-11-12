@@ -13,6 +13,7 @@ pub mod pg_ingestion_journal;
 pub mod pg_scrutin_repository;
 pub mod pg_text_version_repository;
 pub mod pg_theme_repository;
+pub mod pg_vote_explanation_repository;
 
 use crate::application::ports::RepositoryError;
 

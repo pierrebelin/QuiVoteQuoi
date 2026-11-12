@@ -470,6 +470,48 @@ impl ScrutinRepository for PgScrutinRepository {
         Ok(rows.iter().map(summary_from_row).collect())
     }
 
+    async fn sitting_keys(
+        &self,
+    ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {
+        use crate::domain::sitting_record::{AnnouncedResult, ScrutinSittingKey, SittingRef};
+
+        let rows = sqlx::query(
+            "SELECT uid, sitting_ref, subject, voters, expressed, votes_for, votes_against
+             FROM scrutins ORDER BY uid",
+        )
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let mut keys = Vec::new();
+        for row in &rows {
+            let uid = row.get::<String, _>("uid");
+            let Some(sitting_ref) = row
+                .get::<Option<String>, _>("sitting_ref")
+                .and_then(|raw| SittingRef::new(raw).ok())
+            else {
+                continue;
+            };
+            let Ok(uid) = ScrutinUid::new(uid) else {
+                tracing::warn!("Scrutin with a blank uid skipped for sitting keys");
+                continue;
+            };
+            keys.push(ScrutinSittingKey::new(
+                uid,
+                sitting_ref,
+                AnnouncedResult {
+                    voters: u32::from(row.get::<i16, _>("voters") as u16),
+                    expressed: u32::from(row.get::<i16, _>("expressed") as u16),
+                    votes_for: u32::from(row.get::<i16, _>("votes_for") as u16),
+                    votes_against: u32::from(row.get::<i16, _>("votes_against") as u16),
+                },
+                &row.get::<String, _>("subject"),
+            ));
+        }
+        Ok(keys)
+    }
+
     async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
         let totals = sqlx::query(
             "SELECT count(*) AS scrutins_total,

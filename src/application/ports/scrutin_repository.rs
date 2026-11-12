@@ -3,6 +3,7 @@ use chrono::NaiveDate;
 
 use crate::domain::dataset::DatasetShape;
 use crate::domain::scrutin::{Scrutin, ScrutinUid, VoteTally};
+use crate::domain::sitting_record::ScrutinSittingKey;
 
 pub use super::RepositoryError;
 
@@ -78,6 +79,9 @@ pub trait ScrutinRepository: Send + Sync {
 
     /// Scrutins que la source rattache a ce dossier (CU-04).
     async fn by_dossier(&self, dossier_uid: &str) -> Result<Vec<ScrutinSummary>, RepositoryError>;
+
+    /// Clés de rattachement des scrutins à référence de séance (RM-11).
+    async fn sitting_keys(&self) -> Result<Vec<ScrutinSittingKey>, RepositoryError>;
 
     /// Read model de la page « Comprendre » : volumétrie et répartitions.
     async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError>;

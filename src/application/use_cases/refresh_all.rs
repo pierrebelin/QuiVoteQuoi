@@ -9,9 +9,12 @@ use crate::application::ports::assembly_source::AssemblySource;
 use crate::application::ports::dossier_repository::DossierRepository;
 use crate::application::ports::scrutin_repository::ScrutinRepository;
 use crate::application::ports::scrutin_source::ScrutinSource;
+use crate::application::ports::sitting_record_source::SittingRecordSource;
 use crate::application::ports::theme_classifier::ThemeClassifier;
 use crate::application::ports::theme_repository::ThemeRepository;
+use crate::application::ports::vote_explanation_repository::VoteExplanationRepository;
 use crate::domain::amendment_citation::LinkingReport;
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 
 use super::journaling::Journaling;
 use super::extract_debated_texts::{ExtractDebatedTexts, ExtractionReport};
@@ -21,6 +24,7 @@ use super::refresh_actor_registry::RefreshActorRegistry;
 use super::refresh_amendments::{AmendmentsSummary, RefreshAmendments};
 use super::refresh_dossiers::{DossiersSummary, RefreshDossiers, RefreshError, RefreshScope};
 use super::refresh_scrutins::{RefreshScrutins, ScrutinsSummary};
+use super::refresh_vote_explanations::{ExplanationsSummary, RefreshVoteExplanations};
 
 #[derive(Debug, Clone)]
 pub struct RefreshOutcome {
@@ -46,6 +50,9 @@ pub struct RefreshOutcome {
     /// Rapprochement des scrutins et des amendements qu'ils citent.
     pub citations: Option<LinkingReport>,
     pub citations_anomaly: Option<String>,
+    /// Explications de vote, derniere etape (RM-08).
+    pub vote_explanations: Option<ExplanationsSummary>,
+    pub vote_explanations_anomaly: Option<String>,
 }
 
 /// Rafraichissement complet, dans l'ordre impose: referentiel d'abord, dossiers
@@ -71,6 +78,8 @@ pub struct RefreshAll<'a> {
     amendment_source: &'a dyn AmendmentSource,
     amendment_repository: &'a dyn AmendmentRepository,
     citation_repository: &'a dyn AmendmentCitationRepository,
+    sitting_record_source: &'a dyn SittingRecordSource,
+    vote_explanation_repository: &'a dyn VoteExplanationRepository,
     theme_repository: &'a dyn ThemeRepository,
     theme_classifier: &'a dyn ThemeClassifier,
     /// Objets soumis au rattachement par passe. Plafond, pas objectif: le
@@ -93,6 +102,8 @@ impl<'a> RefreshAll<'a> {
         amendment_source: &'a dyn AmendmentSource,
         amendment_repository: &'a dyn AmendmentRepository,
         citation_repository: &'a dyn AmendmentCitationRepository,
+        sitting_record_source: &'a dyn SittingRecordSource,
+        vote_explanation_repository: &'a dyn VoteExplanationRepository,
         theme_repository: &'a dyn ThemeRepository,
         theme_classifier: &'a dyn ThemeClassifier,
         theme_batch: i64,
@@ -109,6 +120,8 @@ impl<'a> RefreshAll<'a> {
             amendment_source,
             amendment_repository,
             citation_repository,
+            sitting_record_source,
+            vote_explanation_repository,
             theme_repository,
             theme_classifier,
             theme_batch,
@@ -240,6 +253,25 @@ impl<'a> RefreshAll<'a> {
                 }
             };
 
+        // Les explications ferment la marche: elles relisent les scrutins et le
+        // referentiel qui viennent d'etre ecrits, et leur echec ne coute rien aux
+        // autres sources (RM-08).
+        let (vote_explanations, vote_explanations_anomaly) = match RefreshVoteExplanations::new(
+            self.sitting_record_source,
+            self.vote_explanation_repository,
+            self.scrutin_repository,
+            self.actor_repository,
+        )
+        .execute(CURRENT_LEGISLATURE)
+        .await
+        {
+            Ok(summary) => (Some(summary), None),
+            Err(e) => {
+                tracing::warn!("Vote explanations refresh failed, keeping the stored ones: {e}");
+                (None, Some(e.to_string()))
+            }
+        };
+
         Ok(RefreshOutcome {
             registry,
             registry_anomaly,
@@ -254,6 +286,8 @@ impl<'a> RefreshAll<'a> {
             amendments_anomaly,
             citations,
             citations_anomaly,
+            vote_explanations,
+            vote_explanations_anomaly,
         })
     }
 }
@@ -281,6 +315,8 @@ mod tests {
     use crate::application::ports::theme_repository::ScrutinSubject;
     use crate::application::ports::amendment_citation_repository::CitingScrutin;
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
+    use crate::application::use_cases::explanation_fakes::InMemoryVoteExplanations;
+    use crate::application::use_cases::sitting_record_fakes::FakeSittingRecords;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::application::use_cases::theme_fakes::{InMemoryThemeRepository, StubClassifier};
     use crate::domain::actor::{ActorRegistry, ActorUid};
@@ -386,6 +422,13 @@ mod tests {
             _uid: &str,
         ) -> Result<Vec<ScrutinSummary>, ScrutinRepositoryError> {
             unreachable!()
+        }
+
+        async fn sitting_keys(
+            &self,
+        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, ScrutinRepositoryError>
+        {
+            Ok(vec![])
         }
 
         async fn dataset_shape(&self) -> Result<DatasetShape, ScrutinRepositoryError> {
@@ -523,13 +566,15 @@ mod tests {
                 $theme_repository,
                 $theme_classifier,
                 &EmptyAmendmentSource,
-                &InMemoryCitationRepository::default()
+                &InMemoryCitationRepository::default(),
+                &FakeSittingRecords::default()
             )
         };
         ($actor_source:expr, $actor_repository:expr, $assembly_source:expr,
          $dossier_repository:expr, $scrutin_source:expr, $scrutin_repository:expr,
          $theme_repository:expr, $theme_classifier:expr,
-         $amendment_source:expr, $citation_repository:expr) => {
+         $amendment_source:expr, $citation_repository:expr,
+         $sitting_records:expr) => {
             RefreshAll::new(
                 $actor_source,
                 $actor_repository,
@@ -540,6 +585,8 @@ mod tests {
                 $amendment_source,
                 &NoopAmendmentRepository,
                 $citation_repository,
+                $sitting_records,
+                &InMemoryVoteExplanations::default(),
                 $theme_repository,
                 $theme_classifier,
                 50,
@@ -722,6 +769,88 @@ mod tests {
         assert_eq!(outcome.themes.expect("passe produite").failed, 1);
     }
 
+    #[tokio::test]
+    async fn reports_the_vote_explanations_summary_after_the_other_steps() {
+        let actor_source = RecordingActorSource {
+            available: true,
+            order: Mutex::new(vec![]),
+        };
+        let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
+        let assembly_source = FakeAssemblySource;
+        let dossier_repository = InMemoryDossierRepository::new();
+        let scrutin_source = FakeScrutinSource { available: true };
+        let scrutin_repository = InMemoryScrutinRepository {
+            saved: Mutex::new(0),
+        };
+        let theme_repository = InMemoryThemeRepository::default();
+        let theme_classifier = StubClassifier::new();
+
+        let outcome = refresh!(
+            &actor_source,
+            &actor_repository,
+            &assembly_source,
+            &dossier_repository,
+            &scrutin_source,
+            &scrutin_repository,
+            &theme_repository,
+            &theme_classifier
+        );
+
+        assert_eq!(
+            outcome.vote_explanations,
+            Some(ExplanationsSummary::default())
+        );
+        assert!(outcome.vote_explanations_anomaly.is_none());
+        assert!(outcome.scrutins.is_some());
+        assert!(outcome.amendments.is_some());
+    }
+
+    #[tokio::test]
+    async fn reports_a_vote_explanations_anomaly_and_keeps_the_other_steps_when_the_source_fails()
+    {
+        let actor_source = RecordingActorSource {
+            available: true,
+            order: Mutex::new(vec![]),
+        };
+        let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
+        let assembly_source = FakeAssemblySource;
+        let dossier_repository = InMemoryDossierRepository::new();
+        let scrutin_source = FakeScrutinSource { available: true };
+        let scrutin_repository = InMemoryScrutinRepository {
+            saved: Mutex::new(0),
+        };
+        let theme_repository = InMemoryThemeRepository::default();
+        let theme_classifier = StubClassifier::new();
+        let sitting_records = FakeSittingRecords {
+            open_error: Some("archive unavailable".to_string()),
+            ..FakeSittingRecords::default()
+        };
+
+        let outcome = refresh!(
+            &actor_source,
+            &actor_repository,
+            &assembly_source,
+            &dossier_repository,
+            &scrutin_source,
+            &scrutin_repository,
+            &theme_repository,
+            &theme_classifier,
+            &EmptyAmendmentSource,
+            &InMemoryCitationRepository::default(),
+            &sitting_records
+        );
+
+        assert!(outcome.vote_explanations.is_none());
+        assert!(outcome
+            .vote_explanations_anomaly
+            .expect("anomalie signalee")
+            .contains("archive unavailable"));
+        assert_eq!(outcome.dossiers.written, 1);
+        assert!(outcome.scrutins.is_some());
+        assert!(outcome.amendments.is_some());
+        assert!(outcome.citations.is_some());
+    }
+
     fn citing_scrutin() -> CitingScrutin {
         CitingScrutin {
             uid: ScrutinUid::new("VTANR5L17V490".to_string()).unwrap(),
@@ -767,7 +896,8 @@ mod tests {
             &theme_repository,
             &theme_classifier,
             &FailingAmendmentSource,
-            &citation_repository
+            &citation_repository,
+            &FakeSittingRecords::default()
         );
 
         assert!(outcome.amendments.is_none());
@@ -806,7 +936,8 @@ mod tests {
             &theme_repository,
             &theme_classifier,
             &EmptyAmendmentSource,
-            &citation_repository
+            &citation_repository,
+            &FakeSittingRecords::default()
         );
 
         assert_eq!(outcome.dossiers.written, 1);
@@ -885,6 +1016,8 @@ mod tests {
             amendment_source,
             &NoopAmendmentRepository,
             &citation_repository,
+            &FakeSittingRecords::default(),
+            &InMemoryVoteExplanations::default(),
             &theme_repository,
             &theme_classifier,
             50,

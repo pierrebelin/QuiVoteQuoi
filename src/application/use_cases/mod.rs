@@ -38,3 +38,8 @@ pub mod citation_fakes;
 pub mod journal_fakes;
 #[cfg(test)]
 pub mod brief_fakes;
+#[cfg(test)]
+pub mod explanation_fakes;
+#[cfg(test)]
+pub mod sitting_record_fakes;
+pub mod refresh_vote_explanations;

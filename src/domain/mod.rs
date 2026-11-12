@@ -21,3 +21,5 @@ pub mod text_brief;
 pub mod text_version;
 pub mod theme;
 pub mod theme_rules;
+pub mod sitting_record;
+pub mod vote_explanation;
