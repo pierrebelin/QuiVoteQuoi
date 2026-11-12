@@ -70,6 +70,16 @@ pub struct RawAct {
     pub jo_info: Option<RawJoInfo>,
     #[serde(rename = "codeLoi")]
     pub law_code: Option<String>,
+    #[serde(rename = "voteRefs")]
+    pub vote_refs: Option<RawVoteRefs>,
+}
+
+/// Scrutins publics cites par un acte: `{"voteRef": "VTANR5L17V9759"}`, ou
+/// une liste quand la source en cite plusieurs.
+#[derive(Deserialize)]
+pub struct RawVoteRefs {
+    #[serde(rename = "voteRef")]
+    pub vote_ref: Option<SingleOrVec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -154,6 +164,44 @@ pub struct ActInfo {
     pub date: String,
     pub label: String,
     pub code: Option<String>,
+    /// Scrutin public a l'origine de la decision, cite par la source.
+    pub decision_vote: Option<String>,
+}
+
+/// Scrutin cite par un acte de decision de seance (`*-DEC` portant un
+/// `statutConclusion`): celui qui a tranche, d'apres la source elle-meme.
+///
+/// Les votes de motion (`*-MOTION-VOTE`) citent aussi un scrutin mais ne
+/// tranchent pas le texte: ils sont laisses de cote. Quand la source cite
+/// plusieurs scrutins pour une meme decision (un cas en legislature 17, dont
+/// l'un appartient a un autre texte), le plus recent — numero le plus eleve —
+/// est retenu: c'est le dernier vote avant la decision.
+fn decision_vote_of(act: &RawAct) -> Option<String> {
+    let code = act.code.as_deref()?;
+    if !code.ends_with("-DEC") || act.conclusion.is_none() {
+        return None;
+    }
+    let refs: Vec<&String> = match act.vote_refs.as_ref()?.vote_ref.as_ref()? {
+        SingleOrVec::Vec(refs) => refs.iter().collect(),
+        SingleOrVec::Single(one) => vec![one.as_ref()],
+    };
+    refs.into_iter()
+        .filter(|uid| !uid.trim().is_empty())
+        .max_by_key(|uid| scrutin_number(uid))
+        .cloned()
+}
+
+/// Numero d'ordre d'un scrutin, lu en fin d'identifiant (`...V9759`).
+fn scrutin_number(uid: &str) -> u64 {
+    let digits: String = uid
+        .chars()
+        .rev()
+        .take_while(|c| c.is_ascii_digit())
+        .collect::<Vec<_>>()
+        .into_iter()
+        .rev()
+        .collect();
+    digits.parse().unwrap_or(0)
 }
 
 pub fn find_latest_act(acts: &Option<RawActsContainer>) -> Option<ActInfo> {
@@ -180,6 +228,7 @@ pub fn find_latest_act(acts: &Option<RawActsContainer>) -> Option<ActInfo> {
                     date: date_short.to_string(),
                     label,
                     code: act.code.clone(),
+                    decision_vote: decision_vote_of(act),
                 });
             }
         }
@@ -219,6 +268,7 @@ pub fn collect_all_acts(acts: &Option<RawActsContainer>) -> Vec<ActInfo> {
                 date: date_short.to_string(),
                 label,
                 code: act.code.clone(),
+                decision_vote: decision_vote_of(act),
             });
         }
         if let Some(ref children) = act.legislative_acts {
@@ -664,6 +714,60 @@ mod outcome_tests {
                 label: "rejet\u{00e9}e".into()
             }
         );
+    }
+
+    /// Fragment recopie du PLF 2027 (DLR5L17N54629): la decision de premiere
+    /// lecture cite le scrutin sur la premiere partie, pas un vote sur l'ensemble.
+    #[test]
+    fn a_decision_carries_the_vote_the_source_cites() {
+        let raw = dossier(&wrap(
+            r#"{
+                "codeActe": "AN1-DEBATS-DEC",
+                "dateActe": "2026-11-04T00:00:00.000+01:00",
+                "statutConclusion": {"fam_code": "TSORTF07", "libelle": "rejeté"},
+                "voteRefs": {"voteRef": "VTANR5L17V9759"}
+            }"#,
+            "null",
+        ));
+
+        let acts = collect_all_acts(&raw.legislative_acts);
+
+        assert_eq!(acts[0].decision_vote.as_deref(), Some("VTANR5L17V9759"));
+    }
+
+    #[test]
+    fn a_motion_vote_is_not_a_decision_vote() {
+        let raw = dossier(&wrap(
+            r#"{
+                "codeActe": "AN21-MOTION-VOTE",
+                "dateActe": "2025-01-16T00:00:00.000+01:00",
+                "voteRefs": {"voteRef": "VTANR5L17V519"}
+            }"#,
+            "null",
+        ));
+
+        let acts = collect_all_acts(&raw.legislative_acts);
+
+        assert_eq!(acts[0].decision_vote, None);
+    }
+
+    /// DLR5L17N54951: la source cite deux scrutins, dont une motion d'un autre
+    /// texte votee dix jours plus tot. Le plus recent est le vote decisif.
+    #[test]
+    fn a_decision_citing_several_votes_keeps_the_latest() {
+        let raw = dossier(&wrap(
+            r#"{
+                "codeActe": "AN1-DEBATS-DEC",
+                "dateActe": "2026-10-23T00:00:00.000+01:00",
+                "statutConclusion": {"fam_code": "TSORTF07", "libelle": "rejeté"},
+                "voteRefs": {"voteRef": ["VTANR5L17V9097", "VTANR5L17V8707"]}
+            }"#,
+            "null",
+        ));
+
+        let acts = collect_all_acts(&raw.legislative_acts);
+
+        assert_eq!(acts[0].decision_vote.as_deref(), Some("VTANR5L17V9097"));
     }
 
     /// Un rejet en premiere lecture suivi d'une adoption ne doit pas laisser le

@@ -281,6 +281,8 @@ pub struct ActDto {
     pub date: NaiveDate,
     pub label: String,
     pub code: Option<String>,
+    /// Scrutin a l'origine d'une decision de seance, quand la source le cite.
+    pub decision_scrutin_uid: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -600,6 +602,10 @@ impl DossierDetailDto {
                     date: a.date,
                     label: a.label.clone(),
                     code: a.code.clone(),
+                    decision_scrutin_uid: a
+                        .decision_vote
+                        .as_ref()
+                        .map(|uid| uid.as_str().to_string()),
                 })
                 .collect(),
             documents: d

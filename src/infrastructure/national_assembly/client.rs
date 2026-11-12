@@ -12,6 +12,7 @@ use crate::domain::dossier::{
 };
 use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::scoring::compute_score;
+use crate::domain::scrutin::ScrutinUid;
 // Le lecteur peut ouvrir la version précise dont la notice est publiée par
 // l'Assemblée : le format du lien est celui de `TextVersion::official_url`.
 use crate::domain::text_version::official_document_url;
@@ -83,6 +84,7 @@ impl NationalAssemblyClient {
                         date: d,
                         label: a.label,
                         code: a.code,
+                        decision_vote: a.decision_vote.and_then(|uid| ScrutinUid::new(uid).ok()),
                     })
             })
             .collect();

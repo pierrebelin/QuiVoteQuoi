@@ -1,6 +1,8 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
+use super::scrutin::ScrutinUid;
+
 use super::actor::{
     ActorDirectory, ActorRole, ActorUid, GroupUid, MembershipQuality, ParliamentaryGroup,
 };
@@ -68,6 +70,10 @@ pub struct LegislativeAct {
     pub date: NaiveDate,
     pub label: String,
     pub code: Option<String>,
+    /// Scrutin public que la source rattache a une decision de seance: le vote
+    /// qui a tranche, cite tel quel (`voteRefs`), jamais deduit de son objet.
+    /// Absent sur les autres actes et sur les decisions sans scrutin public.
+    pub decision_vote: Option<ScrutinUid>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -470,7 +476,6 @@ impl DossierOutcome {
         Self::KIND_WITHDRAWN,
         Self::KIND_MERGED_INTO,
     ];
-
 
     pub fn date(&self) -> Option<NaiveDate> {
         match self {
@@ -1398,6 +1403,7 @@ mod tests {
             date,
             label: "Acte".into(),
             code: None,
+            decision_vote: None,
         }
     }
 

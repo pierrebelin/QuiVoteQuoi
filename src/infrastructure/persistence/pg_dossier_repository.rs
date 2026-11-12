@@ -16,7 +16,7 @@ use crate::domain::dossier::{
     LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
     NewLegislativeDossier, Score, StoredDossierState,
 };
-use crate::domain::scrutin::Outcome;
+use crate::domain::scrutin::{Outcome, ScrutinUid};
 use crate::domain::theme::FamilyCode;
 
 pub struct PgDossierRepository {
@@ -30,7 +30,7 @@ impl PgDossierRepository {
 
     async fn fetch_acts(&self, dossier_uid: &str) -> Result<Vec<LegislativeAct>, RepositoryError> {
         let rows = sqlx::query_as::<_, ActRow>(
-            "SELECT act_date, label, act_code FROM legislative_acts WHERE dossier_uid = $1 ORDER BY act_date",
+            "SELECT act_date, label, act_code, decision_scrutin_uid FROM legislative_acts WHERE dossier_uid = $1 ORDER BY act_date, id",
         )
         .bind(dossier_uid)
         .fetch_all(&self.pool)
@@ -39,12 +39,20 @@ impl PgDossierRepository {
 
         Ok(rows
             .into_iter()
-            .map(|r| LegislativeAct {
-                date: r.act_date,
-                label: r.label,
-                code: r.act_code,
+            .map(|r| {
+                let decision_vote = r
+                    .decision_scrutin_uid
+                    .map(ScrutinUid::new)
+                    .transpose()
+                    .map_err(invalid_row)?;
+                Ok(LegislativeAct {
+                    date: r.act_date,
+                    label: r.label,
+                    code: r.act_code,
+                    decision_vote,
+                })
             })
-            .collect())
+            .collect::<Result<_, RepositoryError>>()?)
     }
 
     async fn fetch_documents(
@@ -168,12 +176,13 @@ impl PgDossierRepository {
 
             for act in dossier.acts() {
                 sqlx::query(
-                    "INSERT INTO legislative_acts (dossier_uid, act_date, label, act_code) VALUES ($1, $2, $3, $4)",
+                    "INSERT INTO legislative_acts (dossier_uid, act_date, label, act_code, decision_scrutin_uid) VALUES ($1, $2, $3, $4, $5)",
                 )
                 .bind(dossier.uid().as_str())
                 .bind(act.date)
                 .bind(&act.label)
                 .bind(&act.code)
+                .bind(act.decision_vote.as_ref().map(|uid| uid.as_str()))
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
@@ -761,6 +770,7 @@ struct ActRow {
     act_date: NaiveDate,
     label: String,
     act_code: Option<String>,
+    decision_scrutin_uid: Option<String>,
 }
 
 #[derive(sqlx::FromRow)]

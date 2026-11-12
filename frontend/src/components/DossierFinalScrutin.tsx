@@ -5,6 +5,8 @@ import { siegesDesGroupes } from './sieges'
 import { Card, ErrorPanel, Pill, VoteBar } from './ui'
 import type { DossierGroupActionsResponse, FinalVoteDto } from '../types/dossierGroupActions'
 import type { ScrutinDetailDto } from '../types/scrutins'
+import type { ParcoursActDto } from './DossierParcours'
+import { readingKey, readingLabel } from '../lib/dossierStatus'
 
 function latestFinalVote(groups: DossierGroupActionsResponse['groups']) {
   const byUid = new Map<string, FinalVoteDto>()
@@ -18,12 +20,27 @@ function latestFinalVote(groups: DossierGroupActionsResponse['groups']) {
   )[0]
 }
 
+/** Dernière décision de séance que la source rattache à un scrutin public. */
+function latestDecisionVote(acts: ParcoursActDto[]) {
+  return [...acts].reverse().find((act) => act.decision_scrutin_uid)
+}
+
+interface ShownVote {
+  scrutinUid: string
+  reading: string | null | undefined
+  /** Date de la décision que la source rattache à ce scrutin, s'il y en a une. */
+  decisionDate?: string
+}
+
 /**
- * Le dernier scrutin final publié donne le résultat du dossier avant les
- * éléments de navigation. Les autres votes finaux, séparés par lecture,
- * restent disponibles dans l'onglet des actes par groupe.
+ * Le vote qui a tranché, avant les éléments de navigation. D'abord celui que
+ * l'Assemblée rattache elle-même à sa dernière décision de séance (`voteRefs`) :
+ * il couvre les rejets d'une première partie budgétaire ou par motion de rejet
+ * préalable, qu'aucun vote « sur l'ensemble » ne porte. Sinon, ou quand un vote
+ * sur l'ensemble est plus récent (décision sans scrutin cité), ce dernier. Les
+ * autres votes finaux restent dans l'onglet des actes par groupe.
  */
-export default function DossierFinalScrutin({ uid }: { uid: string }) {
+export default function DossierFinalScrutin({ uid, acts }: { uid: string; acts: ParcoursActDto[] }) {
   const groupActions = useQuery<DossierGroupActionsResponse>({
     queryKey: ['dossier-lecture-groupes', uid],
     queryFn: () =>
@@ -34,17 +51,26 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
     enabled: !!uid,
   })
   const finalVote = groupActions.data ? latestFinalVote(groupActions.data.groups) : undefined
+  const decision = latestDecisionVote(acts)
+  const shown: ShownVote | undefined =
+    decision?.decision_scrutin_uid && (!finalVote || decision.date >= finalVote.date)
+      ? {
+          scrutinUid: decision.decision_scrutin_uid,
+          reading: readingLabel(readingKey(decision.code)),
+          decisionDate: decision.date,
+        }
+      : finalVote && { scrutinUid: finalVote.scrutin_uid, reading: finalVote.reading }
   const scrutin = useQuery<ScrutinDetailDto>({
-    queryKey: ['scrutin', finalVote?.scrutin_uid],
+    queryKey: ['scrutin', shown?.scrutinUid],
     queryFn: () =>
-      fetch(`/api/scrutins/${finalVote?.scrutin_uid}`).then((response) => {
+      fetch(`/api/scrutins/${shown?.scrutinUid}`).then((response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`)
         return response.json()
       }),
-    enabled: !!finalVote,
+    enabled: !!shown,
   })
 
-  if (groupActions.isLoading || (finalVote && scrutin.isLoading)) {
+  if (groupActions.isLoading || (shown && scrutin.isLoading)) {
     return <p className="mb-6 animate-pulse text-sm text-ink-faint">Chargement du vote final…</p>
   }
 
@@ -56,7 +82,7 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
     )
   }
 
-  if (!finalVote || !scrutin.data) {
+  if (!shown || !scrutin.data) {
     return (
       <p className="mb-6 rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
         Aucun vote final publié n'est rattaché à ce texte. Les votes éventuellement disponibles restent consultables dans l'onglet dédié.
@@ -66,20 +92,25 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
 
   const data = scrutin.data
   const votes = siegesDesGroupes(data.groups)
+  const longDate = (iso: string) =>
+    new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+  // Pour une motion de rejet, « pour » vaut rejet du texte : le dire, sans
+  // quoi l'hémicycle se lit à l'envers.
+  const rejectionMotion = /^la motion de rejet/i.test(data.subject.trim())
 
   return (
     <section className="mb-6" aria-labelledby="dossier-scrutin-final">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <div>
           <h3 id="dossier-scrutin-final" className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-            Vote final publié
+            {shown.decisionDate ? 'Vote décisif' : 'Vote final publié'}
           </h3>
           <p className="mt-1 text-sm text-ink-soft">
             <Link to={`/scrutins/${data.uid}`} className="font-medium link">
               Scrutin n° {data.number}
             </Link>
-            {' '}— {new Date(data.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
-            {finalVote.reading && <> · {finalVote.reading}</>}
+            {' '}— {longDate(data.date)}
+            {shown.reading && <> · {shown.reading}</>}
           </p>
         </div>
         <Pill tone={data.outcome_code === 'adopted' ? 'yes' : data.outcome_code === 'rejected' ? 'no' : 'neutral'}>
@@ -89,6 +120,14 @@ export default function DossierFinalScrutin({ uid }: { uid: string }) {
 
       <Card className="px-4 py-3 sm:px-5 sm:py-4">
         <p className="text-sm leading-snug text-ink">{data.subject}</p>
+        {(shown.decisionDate || rejectionMotion) && (
+          <p className="mt-1 text-xs leading-snug text-ink-soft">
+            {shown.decisionDate &&
+              `L'Assemblée rattache à ce scrutin sa décision de séance du ${longDate(shown.decisionDate)}.`}
+            {shown.decisionDate && rejectionMotion && ' '}
+            {rejectionMotion && 'Voter pour la motion, c’est voter pour rejeter le texte.'}
+          </p>
+        )}
         <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_18rem] lg:items-center">
           <div className="mx-auto w-full max-w-3xl">
             {votes.length > 0 ? (
