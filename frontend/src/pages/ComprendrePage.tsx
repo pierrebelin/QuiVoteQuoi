@@ -238,7 +238,7 @@ export default function ComprendrePage() {
   }
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div>
         <h2 className="heading-2">Comprendre</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-soft">

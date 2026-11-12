@@ -76,8 +76,10 @@ export default function App() {
         <Outlet />
       </main>
 
-      <footer className="mt-12 border-t border-line px-6 py-6">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-baseline gap-x-5 gap-y-2 text-xs">
+      {/* Marges sur le conteneur, comme l'en-tête et le contenu : sinon, au-delà
+          de 1280 px, le pied de page commence 24 px plus à gauche. */}
+      <footer className="mt-12 border-t border-line py-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-baseline gap-x-5 gap-y-2 px-6 text-xs">
           <span className="font-medium text-ink-soft">
             Transparence des votes parlementaires
           </span>

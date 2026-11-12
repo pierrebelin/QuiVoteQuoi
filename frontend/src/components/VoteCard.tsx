@@ -66,6 +66,9 @@ export interface VoteCardProps {
   /** Carte seule en pleine largeur : à partir de 1024 px, l'intitulé à gauche,
    * les groupes et le décompte à droite. */
   wide?: boolean
+  /** Carte large seulement, à partir de 1024 px : l'intitulé passe sur toute la
+   * largeur, puis cette figure (l'hémicycle de l'accueil) à gauche des groupes. */
+  figure?: ReactNode
 }
 
 const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`
@@ -294,8 +297,16 @@ export default function VoteCard({
   groups,
   bare = false,
   wide = false,
+  figure,
 }: VoteCardProps) {
   const compact = size === 'compact'
+  const withFigure = wide && figure != null
+  const results = (
+    <div className="flex flex-col gap-2.5">
+      {!compact && groups && <GroupsByPosition {...groups} wide={wide} />}
+      <AssemblyFooter tally={tally} />
+    </div>
+  )
   // En compacte, rien d'autre ne se touche : le lien du titre couvre la carte.
   const stretched = compact ? 'after:absolute after:inset-0 after:content-[\'\']' : ''
 
@@ -306,7 +317,9 @@ export default function VoteCard({
           ? 'px-4 py-3.5 sm:px-[18px]'
           : 'rounded border border-line bg-surface p-4 shadow-card sm:px-5'
       } ${compact ? 'transition-colors hover:bg-surface-soft/50' : ''} ${
-        wide
+        withFigure ? 'lg:px-7 lg:py-6' : ''
+      } ${
+        wide && !withFigure
           ? 'lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start lg:gap-x-10 lg:px-7 lg:py-6'
           : ''
       }`}
@@ -343,10 +356,14 @@ export default function VoteCard({
         {notes}
       </div>
 
-      <div className="flex flex-col gap-2.5">
-        {!compact && groups && <GroupsByPosition {...groups} wide={wide} />}
-        <AssemblyFooter tally={tally} />
-      </div>
+      {withFigure ? (
+        <div className="lg:mt-[22px] lg:grid lg:grid-cols-2 lg:items-center lg:gap-x-12 lg:border-t lg:border-line lg:pt-[22px]">
+          <div className="hidden lg:block">{figure}</div>
+          {results}
+        </div>
+      ) : (
+        results
+      )}
     </article>
   )
 }

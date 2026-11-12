@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation } from 'react-router'
 import { useFreshness } from '../components/Freshness'
+import LatestVoteHemicycle from '../components/LatestVoteHemicycle'
 import VoteCard from '../components/VoteCard'
 import { finalVoteCard } from '../components/voteCardData'
 import { FOCUS_RING } from '../components/entry/styles'
@@ -16,6 +17,7 @@ import {
   PARAM_THEMES,
 } from '../lib/entryFlow'
 import { fetchJson } from '../lib/fetchJson'
+import { useLargeScreen } from '../lib/useLargeScreen'
 import type { FinalVoteListResponse } from '../types/finalVotes'
 import type { ScrutinListResponse } from '../types/scrutins'
 
@@ -296,6 +298,9 @@ export default function LandingPage() {
     retry: false,
   })
 
+  // Les sièges ne se chargent qu'à partir de 1024 px, où l'hémicycle a sa place.
+  const large = useLargeScreen()
+
   if (legacyEntry) return <Navigate to={`${ENTRY_PATH}${location.search}`} replace />
 
   const vote = latest.data?.items[0]
@@ -348,7 +353,20 @@ export default function LandingPage() {
             Dernier vote sur l’ensemble d’un texte
           </h3>
           {vote ? (
-            <VoteCard size="full" wide {...finalVoteCard(vote, groups)} />
+            <VoteCard
+              size="full"
+              wide
+              {...finalVoteCard(vote, groups)}
+              figure={
+                large ? (
+                  <LatestVoteHemicycle
+                    scrutinUid={vote.scrutin_uid}
+                    tally={vote.synthesis}
+                    labelledBy="dernier-vote"
+                  />
+                ) : undefined
+              }
+            />
           ) : (
             <Card className="px-4 py-6">
               {latest.isError ? (
