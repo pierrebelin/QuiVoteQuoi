@@ -24,6 +24,7 @@ use quivotequoi::application::use_cases::get_dossier_group_actions::{
 };
 use quivotequoi::infrastructure::persistence::pg_dossier_group_actions_repository::PgDossierGroupActionsRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_summary_repository::PgDossierSummaryRepository;
+use quivotequoi::infrastructure::persistence::pg_vote_explanation_repository::PgVoteExplanationRepository;
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
@@ -95,7 +96,8 @@ async fn a_ready_summary_is_read_back_with_its_generation_date() {
         .await
         .unwrap();
 
-    let actions = GetDossierGroupActions::new(&facts, &summaries)
+    let explanations = PgVoteExplanationRepository::new(pool.clone());
+    let actions = GetDossierGroupActions::new(&facts, &summaries, &explanations)
         .execute(DOSSIER_UID)
         .await
         .unwrap()

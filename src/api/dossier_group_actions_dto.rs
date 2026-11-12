@@ -1,6 +1,7 @@
 use chrono::{NaiveDate, NaiveDateTime};
 use serde::Serialize;
 
+use crate::application::ports::vote_explanation_repository::ExplanationMention;
 use crate::application::use_cases::get_dossier_group_actions::DossierGroupActions;
 use crate::domain::dossier_group_facts::{
     AmendmentFact, DossierGroupFacts, FinalVoteFact, GroupFacts,
@@ -93,6 +94,16 @@ pub struct FinalVoteDto {
     pub member_count: Option<u16>,
     pub tally: TallyDto,
     pub official_url: String,
+    /// Orateurs rattachés à ce scrutin sous ce groupe, dans l'ordre du compte rendu (RM-09).
+    pub explanations: Vec<ExplanationMentionDto>,
+}
+
+#[derive(Serialize)]
+pub struct ExplanationMentionDto {
+    pub speaker_uid: String,
+    pub speaker_name: Option<String>,
+    pub scrutin_uid: String,
+    pub rank: u16,
 }
 
 #[derive(Serialize)]
@@ -119,14 +130,32 @@ impl From<crate::domain::scrutin::VoteTally> for TallyDto {
 impl From<DossierGroupActions> for DossierGroupActionsResponse {
     fn from(value: DossierGroupActions) -> Self {
         let DossierGroupActions {
-            facts, summaries, ..
+            facts,
+            summaries,
+            explanations,
+            ..
         } = value;
-        Self::from_parts(facts, summaries)
+        Self::from_parts(facts, summaries, explanations)
+    }
+}
+
+impl From<&ExplanationMention> for ExplanationMentionDto {
+    fn from(value: &ExplanationMention) -> Self {
+        Self {
+            speaker_uid: value.speaker_uid.to_string(),
+            speaker_name: value.speaker_name.clone(),
+            scrutin_uid: value.scrutin_uid.to_string(),
+            rank: value.rank,
+        }
     }
 }
 
 impl DossierGroupActionsResponse {
-    fn from_parts(facts: DossierGroupFacts, summaries: Vec<StoredGroupSummary>) -> Self {
+    fn from_parts(
+        facts: DossierGroupFacts,
+        summaries: Vec<StoredGroupSummary>,
+        explanations: Vec<ExplanationMention>,
+    ) -> Self {
         let summary_by_group = summaries
             .into_iter()
             .map(|summary| (summary.group_uid.clone(), summary))
@@ -143,7 +172,11 @@ impl DossierGroupActionsResponse {
             .into_iter()
             .map(|group| {
                 let summary = summary_by_group.get(&group.uid);
-                group_dto(dossier_uid.as_str(), legislature, group, summary)
+                let mentions: Vec<&ExplanationMention> = explanations
+                    .iter()
+                    .filter(|mention| mention.group_uid == group.uid)
+                    .collect();
+                group_dto(dossier_uid.as_str(), legislature, group, summary, &mentions)
             })
             .collect();
 
@@ -166,6 +199,7 @@ fn group_dto(
     legislature: u16,
     group: GroupFacts,
     stored: Option<&StoredGroupSummary>,
+    mentions: &[&ExplanationMention],
 ) -> GroupActionsDto {
     let has_actions = group.has_actions();
     let summary = stored
@@ -199,7 +233,14 @@ fn group_dto(
         final_votes: group
             .final_votes
             .into_iter()
-            .map(|vote| FinalVoteDto::from_fact(vote, legislature))
+            .map(|vote| {
+                let explanations = mentions
+                    .iter()
+                    .filter(|mention| mention.scrutin_uid == vote.scrutin_uid)
+                    .map(|mention| ExplanationMentionDto::from(*mention))
+                    .collect();
+                FinalVoteDto::from_fact(vote, legislature, explanations)
+            })
             .collect(),
         amendment_count: group.amendments.len(),
         amendment_fates: fate_counts(&group.amendments),
@@ -220,7 +261,11 @@ impl From<&SummarySource> for SummarySourceDto {
 }
 
 impl FinalVoteDto {
-    fn from_fact(value: FinalVoteFact, legislature: u16) -> Self {
+    fn from_fact(
+        value: FinalVoteFact,
+        legislature: u16,
+        explanations: Vec<ExplanationMentionDto>,
+    ) -> Self {
         Self {
             scrutin_uid: value.scrutin_uid.to_string(),
             number: value.number.clone(),
@@ -234,6 +279,7 @@ impl FinalVoteDto {
             member_count: value.member_count,
             tally: value.tally.into(),
             official_url: scrutin_official_url(legislature, &value.number),
+            explanations,
         }
     }
 }
@@ -241,6 +287,86 @@ impl FinalVoteDto {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::domain::actor::{ActorUid, GroupUid};
+    use crate::domain::dossier::DossierUid;
+    use crate::domain::dossier_summary::FactsFingerprint;
+    use crate::domain::scrutin::{ScrutinUid, VoteTally};
+
+    fn group(uid: &str, scrutin: &str) -> GroupFacts {
+        GroupFacts {
+            uid: GroupUid::new(uid.to_string()).unwrap(),
+            abbrev: uid.into(),
+            label: uid.into(),
+            color: None,
+            start_date: None,
+            end_date: None,
+            final_votes: vec![FinalVoteFact {
+                scrutin_uid: ScrutinUid::new(scrutin.to_string()).unwrap(),
+                number: "1".into(),
+                date: NaiveDate::from_ymd_opt(2026, 1, 2).unwrap(),
+                legislature: 17,
+                subject: "l'ensemble du texte".into(),
+                text_label: "texte".into(),
+                reading: None,
+                outcome_code: "adopted".into(),
+                outcome_label: "Adopté".into(),
+                majority_position: None,
+                member_count: None,
+                tally: VoteTally::default(),
+            }],
+            amendments: vec![],
+        }
+    }
+
+    fn mention(scrutin: &str, group: &str, rank: u16, speaker: &str) -> ExplanationMention {
+        ExplanationMention {
+            scrutin_uid: ScrutinUid::new(scrutin.to_string()).unwrap(),
+            group_uid: GroupUid::new(group.to_string()).unwrap(),
+            rank,
+            speaker_uid: ActorUid::new(speaker.to_string()).unwrap(),
+            speaker_name: Some(format!("Orateur {speaker}")),
+        }
+    }
+
+    #[test]
+    fn places_each_mention_under_the_final_vote_of_its_group_and_scrutin() {
+        let actions = DossierGroupActions {
+            facts: DossierGroupFacts {
+                dossier_uid: DossierUid::new("D1".to_string()).unwrap(),
+                title: "Texte".into(),
+                official_url: None,
+                legislature: 17,
+                period_start: None,
+                period_end: None,
+                groups: vec![group("G1", "S1"), group("G2", "S2")],
+            },
+            facts_fingerprint: FactsFingerprint::new("f".to_string()),
+            summaries: vec![],
+            explanations: vec![
+                mention("S1", "G1", 1, "PA1"),
+                mention("S2", "G2", 2, "PA2"),
+                mention("S2", "G2", 3, "PA3"),
+            ],
+        };
+
+        let response = DossierGroupActionsResponse::from(actions);
+
+        let placed: Vec<Vec<(&str, u16)>> = response
+            .groups
+            .iter()
+            .map(|g| {
+                g.final_votes[0]
+                    .explanations
+                    .iter()
+                    .map(|m| (m.speaker_uid.as_str(), m.rank))
+                    .collect()
+            })
+            .collect();
+        assert_eq!(placed, vec![vec![("PA1", 1)], vec![("PA2", 2), ("PA3", 3)]]);
+        let first = &response.groups[0].final_votes[0].explanations[0];
+        assert_eq!(first.scrutin_uid, "S1");
+        assert_eq!(first.speaker_name.as_deref(), Some("Orateur PA1"));
+    }
 
     #[test]
     fn group_states_map_to_the_json_contract_strings() {

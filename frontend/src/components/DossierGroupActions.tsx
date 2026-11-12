@@ -136,6 +136,18 @@ function FinalVote({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
           Source officielle ↗
         </a>
       </div>
+      {vote.explanations.length > 0 && (
+        <ul className="mt-1.5 space-y-0.5">
+          {vote.explanations.map((mention) => (
+            <li key={`${mention.scrutin_uid}-${mention.rank}`} className="text-xs text-ink-soft">
+              Explication de vote publiée —{' '}
+              <Link to={`/scrutins/${mention.scrutin_uid}#explication-${mention.rank}`} className="link">
+                {mention.speaker_name ?? mention.speaker_uid}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   )
 }

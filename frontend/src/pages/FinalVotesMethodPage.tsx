@@ -1,5 +1,19 @@
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { Card, PageHeader } from '../components/ui'
+import { fetchJson } from '../lib/fetchJson'
+import type { ExplanationCoverageDto } from '../types/finalVotes'
+
+const COVERAGE_LABELS: [keyof ExplanationCoverageDto, string][] = [
+  ['results_attached', 'Résultats rattachés à un vote'],
+  ['results_unmatched', 'Résultats sans vote correspondant'],
+  ['results_ambiguous', 'Résultats ambigus'],
+  ['final_votes_unattached', 'Votes sur l’ensemble sans rattachement'],
+  ['final_votes_without_block', 'Votes sur l’ensemble sans explication'],
+  ['blocks_unattached', 'Explications sans vote rattaché'],
+  ['headings_unrecognized', 'Intitulés non reconnus'],
+  ['speakers_without_group', 'Orateurs sans groupe'],
+]
 
 /**
  * Méthode publique de la sélection des votes sur l'ensemble.
@@ -9,6 +23,11 @@ import { Card, PageHeader } from '../components/ui'
  * exige des documents et des étapes que la liste de scrutins ne contient pas.
  */
 export default function FinalVotesMethodPage() {
+  const coverage = useQuery<ExplanationCoverageDto>({
+    queryKey: ['votes-finaux-methode'],
+    queryFn: () => fetchJson<ExplanationCoverageDto>('/api/votes-finaux/methode'),
+  })
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -58,6 +77,26 @@ export default function FinalVotesMethodPage() {
           </p>
         </Card>
       </div>
+
+      <Card className="px-4 py-3.5">
+        <h3 className="text-sm font-semibold">Le rattachement des explications de vote</h3>
+        <p className="mt-2 text-sm leading-relaxed text-ink-soft">
+          Les explications de vote viennent des comptes rendus de séance. Une explication
+          est rattachée à un vote sur l’ensemble par la date de séance et le résultat
+          publié, jamais par ressemblance de titre. Les compteurs ci-dessous portent sur
+          ce rattachement seulement : aucun ne se lit par groupe ni par député.
+        </p>
+        {coverage.data ? (
+          <dl className="mt-3 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
+            {COVERAGE_LABELS.map(([key, label]) => (
+              <div key={key} className="flex justify-between gap-3">
+                <dt className="text-ink-soft">{label}</dt>
+                <dd className="font-semibold tabular-nums">{coverage.data[key]}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+      </Card>
 
       <Card className="px-4 py-3.5">
         <h3 className="text-sm font-semibold">Ce que cette sélection ne dit pas</h3>

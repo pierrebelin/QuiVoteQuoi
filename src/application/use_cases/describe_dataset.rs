@@ -98,6 +98,12 @@ mod tests {
             unimplemented!("hors portée du guide de lecture")
         }
 
+        async fn sitting_keys(
+            &self,
+        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {
+            unimplemented!("hors portée du guide de lecture")
+        }
+
         async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
             Ok(self.shape.lock().unwrap().clone())
         }

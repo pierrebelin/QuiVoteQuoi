@@ -11,3 +11,4 @@ mod parsing;
 pub mod scrutin_client;
 mod scrutin_parsing;
 pub mod text_version_client;
+pub mod sitting_record_client;

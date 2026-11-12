@@ -7,6 +7,7 @@ pub mod browse_groups;
 pub mod browse_themes;
 pub mod check_health;
 pub mod describe_dataset;
+pub mod describe_explanation_coverage;
 pub mod describe_freshness;
 pub mod describe_method;
 pub mod extract_debated_texts;
@@ -38,3 +39,8 @@ pub mod citation_fakes;
 pub mod journal_fakes;
 #[cfg(test)]
 pub mod brief_fakes;
+#[cfg(test)]
+pub mod explanation_fakes;
+#[cfg(test)]
+pub mod sitting_record_fakes;
+pub mod refresh_vote_explanations;

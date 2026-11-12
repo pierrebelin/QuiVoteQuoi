@@ -186,6 +186,53 @@ export interface ScrutinDetailDto {
   families: AssignedFamilyDto[]
   /** Mention de lecture d'un vote sur l'ensemble (« lecture définitive »), sinon `null`. */
   reading: string | null
+  /** Explications de vote ; `null` hors vote sur l'ensemble. */
+  explanations: Explanations | null
+}
+
+export type ExplanationsState =
+  | 'report_not_published'
+  | 'not_attached'
+  | 'no_explanation'
+  | 'explained'
+
+export type GroupBasis = 'scrutin' | 'membership' | 'undetermined'
+
+export interface Explanation {
+  rank: number
+  speaker_uid: string
+  speaker_name: string | null
+  /** `null` : groupe non établi, jamais deviné. */
+  group_uid: string | null
+  group_basis: GroupBasis
+  /** `null` : position non publiée. */
+  speaker_position: VoteDto['position'] | null
+  group_tally: TallyDto | null
+  /** `null` : pas d'aperçu, le texte tient en entier. */
+  preview: string | null
+  preview_truncated: boolean
+  text: string
+  official_url: string
+}
+
+export interface GroupWithoutSpeaker {
+  group_uid: string
+  abbrev: string | null
+  label: string | null
+}
+
+export interface Explanations {
+  state: ExplanationsState
+  source_url: string | null
+  report_version: string | null
+  items: Explanation[]
+  groups_without_speaker: GroupWithoutSpeaker[]
+}
+
+export const explanationsStateLabels: Record<Exclude<ExplanationsState, 'explained'>, string> = {
+  report_not_published: "Le compte rendu de cette séance n'est pas encore publié.",
+  not_attached: "Ce vote n'est pas rattaché à un passage du compte rendu.",
+  no_explanation: "Aucune explication de vote n'a été prononcée avant ce vote.",
 }
 
 export const positionLabels: Record<VoteDto['position'], string> = {

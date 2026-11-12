@@ -260,7 +260,7 @@ Colonne vertébrale. XML / JSON. Jeux clés :
 - **Acteurs et organes** : députés, groupes, **mandats et appartenances datées** (→ §3.2).
 - Dossiers législatifs (titres, dépôts, commissions, rapporteurs, dates).
 - **Amendements** : auteur, cosignataires, **exposé sommaire**, sort. Ingérés depuis l'archive de la législature. Ce sont les seules raisons de vote que la source publie sous forme structurée — il n'existe aucun champ « raison du vote » dans le jeu des scrutins.
-- Comptes rendus de séance (positions attribuées). Non ingérés à ce jour.
+- Comptes rendus de séance : explications de vote sur l'ensemble d'un texte, reproduites mot pour mot (SPEC-explications-vote).
 
 ### Vie publique — `vie-publique.fr`
 

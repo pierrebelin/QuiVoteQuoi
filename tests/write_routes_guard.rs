@@ -29,6 +29,8 @@ use quivotequoi::infrastructure::national_assembly::actor_client::AmoActorClient
 use quivotequoi::infrastructure::national_assembly::amendment_client::AmendmentClient;
 use quivotequoi::infrastructure::national_assembly::client::NationalAssemblyClient;
 use quivotequoi::infrastructure::national_assembly::scrutin_client::ScrutinClient;
+use quivotequoi::infrastructure::national_assembly::sitting_record_client::SittingRecordClient;
+use quivotequoi::infrastructure::persistence::pg_vote_explanation_repository::PgVoteExplanationRepository;
 use quivotequoi::infrastructure::national_assembly::text_version_client::TextVersionClient;
 use quivotequoi::infrastructure::persistence::pg_actor_repository::PgActorRepository;
 use quivotequoi::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
@@ -102,7 +104,9 @@ fn state() -> AppState {
         text_version_repository: Arc::new(PgTextVersionRepository::new(db.clone())),
         legal_text_source: Arc::new(UnavailableLegalTextSource),
         brief_generator: Arc::new(UnavailableBriefGenerator),
-        brief_line_repository: Arc::new(PgBriefLineRepository::new(db)),
+        brief_line_repository: Arc::new(PgBriefLineRepository::new(db.clone())),
+        sitting_record_source: Arc::new(SittingRecordClient::new()),
+        vote_explanation_repository: Arc::new(PgVoteExplanationRepository::new(db)),
     }
 }
 

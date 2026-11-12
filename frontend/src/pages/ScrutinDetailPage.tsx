@@ -30,12 +30,19 @@ import { amendmentCardPath } from '../types/amendments'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
 import type {
   CitedAmendmentDto,
+  Explanation,
+  Explanations,
   GroupBreakdownDto,
   LeadingPosition,
   ScrutinDetailDto,
   TallyDto,
 } from '../types/scrutins'
-import { leadingPosition, positionClasses, positionLabels } from '../types/scrutins'
+import {
+  explanationsStateLabels,
+  leadingPosition,
+  positionClasses,
+  positionLabels,
+} from '../types/scrutins'
 
 /** Ce que la page lit du dossier : qui l'a déposé, où il en est. */
 interface DossierContextDto {
@@ -239,6 +246,144 @@ function CitedAmendment({
         </Link>
       </div>
     </div>
+  )
+}
+
+/** Version du compte rendu, telle que publiée par la source, sans libellé inventé (RM-11). */
+function ReportVersion({ version }: { version: string }) {
+  return <span className="text-ink-faint">Version du compte rendu : {version}</span>
+}
+
+/**
+ * Une explication de vote, reprise telle quelle du compte rendu (RM-03) :
+ * orateur, vote réel et décompte de son groupe (RM-07), aperçu annoncé,
+ * texte complet, lien vers le compte rendu officiel (RM-12).
+ */
+function ExplanationCard({
+  explanation,
+  reportVersion,
+}: {
+  explanation: Explanation
+  reportVersion: string | null
+}) {
+  const [open, setOpen] = useState(false)
+  const collapsible = explanation.preview_truncated && explanation.preview != null
+  const tally = explanation.group_tally
+
+  return (
+    <div id={`explication-${explanation.rank}`}>
+      <p className="text-sm text-ink-soft">
+        <span className="font-medium text-ink">
+          {explanation.speaker_name ?? explanation.speaker_uid}
+        </span>
+        {explanation.group_uid == null && (
+          <span className="text-ink-faint"> (groupe non établi)</span>
+        )}
+        {' — '}
+        {explanation.speaker_position
+          ? `a voté ${positionLabels[explanation.speaker_position].toLowerCase()}`
+          : 'position non publiée'}
+        {tally && (
+          <span className="text-ink-faint">
+            {' '}
+            · groupe : {tally.votes_for} pour, {tally.votes_against} contre, {tally.abstentions}{' '}
+            abst.
+          </span>
+        )}
+      </p>
+
+      <blockquote className="mt-3 max-w-3xl border-l-[3px] border-line-strong pl-3 text-sm leading-relaxed text-ink-soft">
+        <span className="mb-1 block text-xs text-ink-faint">
+          {collapsible && !open
+            ? 'Aperçu : 300 premiers caractères de l’intervention'
+            : 'Intervention reprise telle quelle du compte rendu'}
+        </span>
+        <p className="whitespace-pre-line">
+          {collapsible && !open ? explanation.preview : explanation.text}
+          {collapsible && (
+            <button
+              type="button"
+              onClick={() => setOpen(!open)}
+              className={`ml-1 text-xs font-medium link ${FOCUS_RING}`}
+            >
+              {open ? 'Replier' : "Lire l'intervention complète"}
+            </button>
+          )}
+        </p>
+      </blockquote>
+
+      <div className="mt-3 text-xs">
+        <a
+          href={explanation.official_url}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium link"
+        >
+          Compte rendu officiel →
+        </a>
+        {reportVersion && (
+          <>
+            {' · '}
+            <ReportVersion version={reportVersion} />
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** Section « Explications de vote » : un état fermé, jamais une liste vide muette (RM-09). */
+function ExplanationsSection({ explanations }: { explanations: Explanations }) {
+  return (
+    <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
+      <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+        Explications de vote
+      </h3>
+      {explanations.state === 'explained' ? (
+        <>
+          <ul className="space-y-6">
+            {explanations.items.map((item) => (
+              <li key={item.rank}>
+                <ExplanationCard explanation={item} reportVersion={explanations.report_version} />
+              </li>
+            ))}
+          </ul>
+          {explanations.groups_without_speaker.length > 0 && (
+            <ul className="mt-5 space-y-1 text-xs text-ink-faint">
+              {explanations.groups_without_speaker.map((group) => (
+                <li key={group.group_uid}>
+                  {group.label ?? group.abbrev ?? group.group_uid} : aucun orateur rattaché à ce
+                  groupe
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <p className="text-sm text-ink-soft">
+          {explanationsStateLabels[explanations.state]}
+          {explanations.source_url && (
+            <>
+              {' '}
+              <a
+                href={explanations.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium link"
+              >
+                Compte rendu officiel →
+              </a>
+            </>
+          )}
+          {explanations.report_version && (
+            <>
+              {explanations.source_url ? ' · ' : ' '}
+              <ReportVersion version={explanations.report_version} />
+            </>
+          )}
+        </p>
+      )}
+    </Card>
   )
 }
 
@@ -660,6 +805,8 @@ export default function ScrutinDetailPage() {
         )}
         <GroupRows groups={data.groups} />
       </Card>
+
+      {data.explanations && <ExplanationsSection explanations={data.explanations} />}
 
       {data.corrections.length > 0 && (
         <section className="mt-4">

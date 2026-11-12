@@ -56,4 +56,7 @@ pub struct AppState {
     pub legal_text_source: Arc<dyn LegalTextSource>,
     pub brief_generator: Arc<dyn BriefGenerator>,
     pub brief_line_repository: Arc<dyn BriefLineRepository>,
+    pub sitting_record_source: Arc<dyn application::ports::sitting_record_source::SittingRecordSource>,
+    pub vote_explanation_repository:
+        Arc<dyn application::ports::vote_explanation_repository::VoteExplanationRepository>,
 }

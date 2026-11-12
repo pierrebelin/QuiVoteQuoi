@@ -114,6 +114,7 @@ pub async fn get_dossier_group_actions(
     let result = GetDossierGroupActions::new(
         state.dossier_group_actions_repository.as_ref(),
         state.dossier_summary_repository.as_ref(),
+        state.vote_explanation_repository.as_ref(),
     )
     .execute(&uid)
     .await
@@ -197,6 +198,8 @@ pub async fn refresh_dossiers(
         state.amendment_source.as_ref(),
         state.amendment_repository.as_ref(),
         state.amendment_citation_repository.as_ref(),
+        state.sitting_record_source.as_ref(),
+        state.vote_explanation_repository.as_ref(),
         state.theme_repository.as_ref(),
         state.theme_classifier.as_ref(),
         config::theme_batch_per_refresh(),
