@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { REJECTION_NOT_FINAL } from '../lib/dossierStatus'
@@ -36,6 +36,7 @@ import type {
   LeadingPosition,
   ScrutinDetailDto,
   TallyDto,
+  VoteDto,
 } from '../types/scrutins'
 import {
   explanationsStateLabels,
@@ -250,144 +251,141 @@ function CitedAmendment({
 }
 
 /** Version du compte rendu, telle que publiée par la source, sans libellé inventé (RM-11). */
-function ReportVersion({ version }: { version: string }) {
-  return <span className="text-ink-faint">Version du compte rendu : {version}</span>
+/** Version du compte rendu dite en clair : la source publie « avant_JO » pour la version provisoire. */
+function reportLabel(version: string | null): string {
+  return version === 'avant_JO' ? 'compte rendu provisoire de la séance' : 'compte rendu de la séance'
+}
+
+const SPEAKER_POSITION_COLOR: Record<VoteDto['position'], string> = {
+  for: 'text-yes',
+  against: 'text-no',
+  abstention: 'text-abstain',
+  not_voting: 'text-ink-soft',
 }
 
 /**
- * Une explication de vote, reprise telle quelle du compte rendu (RM-03) :
- * orateur, vote réel et décompte de son groupe (RM-07), aperçu annoncé,
- * texte complet, lien vers le compte rendu officiel (RM-12).
+ * Une explication de vote sous la ligne de son groupe, reprise telle quelle du
+ * compte rendu (RM-03) : orateur et vote réel (RM-07), aperçu dépliable sur le
+ * texte entier, lien vers le compte rendu officiel (RM-12). Ouverte d'emblée
+ * quand l'adresse la vise (lien depuis la fiche dossier).
  */
-function ExplanationCard({
-  explanation,
-  reportVersion,
-}: {
-  explanation: Explanation
-  reportVersion: string | null
-}) {
-  const [open, setOpen] = useState(false)
+function ExplanationBlock({ explanation }: { explanation: Explanation }) {
+  const anchor = `explication-${explanation.rank}`
+  const targeted = useRef(window.location.hash === `#${anchor}`)
+  const [open, setOpen] = useState(targeted.current)
+  const blockRef = useRef<HTMLDivElement>(null)
+  // La fiche arrive après le chargement : le navigateur n'a pas pu viser l'ancre.
+  // On vise la ligne du groupe, pour que son nom reste à l'écran.
+  useEffect(() => {
+    if (!targeted.current) return
+    const block = blockRef.current
+    const target = block?.closest<HTMLElement>('li') ?? block
+    if (target) target.style.scrollMarginTop = '5rem'
+    target?.scrollIntoView({ block: 'start' })
+  }, [])
   const collapsible = explanation.preview_truncated && explanation.preview != null
-  const tally = explanation.group_tally
+  const folded = collapsible && !open
+  const position = explanation.speaker_position
 
   return (
-    <div id={`explication-${explanation.rank}`}>
-      <p className="text-sm text-ink-soft">
-        <span className="font-medium text-ink">
-          {explanation.speaker_name ?? explanation.speaker_uid}
-        </span>
-        {explanation.group_uid == null && (
-          <span className="text-ink-faint"> (groupe non établi)</span>
-        )}
-        {' — '}
-        {explanation.speaker_position
-          ? `a voté ${positionLabels[explanation.speaker_position].toLowerCase()}`
-          : 'position non publiée'}
-        {tally && (
-          <span className="text-ink-faint">
-            {' '}
-            · groupe : {tally.votes_for} pour, {tally.votes_against} contre, {tally.abstentions}{' '}
-            abst.
+    <div id={anchor} ref={blockRef} className="scroll-mt-20 pb-3.5 sm:px-2">
+      <p className="text-xs text-ink-faint">
+        {explanation.speaker_name ?? explanation.speaker_uid}
+        {explanation.group_uid == null && ' (groupe non établi)'}
+        {', '}
+        {position ? (
+          <span className={`font-medium ${SPEAKER_POSITION_COLOR[position]}`}>
+            a voté {positionLabels[position].toLowerCase()}
           </span>
+        ) : (
+          'position non publiée'
         )}
       </p>
-
-      <blockquote className="mt-3 max-w-3xl border-l-[3px] border-line-strong pl-3 text-sm leading-relaxed text-ink-soft">
-        <span className="mb-1 block text-xs text-ink-faint">
-          {collapsible && !open
-            ? 'Aperçu : 300 premiers caractères de l’intervention'
-            : 'Intervention reprise telle quelle du compte rendu'}
-        </span>
-        <p className="whitespace-pre-line">
-          {collapsible && !open ? explanation.preview : explanation.text}
-          {collapsible && (
-            <button
-              type="button"
-              onClick={() => setOpen(!open)}
-              className={`ml-1 text-xs font-medium link ${FOCUS_RING}`}
-            >
-              {open ? 'Replier' : "Lire l'intervention complète"}
-            </button>
-          )}
-        </p>
-      </blockquote>
-
-      <div className="mt-3 text-xs">
-        <a
-          href={explanation.official_url}
-          target="_blank"
-          rel="noreferrer"
-          className="font-medium link"
-        >
-          Compte rendu officiel →
-        </a>
-        {reportVersion && (
-          <>
-            {' · '}
-            <ReportVersion version={reportVersion} />
-          </>
+      <p
+        className={`mt-1 max-w-3xl text-sm leading-relaxed whitespace-pre-line text-ink-soft ${folded ? 'line-clamp-3' : ''}`}
+      >
+        {/* L'aperçu porte déjà ses points de suspension. */}« {folded ? explanation.preview : `${explanation.text} »`}
+      </p>
+      <p className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+        {collapsible && (
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            aria-expanded={open}
+            className={`font-medium link ${FOCUS_RING}`}
+          >
+            {open ? 'Replier' : 'Lire l’explication en entier'}
+          </button>
         )}
-      </div>
+        {!folded && (
+          <a
+            href={explanation.official_url}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium link"
+          >
+            Compte rendu officiel →
+          </a>
+        )}
+      </p>
     </div>
   )
 }
 
-/** Section « Explications de vote » : un état fermé, jamais une liste vide muette (RM-09). */
-function ExplanationsSection({ explanations }: { explanations: Explanations }) {
+/** Source des explications, dite une fois sous la liste des groupes. */
+function ExplanationsSource({ explanations }: { explanations: Explanations }) {
+  return (
+    <p className="mt-4 border-t border-line pt-3 text-xs text-ink-faint">
+      Explications de vote reprises telles quelles du {reportLabel(explanations.report_version)}.
+      {explanations.source_url && (
+        <>
+          {' '}
+          <a
+            href={explanations.source_url}
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-ink link"
+          >
+            Compte rendu officiel →
+          </a>
+        </>
+      )}
+    </p>
+  )
+}
+
+/**
+ * Vote sur l'ensemble sans explication à montrer : un état fermé, jamais une
+ * section muette (RM-09).
+ */
+function ExplanationsAbsent({ explanations }: { explanations: Explanations }) {
+  if (explanations.state === 'explained') return null
   return (
     <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
       <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
         Explications de vote
       </h3>
-      {explanations.state === 'explained' ? (
-        <>
-          <ul className="space-y-6">
-            {explanations.items.map((item) => (
-              <li key={item.rank}>
-                <ExplanationCard explanation={item} reportVersion={explanations.report_version} />
-              </li>
-            ))}
-          </ul>
-          {explanations.groups_without_speaker.length > 0 && (
-            <ul className="mt-5 space-y-1 text-xs text-ink-faint">
-              {explanations.groups_without_speaker.map((group) => (
-                <li key={group.group_uid}>
-                  {group.label ?? group.abbrev ?? group.group_uid} : aucun orateur rattaché à ce
-                  groupe
-                </li>
-              ))}
-            </ul>
-          )}
-        </>
-      ) : (
-        <p className="text-sm text-ink-soft">
-          {explanationsStateLabels[explanations.state]}
-          {explanations.source_url && (
-            <>
-              {' '}
-              <a
-                href={explanations.source_url}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium link"
-              >
-                Compte rendu officiel →
-              </a>
-            </>
-          )}
-          {explanations.report_version && (
-            <>
-              {explanations.source_url ? ' · ' : ' '}
-              <ReportVersion version={explanations.report_version} />
-            </>
-          )}
-        </p>
-      )}
+      <p className="text-sm text-ink-soft">
+        {explanationsStateLabels[explanations.state]}
+        {explanations.source_url && (
+          <>
+            {' '}
+            <a
+              href={explanations.source_url}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium link"
+            >
+              Compte rendu officiel →
+            </a>
+          </>
+        )}
+      </p>
     </Card>
   )
 }
 
-/** « 15 contre · 16 abst. · 1 non-votant » : les voix hors position de tête. */
+/** « 15 contre · 16 abst. · 1 non-votant » : les voix hors position de tête, vide sans elles. */
 function otherVoices(tally: TallyDto, lead: LeadingPosition | null): string {
   const parts = [
     lead !== 'for' && tally.votes_for > 0 && `${tally.votes_for} pour`,
@@ -395,7 +393,7 @@ function otherVoices(tally: TallyDto, lead: LeadingPosition | null): string {
     lead !== 'abstention' && tally.abstentions > 0 && `${tally.abstentions} abst.`,
     tally.not_voting > 0 && `${tally.not_voting} non-votant${tally.not_voting > 1 ? 's' : ''}`,
   ].filter(Boolean)
-  return parts.length > 0 ? parts.join(' · ') : 'aucune autre voix'
+  return parts.join(' · ')
 }
 
 const LEAD_FIGURE: Record<LeadingPosition, { word: string; color: string }> = {
@@ -407,11 +405,22 @@ const LEAD_FIGURE: Record<LeadingPosition, { word: string; color: string }> = {
 /**
  * Un groupe sur une ligne : son nom et ses autres voix à gauche, le chiffre de
  * sa position de tête à droite. La ligne s'ouvre sur la liste nominative.
+ * Sous elle, l'explication de vote de son orateur, ou la mention qu'il n'y en
+ * a pas (`silent`).
  */
-function GroupRow({ group }: { group: GroupBreakdownDto }) {
+function GroupRow({
+  group,
+  explanations = [],
+  silent = false,
+}: {
+  group: GroupBreakdownDto
+  explanations?: Explanation[]
+  silent?: boolean
+}) {
   const [open, setOpen] = useState(false)
   const named = group.label ?? group.abbrev ?? group.group_uid ?? 'Positions sans groupe publié'
   const lead = leadingPosition(group.tally)
+  const others = otherVoices(group.tally, lead)
   const voters = group.tally.votes_for + group.tally.votes_against + group.tally.abstentions
   const published =
     group.majority_position && group.majority_position in positionLabels
@@ -441,10 +450,7 @@ function GroupRow({ group }: { group: GroupBreakdownDto }) {
         <span className="min-w-0 flex-1">
           {/* Libellé officiel du groupe, jamais traduit en parti. */}
           <span className="block text-[14px] leading-snug font-semibold text-ink">{named}</span>
-          <span className="block text-xs text-ink-faint">
-            {otherVoices(group.tally, lead)}
-            {group.member_count !== null && ` · ${group.member_count} membres`}
-          </span>
+          {others && <span className="block text-xs text-ink-faint">{others}</span>}
           {published && group.majority_position !== lead && (
             <span className="block text-xs text-ink-faint">
               Position publiée par l’Assemblée : {published}
@@ -521,6 +527,13 @@ function GroupRow({ group }: { group: GroupBreakdownDto }) {
           )}
         </div>
       )}
+
+      {explanations.map((explanation) => (
+        <ExplanationBlock key={explanation.rank} explanation={explanation} />
+      ))}
+      {silent && (
+        <p className="pb-3 text-xs text-ink-faint sm:px-2">Pas d’explication de vote.</p>
+      )}
     </li>
   )
 }
@@ -539,7 +552,31 @@ const SECTIONS = [
   { key: null, title: 'Partagés à égalité, ou sans votant', dot: 'bg-line-strong' },
 ] as const
 
-function GroupRows({ groups }: { groups: GroupBreakdownDto[] }) {
+/**
+ * Les explications de vote sont rangées sous la ligne de leur groupe. Un
+ * orateur qu'aucune ligne ne porte (groupe non établi, ou absent du scrutin)
+ * reste affiché à part : aucune explication n'est omise.
+ */
+function GroupRows({
+  groups,
+  explanations,
+}: {
+  groups: GroupBreakdownDto[]
+  explanations: Explanations | null
+}) {
+  const explained = explanations?.state === 'explained' ? explanations : null
+  const rowGroups = new Set(groups.map((g) => g.group_uid))
+  const byGroup = new Map<string, Explanation[]>()
+  const unplaced: Explanation[] = []
+  for (const item of explained?.items ?? []) {
+    if (item.group_uid != null && rowGroups.has(item.group_uid)) {
+      byGroup.set(item.group_uid, [...(byGroup.get(item.group_uid) ?? []), item])
+    } else {
+      unplaced.push(item)
+    }
+  }
+  const silent = new Set(explained?.groups_without_speaker.map((g) => g.group_uid))
+
   return (
     <div className="space-y-4">
       {SECTIONS.map((section) => {
@@ -556,12 +593,25 @@ function GroupRows({ groups }: { groups: GroupBreakdownDto[] }) {
             </h4>
             <ul>
               {members.map((g, i) => (
-                <GroupRow key={g.group_uid ?? `orphans-${i}`} group={g} />
+                <GroupRow
+                  key={g.group_uid ?? `orphans-${i}`}
+                  group={g}
+                  explanations={g.group_uid ? byGroup.get(g.group_uid) : undefined}
+                  silent={g.group_uid != null && silent.has(g.group_uid)}
+                />
               ))}
             </ul>
           </div>
         )
       })}
+      {unplaced.length > 0 && (
+        <div>
+          <h4 className="mb-2 text-[13px] font-semibold">Autres explications de vote</h4>
+          {unplaced.map((explanation) => (
+            <ExplanationBlock key={explanation.rank} explanation={explanation} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -803,10 +853,13 @@ export default function ScrutinDetailPage() {
             {methodNote}
           </p>
         )}
-        <GroupRows groups={data.groups} />
+        <GroupRows groups={data.groups} explanations={data.explanations} />
+        {data.explanations?.state === 'explained' && (
+          <ExplanationsSource explanations={data.explanations} />
+        )}
       </Card>
 
-      {data.explanations && <ExplanationsSection explanations={data.explanations} />}
+      {data.explanations && <ExplanationsAbsent explanations={data.explanations} />}
 
       {data.corrections.length > 0 && (
         <section className="mt-4">
