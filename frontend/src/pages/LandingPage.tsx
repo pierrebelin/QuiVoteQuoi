@@ -1,5 +1,7 @@
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation } from 'react-router'
+import CountUp from '../components/CountUp'
 import { useFreshness } from '../components/Freshness'
 import LatestVoteHemicycle from '../components/LatestVoteHemicycle'
 import VoteCard from '../components/VoteCard'
@@ -10,6 +12,7 @@ import { Card, Loading, Note } from '../components/ui'
 import { ALL_LOGOS } from '../content/logos'
 import { PORTRAITS } from '../content/portraits'
 import { GITHUB_REPOSITORY_URL } from '../lib/repository'
+import { useReveal } from '../lib/useReveal'
 import {
   ENTRY_PATH,
   PARAM_GROUPS,
@@ -110,6 +113,10 @@ const NEVER_SHOWN =
   'Jamais affiché : une motivation reconstituée, un commentaire de presse, une synthèse rédigée par un modèle de langage.'
 
 const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
+const frenchNumber = (value: number) => value.toLocaleString('fr-FR')
+
+/** Rang d'un élément dans sa cascade d'apparition (`.reveal-item`, index.css). */
+const revealRank = (index: number) => ({ '--i': index }) as CSSProperties
 
 function Arrow({ className = 'size-4' }: { className?: string }) {
   return (
@@ -121,7 +128,7 @@ function Arrow({ className = 'size-4' }: { className?: string }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className={className}
+      className={`${className} transition-transform motion-safe:group-hover:translate-x-0.5`}
     >
       <path d="M5 12h14M13 6l6 6-6 6" />
     </svg>
@@ -170,15 +177,25 @@ function Landmarks({ groupCount }: { groupCount: number | null }) {
   const chips = [
     total.data !== undefined && (
       <>
-        <b className="font-semibold text-ink">{total.data.toLocaleString('fr-FR')}</b> votes
+        <b className="font-semibold text-ink">
+          <CountUp value={total.data} format={frenchNumber} />
+        </b>{' '}
+        votes
       </>
     ),
     groupCount !== null && groupCount > 0 && (
       <>
-        <b className="font-semibold text-ink">{groupCount}</b> groupes
+        <b className="font-semibold text-ink">
+          <CountUp value={groupCount} />
+        </b>{' '}
+        groupes
       </>
     ),
-    upToDate && <>à jour au {upToDate}</>,
+    upToDate && (
+      <span key="a-jour" className="inline-flex items-center gap-1.5">
+        <span aria-hidden className="live-dot" />à jour au {upToDate}
+      </span>
+    ),
   ].filter(Boolean)
 
   if (chips.length === 0) return null
@@ -297,6 +314,11 @@ export default function LandingPage() {
     retry: false,
   })
 
+  const usagesRef = useReveal<HTMLElement>()
+  const reglesRef = useReveal<HTMLElement>()
+  const piecesRef = useReveal<HTMLElement>()
+  const sourcesRef = useReveal<HTMLElement>()
+
   if (legacyEntry) return <Navigate to={`${ENTRY_PATH}${location.search}`} replace />
 
   const vote = latest.data?.items[0]
@@ -305,7 +327,7 @@ export default function LandingPage() {
   return (
     <div className="space-y-8 md:space-y-12">
       <div className="grid items-start gap-8 md:gap-14">
-        <section aria-labelledby="promesse" className="md:pt-6">
+        <section aria-labelledby="promesse" className="rise-in md:pt-6">
           <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
             Assemblée nationale
           </p>
@@ -322,7 +344,7 @@ export default function LandingPage() {
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Link
               to={ENTRY_PATH}
-              className={`inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded bg-accent px-5 text-[15px] font-semibold text-surface transition-colors hover:bg-accent-strong ${FOCUS_RING}`}
+              className={`group inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded bg-accent px-5 text-[15px] font-semibold text-surface transition-colors hover:bg-accent-strong ${FOCUS_RING}`}
             >
               Voir les votes par sujet
               <Arrow />
@@ -335,7 +357,7 @@ export default function LandingPage() {
             </Link>
             <Link
               to="/candidats-2027"
-              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
+              className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
             >
               Comparer les programmes de 2027
               <Arrow />
@@ -392,16 +414,16 @@ export default function LandingPage() {
       {/* Sous 768 px : liste, puis une carte pour les règles et les refus. Au-delà :
           tuiles, puis deux cartes de même hauteur. */}
       <div className="grid items-start gap-8 md:gap-4 md:border-t md:border-line md:pt-12">
-        <section aria-labelledby="usages">
+        <section ref={usagesRef} aria-labelledby="usages">
           <h3 id="usages" className="heading-4 md:heading-2">
             À quoi ça sert
           </h3>
           <ul className="mt-2 md:mt-5 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-            {USAGES.map((usage) => (
-              <li key={usage.titre}>
+            {USAGES.map((usage, index) => (
+              <li key={usage.titre} className="reveal-item" style={revealRank(index)}>
                 <Link
                   to={usage.to}
-                  className={`group flex items-center gap-3 border-t border-line py-3 md:h-full md:items-start md:rounded md:border md:bg-surface md:px-5 md:py-4 md:shadow-card md:transition-colors md:hover:border-line-strong ${FOCUS_RING}`}
+                  className={`group flex items-center gap-3 border-t border-line py-3 md:h-full md:items-start md:rounded md:border md:bg-surface md:px-5 md:py-4 md:shadow-card md:transition-[border-color,transform] md:hover:border-line-strong motion-safe:md:hover:-translate-y-0.5 ${FOCUS_RING}`}
                 >
                   <span className="min-w-0 flex-1">
                     <span className="block text-[14.5px] font-semibold text-ink transition-colors group-hover:text-accent md:text-base">
@@ -419,10 +441,11 @@ export default function LandingPage() {
         </section>
 
         <section
+          ref={reglesRef}
           aria-labelledby="regles"
           className="rounded border border-line bg-surface p-4 shadow-card sm:p-5 md:grid md:grid-cols-2 md:gap-3 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
         >
-          <div className={DESKTOP_CARD}>
+          <div className={`${DESKTOP_CARD} reveal-item`} style={revealRank(0)}>
             <h3 id="regles" className="text-[15px] font-semibold md:text-base">
               Trois règles
             </h3>
@@ -445,7 +468,7 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
-          <div className={DESKTOP_CARD}>
+          <div className={`${DESKTOP_CARD} reveal-item`} style={revealRank(1)}>
             <h4 className="mt-4 border-t border-line pt-3.5 text-[13.5px] font-semibold text-ink md:mt-0 md:border-t-0 md:pt-0 md:text-base">
               Ce que ce site ne fait pas
             </h4>
@@ -461,7 +484,7 @@ export default function LandingPage() {
         </section>
       </div>
 
-      <section aria-labelledby="pieces" className="border-t border-line pt-8">
+      <section ref={piecesRef} aria-labelledby="pieces" className="border-t border-line pt-8">
         <SectionHead
           id="pieces"
           surtitre="Derrière chaque vote"
@@ -471,7 +494,7 @@ export default function LandingPage() {
         />
         <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {PIECES.map((piece, index) => (
-            <li key={piece.titre}>
+            <li key={piece.titre} className="reveal-item" style={revealRank(index)}>
               <Card className="h-full px-4 py-3.5">
                 <h4 className="flex items-center gap-2 text-sm font-semibold">
                   <span className="inline-flex size-6 shrink-0 items-center justify-center rounded bg-accent-soft text-[11px] font-semibold text-accent tabular-nums">
@@ -489,7 +512,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section aria-labelledby="sources" className="border-t border-line pt-8">
+      <section ref={sourcesRef} aria-labelledby="sources" className="border-t border-line pt-8">
         <SectionHead id="sources" surtitre="Sources" titre="Tout vient de l’Assemblée, et se vérifie" />
         <Card className="mt-5 px-4 py-4 sm:px-5">
           <div className="grid gap-5 md:grid-cols-3">

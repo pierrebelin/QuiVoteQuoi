@@ -196,6 +196,88 @@
 }
 
 /*
+ * Accueil.
+ *
+ * - `.rise-in` : les enfants directs (surtitre, titre, chapô, boutons,
+ *   repères) montent en place l'un après l'autre, avant le remplissage de
+ *   l'hémicycle.
+ * - `[data-reveal]` : section estompée par `useReveal` tant qu'elle est sous
+ *   l'écran ; ses `.reveal-item` suivent en cascade, `--i` étant leur rang.
+ * - `.live-dot` : point des données à jour, une onde lente autour.
+ */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes live-wave {
+  from {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.6);
+  }
+}
+
+.live-dot {
+  position: relative;
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rise-in > * {
+    animation: rise-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .rise-in > :nth-child(2) {
+    animation-delay: 80ms;
+  }
+  .rise-in > :nth-child(3) {
+    animation-delay: 160ms;
+  }
+  .rise-in > :nth-child(4) {
+    animation-delay: 240ms;
+  }
+  .rise-in > :nth-child(n + 5) {
+    animation-delay: 320ms;
+  }
+
+  [data-reveal],
+  [data-reveal] .reveal-item {
+    transition:
+      opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  [data-reveal] .reveal-item {
+    transition-delay: calc(120ms + var(--i, 0) * 70ms);
+  }
+  [data-reveal='hidden'] {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  [data-reveal='hidden'] .reveal-item {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  .live-dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: inherit;
+    animation: live-wave 2.4s ease-out infinite;
+  }
+}
+
+/*
  * Hauteur que la barre de navigation basse retire au bas de l'écran : zéro dès
  * `md`, où la barre haute reprend la main. Ce qui doit rester visible au-dessus
  * d'elle (pied de page, barre d'action collante) s'en sert comme décalage.

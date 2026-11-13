@@ -18,7 +18,14 @@ const ralenti = (t: number) => 1 - (1 - t) ** 4
  * moins d'animations. Aucun chiffre intermédiaire n'est donc jamais donné
  * pour un résultat.
  */
-export default function CountUp({ value }: { value: number }) {
+export default function CountUp({
+  value,
+  format = String,
+}: {
+  value: number
+  /** Écriture du nombre, appliquée aux étapes comme à la valeur publiée. */
+  format?: (value: number) => string
+}) {
   const [affiche, setAffiche] = useState(() => (animationsReduites() ? value : 0))
 
   useEffect(() => {
@@ -46,9 +53,9 @@ export default function CountUp({ value }: { value: number }) {
   return (
     <>
       <span aria-hidden className="tabular-nums">
-        {affiche}
+        {format(affiche)}
       </span>
-      <span className="sr-only">{value}</span>
+      <span className="sr-only">{format(value)}</span>
     </>
   )
 }
