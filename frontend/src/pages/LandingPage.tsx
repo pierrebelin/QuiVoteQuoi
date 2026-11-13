@@ -328,10 +328,10 @@ export default function LandingPage() {
               <Arrow />
             </Link>
             <Link
-              to="/scrutins"
+              to="/semaine"
               className={`inline-flex min-h-12 items-center justify-center rounded border-[1.5px] border-line bg-surface px-5 text-[15px] font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS_RING}`}
             >
-              Derniers votes
+              Votes de la semaine
             </Link>
             <Link
               to="/candidats-2027"

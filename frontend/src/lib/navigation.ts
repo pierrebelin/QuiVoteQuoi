@@ -19,7 +19,7 @@ export interface NavEntry {
 
 export const NAV_TABS: NavEntry[] = [
   { to: ENTRY_PATH, label: 'Sujets', icon: 'themes', covers: [ENTRY_PATH, '/themes', '/textes'] },
-  { to: '/scrutins', label: 'Votes', icon: 'list', covers: ['/scrutins', '/dossiers'] },
+  { to: '/scrutins', label: 'Votes', icon: 'list', covers: ['/scrutins', '/dossiers', '/semaine'] },
   { to: '/votes-par-groupe', label: 'Groupes', icon: 'votes', covers: ['/votes-par-groupe', '/groupes'] },
   { to: '/candidats-2027', label: 'Candidats 2027', icon: 'candidats', covers: ['/candidats-2027'] },
 ]

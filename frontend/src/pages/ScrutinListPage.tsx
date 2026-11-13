@@ -7,6 +7,7 @@ import { InfoTip } from '../components/InfoTip'
 import DossierCard, { type DossierPageResponse } from '../components/DossierCard'
 import FamilyFilter from '../components/FamilyFilter'
 import ScrutinFeed from '../components/ScrutinFeed'
+import VotesTabs from '../components/VotesTabs'
 import { FOCUS, SheetButton, SheetSection } from '../components/SheetControls'
 import { Button, ErrorPanel, Loading, SegmentedControl } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
@@ -465,6 +466,7 @@ export default function ScrutinListPage() {
         <p className="mt-1 hidden max-w-2xl text-ink-soft md:block">{lede}</p>
       </div>
 
+      <VotesTabs current="liste" />
       <div className="mb-4">
         <ViewToggle view={view} onChange={changeView} />
       </div>

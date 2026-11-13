@@ -9,6 +9,7 @@ use crate::AppState;
 use super::handlers::{
     amendment_handlers, candidate_handlers, dossier_handlers, final_vote_handlers, group_handlers,
     guide_handlers, health_handlers, scrutin_handlers, theme_handlers,
+    week_handlers,
 };
 
 pub fn create_router(state: AppState, guard: AdminGuard) -> Router {
@@ -63,6 +64,9 @@ fn read_routes() -> Router<AppState> {
             "/api/dossiers/{uid}/amendements",
             get(amendment_handlers::get_dossier_amendments),
         )
+        // Semaine de votes: par defaut, puis celle d'une date (RM-03, RM-07).
+        .route("/api/semaine", get(week_handlers::get_current_week))
+        .route("/api/semaine/{date}", get(week_handlers::get_week))
         .route("/api/scrutins", get(scrutin_handlers::list_scrutins))
         // Votes sur l'ensemble d'un texte, groupe par groupe (CU-07).
         .route(

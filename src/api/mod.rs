@@ -1,5 +1,6 @@
 pub mod amendment_dto;
 pub mod candidate_dto;
+pub mod clock;
 pub mod dossier_group_actions_dto;
 pub mod dto;
 pub mod error;
@@ -13,3 +14,4 @@ pub mod scrutin_dto;
 pub mod security;
 pub mod text_brief_dto;
 pub mod theme_dto;
+pub mod week_dto;

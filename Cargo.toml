@@ -61,6 +61,7 @@ thiserror = "2"
 # ni pkg-config a l'installation, comme le reste du projet.
 hmac = "0.12"
 sha2 = "0.10"
+chrono-tz = "0.10.4"
 
 [dev-dependencies]
 # `oneshot` sur le routeur : les tests d'integration de l'API appellent les

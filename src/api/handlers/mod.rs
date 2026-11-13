@@ -7,3 +7,4 @@ pub mod guide_handlers;
 pub mod health_handlers;
 pub mod scrutin_handlers;
 pub mod theme_handlers;
+pub mod week_handlers;
