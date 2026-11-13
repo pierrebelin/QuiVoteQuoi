@@ -77,10 +77,15 @@ function pdfText(bytes) {
   try {
     const path = join(directory, 'source.pdf')
     writeFileSync(path, bytes)
-    const result = spawnSync('pdftotext', ['-enc', 'UTF-8', path, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 })
-    if (result.error) throw new Error(`pdftotext est requis : ${result.error.message}`)
-    // Un numéro de page seul sur sa ligne coupe une phrase à cheval sur deux pages.
-    return result.stdout.replace(/^\s*\d{1,4}\s*$/gm, '')
+    // Deux lectures : l'ordre visuel, puis l'ordre du flux (-raw), seul fidèle sur une mise en
+    // page en colonnes, où l'ordre visuel entrelace les lignes des colonnes voisines.
+    const extract = (mode) => {
+      const result = spawnSync('pdftotext', [...mode, '-enc', 'UTF-8', path, '-'], { encoding: 'utf8', maxBuffer: 1 << 28 })
+      if (result.error) throw new Error(`pdftotext est requis : ${result.error.message}`)
+      return result.stdout
+    }
+    // Un numéro de page ou un repère de marge (« B. ») seul sur sa ligne coupe une phrase.
+    return [extract([]), extract(['-raw'])].join('\n\f\n').replace(/^\f?\s*(\d{1,4}|[A-Z]\.)\s*$/gm, '')
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }

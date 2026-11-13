@@ -49,7 +49,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.lepoint.fr/politique/exclusif-edouard-philippe-je-serai-candidat-a-la-prochaine-election-presidentielle-03-09-2024-2569359_20.php',
     declarationSourceLabel: 'Le Point — « Je serai candidat à la prochaine élection présidentielle »',
     officialSiteUrl: 'https://www.edouardphilippe.fr/',
-    programUrl: 'https://www.edouardphilippe.fr/',
+    programUrl: 'https://www.edouardphilippe.fr/programme',
     organization: {
       id: 'horizons',
       label: 'Horizons',
@@ -57,26 +57,7 @@ const candidates = [
       sourceUrl: 'https://horizonsleparti.fr/donner/',
       sourceLabel: 'Horizons — « Soutenez Édouard Philippe en donnant à Horizons »',
     },
-    proposals: [
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Inscrire dans la Constitution une règle d\'or de maîtrise des déficits via un référendum, et ramener le déficit de plus de 5% à 2% du PIB à la fin du quinquennat.',
-        sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere',
-        sourceLabel: 'Avec Édouard 2027 — Pour une France plus prospère',
-      },
-      {
-        familyCode: 'pouvoir-achat',
-        excerpt: 'Sceller un moratoire normatif et fiscal : pas de nouvelle norme et de nouvel impôt sur le quinquennat.',
-        sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-prospere',
-        sourceLabel: 'Avec Édouard 2027 — Pour une France plus prospère',
-      },
-      {
-        familyCode: 'international-defense',
-        excerpt: 'Massifier notre production et nos achats de drones tactiques, sur le modèle du programme américain de 300 000 drones.',
-        sourceUrl: 'https://www.edouardphilippe.fr/priorites/pour-une-france-plus-sure',
-        sourceLabel: 'Avec Édouard 2027 — Pour une France plus sûre',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'jean-luc-melenchon',
@@ -148,18 +129,6 @@ const candidates = [
         sourceUrl: 'https://attalpresident.fr/programme/travail-salaires',
         sourceLabel: 'Attal Président — Travail & salaires',
       },
-      {
-        familyCode: 'education-culture',
-        excerpt: 'Je souhaite que, dès 2027, une loi de programmation pour l’école soit votée, pilotée par un ministre de l’éducation nationale qui restera en poste cinq ans.',
-        sourceUrl: 'https://attalpresident.fr/actualites/dans-le-monde-gabriel-attal-devoile-son-projet-pour-faire-notre-ecole-la-meilleure-d-europe',
-        sourceLabel: 'Attal Président — Projet pour l’École',
-      },
-      {
-        familyCode: 'international-defense',
-        excerpt: 'Il propose un nouveau Livre blanc de la défense dès 2027 afin de revoir les priorités de notre stratégie militaire, ainsi qu’une revue complète des programmes pour adapter les équipements aux réalités des conflits actuels.',
-        sourceUrl: 'https://attalpresident.fr/actualites/aux-rencontres-economiques-d-aix-en-provence-gabriel-attal-appelle-la-france-a-preparer-les-guerres-de-demain',
-        sourceLabel: 'Attal Président — Préparer les guerres de demain',
-      },
     ],
   },
   {
@@ -186,7 +155,13 @@ const candidates = [
     declarationSourceUrl: 'https://lesecologistes.fr/posts/4DGpyusxBAU4xQPexfncsx/marine-tondelier-designee-pour-representer-les-ecologistes-a-l-election-presidentielle',
     declarationSourceLabel: 'Les Écologistes — Désignation pour l’élection présidentielle',
     officialSiteUrl: 'https://marinetondelier.fr/',
-    programUrl: 'https://marinetondelier.fr/programme-2027',
+    programUrl: 'https://lesecologistes.fr/document/3N4JsAEmq6vsx42IITGNZa/vdef-programme-1.pdf',
+    // Désigné comme programme le 13/11/2026. marinetondelier.fr/programme-2027 y mène par la page
+    // lesecologistes.fr/share/page/6ImK65GKUnvibm33WGkjkj/projet ; lesecologistes.fr refuse les
+    // lectures automatiques (Cloudflare) : extraits à vérifier à la main.
+    officialDocuments: [
+      { url: 'https://lesecologistes.fr/document/3N4JsAEmq6vsx42IITGNZa/vdef-programme-1.pdf', linkedFrom: 'https://marinetondelier.fr/programme-2027' },
+    ],
     organization: {
       id: 'les-ecologistes',
       label: 'Les Écologistes',
@@ -194,14 +169,7 @@ const candidates = [
       sourceUrl: 'https://lesecologistes.fr/posts/4DGpyusxBAU4xQPexfncsx/marine-tondelier-designee-pour-representer-les-ecologistes-a-l-election-presidentielle',
       sourceLabel: 'Les Écologistes — Désignation pour l’élection présidentielle',
     },
-    proposals: [
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Nous ferons de la lutte contre la corruption une priorité, garantirons l’indépendance de la justice et des médias, et moderniserons nos institutions pour fonder la première république écologique et citoyenne, plus proche de la souveraineté populaire.',
-        sourceUrl: 'https://marinetondelier.fr/s/Programme-2027.pdf#page=7',
-        sourceLabel: 'Marine Tondelier — Programme 2027 (PDF)',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'bruno-retailleau',
@@ -210,7 +178,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
     declarationSourceLabel: 'Avec Retailleau — Déclaration de candidature',
     officialSiteUrl: 'https://www.avecretailleau.fr/',
-    programUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
+    programUrl: 'https://www.avecretailleau.fr/projet',
     organization: {
       id: 'les-republicains',
       label: 'Les Républicains',
@@ -218,32 +186,7 @@ const candidates = [
       sourceUrl: 'https://republicains.fr/actualites/2026/04/20/bruno-retailleau-largement-designe-comme-candidat-des-republicains-pour-lelection-presidentielle/',
       sourceLabel: 'Les Républicains — Désignation du candidat pour l’élection présidentielle',
     },
-    proposals: [
-      {
-        familyCode: 'immigration',
-        excerpt: 'Pour réduire drastiquement l’immigration, engager une véritable révolution de notre justice pénale, et redonner la primauté à notre droit national dès lors qu’il s’agit de protéger nos intérêts fondamentaux.',
-        sourceUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
-        sourceLabel: 'Avec Retailleau — Déclaration de candidature',
-      },
-      {
-        familyCode: 'justice-securite',
-        excerpt: 'Je ferai aussi respecter l’État, pour imposer partout l’autorité de la République. À nos frontières, dans nos rues.',
-        sourceUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
-        sourceLabel: 'Avec Retailleau — Déclaration de candidature',
-      },
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Je réorienterai la protection de notre environnement sur une écologie de progrès.',
-        sourceUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
-        sourceLabel: 'Avec Retailleau — Déclaration de candidature',
-      },
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Lorsque je serai élu, je vous soumettrai directement par référendum plusieurs grands textes de loi.',
-        sourceUrl: 'https://www.avecretailleau.fr/2026/02/12/jai-pris-la-decision-detre-candidat-a-lelection-presidentielle/',
-        sourceLabel: 'Avec Retailleau — Déclaration de candidature',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'raphael-glucksmann',
@@ -297,7 +240,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.generationecologie.fr/2025/11/26/je-suis-candidate-a-lelection-presidentielle-pour-reconstruire-une-ecologie-capable-de-gouverner/',
     declarationSourceLabel: 'Génération Écologie — « Je suis candidate à l’élection présidentielle pour reconstruire une écologie capable de gouverner »',
     officialSiteUrl: 'https://www.delphinebatho.fr/',
-    programUrl: null,
+    programUrl: 'https://www.delphinebatho.fr/priorites/',
     organization: {
       id: 'generation-ecologie',
       label: 'Génération Écologie',
@@ -314,7 +257,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.lutte-ouvriere.org/mensuel/article/55e-congres-lutte-ouvriere-189173.html',
     declarationSourceLabel: 'Lutte ouvrière — « Le 55e congrès de Lutte ouvrière »',
     officialSiteUrl: 'https://www.nathalie-arthaud.info',
-    programUrl: 'https://www.nathalie-arthaud.info',
+    programUrl: null,
     organization: {
       id: 'lutte-ouvriere',
       label: 'Lutte ouvrière',
@@ -322,14 +265,7 @@ const candidates = [
       sourceUrl: 'https://www.lutte-ouvriere.org/mensuel/article/55e-congres-lutte-ouvriere-189173.html',
       sourceLabel: 'Lutte ouvrière — « Le 55e congrès de Lutte ouvrière » (Nathalie Arthaud se portera candidate au nom de Lutte ouvrière)',
     },
-    proposals: [
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Aux travailleurs de diriger, pas aux capitalistes !',
-        sourceUrl: 'https://www.nathalie-arthaud.info',
-        sourceLabel: 'Site de campagne de Nathalie Arthaud — « Le Medef dicte son programme, les travailleurs doivent imposer le leur ! »',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'juan-branco',
@@ -337,8 +273,9 @@ const candidates = [
     declaredOn: '2025-12-19',
     declarationSourceUrl: 'https://juan-branco.fr/',
     declarationSourceLabel: 'juan-branco.fr (site de Juan Branco) — « Juan Branco annonce le 19 décembre 2025 son intention de se présenter à l’élection présidentielle de 2027. »',
-    officialSiteUrl: 'https://juan-branco.fr/',
-    programUrl: null,
+    // Site du mouvement qui porte la candidature, lié depuis juan-branco.fr : il publie le programme.
+    officialSiteUrl: 'https://ruches.org/',
+    programUrl: 'https://ruches.org/le-projet',
     organization: {
       id: 'les-ruches',
       label: 'Les Ruches',
@@ -433,9 +370,6 @@ const candidates = [
     declarationSourceLabel: 'LCP — « “Je suis candidat” : David Lisnard quitte LR et relance le débat sur une primaire à droite » (citation du 20 h de France 2, 31 mars 2026)',
     officialSiteUrl: 'https://www.unenouvelleenergie.fr/david-lisnard/',
     programUrl: 'https://www.unenouvelleenergie.fr/notre-programme/',
-    officialDocuments: [
-      { url: 'https://nouvelle-energie-media-prod.s3.fr-par.scw.cloud/media/legacy/2026/06/Discours-de-David-Lisnard-a-Bayeux-17062026.pdf', linkedFrom: 'https://www.unenouvelleenergie.fr/notre-programme/' },
-    ],
     organization: {
       id: 'nouvelle-energie',
       label: 'Nouvelle Énergie',
@@ -477,7 +411,7 @@ const candidates = [
     declarationSourceUrl: 'https://solutiondemocratique.fr/presidentielle2027-annonce-candidature-clara-egger/',
     declarationSourceLabel: 'Solution démocratique (communiqué) — « Présidentielle 2027 : Clara Egger annonce sa candidature à l’élection »',
     officialSiteUrl: 'https://solutiondemocratique.fr/',
-    programUrl: 'https://solutiondemocratique.fr/notre-solution/',
+    programUrl: 'https://solutiondemocratique.fr/programme-presidentielle/',
     organization: {
       id: 'solution-democratique',
       label: 'Solution démocratique',
@@ -485,20 +419,7 @@ const candidates = [
       sourceUrl: 'https://solutiondemocratique.fr/clara-egger/',
       sourceLabel: 'Solution démocratique — « Clara Egger est candidate à l’élection présidentielle de 2027 sous les couleurs de Solution Démocratique »',
     },
-    proposals: [
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'Solution Démocratique œuvre à l’instauration de deux nouveaux droits politiques pour tous les Français : ceux d’initier et de voter les décisions les plus importantes, c’est-à-dire les décisions constitutionnelles.',
-        sourceUrl: 'https://solutiondemocratique.fr/notre-solution/',
-        sourceLabel: 'Solution démocratique — Donner aux Français le contrôle de leur système politique',
-      },
-      {
-        familyCode: 'collectivites-outre-mer',
-        excerpt: 'Nous souhaitons remettre la commune au centre de l’organisation politique française. C’est à cette condition que les Français pourront réellement peser sur les décisions qui façonnent leur quotidien.',
-        sourceUrl: 'https://solutiondemocratique.fr/notre-solution/',
-        sourceLabel: 'Solution démocratique — Permettre aux élus locaux de ne plus subir des décisions prises loin du terrain',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'florian-philippot',
@@ -549,7 +470,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.anousmaintenant.fr/',
     declarationSourceLabel: 'À nous maintenant — « Jean-François Legendre propose sa candidature au nom du mouvement « À nous maintenant ». »',
     officialSiteUrl: 'https://www.anousmaintenant.fr/',
-    programUrl: 'https://www.anousmaintenant.fr/',
+    programUrl: 'https://docs.google.com/document/d/1G4dUZaI20umZghEgSgRGCQeiWDJ2fiwhLZvtUK7hofc/edit?usp=sharing',
     officialDocuments: [
       { url: 'https://docs.google.com/document/d/1G4dUZaI20umZghEgSgRGCQeiWDJ2fiwhLZvtUK7hofc/edit?usp=sharing', linkedFrom: 'https://www.anousmaintenant.fr/' },
     ],
@@ -560,32 +481,7 @@ const candidates = [
       sourceUrl: 'https://www.anousmaintenant.fr/',
       sourceLabel: 'À nous maintenant — « Jean-François Legendre propose sa candidature au nom du mouvement « À nous maintenant ». »',
     },
-    proposals: [
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'L\'instauration d\'un véritable dialogue structuré entre le gouvernement et les citoyens, permettant de mettre en place de nouvelles législations et s\'appuyant sur des référendums (RIC et RIG), permettra de pacifier le pays et d\'identifier les solutions aux difficultés actuelles.',
-        sourceUrl: 'https://www.anousmaintenant.fr/',
-        sourceLabel: 'À nous maintenant — Vers une alternative citoyenne en France — pilier 1 « Restaurer la démocratie »',
-      },
-      {
-        familyCode: 'economie-finances-publiques',
-        excerpt: 'Un redressement responsable, basé sur la justice s\'impose : voter des budgets à l\'équilibre en maîtrisant les dépenses, rationaliser les subventions, et lutter fermement contre la spéculation et l\'optimisation fiscale pour préserver les générations futures.',
-        sourceUrl: 'https://www.anousmaintenant.fr/',
-        sourceLabel: 'À nous maintenant — Vers une alternative citoyenne en France — pilier 2 « Sortir de l\'engrenage de la dette »',
-      },
-      {
-        familyCode: 'collectivites-outre-mer',
-        excerpt: 'Pour enrayer le déclin des campagnes et la saturation urbaine, nous encouragerons un vaste mouvement de population vers les zones rurales et les villes moyennes. Un ministère dédié sera créé en lien direct avec les maires.',
-        sourceUrl: 'https://www.anousmaintenant.fr/',
-        sourceLabel: 'À nous maintenant — Vers une alternative citoyenne en France — pilier 3 « Revitaliser les territoires »',
-      },
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Face aux crises écologiques, la protection de l\'environnement ne doit pas être un sujet de division ni un empilement de contraintes punitives, mais un projet de bon sens fondé sur la préservation des ressources, du cadre de vie et du vivant.',
-        sourceUrl: 'https://www.anousmaintenant.fr/',
-        sourceLabel: 'À nous maintenant — Vers une alternative citoyenne en France — pilier 4 « Respecter l\'environnement »',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'anasse-kazib',
@@ -672,7 +568,7 @@ const candidates = [
     declarationSourceUrl: 'https://npa-revolutionnaires.org/articles/communique-presidentielle-2027-selma-labib-une-candidature-ouvriere-et-revolutionnaire-soutenue-par-gael-quirante',
     declarationSourceLabel: 'NPA-Révolutionnaires — « Communiqué – Présidentielle 2027 : Selma Labib, une candidature ouvrière et révolutionnaire, soutenue par Gaël Quirante »',
     officialSiteUrl: 'https://npa-revolutionnaires.org/campagnes-presidentielles',
-    programUrl: 'https://npa-revolutionnaires.org/articles/cest-au-x-travailleurs-et-aux-travailleuses-de-diriger-la-societe',
+    programUrl: null,
     organization: {
       id: 'npa-revolutionnaires',
       label: 'NPA-Révolutionnaires',
@@ -680,26 +576,7 @@ const candidates = [
       sourceUrl: 'https://npa-revolutionnaires.org/articles/communique-presidentielle-2027-selma-labib-une-candidature-ouvriere-et-revolutionnaire-soutenue-par-gael-quirante',
       sourceLabel: 'NPA-Révolutionnaires — communiqué du 17 juin 2026 (le comité politique national a décidé de présenter Selma Labib ; elle fera campagne au nom du NPA-Révolutionnaires)',
     },
-    proposals: [
-      {
-        familyCode: 'international-defense',
-        excerpt: 'À BAS LE MILITARISME, PAS UNE FEMME, PAS UN HOMME, PAS UN EURO POUR LES GUERRES IMPÉRIALISTES',
-        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf#page=2',
-        sourceLabel: 'NPA-Révolutionnaires — « C’est aux travailleurs et aux travailleuses de diriger la société ! » (tract 4 pages de campagne, sept. 2026)',
-      },
-      {
-        familyCode: 'pouvoir-achat',
-        excerpt: 'L’augmentation massive, générale des salaires mais aussi des pensions et des allocations, et leur indexation sur les prix : c’est le premier objectif que doivent se fixer les travailleurs, c’est une urgence pour l’ensemble du monde du travail !',
-        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf#page=2',
-        sourceLabel: 'NPA-Révolutionnaires — « C’est aux travailleurs et aux travailleuses de diriger la société ! » (tract 4 pages de campagne, sept. 2026)',
-      },
-      {
-        familyCode: 'travail-emploi',
-        excerpt: 'Imposer l’interdiction des licenciements, l’arrêt de toutes les suppressions d’emplois et la baisse du temps de travail sans perte de salaire, jusqu’à l’extinction du chômage, c’est la seule manière de mettre fin au chômage de masse, pour les jeunes comme pour les anciens.',
-        sourceUrl: 'https://npa-revolutionnaires.org/wp-content/uploads/2026/09/260919_4p-campagne-A4.pdf#page=2',
-        sourceLabel: 'NPA-Révolutionnaires — « C’est aux travailleurs et aux travailleuses de diriger la société ! » (tract 4 pages de campagne, sept. 2026)',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'antoine-mikolajczak',
@@ -824,8 +701,6 @@ const candidates = [
     officialSiteUrl: 'https://www.fabienroussel2027.fr/',
     programUrl: null,
     officialDocuments: [
-      { url: 'https://assets.nationbuilder.com/pcf/pages/44585/attachments/original/1791210591/tract_service_public.pdf', linkedFrom: 'https://www.fabienroussel2027.fr/materiel' },
-      { url: 'https://assets.nationbuilder.com/pcf/pages/44583/attachments/original/1791210341/tract_pompier.pdf', linkedFrom: 'https://www.fabienroussel2027.fr/materiel' },
       { url: 'https://assets.nationbuilder.com/pcf/pages/44609/attachments/original/1791282014/Plan_Jeunesse_2027-2032.pdf', linkedFrom: 'https://www.fabienroussel2027.fr/materiel' },
     ],
     organization: {
@@ -844,7 +719,7 @@ const candidates = [
     declarationSourceUrl: 'https://lcp.fr/actualites/presidentielle-2027-eric-zemmour-officialise-sa-candidature-441871',
     declarationSourceLabel: 'LCP — « Présidentielle 2027: Éric Zemmour officialise sa candidature » (entretien BFMTV du 17 septembre 2026)',
     officialSiteUrl: 'https://www.ericzemmour.fr/',
-    programUrl: null,
+    programUrl: 'https://www.ericzemmour.fr/priorites',
     organization: {
       id: 'reconquete',
       label: 'Reconquête',
@@ -861,7 +736,7 @@ const candidates = [
     declarationSourceUrl: 'https://www.sudradio.fr/politique/olivier-becht-je-suis-candidat-a-lelection-presidentielle-et-jirai-jusquau-bout',
     declarationSourceLabel: 'Sud Radio (entretien du 11 octobre 2026) — « Je suis candidat à l’élection présidentielle et j’irai jusqu’au bout ! »',
     officialSiteUrl: 'https://becht2027.fr/',
-    programUrl: 'https://becht2027.fr/projet-france/les-5-refondations/',
+    programUrl: 'https://becht2027.fr/projet-france/le-livre/',
     organization: {
       id: 'le-projet-france',
       label: 'Le Projet France',
@@ -869,32 +744,7 @@ const candidates = [
       sourceUrl: 'https://becht2027.fr/mentions-legales/',
       sourceLabel: 'becht2027.fr — Mentions légales : site édité par « le Projet France, association loi de 1901 », directeur de la publication Olivier Becht',
     },
-    proposals: [
-      {
-        familyCode: 'environnement-energie',
-        excerpt: 'Nous allons développer une énergie nouvelle, les carburants de synthèse, entièrement décarbonée qui rendra la France totalement indépendante et offrira aux ménages comme aux entreprises des prix bas et stables.',
-        sourceUrl: 'https://becht2027.fr/projet-france/les-5-refondations/',
-        sourceLabel: 'becht2027.fr — Les 5 refondations — L’énergie',
-      },
-      {
-        familyCode: 'protection-sociale-retraites',
-        excerpt: 'Nous allons sortir du modèle de l’assurance sociale pour aller vers un « contrat universel » qui protègera mieux tous les Français, de la naissance à la mort, contre tous les risques.',
-        sourceUrl: 'https://becht2027.fr/projet-france/les-5-refondations/',
-        sourceLabel: 'becht2027.fr — Les 5 refondations — La refondation sociale',
-      },
-      {
-        familyCode: 'sante',
-        excerpt: 'Nous allons refonder totalement notre système de santé à la fois par une alimentation saine sans phytosanitaires, par une nouvelle organisation des soins et par un défi technologique qui permettra de vaincre le cancer, Alzheimer, ou Parkinson.',
-        sourceUrl: 'https://becht2027.fr/projet-france/les-5-refondations/',
-        sourceLabel: 'becht2027.fr — Les 5 refondations — La santé',
-      },
-      {
-        familyCode: 'justice-securite',
-        excerpt: 'Nous mettrons en place un grand plan de sécurité en reprenant à la base l’éducation, en gardant très longtemps en prison ceux qui menacent la société et en créant des centres de redressement encadrés par des anciens militaires où les délinquants travailleront pour réparer leurs fautes.',
-        sourceUrl: 'https://becht2027.fr/projet-france/les-5-refondations/',
-        sourceLabel: 'becht2027.fr — Les 5 refondations — La sécurité',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'mira-markovic',
@@ -939,26 +789,7 @@ const candidates = [
       sourceUrl: 'https://natachapolony2027.fr/',
       sourceLabel: 'natachapolony2027.fr — « Natacha Polony 2027 | Nous sommes la France »',
     },
-    proposals: [
-      {
-        familyCode: 'education-culture',
-        excerpt: 'L’école doit donner à chaque enfant les connaissances et la maîtrise de la langue qui permettent de comprendre le monde et de former son jugement.',
-        sourceUrl: 'https://natachapolony2027.fr/',
-        sourceLabel: 'natachapolony2027.fr — « Retrouvons les moyens d’agir » — Transmettre pour émanciper',
-      },
-      {
-        familyCode: 'economie-finances-publiques',
-        excerpt: 'Nos choix collectifs dépendent aussi de ce que nous savons fabriquer, cultiver et préserver. Le travail, la production et l’écologie doivent être pensés ensemble.',
-        sourceUrl: 'https://natachapolony2027.fr/',
-        sourceLabel: 'natachapolony2027.fr — « Retrouvons les moyens d’agir » — Produire pour choisir',
-      },
-      {
-        familyCode: 'institutions-vie-politique',
-        excerpt: 'La démocratie prend tout son sens lorsque les citoyens peuvent peser sur les décisions qui engagent leur avenir.',
-        sourceUrl: 'https://natachapolony2027.fr/',
-        sourceLabel: 'natachapolony2027.fr — « Retrouvons les moyens d’agir » — Faire vivre la démocratie',
-      },
-    ],
+    proposals: [],
   },
   {
     id: 'teddy-riner',
