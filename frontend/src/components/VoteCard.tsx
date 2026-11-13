@@ -186,7 +186,7 @@ function FollowedBanner({ group, stance }: { group: GroupDto; stance: StanceDto 
  * chaque rangée. Toucher un logo ouvre la répartition du groupe. Les groupes
  * suivis portent un anneau ; les autres s'estompent sans disparaître.
  */
-function GroupsByPosition({
+export function GroupsByPosition({
   groups,
   stances,
   followed = [],

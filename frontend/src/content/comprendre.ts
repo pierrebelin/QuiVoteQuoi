@@ -4,10 +4,11 @@
  * Les deux niveaux sont disjoints : `detaille` suppose acquises les réponses
  * de `debutant` et ne les répète pas. Une même question ne doit donc jamais
  * exister dans les deux — deux formulations d'un même fait divergeraient à la
- * première correction.
+ * première correction. La page montre l'essentiel (`debutant`) et replie le
+ * détail en fin de section, sous « Pour aller plus loin ».
  *
- * Corollaire : chaque section doit porter au moins une question par niveau,
- * sinon elle disparaît pour la moitié des lecteurs.
+ * Corollaire : chaque section porte au moins une question `debutant`, sinon
+ * elle s'ouvre sur un bloc replié.
  *
  * **Aucun chiffre ici.** Ni volumétrie, ni pourcentage, ni date de couverture :
  * ces valeurs bougent à chaque ingestion et une page d'explication figée les
@@ -21,10 +22,31 @@
 
 export type Niveau = 'debutant' | 'detaille'
 
+/** Position d'un député, dans les schémas : celles qu'un glyphe dessine, et
+ * le non-votant, qui n'en a pas. */
+export type PositionSchema = 'for' | 'against' | 'abstention' | 'non-votant'
+
 export type Bloc =
   | { kind: 'p'; texte: string }
   | { kind: 'ul'; intro?: string; items: string[] }
   | { kind: 'source'; libelle: string; lien: string; precision?: string }
+  /** Les positions de vote, chacune avec sa pastille. */
+  | { kind: 'positions'; items: { position: PositionSchema; libelle: string; texte: string }[] }
+  /** Schéma : les votes successifs d'un même groupe sur un même texte. */
+  | {
+      kind: 'texte-en-votes'
+      titre: string
+      cases: { libelle: string; position: Exclude<PositionSchema, 'non-votant'>; ensemble?: boolean }[]
+      legende: string
+    }
+  /** Schéma : ce qui compte pour la majorité. Sans proportion réelle. */
+  | { kind: 'majorite'; titre: string; exprimes: string; apart: string; mention: string }
+  /** Schéma : le parcours d'un texte, étapes dont les votes sont publiés ici marquées. */
+  | {
+      kind: 'parcours'
+      titre: string
+      etapes: { titre: string; precision: string; surCeSite?: boolean }[]
+    }
 
 export type Question = {
   id: string
@@ -279,6 +301,22 @@ export const SECTIONS: Section[] = [
               "Un même texte est mis aux voix des dizaines de fois : amendement par amendement, article par article, puis, le cas échéant, sur l'ensemble.",
           },
           {
+            kind: 'texte-en-votes',
+            titre: 'Un texte, des dizaines de votes',
+            cases: [
+              { libelle: 'Motion de rejet', position: 'against' },
+              { libelle: 'Amdt', position: 'for' },
+              { libelle: 'Amdt', position: 'against' },
+              { libelle: 'Art. 1', position: 'for' },
+              { libelle: 'Amdt', position: 'abstention' },
+              { libelle: 'Amdt', position: 'against' },
+              { libelle: 'Art. 2', position: 'for' },
+              { libelle: 'Ensemble du texte', position: 'for', ensemble: true },
+            ],
+            legende:
+              'Schéma : les positions d’un même groupe au fil de l’examen d’un texte. Seule la case <strong>Ensemble du texte</strong> dit son vote sur le texte entier.',
+          },
+          {
             kind: 'p',
             texte:
               "Un groupe peut donc voter contre un amendement d'un texte qu'il approuve, et l'inverse. Pour connaître son vote sur l'ensemble, il faut chercher le scrutin dont l'objet est l'ensemble du texte.",
@@ -332,13 +370,30 @@ export const SECTIONS: Section[] = [
           'Que veulent dire « pour », « contre », « abstention », « non-votant » ?',
         reponse: [
           {
-            kind: 'ul',
+            kind: 'positions',
             items: [
-              '<strong>Pour</strong> — le député approuve l’objet mis aux voix.',
-              '<strong>Contre</strong> — il le rejette.',
-              "<strong>Abstention</strong> — il prend part au scrutin sans se prononcer pour ni contre. L'abstention n'entre pas dans les suffrages exprimés, dont se déduit la majorité.",
-              '<strong>Non-votant</strong> — il figure au scrutin sans que sa voix soit comptée.',
+              { position: 'for', libelle: 'Pour', texte: 'le député approuve l’objet mis aux voix.' },
+              { position: 'against', libelle: 'Contre', texte: 'il le rejette.' },
+              {
+                position: 'abstention',
+                libelle: 'Abstention',
+                texte:
+                  "il prend part au scrutin sans se prononcer pour ni contre. L'abstention n'entre pas dans les suffrages exprimés, dont se déduit la majorité.",
+              },
+              {
+                position: 'non-votant',
+                libelle: 'Non-votant',
+                texte: 'il figure au scrutin sans que sa voix soit comptée.',
+              },
             ],
+          },
+          {
+            kind: 'majorite',
+            titre: 'Ce qui compte pour la majorité',
+            exprimes:
+              'Pour et contre forment les <strong>suffrages exprimés</strong> : l’objet est adopté si les « pour » en font plus de la moitié.',
+            apart: 'Abstentions : mises à part.',
+            mention: 'Schéma, sans proportion réelle.',
           },
         ],
       },
@@ -611,7 +666,36 @@ export const SECTIONS: Section[] = [
           {
             kind: 'p',
             texte:
-              "Pas encore. Il doit être voté au Sénat dans les mêmes termes, puis promulgué. Le site affiche l'étape connue et sa date, sans préjuger de la suite.",
+              'Pas encore. Il doit être voté au Sénat dans les mêmes termes, puis promulgué.',
+          },
+          {
+            kind: 'parcours',
+            titre: 'Du dépôt à la loi',
+            etapes: [
+              { titre: 'Dépôt', precision: 'par le Gouvernement ou un parlementaire' },
+              {
+                titre: 'Assemblée nationale',
+                precision: 'commission, puis séance publique : amendements, articles, ensemble',
+                surCeSite: true,
+              },
+              { titre: 'Sénat', precision: 'même examen ; non couvert par ce site' },
+              {
+                titre: 'Navette ou commission mixte paritaire',
+                precision:
+                  'jusqu’à un texte identique dans les deux chambres ; les votes de l’Assemblée y figurent',
+              },
+              {
+                titre: 'Lecture définitive à l’Assemblée',
+                precision: 'si le désaccord persiste, à la demande du Gouvernement',
+                surCeSite: true,
+              },
+              { titre: 'Conseil constitutionnel', precision: 's’il est saisi' },
+              { titre: 'Promulgation', precision: 'le texte devient une loi' },
+            ],
+          },
+          {
+            kind: 'p',
+            texte: "Le site affiche l'étape connue et sa date, sans préjuger de la suite.",
           },
         ],
       },
@@ -778,3 +862,44 @@ export const SECTIONS: Section[] = [
 
 /** Toutes les questions à plat — sert à résoudre une ancre reçue en URL. */
 export const QUESTIONS: Question[] = SECTIONS.flatMap((s) => s.questions)
+
+/**
+ * Repères de « Lire un vote » : chaque morceau de la carte du dernier vote sur
+ * l'ensemble d'un texte, et la question qui l'explique. La carte est servie en
+ * direct : les textes restent valables quelle que soit l'issue du vote affiché.
+ */
+export type Repere = { libelle: string; texte: string; question: string }
+
+export const REPERES: Repere[] = [
+  {
+    libelle: 'L’issue et l’étape',
+    texte:
+      '« Adopté » ou « Rejeté », selon que l’objet a réuni ou non la majorité des suffrages exprimés. La lecture est une étape du texte, pas la fin de son parcours.',
+    question: 'q-rejete',
+  },
+  {
+    libelle: 'Ce qui a été mis aux voix',
+    texte: 'Ici le texte entier. Le plus souvent, c’est un amendement ou un article.',
+    question: 'q-scrutin-loi',
+  },
+  {
+    libelle: 'L’intitulé officiel',
+    texte: 'Tel que l’Assemblée le publie, jamais reformulé. Il mène à la fiche du vote.',
+    question: 'q-scrutin',
+  },
+  {
+    libelle: 'L’hémicycle',
+    texte: 'Un point par député, à sa place, coloré selon sa position.',
+    question: 'q-positions',
+  },
+  {
+    libelle: 'Les groupes',
+    texte: 'La position de chaque groupe parlementaire. Un groupe n’est pas un parti.',
+    question: 'q-groupe',
+  },
+  {
+    libelle: 'Le décompte',
+    texte: 'Les abstentions ne comptent pas dans la majorité. Un non-votant n’est pas un absent.',
+    question: 'q-majorite',
+  },
+]

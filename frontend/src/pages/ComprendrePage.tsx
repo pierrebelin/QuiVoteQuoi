@@ -1,63 +1,16 @@
+import { useIsFetching } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { Tabs } from '@base-ui/react/tabs'
+import { Link, useLocation } from 'react-router'
+import LireUnVote from '../components/comprendre/LireUnVote'
+import { RichText } from '../components/comprendre/RichText'
+import { SchemaView } from '../components/comprendre/Schemas'
 import { FreshnessSection } from '../components/Freshness'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
-import {
-  QUESTIONS,
-  SECTIONS,
-  type Bloc,
-  type Niveau,
-  type Question,
-  type Section,
-} from '../content/comprendre'
+import { SECTIONS, type Bloc, type Question, type Section } from '../content/comprendre'
 
-const NIVEAUX: { valeur: Niveau; label: string; aide: string }[] = [
-  {
-    valeur: 'debutant',
-    label: 'Débutant',
-    aide: 'Le vocabulaire et de quoi lire une page de vote sans se tromper.',
-  },
-  {
-    valeur: 'detaille',
-    label: 'Détaillé',
-    aide: 'Suppose le niveau débutant acquis, et ne le répète pas : procédure, cas particuliers, limites des données.',
-  },
-]
-
-const CLE_NIVEAU = 'comprendre.niveau'
-
-/**
- * L'URL fait foi : un lien partagé doit ouvrir le niveau qu'il désigne. Sans
- * paramètre, on reprend le dernier choix du lecteur, pour que les renvois
- * depuis les pages de vote n'annulent pas son réglage.
- */
-function niveauInitial(brut: string | null): Niveau {
-  if (brut === 'detaille' || brut === 'debutant') return brut
-  return localStorage.getItem(CLE_NIVEAU) === 'detaille' ? 'detaille' : 'debutant'
-}
-
-/** Niveaux disjoints : le détaillé ne redit pas ce que le débutant a déjà dit. */
-function visible(question: Question, niveau: Niveau): boolean {
-  return question.niveau === niveau
-}
-
-/** Seul `<strong>` est admis dans le contenu — pas de HTML injecté. */
-function RichText({ texte }: { texte: string }) {
-  const morceaux = texte.split(/<strong>(.*?)<\/strong>/g)
-  return (
-    <>
-      {morceaux.map((morceau, index) =>
-        index % 2 === 1 ? (
-          <strong key={index} className="font-semibold text-ink">
-            {morceau}
-          </strong>
-        ) : (
-          morceau
-        ),
-      )}
-    </>
-  )
-}
+/** Section qui porte chaque question : une ancre vers une question de détail
+ * doit déplier le bloc « Pour aller plus loin » qui la contient. */
+const SECTION_DE = new Map(SECTIONS.flatMap((s) => s.questions.map((q) => [q.id, s.id] as const)))
+const QUESTION_DE = new Map(SECTIONS.flatMap((s) => s.questions.map((q) => [q.id, q] as const)))
 
 function BlocView({ bloc }: { bloc: Bloc }) {
   if (bloc.kind === 'p') {
@@ -86,19 +39,18 @@ function BlocView({ bloc }: { bloc: Bloc }) {
     )
   }
 
-  return (
-    <p className="text-sm leading-relaxed text-ink-soft">
-      <a
-        href={bloc.lien}
-        target="_blank"
-        rel="noreferrer"
-        className="link"
-      >
-        {bloc.libelle}
-      </a>
-      {bloc.precision && <> — {bloc.precision}</>}
-    </p>
-  )
+  if (bloc.kind === 'source') {
+    return (
+      <p className="text-sm leading-relaxed text-ink-soft">
+        <a href={bloc.lien} target="_blank" rel="noreferrer" className="link">
+          {bloc.libelle}
+        </a>
+        {bloc.precision && <> — {bloc.precision}</>}
+      </p>
+    )
+  }
+
+  return <SchemaView bloc={bloc} />
 }
 
 function QuestionView({
@@ -115,15 +67,15 @@ function QuestionView({
       id={question.id}
       open={ouverte}
       onToggle={(event) => onBascule(event.currentTarget.open)}
-      className="scroll-mt-6 border-b border-line"
+      className="scroll-mt-20 border-b border-line last:border-b-0"
     >
-      <summary className="cursor-pointer list-none py-2 text-sm marker:content-none hover:text-accent">
-        <span className="mr-2 inline-block w-3 text-ink-faint">
+      <summary className="flex cursor-pointer list-none py-2 text-sm marker:content-none hover:text-accent">
+        <span aria-hidden className="mr-2 inline-block w-3 shrink-0 text-ink-faint">
           {ouverte ? '−' : '+'}
         </span>
         {question.question}
       </summary>
-      <div className="space-y-2 pb-3 pl-5">
+      <div className="space-y-2.5 pb-3.5 pl-5">
         {question.reponse.map((bloc, index) => (
           <BlocView key={index} bloc={bloc} />
         ))}
@@ -132,33 +84,82 @@ function QuestionView({
   )
 }
 
+/** Détail d'une section, replié : il suppose l'essentiel acquis. */
+function PlusLoin({
+  questions,
+  ouvert,
+  onBascule,
+  children,
+}: {
+  questions: Question[]
+  ouvert: boolean
+  onBascule: (ouvert: boolean) => void
+  children: React.ReactNode
+}) {
+  const nombre = `${questions.length} question${questions.length > 1 ? 's' : ''}`
+  return (
+    <details
+      open={ouvert}
+      onToggle={(event) => onBascule(event.currentTarget.open)}
+      className="mt-2 rounded bg-surface-soft"
+    >
+      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-[13px] text-ink-soft marker:content-none">
+        <span>
+          <span className="font-semibold text-ink">Pour aller plus loin</span> · {nombre}
+        </span>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden
+          className={`size-4 transition-transform ${ouvert ? 'rotate-180' : ''}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </summary>
+      <div className="border-t border-line px-3 pb-1">{children}</div>
+    </details>
+  )
+}
+
 function SectionView({
   section,
-  niveau,
   ouvertes,
   onBascule,
 }: {
   section: Section
-  niveau: Niveau
   ouvertes: Set<string>
   onBascule: (id: string, ouvert: boolean) => void
 }) {
-  const questions = section.questions.filter((q) => visible(q, niveau))
-  if (questions.length === 0) return null
+  const essentiel = section.questions.filter((q) => q.niveau === 'debutant')
+  const detail = section.questions.filter((q) => q.niveau === 'detaille')
+  const vue = (question: Question) => (
+    <QuestionView
+      key={question.id}
+      question={question}
+      ouverte={ouvertes.has(question.id)}
+      onBascule={(ouvert) => onBascule(question.id, ouvert)}
+    />
+  )
   return (
-    <section id={section.id} className="scroll-mt-6">
-      <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-faint">
+    <section id={section.id} className="mb-6 scroll-mt-20 break-inside-avoid">
+      <h3 className="mb-1 text-xs font-semibold tracking-wide text-ink-faint uppercase">
         {section.titre}
       </h3>
       <div className="border-t border-line">
-        {questions.map((question) => (
-          <QuestionView
-            key={question.id}
-            question={question}
-            ouverte={ouvertes.has(question.id)}
-            onBascule={(ouvert) => onBascule(question.id, ouvert)}
-          />
-        ))}
+        {essentiel.map(vue)}
+        {detail.length > 0 && (
+          <PlusLoin
+            questions={detail}
+            ouvert={ouvertes.has(section.id)}
+            onBascule={(ouvert) => onBascule(section.id, ouvert)}
+          >
+            {detail.map(vue)}
+          </PlusLoin>
+        )}
       </div>
     </section>
   )
@@ -167,69 +168,64 @@ function SectionView({
 /**
  * Guide de lecture, en questions — README.md §2, §3, §7, §9.
  *
- * Page entièrement statique : aucun chiffre n'y est affiché, donc aucune
- * requête. Les volumétries vivent sur les pages qui les servent depuis la base.
+ * En tête, « Lire un vote » explique la carte du dernier vote sur l'ensemble
+ * d'un texte, servie en direct : c'est la seule donnée de la page, et elle
+ * n'est jamais recopiée dans le texte. Puis les questions : l'essentiel
+ * visible, le détail replié en fin de section.
  *
- * La prose reste bornée en largeur même quand le site s'élargit : une ligne de
+ * À partir de 1024 px, les sections passent sur deux colonnes : une ligne de
  * mille deux cents pixels ne se lit pas.
  */
 export default function ComprendrePage() {
-  const [params] = useSearchParams()
-  const navigate = useNavigate()
   const { hash } = useLocation()
-  const niveau = niveauInitial(params.get('niveau'))
+  /** Questions dépliées, et sections dont le détail est déplié (par leur id). */
   const [ouvertes, setOuvertes] = useState<Set<string>>(new Set())
-  /** Dernière ancre effectivement rejointe : empêche de re-défiler à chaque
-   * changement de niveau alors que le lecteur est déjà arrivé. */
+  /** Dernière ancre rejointe : empêche de re-défiler à chaque rendu. */
   const ancreTraitee = useRef<string | null>(null)
-
-  /** Change de niveau sans perdre l'ancre : la réécrire sans le hash
-   * ramènerait le lecteur en haut de page. */
-  function appliquerNiveau(valeur: Niveau) {
-    localStorage.setItem(CLE_NIVEAU, valeur)
-    const suivant = new URLSearchParams(params)
-    suivant.set('niveau', valeur)
-    navigate({ search: `?${suivant}`, hash }, { replace: true })
-  }
+  /** Requêtes en vol (la carte de « Lire un vote », l'hémicycle) : tant qu'il
+   * y en a, la page grandit encore au-dessus des questions. */
+  const enCours = useIsFetching() > 0
 
   /**
    * Un renvoi venu d'une page de vote arrive par navigation cliente : la
    * question n'existe pas encore quand le navigateur traite l'ancre, et rien ne
-   * défile. On la déplie et on rejoue le saut une fois le contenu rendu.
-   *
-   * Les deux niveaux étant disjoints, l'ancre peut viser une question absente
-   * du niveau courant, dans un sens comme dans l'autre. On bascule alors vers
-   * le niveau qui la porte et on laisse l'effet repasser : renvoyer vers une
-   * ancre invisible serait un lien mort.
+   * défile. On la déplie, avec le bloc de détail qui la contient s'il y a lieu,
+   * puis on rejoue le saut une fois le contenu rendu.
    */
   useEffect(() => {
     if (!hash) return
     const id = hash.slice(1)
     if (ancreTraitee.current === id) return
 
-    const question = QUESTIONS.find((q) => q.id === id)
-    if (question && question.niveau !== niveau) {
-      appliquerNiveau(question.niveau)
-      return
+    const question = QUESTION_DE.get(id)
+    if (question) {
+      const aOuvrir = question.niveau === 'detaille' ? [id, SECTION_DE.get(id)!] : [id]
+      setOuvertes((prev) =>
+        aOuvrir.every((cle) => prev.has(cle)) ? prev : new Set([...prev, ...aOuvrir]),
+      )
     }
-    if (question) setOuvertes((prev) => new Set(prev).add(id))
 
-    const cible = document.getElementById(id)
-    if (!cible) return
-    ancreTraitee.current = id
+    // La carte de « Lire un vote » arrive par requête, au-dessus des questions :
+    // défiler avant qu'elle soit rendue laisserait la cible hors écran.
+    if (enCours) return
 
-    // Le dépliage de la question modifie encore la hauteur au commit suivant :
-    // défiler tout de suite laisse la cible hors écran. On attend que la mise
-    // en page soit stabilisée.
+    // Le dépliage modifie encore la hauteur au commit suivant : on attend que la
+    // mise en page soit stabilisée. L'ancre n'est tenue pour rejointe qu'une
+    // fois le saut fait, sans quoi un effet annulé ne serait jamais rejoué.
     const frame = requestAnimationFrame(() =>
-      requestAnimationFrame(() => cible.scrollIntoView()),
+      requestAnimationFrame(() => {
+        const cible = document.getElementById(id)
+        if (!cible) return
+        cible.scrollIntoView()
+        ancreTraitee.current = id
+      }),
     )
     return () => cancelAnimationFrame(frame)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hash, niveau])
+  }, [hash, enCours])
 
-  function basculerQuestion(id: string, ouvert: boolean) {
+  function basculer(id: string, ouvert: boolean) {
     setOuvertes((prev) => {
+      if (prev.has(id) === ouvert) return prev
       const suivant = new Set(prev)
       if (ouvert) suivant.add(id)
       else suivant.delete(id)
@@ -238,7 +234,7 @@ export default function ComprendrePage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 lg:space-y-8">
       <div>
         <h2 className="heading-2">Comprendre</h2>
         <p className="mt-1 text-sm leading-relaxed text-ink-soft">
@@ -247,67 +243,32 @@ export default function ComprendrePage() {
         </p>
       </div>
 
-      {/* Changer de niveau est immédiat : les flèches activent l'onglet qu'elles
-          atteignent. */}
-      <Tabs.Root value={niveau} onValueChange={(valeur: Niveau) => appliquerNiveau(valeur)}>
-        <Tabs.List
-          activateOnFocus
-          aria-label="Niveau de lecture"
-          className="inline-flex gap-0.5 rounded bg-surface-soft p-0.5"
-        >
-          {NIVEAUX.map((item) => (
-            <Tabs.Tab
-              key={item.valeur}
-              value={item.valeur}
-              className={`rounded px-3 py-1 text-sm font-medium transition-colors ${
-                niveau === item.valeur
-                  ? 'bg-surface text-ink shadow-card'
-                  : 'text-ink-soft hover:text-ink'
-              }`}
-            >
-              {item.label}
-            </Tabs.Tab>
+      <LireUnVote />
+
+      <section aria-labelledby="toutes-les-questions" className="lg:border-t lg:border-line lg:pt-7">
+        <h3 id="toutes-les-questions" className="heading-4">
+          Toutes les questions
+        </h3>
+        <p className="mt-1 mb-4 text-[13px] leading-[19px] text-ink-faint">
+          L’essentiel d’abord ; le détail, replié en fin de section, suppose l’essentiel acquis.
+        </p>
+        <div className="lg:columns-2 lg:gap-14">
+          {SECTIONS.map((section) => (
+            <SectionView
+              key={section.id}
+              section={section}
+              ouvertes={ouvertes}
+              onBascule={basculer}
+            />
           ))}
-        </Tabs.List>
-        <p className="mt-1.5 text-xs text-ink-faint">
-          {NIVEAUX.find((item) => item.valeur === niveau)!.aide}
-        </p>
-      </Tabs.Root>
-
-      <div className="space-y-6">
-        {SECTIONS.map((section) => (
-          <SectionView
-            key={section.id}
-            section={section}
-            niveau={niveau}
-            ouvertes={ouvertes}
-            onBascule={basculerQuestion}
-          />
-        ))}
-      </div>
-
-      {niveau === 'debutant' && (
-        <p className="border-t border-line pt-3 text-sm text-ink-soft">
-          Ces réponses vous paraissent acquises ?{' '}
-          <button
-            type="button"
-            onClick={() => appliquerNiveau('detaille')}
-            className="link"
-          >
-            Passer au niveau détaillé
-          </button>{' '}
-          — procédure, cas particuliers, limites des données.
-        </p>
-      )}
+        </div>
+      </section>
 
       <FreshnessSection />
 
       <p className="border-t border-line pt-3 text-sm text-ink-soft">
         La méthode de rattachement aux sujets est publiée à part :{' '}
-        <Link
-          to="/themes/methode"
-          className="link"
-        >
+        <Link to="/themes/methode" className="link">
           méthode de thématisation
         </Link>
         .

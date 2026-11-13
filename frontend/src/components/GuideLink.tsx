@@ -5,8 +5,8 @@ import { Link } from 'react-router'
  * part ailleurs : une explication recopiée sur une page de vote finirait par
  * contredire la page qui fait référence.
  *
- * Le niveau de lecture n'est pas passé dans l'URL — il est mémorisé par la
- * page « Comprendre » elle-même, pour que ce lien reste partageable tel quel.
+ * Une ancre vers une question de détail déplie le bloc « Pour aller plus
+ * loin » qui la contient : le lien reste valable quel que soit son niveau.
  */
 export default function GuideLink({
   ancre,
