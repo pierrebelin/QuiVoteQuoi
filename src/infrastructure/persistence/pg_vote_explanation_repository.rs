@@ -8,12 +8,12 @@ use sqlx::PgPool;
 
 use super::{db, FINAL_VOTE_PREDICATE};
 use crate::application::ports::vote_explanation_repository::{
-    ExplanationMention, ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion,
-    VoteExplanationRepository,
+    ExplanationMention, FinalVoteExplanationsRead, GroupExplanationRead, ScrutinExplanationsRead,
+    StoredReport, StoredSitting, StoredVersion, VoteExplanationRepository,
 };
 use crate::application::ports::RepositoryError;
 use crate::domain::actor::{ActorUid, GroupUid};
-use crate::domain::scrutin::ScrutinUid;
+use crate::domain::scrutin::{ScrutinUid, VotePosition};
 use crate::domain::sitting_record::{
     SittingKeysFingerprint, SittingRecordUid, SittingRef, SpeechAnchor,
 };
@@ -38,6 +38,19 @@ type ExplanationRow = (
     Option<String>,
     Option<String>,
     Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+);
+
+/// Ligne de la liste: scrutin, état de son compte rendu, puis une explication éventuelle.
+type FinalVoteExplanationRow = (
+    String,
+    bool,
+    bool,
+    Option<bool>,
+    Option<i32>,
     Option<String>,
     Option<String>,
     Option<String>,
@@ -269,8 +282,14 @@ impl VoteExplanationRepository for PgVoteExplanationRepository {
         let attached = first.2;
         let mut explanations = Vec::new();
         for row in rows.into_iter().filter(|row| row.0 == record_uid.as_str()) {
-            if let (Some(rank), Some(speaker), Some(basis), Some(anchor), Some(heading), Some(text)) =
-                (row.3, row.4, row.6, row.8, row.9, row.10)
+            if let (
+                Some(rank),
+                Some(speaker),
+                Some(basis),
+                Some(anchor),
+                Some(heading),
+                Some(text),
+            ) = (row.3, row.4, row.6, row.8, row.9, row.10)
             {
                 let group_uid = row.7.map(GroupUid::new).transpose().map_err(corrupt)?;
                 let group = SpeakerGroup::parse(&basis, group_uid)
@@ -293,5 +312,70 @@ impl VoteExplanationRepository for PgVoteExplanationRepository {
             attached,
             explanations,
         })
+    }
+
+    async fn final_vote_explanations(
+        &self,
+        scrutins: &[ScrutinUid],
+    ) -> Result<Vec<FinalVoteExplanationsRead>, RepositoryError> {
+        let uids: Vec<&str> = scrutins.iter().map(ScrutinUid::as_str).collect();
+        // Le compte rendu retenu est le plus récent de la séance, comme pour la
+        // fiche d'un scrutin (`explanations_for`).
+        let rows: Vec<FinalVoteExplanationRow> = sqlx::query_as(
+            "SELECT sc.uid, sc.sitting_ref IS NOT NULL, r.uid IS NOT NULL, a.has_block,
+                    e.rank, e.group_uid, e.speaker_name, e.text, v.position
+             FROM scrutins sc
+             LEFT JOIN LATERAL (
+                 SELECT uid FROM sitting_records
+                 WHERE sitting_ref = sc.sitting_ref
+                 ORDER BY generated_at DESC, uid
+                 LIMIT 1
+             ) r ON TRUE
+             LEFT JOIN sitting_record_scrutins a
+                    ON a.sitting_record_uid = r.uid AND a.scrutin_uid = sc.uid
+             LEFT JOIN vote_explanations e
+                    ON e.sitting_record_uid = r.uid AND e.scrutin_uid = sc.uid
+             LEFT JOIN scrutin_votes v
+                    ON v.scrutin_uid = sc.uid AND v.actor_uid = e.speaker_uid
+             WHERE sc.uid = ANY($1)
+             ORDER BY sc.uid, e.rank",
+        )
+        .bind(uids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let mut reads: Vec<FinalVoteExplanationsRead> = Vec::new();
+        for (scrutin, sitting_known, report_stored, attached, rank, group, name, text, position) in
+            rows
+        {
+            if reads.last().map(|read| read.scrutin_uid.as_str()) != Some(scrutin.as_str()) {
+                reads.push(FinalVoteExplanationsRead {
+                    scrutin_uid: ScrutinUid::new(scrutin).map_err(corrupt)?,
+                    sitting_known,
+                    report_stored,
+                    attached,
+                    explanations: Vec::new(),
+                });
+            }
+            let (Some(rank), Some(text)) = (rank, text) else {
+                continue;
+            };
+            let speaker_position = position
+                .map(|raw| {
+                    VotePosition::parse(&raw).ok_or_else(|| corrupt("unknown vote position"))
+                })
+                .transpose()?;
+            if let Some(read) = reads.last_mut() {
+                read.explanations.push(GroupExplanationRead {
+                    rank: u16::try_from(rank).map_err(corrupt)?,
+                    group_uid: group.map(GroupUid::new).transpose().map_err(corrupt)?,
+                    speaker_name: name,
+                    speaker_position,
+                    text,
+                });
+            }
+        }
+        Ok(reads)
     }
 }

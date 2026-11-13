@@ -301,6 +301,7 @@ mod tests {
                 stances,
             }),
             families: vec![],
+            explanations: None,
         }
     }
 

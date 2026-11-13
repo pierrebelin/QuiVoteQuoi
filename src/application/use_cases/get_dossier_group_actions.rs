@@ -339,6 +339,15 @@ mod tests {
                 .cloned()
                 .collect())
         }
+        async fn final_vote_explanations(
+            &self,
+            _: &[ScrutinUid],
+        ) -> Result<
+            Vec<crate::application::ports::vote_explanation_repository::FinalVoteExplanationsRead>,
+            RepositoryError,
+        > {
+            unreachable!()
+        }
     }
 
     fn mention(scrutin: &str, group: &str, rank: u16, speaker: &str) -> ExplanationMention {

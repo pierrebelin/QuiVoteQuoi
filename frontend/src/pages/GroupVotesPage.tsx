@@ -24,9 +24,10 @@ import type {
   FinalVoteListResponse,
   GroupDto,
   StanceDto,
+  StanceExplanationDto,
 } from '../types/finalVotes'
 import type { FamiliesResponse } from '../types/themes'
-import { formatDate } from '../types/scrutins'
+import { formatDate, positionLabels } from '../types/scrutins'
 
 const PAGE_SIZE = 20
 
@@ -105,7 +106,51 @@ function GroupMark({ abbrev, color, className }: { abbrev: string; color: string
   return <PoliticalLogo logo={logo} fallback={abbrev} color={color} className={className} />
 }
 
-function StanceCard({ stance }: { stance: StanceDto }) {
+/**
+ * Début de l'explication de vote du groupe, repris tel quel du compte rendu
+ * (README.md §6) : trois lignes, puis la fiche du scrutin pour la suite. Le
+ * vote de l'orateur vient de son vote nominatif, jamais de celui du groupe.
+ */
+function StanceExplanation({
+  explanation,
+  scrutinUid,
+}: {
+  explanation: StanceExplanationDto
+  scrutinUid: string
+}) {
+  const position = explanation.speaker_position
+  return (
+    <div className="mt-2 border-t border-line pt-2">
+      <p className="text-xs text-ink-faint">
+        {explanation.speaker_name ?? 'Orateur du groupe'}
+        {', '}
+        {position ? (
+          <span className={`font-medium ${POSITION_CLASSES[position] ?? 'text-ink-soft'}`}>
+            a voté {positionLabels[position].toLowerCase()}
+          </span>
+        ) : (
+          'position non publiée'
+        )}
+      </p>
+      {explanation.preview && (
+        <p className="mt-1 line-clamp-3 text-[13px] leading-5 text-ink-soft">
+          {/* L'aperçu coupé porte déjà ses points de suspension. */}«{' '}
+          {explanation.preview_truncated ? explanation.preview : `${explanation.preview} »`}
+        </p>
+      )}
+      <p className="mt-1 text-xs">
+        <Link
+          to={`/scrutins/${scrutinUid}#explication-${explanation.rank}`}
+          className="font-medium link"
+        >
+          Lire l’explication en entier
+        </Link>
+      </p>
+    </div>
+  )
+}
+
+function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto }) {
   const { share, tally } = stance
   // Le pourcentage porte la position réellement majoritaire chez les votants,
   // pas la position publiée : sur le scrutin 8431, la source annonce « contre »
@@ -171,6 +216,17 @@ function StanceCard({ stance }: { stance: StanceDto }) {
           {tally.not_voting} non-votant{tally.not_voting > 1 ? 's' : ''}
         </p>
       )}
+
+      {/* Seul un compte rendu qui porte des explications pour ce vote permet
+          de dire qu'un groupe n'en a pas donné. */}
+      {vote.explanations_state === 'explained' &&
+        (stance.explanation ? (
+          <StanceExplanation explanation={stance.explanation} scrutinUid={vote.scrutin_uid} />
+        ) : (
+          <p className="mt-2 border-t border-line pt-2 text-xs text-ink-faint">
+            Pas d’explication de vote.
+          </p>
+        ))}
     </div>
   )
 }
@@ -270,12 +326,18 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
           {selected.map((group) => {
             const stance = vote.stances.find((s) => s.group_uid === group.uid)
             return stance ? (
-              <StanceCard key={group.uid} stance={stance} />
+              <StanceCard key={group.uid} stance={stance} vote={vote} />
             ) : (
               <MissingStance key={group.uid} group={group} />
             )
           })}
         </div>
+      )}
+
+      {selected.length > 0 && vote.explanations_state === 'no_explanation' && (
+        <p className="mt-2 text-xs text-ink-faint">
+          Aucune explication de vote dans le compte rendu de la séance.
+        </p>
       )}
 
       <p className="mt-2 text-xs text-ink-faint">

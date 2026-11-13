@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, NaiveDate, Utc};
 
 use crate::domain::actor::{ActorUid, GroupUid};
-use crate::domain::scrutin::ScrutinUid;
+use crate::domain::scrutin::{ScrutinUid, VotePosition};
 use crate::domain::sitting_record::{
     AttachmentCounters, ExplanationCounters, SittingKeysFingerprint, SittingRecordUid, SittingRef,
 };
@@ -63,6 +63,32 @@ pub struct ExplanationMention {
     pub speaker_name: Option<String>,
 }
 
+/// Explication d'un groupe telle que la liste des votes sur l'ensemble la lit.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct GroupExplanationRead {
+    pub rank: u16,
+    /// `None`: groupe de l'orateur non établi (RM-06).
+    pub group_uid: Option<GroupUid>,
+    pub speaker_name: Option<String>,
+    /// Vote nominatif de l'orateur sur ce scrutin; `None`: non publié, jamais déduit.
+    pub speaker_position: Option<VotePosition>,
+    pub text: String,
+}
+
+/// Ce que la base dit des explications d'un vote sur l'ensemble, pour la liste (RM-09).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FinalVoteExplanationsRead {
+    pub scrutin_uid: ScrutinUid,
+    /// `false`: le scrutin ne porte aucune référence de séance.
+    pub sitting_known: bool,
+    /// `false`: aucun compte rendu stocké pour la séance du scrutin.
+    pub report_stored: bool,
+    /// `None`: le compte rendu ne rattache pas le scrutin; `Some(bloc présent)`.
+    pub attached: Option<bool>,
+    /// Dans l'ordre du compte rendu.
+    pub explanations: Vec<GroupExplanationRead>,
+}
+
 #[async_trait]
 pub trait VoteExplanationRepository: Send + Sync {
     /// Mentions des orateurs au groupe établi, pour ces scrutins: une lecture (RM-09).
@@ -95,4 +121,11 @@ pub trait VoteExplanationRepository: Send + Sync {
         scrutin: &ScrutinUid,
         sitting_ref: &SittingRef,
     ) -> Result<ScrutinExplanationsRead, RepositoryError>;
+
+    /// Explications de ces votes sur l'ensemble, avec le vote de chaque orateur:
+    /// une lecture pour toute une page de la liste (RM-09).
+    async fn final_vote_explanations(
+        &self,
+        scrutins: &[ScrutinUid],
+    ) -> Result<Vec<FinalVoteExplanationsRead>, RepositoryError>;
 }

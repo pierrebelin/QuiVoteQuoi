@@ -32,6 +32,7 @@ pub async fn list_final_votes(
     let offset = command.offset.unwrap_or(0).max(0);
 
     let view = BrowseFinalVotes::new(state.final_vote_repository.as_ref())
+        .with_explanations(state.vote_explanation_repository.as_ref())
         .execute(command)
         .await
         .map_err(status_of)?;

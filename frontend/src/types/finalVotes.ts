@@ -1,4 +1,5 @@
 import type { AssignedFamilyDto } from './themes'
+import type { ExplanationsState, VoteDto } from './scrutins'
 
 export interface TallyDto {
   votes_for: number
@@ -42,6 +43,23 @@ export interface StanceDto {
   tally: TallyDto
   /** `null` quand aucun membre du groupe ne s'est prononcé. */
   share: ShareDto | null
+  /**
+   * Explication de vote du groupe, reprise telle quelle du compte rendu.
+   * Absente quand aucun orateur n'est rattaché au groupe, ou quand les
+   * explications ne sont pas lues : `FinalVoteDto.explanations_state` le dit.
+   */
+  explanation?: StanceExplanationDto
+}
+
+export interface StanceExplanationDto {
+  /** Ancre sur la fiche du scrutin : `#explication-<rank>`. */
+  rank: number
+  speaker_name: string | null
+  /** `null` : position non publiée, jamais déduite. */
+  speaker_position: VoteDto['position'] | null
+  /** Début du texte, points de suspension compris quand il est coupé. */
+  preview: string | null
+  preview_truncated: boolean
 }
 
 export interface FinalVoteDto {
@@ -68,6 +86,8 @@ export interface FinalVoteDto {
    * zéro, et l'absence n'est ni une abstention ni une position.
    */
   stances: StanceDto[]
+  /** Absent en mode `tous_groupes` : les explications n'y sont pas lues. */
+  explanations_state?: ExplanationsState
 }
 
 export interface OfficialTextVersionDto {

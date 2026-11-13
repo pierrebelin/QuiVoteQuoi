@@ -385,7 +385,7 @@ pub struct ExplanationsDto {
 }
 
 /// Etat code d'une section d'explications (RM-09): le libelle est au front.
-fn explanations_state_code(state: ExplanationsState) -> &'static str {
+pub(crate) fn explanations_state_code(state: ExplanationsState) -> &'static str {
     match state {
         ExplanationsState::NotPublished => "report_not_published",
         ExplanationsState::NotAttached => "not_attached",

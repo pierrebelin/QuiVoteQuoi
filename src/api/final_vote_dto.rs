@@ -1,11 +1,13 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::api::scrutin_dto::explanations_state_code;
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::final_vote_repository::GroupOption;
 use crate::application::use_cases::browse_final_votes::{
-    BrowseFinalVotesCommand, FinalVoteEntry, FinalVoteView, MAX_COMPARED_GROUPS,
+    BrowseFinalVotesCommand, FinalVoteEntry, FinalVoteView, StanceExplanation, MAX_COMPARED_GROUPS,
 };
+use crate::domain::amendment::SummaryPreview;
 use crate::domain::final_vote::{GroupStance, OfficialTextVersion, VoterShare};
 use crate::domain::scrutin::{VotePosition, VoteTally};
 use crate::domain::vote_explanation::ExplanationCoverage;
@@ -146,6 +148,39 @@ pub struct StanceDto {
     pub tally: TallyDto,
     /// `null` quand aucun membre du groupe ne s'est prononce.
     pub share: Option<ShareDto>,
+    /// Explication de vote du groupe (RM-09). Absente quand les explications
+    /// ne sont pas lues ou qu'aucun orateur n'est rattaché au groupe: l'état
+    /// du vote (`FinalVoteDto::explanations_state`) dit lequel.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub explanation: Option<StanceExplanationDto>,
+}
+
+/// Début d'une explication de vote, repris tel quel du compte rendu (README.md §6).
+#[derive(Debug, Serialize)]
+pub struct StanceExplanationDto {
+    /// Ancre de l'explication sur la fiche du scrutin: `#explication-<rank>`.
+    pub rank: u16,
+    pub speaker_name: Option<String>,
+    /// `null`: position non publiée, jamais déduite.
+    pub speaker_position: Option<String>,
+    pub preview: Option<String>,
+    pub preview_truncated: bool,
+}
+
+impl From<&StanceExplanation> for StanceExplanationDto {
+    fn from(explanation: &StanceExplanation) -> Self {
+        let (preview, preview_truncated) = match &explanation.preview {
+            SummaryPreview::Text { text, truncated } => (Some(text.clone()), *truncated),
+            SummaryPreview::Unpublished => (None, false),
+        };
+        Self {
+            rank: explanation.rank,
+            speaker_name: explanation.speaker_name.clone(),
+            speaker_position: explanation.speaker_position.map(|p| p.as_str().to_string()),
+            preview,
+            preview_truncated,
+        }
+    }
 }
 
 impl From<&GroupStance> for StanceDto {
@@ -160,6 +195,7 @@ impl From<&GroupStance> for StanceDto {
             majority_label: stance.published_majority().map(position_label),
             tally: (*stance.tally()).into(),
             share: stance.share().cloned().map(ShareDto::from),
+            explanation: None,
         }
     }
 }
@@ -201,6 +237,11 @@ pub struct FinalVoteDto {
     /// Positions des groupes compares, dans l'ordre demande. Un groupe sans
     /// ligne dans ce scrutin en est absent: rien n'est comble par un zero.
     pub stances: Vec<StanceDto>,
+    /// État des explications de vote (RM-09): `explained`, `no_explanation`,
+    /// `not_attached` ou `report_not_published`. Absent quand elles ne sont
+    /// pas lues (mode « tous les groupes »).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub explanations_state: Option<&'static str>,
 }
 
 #[derive(Debug, Serialize)]
@@ -260,7 +301,24 @@ impl From<FinalVoteEntry> for FinalVoteDto {
                 .into_iter()
                 .map(AssignedFamilyDto::from)
                 .collect(),
-            stances: vote.stances().iter().map(StanceDto::from).collect(),
+            stances: vote
+                .stances()
+                .iter()
+                .enumerate()
+                .map(|(index, stance)| StanceDto {
+                    explanation: entry
+                        .explanations
+                        .as_ref()
+                        .and_then(|explanations| explanations.by_stance.get(index))
+                        .and_then(Option::as_ref)
+                        .map(StanceExplanationDto::from),
+                    ..StanceDto::from(stance)
+                })
+                .collect(),
+            explanations_state: entry
+                .explanations
+                .as_ref()
+                .map(|explanations| explanations_state_code(explanations.state)),
         }
     }
 }
@@ -391,5 +449,134 @@ mod tests {
                 "speakers_without_group": 8,
             })
         );
+    }
+
+    mod explanations {
+        use chrono::NaiveDate;
+        use serde_json::json;
+
+        use super::super::*;
+        use crate::application::use_cases::browse_final_votes::FinalVoteExplanations;
+        use crate::domain::actor::GroupUid;
+        use crate::domain::final_vote::{FinalVote, GroupIdentity, NewFinalVote};
+        use crate::domain::scrutin::{Outcome, ScrutinUid};
+        use crate::domain::theme::TextKey;
+        use crate::domain::vote_explanation::ExplanationsState;
+
+        fn stance(uid: &str, abbrev: &str) -> GroupStance {
+            GroupStance::new(
+                GroupIdentity {
+                    uid: GroupUid::new(uid.into()).unwrap(),
+                    abbrev: abbrev.into(),
+                    label: abbrev.into(),
+                    color: None,
+                },
+                None,
+                None,
+                VoteTally::default(),
+            )
+        }
+
+        fn entry(explanations: Option<FinalVoteExplanations>) -> FinalVoteEntry {
+            FinalVoteEntry {
+                vote: FinalVote::new(NewFinalVote {
+                    scrutin_uid: ScrutinUid::new("VTANR5L17V9241".into()).unwrap(),
+                    number: "9241".into(),
+                    date: NaiveDate::from_ymd_opt(2026, 10, 29).unwrap(),
+                    subject: "l'ensemble de la proposition de loi".into(),
+                    ballot_type_label: "scrutin public ordinaire".into(),
+                    outcome: Outcome::new("adopté".into(), "adopté".into()).unwrap(),
+                    text_key: TextKey::from_raw("proposition de loi"),
+                    text_label: "proposition de loi".into(),
+                    dossier_uid: None,
+                    dossier_label: None,
+                    official_text: None,
+                    synthesis: VoteTally::default(),
+                    stances: vec![stance("PO1", "RN"), stance("PO2", "SOC")],
+                }),
+                families: vec![],
+                explanations,
+            }
+        }
+
+        fn json_of(entry: FinalVoteEntry) -> serde_json::Value {
+            serde_json::to_value(FinalVoteDto::from(entry)).unwrap()
+        }
+
+        #[test]
+        fn serves_the_explanation_of_each_group_under_its_stance() {
+            let json = json_of(entry(Some(FinalVoteExplanations {
+                state: ExplanationsState::Explained,
+                by_stance: vec![
+                    Some(StanceExplanation {
+                        rank: 3,
+                        speaker_name: Some("Claire Marais-Beuil".into()),
+                        speaker_position: Some(VotePosition::Abstention),
+                        preview: SummaryPreview::Text {
+                            text: "Le groupe s'abstiendra…".into(),
+                            truncated: true,
+                        },
+                    }),
+                    None,
+                ],
+            })));
+
+            assert_eq!(json["explanations_state"], "explained");
+            assert_eq!(
+                json["stances"][0]["explanation"],
+                json!({
+                    "rank": 3,
+                    "speaker_name": "Claire Marais-Beuil",
+                    "speaker_position": "abstention",
+                    "preview": "Le groupe s'abstiendra…",
+                    "preview_truncated": true,
+                })
+            );
+            assert!(json["stances"][1].get("explanation").is_none());
+        }
+
+        #[test]
+        fn an_unpublished_speaker_position_is_null_never_guessed() {
+            let json = json_of(entry(Some(FinalVoteExplanations {
+                state: ExplanationsState::Explained,
+                by_stance: vec![
+                    Some(StanceExplanation {
+                        rank: 1,
+                        speaker_name: None,
+                        speaker_position: None,
+                        preview: SummaryPreview::of(Some("Pour.")),
+                    }),
+                    None,
+                ],
+            })));
+
+            let explanation = &json["stances"][0]["explanation"];
+            assert_eq!(explanation["speaker_position"], serde_json::Value::Null);
+            assert_eq!(explanation["speaker_name"], serde_json::Value::Null);
+            assert_eq!(explanation["preview_truncated"], false);
+        }
+
+        #[test]
+        fn each_state_has_its_code() {
+            for (state, code) in [
+                (ExplanationsState::NoExplanation, "no_explanation"),
+                (ExplanationsState::NotAttached, "not_attached"),
+                (ExplanationsState::NotPublished, "report_not_published"),
+            ] {
+                let json = json_of(entry(Some(FinalVoteExplanations {
+                    state,
+                    by_stance: vec![None, None],
+                })));
+                assert_eq!(json["explanations_state"], code);
+            }
+        }
+
+        #[test]
+        fn explanations_not_read_leave_the_payload_unchanged() {
+            let json = json_of(entry(None));
+
+            assert!(json.get("explanations_state").is_none());
+            assert!(json["stances"][0].get("explanation").is_none());
+        }
     }
 }

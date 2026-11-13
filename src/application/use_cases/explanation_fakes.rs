@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use async_trait::async_trait;
 
 use crate::application::ports::vote_explanation_repository::{
-    ExplanationMention, ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion,
+    ExplanationMention, FinalVoteExplanationsRead, ScrutinExplanationsRead, StoredReport, StoredSitting, StoredVersion,
     VoteExplanationRepository,
 };
 use crate::application::ports::RepositoryError;
@@ -24,6 +24,7 @@ pub struct InMemoryVoteExplanations {
     sittings: Vec<StoredSitting>,
     reads: Mutex<usize>,
     final_votes: FinalVoteAttachmentCounts,
+    final_vote_reads: Vec<FinalVoteExplanationsRead>,
 }
 
 impl InMemoryVoteExplanations {
@@ -59,7 +60,15 @@ impl InMemoryVoteExplanations {
         }
     }
 
-    /// Nombre de lectures `explanations_for` faites.
+    /// Dépôt qui rend ces lectures pour la liste des votes sur l'ensemble.
+    pub fn with_final_vote_reads(final_vote_reads: Vec<FinalVoteExplanationsRead>) -> Self {
+        Self {
+            final_vote_reads,
+            ..Self::default()
+        }
+    }
+
+    /// Nombre de lectures faites.
     pub fn reads(&self) -> usize {
         *self.reads.lock().unwrap()
     }
@@ -151,5 +160,18 @@ impl VoteExplanationRepository for InMemoryVoteExplanations {
                 .cloned()
                 .collect(),
         })
+    }
+
+    async fn final_vote_explanations(
+        &self,
+        scrutins: &[ScrutinUid],
+    ) -> Result<Vec<FinalVoteExplanationsRead>, RepositoryError> {
+        *self.reads.lock().unwrap() += 1;
+        Ok(self
+            .final_vote_reads
+            .iter()
+            .filter(|read| scrutins.contains(&read.scrutin_uid))
+            .cloned()
+            .collect())
     }
 }

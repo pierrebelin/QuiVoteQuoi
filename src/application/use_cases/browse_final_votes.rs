@@ -3,7 +3,11 @@ use crate::application::ports::final_vote_repository::{
     RepositoryError,
 };
 use crate::application::ports::theme_repository::AssignedFamily;
+use crate::application::ports::vote_explanation_repository::{
+    FinalVoteExplanationsRead, VoteExplanationRepository,
+};
 use crate::domain::actor::{ActorError, GroupUid};
+use crate::domain::amendment::SummaryPreview;
 use crate::domain::dossier::{DossierError, DossierUid};
 use crate::domain::final_vote::{FinalVote, GroupIdentity, GroupStance, NewFinalVote};
 use crate::domain::group_lineage::{
@@ -11,6 +15,7 @@ use crate::domain::group_lineage::{
 };
 use crate::domain::scrutin::{Outcome, ScrutinError, ScrutinUid, VotePosition};
 use crate::domain::theme::{FamilyCode, TextKey};
+use crate::domain::vote_explanation::ExplanationsState;
 
 /// Quatre groupes au plus. La comparaison reste une lecture cote a cote, ou
 /// chaque groupe garde ses chiffres bruts; au-dela, les colonnes se resserrent
@@ -72,6 +77,31 @@ pub enum BrowseFinalVotesError {
 pub struct FinalVoteEntry {
     pub vote: FinalVote,
     pub families: Vec<AssignedFamily>,
+    /// `None`: explications non lues (mode « tous les groupes », ou cas
+    /// d'utilisation construit sans dépôt d'explications).
+    pub explanations: Option<FinalVoteExplanations>,
+}
+
+/// Explication d'un groupe, montrée sous sa position (RM-09).
+///
+/// Le texte reste celui du compte rendu: l'aperçu en coupe le début, sans
+/// rien reformuler (README.md §6).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StanceExplanation {
+    /// Rang dans le compte rendu: l'ancre de l'explication sur la fiche du scrutin.
+    pub rank: u16,
+    pub speaker_name: Option<String>,
+    /// `None`: position non publiée, jamais déduite.
+    pub speaker_position: Option<VotePosition>,
+    pub preview: SummaryPreview,
+}
+
+/// Explications d'un vote sur l'ensemble, une place par position affichée.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FinalVoteExplanations {
+    pub state: ExplanationsState,
+    /// Aligné sur `FinalVote::stances`; `None`: aucun orateur rattaché au groupe.
+    pub by_stance: Vec<Option<StanceExplanation>>,
 }
 
 #[derive(Debug, Clone)]
@@ -95,11 +125,23 @@ pub struct FinalVoteView {
 /// CU-07 — Consulter les votes sur l'ensemble d'un texte, groupe par groupe.
 pub struct BrowseFinalVotes<'a> {
     repository: &'a dyn FinalVoteRepository,
+    explanations: Option<&'a dyn VoteExplanationRepository>,
 }
 
 impl<'a> BrowseFinalVotes<'a> {
     pub fn new(repository: &'a dyn FinalVoteRepository) -> Self {
-        Self { repository }
+        Self {
+            repository,
+            explanations: None,
+        }
+    }
+
+    /// Lit aussi l'explication de chaque groupe comparé (RM-09).
+    pub fn with_explanations(self, explanations: &'a dyn VoteExplanationRepository) -> Self {
+        Self {
+            explanations: Some(explanations),
+            ..self
+        }
     }
 
     pub async fn execute(
@@ -150,11 +192,29 @@ impl<'a> BrowseFinalVotes<'a> {
         let page = self.repository.list_final_votes(&filter).await?;
         let totals = self.repository.totals().await?;
 
-        let items = page
+        let mut items: Vec<FinalVoteEntry> = page
             .items
             .into_iter()
             .map(|record| build_entry(record, &selected))
             .collect::<Result<_, _>>()?;
+
+        // Les explications accompagnent la comparaison de quelques groupes;
+        // le mode « tous les groupes » ne montre que des positions.
+        if let Some(repository) = self.explanations.filter(|_| !command.all_groups) {
+            if !selected.is_empty() && !items.is_empty() {
+                let uids: Vec<ScrutinUid> = items
+                    .iter()
+                    .map(|item| item.vote.scrutin_uid().clone())
+                    .collect();
+                let reads = repository.final_vote_explanations(&uids).await?;
+                for item in &mut items {
+                    let read = reads
+                        .iter()
+                        .find(|read| &read.scrutin_uid == item.vote.scrutin_uid());
+                    item.explanations = Some(explanations_of(&item.vote, read));
+                }
+            }
+        }
 
         Ok(FinalVoteView {
             items,
@@ -272,7 +332,55 @@ fn build_entry(
     Ok(FinalVoteEntry {
         vote,
         families: record.families,
+        explanations: None,
     })
+}
+
+/// Explication de chaque groupe affiché, décidée par la ligne lue (RM-09).
+///
+/// Un groupe renommé répond à ses identifiants successifs: l'orateur rattaché
+/// sous l'ancien nom reste celui du groupe (`same_group`). Plusieurs orateurs
+/// d'un même groupe: le premier du compte rendu.
+fn explanations_of(
+    vote: &FinalVote,
+    read: Option<&FinalVoteExplanationsRead>,
+) -> FinalVoteExplanations {
+    let Some(read) = read else {
+        return FinalVoteExplanations {
+            state: ExplanationsState::NotPublished,
+            by_stance: vec![None; vote.stances().len()],
+        };
+    };
+    let state = if read.sitting_known {
+        ExplanationsState::decide(
+            read.report_stored,
+            read.attached,
+            !read.explanations.is_empty(),
+        )
+    } else {
+        ExplanationsState::NotAttached
+    };
+    let by_stance = vote
+        .stances()
+        .iter()
+        .map(|stance| {
+            read.explanations
+                .iter()
+                .filter(|explanation| {
+                    explanation.group_uid.as_ref().is_some_and(|group| {
+                        same_group(stance.group().uid.as_str(), group.as_str())
+                    })
+                })
+                .min_by_key(|explanation| explanation.rank)
+                .map(|explanation| StanceExplanation {
+                    rank: explanation.rank,
+                    speaker_name: explanation.speaker_name.clone(),
+                    speaker_position: explanation.speaker_position,
+                    preview: SummaryPreview::of(Some(&explanation.text)),
+                })
+        })
+        .collect();
+    FinalVoteExplanations { state, by_stance }
 }
 
 /// Position d'un groupe sur un vote.
@@ -762,7 +870,10 @@ mod tests {
             .unwrap();
 
         assert_eq!(view.items.len(), 1);
-        assert_eq!(view.items[0].vote.date(), NaiveDate::from_ymd_opt(2026, 5, 27).unwrap());
+        assert_eq!(
+            view.items[0].vote.date(),
+            NaiveDate::from_ymd_opt(2026, 5, 27).unwrap()
+        );
         assert_eq!(view.items[0].vote.stances().len(), view.groups.len());
     }
 
@@ -959,5 +1070,287 @@ mod tests {
         let text = view.items[0].vote.official_text().unwrap();
         assert_eq!(text.document_uid, "PIONANR5L17B1560");
         assert_eq!(text.version_label, "Texte adopté en première lecture");
+    }
+
+    mod explanations {
+        use super::*;
+        use crate::application::ports::vote_explanation_repository::GroupExplanationRead;
+        use crate::application::use_cases::explanation_fakes::InMemoryVoteExplanations;
+
+        fn spoken(
+            rank: u16,
+            group: Option<&str>,
+            name: &str,
+            position: Option<VotePosition>,
+            text: &str,
+        ) -> GroupExplanationRead {
+            GroupExplanationRead {
+                rank,
+                group_uid: group.map(|g| GroupUid::new(g.to_string()).unwrap()),
+                speaker_name: Some(name.to_string()),
+                speaker_position: position,
+                text: text.to_string(),
+            }
+        }
+
+        fn read(
+            uid: &str,
+            attached: Option<bool>,
+            explanations: Vec<GroupExplanationRead>,
+        ) -> FinalVoteExplanationsRead {
+            FinalVoteExplanationsRead {
+                scrutin_uid: ScrutinUid::new(uid.to_string()).unwrap(),
+                sitting_known: true,
+                report_stored: true,
+                attached,
+                explanations,
+            }
+        }
+
+        async fn compare(
+            repository: &InMemoryFinalVoteRepository,
+            explanations: &InMemoryVoteExplanations,
+            groups: &[&str],
+        ) -> FinalVoteView {
+            BrowseFinalVotes::new(repository)
+                .with_explanations(explanations)
+                .execute(BrowseFinalVotesCommand {
+                    groups: groups.iter().map(|g| g.to_string()).collect(),
+                    ..Default::default()
+                })
+                .await
+                .unwrap()
+        }
+
+        #[tokio::test]
+        async fn each_compared_group_gets_its_speaker_with_his_vote_and_the_start_of_his_text() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S1",
+                Some(true),
+                vec![
+                    spoken(
+                        1,
+                        Some("PO2"),
+                        "Ada Socle",
+                        Some(VotePosition::For),
+                        "Nous voterons pour.",
+                    ),
+                    spoken(2, Some("PO1"), "Jean Rang", None, "Nous voterons contre."),
+                ],
+            )]);
+
+            let view = compare(&repository(), &explanations, &["RN", "SOC"]).await;
+
+            let found = view.items[0].explanations.as_ref().unwrap();
+            assert_eq!(found.state, ExplanationsState::Explained);
+            assert_eq!(
+                found.by_stance,
+                vec![
+                    Some(StanceExplanation {
+                        rank: 2,
+                        speaker_name: Some("Jean Rang".to_string()),
+                        speaker_position: None,
+                        preview: SummaryPreview::of(Some("Nous voterons contre.")),
+                    }),
+                    Some(StanceExplanation {
+                        rank: 1,
+                        speaker_name: Some("Ada Socle".to_string()),
+                        speaker_position: Some(VotePosition::For),
+                        preview: SummaryPreview::of(Some("Nous voterons pour.")),
+                    }),
+                ]
+            );
+        }
+
+        #[tokio::test]
+        async fn the_preview_cuts_a_long_explanation_without_rewording_it() {
+            let text = "Mot ".repeat(200);
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S1",
+                Some(true),
+                vec![spoken(1, Some("PO1"), "Jean Rang", None, &text)],
+            )]);
+
+            let view = compare(&repository(), &explanations, &["RN"]).await;
+
+            let explanation = view.items[0].explanations.as_ref().unwrap().by_stance[0]
+                .clone()
+                .unwrap();
+            assert_eq!(explanation.preview, SummaryPreview::of(Some(&text)));
+            assert!(matches!(
+                explanation.preview,
+                SummaryPreview::Text {
+                    truncated: true,
+                    ..
+                }
+            ));
+        }
+
+        #[tokio::test]
+        async fn a_group_without_speaker_has_no_explanation_while_the_vote_has_some() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S1",
+                Some(true),
+                vec![spoken(1, Some("PO1"), "Jean Rang", None, "Contre.")],
+            )]);
+
+            let view = compare(&repository(), &explanations, &["RN", "SOC"]).await;
+
+            let found = view.items[0].explanations.as_ref().unwrap();
+            assert_eq!(found.state, ExplanationsState::Explained);
+            assert!(found.by_stance[0].is_some());
+            assert_eq!(found.by_stance[1], None);
+        }
+
+        #[tokio::test]
+        async fn a_speaker_whose_group_is_not_established_is_given_to_no_group() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S1",
+                Some(true),
+                vec![spoken(1, None, "Sans Groupe", None, "Je m'abstiendrai.")],
+            )]);
+
+            let view = compare(&repository(), &explanations, &["RN", "SOC"]).await;
+
+            let found = view.items[0].explanations.as_ref().unwrap();
+            assert_eq!(found.state, ExplanationsState::Explained);
+            assert_eq!(found.by_stance, vec![None, None]);
+        }
+
+        #[tokio::test]
+        async fn the_first_speaker_of_a_group_in_the_report_is_the_one_shown() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S1",
+                Some(true),
+                vec![
+                    spoken(4, Some("PO1"), "Second", None, "Encore."),
+                    spoken(3, Some("PO1"), "Premier", None, "D'abord."),
+                ],
+            )]);
+
+            let view = compare(&repository(), &explanations, &["RN"]).await;
+
+            let shown = view.items[0].explanations.as_ref().unwrap().by_stance[0]
+                .clone()
+                .unwrap();
+            assert_eq!(shown.rank, 3);
+        }
+
+        #[tokio::test]
+        async fn a_renamed_group_keeps_the_speaker_attached_under_its_former_identifier() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S2",
+                Some(true),
+                vec![spoken(1, Some("PO847173"), "Ancien Nom", None, "Pour.")],
+            )]);
+
+            let view = compare(&renamed_group_repository(), &explanations, &["UDDPLR"]).await;
+
+            let s2 = view
+                .items
+                .iter()
+                .find(|item| item.vote.scrutin_uid().as_str() == "S2")
+                .unwrap();
+            assert!(s2.explanations.as_ref().unwrap().by_stance[0].is_some());
+        }
+
+        #[tokio::test]
+        async fn a_report_with_no_explanation_for_the_vote_says_so() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![read(
+                "S1",
+                Some(false),
+                vec![],
+            )]);
+
+            let view = compare(&repository(), &explanations, &["RN"]).await;
+
+            let found = view.items[0].explanations.as_ref().unwrap();
+            assert_eq!(found.state, ExplanationsState::NoExplanation);
+            assert_eq!(found.by_stance, vec![None]);
+        }
+
+        #[tokio::test]
+        async fn a_vote_the_report_does_not_attach_is_not_said_to_have_no_explanation() {
+            let explanations =
+                InMemoryVoteExplanations::with_final_vote_reads(vec![read("S1", None, vec![])]);
+
+            let view = compare(&repository(), &explanations, &["RN"]).await;
+
+            assert_eq!(
+                view.items[0].explanations.as_ref().unwrap().state,
+                ExplanationsState::NotAttached
+            );
+        }
+
+        #[tokio::test]
+        async fn a_vote_without_sitting_reference_is_not_attached() {
+            let mut unknown = read("S1", None, vec![]);
+            unknown.sitting_known = false;
+            unknown.report_stored = false;
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![unknown]);
+
+            let view = compare(&repository(), &explanations, &["RN"]).await;
+
+            assert_eq!(
+                view.items[0].explanations.as_ref().unwrap().state,
+                ExplanationsState::NotAttached
+            );
+        }
+
+        #[tokio::test]
+        async fn a_vote_whose_report_is_not_stored_is_not_published() {
+            let mut missing = read("S1", None, vec![]);
+            missing.report_stored = false;
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![missing]);
+
+            let view = compare(&repository(), &explanations, &["RN"]).await;
+
+            assert_eq!(
+                view.items[0].explanations.as_ref().unwrap().state,
+                ExplanationsState::NotPublished
+            );
+        }
+
+        #[tokio::test]
+        async fn the_whole_page_is_read_at_once() {
+            let repository = repository();
+            repository
+                .records
+                .lock()
+                .unwrap()
+                .push(record("S2", vec![]));
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![]);
+
+            compare(&repository, &explanations, &["RN"]).await;
+
+            assert_eq!(explanations.reads(), 1);
+        }
+
+        #[tokio::test]
+        async fn the_all_groups_mode_reads_no_explanation() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![]);
+
+            let view = BrowseFinalVotes::new(&repository())
+                .with_explanations(&explanations)
+                .execute(BrowseFinalVotesCommand {
+                    all_groups: true,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
+
+            assert_eq!(explanations.reads(), 0);
+            assert!(view.items[0].explanations.is_none());
+        }
+
+        #[tokio::test]
+        async fn no_group_compared_reads_no_explanation() {
+            let explanations = InMemoryVoteExplanations::with_final_vote_reads(vec![]);
+
+            let view = compare(&repository(), &explanations, &[]).await;
+
+            assert_eq!(explanations.reads(), 0);
+            assert!(view.items[0].explanations.is_none());
+        }
     }
 }
