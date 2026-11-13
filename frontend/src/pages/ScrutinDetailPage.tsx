@@ -662,7 +662,7 @@ export default function ScrutinDetailPage() {
   )
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div>
       <BackLink to="/scrutins" className="mb-4">Retour aux votes</BackLink>
 
       {/*
