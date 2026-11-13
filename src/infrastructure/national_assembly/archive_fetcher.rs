@@ -29,7 +29,7 @@ const CACHE_TTL: Duration = Duration::from_secs(3600);
 /// resserre les vannes. Se nommer, avec une adresse ou nous joindre, c'est la
 /// difference entre « bot inconnu » et « projet qu'on previent avant de
 /// couper ».
-const USER_AGENT: &str = concat!(
+pub(super) const USER_AGENT: &str = concat!(
     "QuiVoteQuoi/",
     env!("CARGO_PKG_VERSION"),
     " (+https://github.com/pierrebelin/QuiVoteQuoi)"

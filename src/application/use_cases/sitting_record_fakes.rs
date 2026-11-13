@@ -1,5 +1,7 @@
 //! Doubles de la source des comptes rendus et des scrutins à référence de séance.
 
+use std::sync::Mutex;
+
 use async_trait::async_trait;
 
 use crate::application::ports::scrutin_repository::{
@@ -9,7 +11,7 @@ use crate::application::ports::sitting_record_source::{SittingRecordSource, Sitt
 use crate::application::ports::{RepositoryError, SourceError};
 use crate::domain::dataset::DatasetShape;
 use crate::domain::scrutin::{Scrutin, ScrutinUid};
-use crate::domain::sitting_record::{ScrutinSittingKey, SittingRecord};
+use crate::domain::sitting_record::{ScrutinSittingKey, SittingRecord, SittingRecordUid};
 
 /// Archive de séances: chaque entrée est une séance lisible ou le message de son échec.
 #[derive(Default)]
@@ -17,6 +19,17 @@ pub struct FakeSittingRecords {
     pub items: Vec<Result<SittingRecord, String>>,
     /// Message d'échec à l'ouverture de l'archive.
     pub open_error: Option<String>,
+    /// Comptes rendus publiés à part: la version lue ou le message de son échec;
+    /// un compte rendu absent d'ici répond par un échec de téléchargement.
+    pub singles: Vec<Result<SittingRecord, (SittingRecordUid, String)>>,
+    /// Comptes rendus demandés à part, dans l'ordre des demandes.
+    pub requested: Mutex<Vec<SittingRecordUid>>,
+}
+
+impl FakeSittingRecords {
+    pub fn requested(&self) -> Vec<SittingRecordUid> {
+        self.requested.lock().unwrap().clone()
+    }
 }
 
 #[async_trait]
@@ -37,6 +50,23 @@ impl SittingRecordSource for FakeSittingRecords {
             })
             .collect();
         Ok(Box::new(items.into_iter()))
+    }
+
+    async fn fetch_sitting_record(
+        &self,
+        uid: &SittingRecordUid,
+    ) -> Result<SittingRecord, SourceError> {
+        self.requested.lock().unwrap().push(uid.clone());
+        for single in &self.singles {
+            match single {
+                Ok(record) if record.uid() == uid => return Ok(record.clone()),
+                Err((failing, message)) if failing == uid => {
+                    return Err(SourceError::Parse(message.clone()))
+                }
+                _ => {}
+            }
+        }
+        Err(SourceError::Download(format!("{uid}: HTTP 404")))
     }
 }
 

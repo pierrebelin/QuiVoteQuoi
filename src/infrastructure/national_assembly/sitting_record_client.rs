@@ -3,6 +3,7 @@ use quick_xml::events::{BytesStart, Event};
 use quick_xml::Reader;
 
 use std::io::{Cursor, Read};
+use std::time::Duration;
 
 use async_trait::async_trait;
 
@@ -11,7 +12,7 @@ use crate::application::ports::sitting_record_source::{
 };
 use crate::domain::actor::ActorUid;
 
-use super::archive_fetcher::ArchiveFetcher;
+use super::archive_fetcher::{ArchiveFetcher, USER_AGENT};
 use crate::domain::sitting_record::{
     AnnouncedResult, NewSittingRecord, SittingEntry, SittingRecord, SittingRecordUid, SittingRef,
     SpeechAnchor,
@@ -28,8 +29,18 @@ const PRESIDING_SPEAKER_NAMES: [&str; 2] = ["M. le président", "Mme la préside
 /// Archive des comptes rendus de la legislature: pas de sous-ensemble a demander.
 const SITTING_RECORDS_URL: &str = "https://data.assemblee-nationale.fr/static/openData/repository/17/vp/syceronbrut/syseron.xml.zip";
 
+/// Compte rendu publie a part, `{uid}.xml`, mis a jour a mesure que le
+/// compte rendu provisoire se complete, sans attendre l'archive du lendemain.
+const SITTING_RECORD_BASE_URL: &str = "https://www.assemblee-nationale.fr/dyn/opendata/";
+
+/// Un compte rendu pese environ un Mo: une minute couvre une source lente,
+/// pas une source bloquee.
+const SITTING_RECORD_TIMEOUT: Duration = Duration::from_secs(60);
+
 pub struct SittingRecordClient {
     archive: ArchiveFetcher,
+    /// `Err`: client HTTP indisponible, chaque lecture a part echoue avec ce message.
+    http: Result<reqwest::Client, String>,
 }
 
 /// Ce que l'on est en train de lire dans un element texte.
@@ -112,9 +123,22 @@ fn normalize(text: &str) -> String {
 
 impl SittingRecordClient {
     pub fn new() -> Self {
+        let http = reqwest::Client::builder()
+            .user_agent(USER_AGENT)
+            .timeout(SITTING_RECORD_TIMEOUT)
+            .build()
+            .map_err(|e| e.to_string());
+        if let Err(error) = &http {
+            tracing::error!(%error, "Sitting record HTTP client unavailable, single records will fail");
+        }
         Self {
             archive: ArchiveFetcher::new(SITTING_RECORDS_URL, "comptes rendus"),
+            http,
         }
+    }
+
+    fn sitting_record_url(uid: &SittingRecordUid) -> String {
+        format!("{SITTING_RECORD_BASE_URL}{uid}.xml")
     }
 
     /// Une entree par compte rendu de l'archive; un XML illisible n'arrete pas les autres.
@@ -291,6 +315,33 @@ impl SittingRecordSource for SittingRecordClient {
             .await
             .map_err(|e| SourceError::Parse(e.to_string()))??;
         Ok(Box::new(records.into_iter()))
+    }
+
+    async fn fetch_sitting_record(
+        &self,
+        uid: &SittingRecordUid,
+    ) -> Result<SittingRecord, SourceError> {
+        let url = Self::sitting_record_url(uid);
+        let http = self
+            .http
+            .as_ref()
+            .map_err(|e| SourceError::Download(e.clone()))?;
+        let response = http
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| SourceError::Download(format!("{url}: {e}")))?;
+        if !response.status().is_success() {
+            return Err(SourceError::Download(format!(
+                "{url}: HTTP {}",
+                response.status()
+            )));
+        }
+        let body = response
+            .bytes()
+            .await
+            .map_err(|e| SourceError::Download(format!("{url}: {e}")))?;
+        Self::parse_sitting(&body).map_err(|e| SourceError::Parse(format!("{uid}: {e}")))
     }
 }
 
@@ -475,6 +526,37 @@ mod tests {
             SittingRecordClient::parse_sitting(xml.as_bytes()).unwrap_err(),
             "missing seanceRef"
         );
+    }
+
+    #[test]
+    fn builds_the_single_record_url_from_its_uid() {
+        let uid = SittingRecordUid::new("CRSANR5L17S2027O1N061".into()).unwrap();
+
+        assert_eq!(
+            SittingRecordClient::sitting_record_url(&uid),
+            "https://www.assemblee-nationale.fr/dyn/opendata/CRSANR5L17S2027O1N061.xml"
+        );
+    }
+
+    /// Verifie le lecteur contre un compte rendu publie a part, provisoire.
+    ///
+    /// Ignore par defaut: il lit un fichier telecharge au prealable, par exemple
+    ///   curl -o cr.xml https://www.assemblee-nationale.fr/dyn/opendata/CRSANR5L17S2027O1N061.xml
+    ///   SITTING_RECORD_FILE=/chemin/cr.xml cargo test -- --ignored
+    #[test]
+    #[ignore]
+    fn parses_a_real_single_record() {
+        let path = std::env::var("SITTING_RECORD_FILE")
+            .expect("SITTING_RECORD_FILE must point to a sitting record");
+        let xml = std::fs::read(path).expect("record must be readable");
+
+        let record = SittingRecordClient::parse_sitting(&xml).unwrap();
+
+        assert!(record.uid().as_str().starts_with("CRSANR5L17"));
+        assert!(record
+            .entries()
+            .iter()
+            .any(|entry| matches!(entry, SittingEntry::Result(_))));
     }
 
     /// Verifie le lecteur contre l'archive officielle.

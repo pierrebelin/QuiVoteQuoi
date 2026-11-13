@@ -45,7 +45,8 @@ non_blank_newtype!(SittingRef, EmptySittingRef);
 non_blank_newtype!(SpeechAnchor, EmptySpeechAnchor);
 
 /// Racine des comptes rendus de séance sur le site de l'Assemblée (ADR-005).
-const OFFICIAL_REPORT_ROOT: &str = "https://www.assemblee-nationale.fr/dyn/17/comptes-rendus/seance";
+const OFFICIAL_REPORT_ROOT: &str =
+    "https://www.assemblee-nationale.fr/dyn/17/comptes-rendus/seance";
 
 impl SittingRecordUid {
     /// Lien vers le compte rendu officiel, ancré sur un paragraphe s'il est donné (RM-12).
@@ -164,7 +165,9 @@ impl AnnouncedResult {
 
 /// Nombre qui suit la premiere occurrence de l'etiquette.
 fn number_after(tokens: &[&str], label: &[&str]) -> Option<u32> {
-    let at = tokens.windows(label.len()).position(|window| window == label)?;
+    let at = tokens
+        .windows(label.len())
+        .position(|window| window == label)?;
     tokens.get(at + label.len())?.parse().ok()
 }
 
@@ -394,7 +397,10 @@ impl ScrutinFingerprints {
                             open.attached = true;
                             open.block.clone()
                         });
-                        attached.push(AttachedScrutin { scrutin: uid, block });
+                        attached.push(AttachedScrutin {
+                            scrutin: uid,
+                            block,
+                        });
                     } else {
                         close_block(&mut open, counters);
                     }
@@ -502,6 +508,25 @@ impl SittingRecord {
             results,
             explanations,
         }
+    }
+
+    /// Un vote sur l'ensemble de la séance n'a pas de résultat rattaché dans
+    /// cette lecture: le compte rendu, provisoire, ne va pas encore jusqu'à lui
+    /// (RM-04).
+    pub fn leaves_a_final_vote_unattached(
+        &self,
+        attachment: &RecordAttachment,
+        scrutins: &[ScrutinSittingKey],
+    ) -> bool {
+        self.own_keys(scrutins)
+            .iter()
+            .filter(|key| key.final_vote)
+            .any(|key| {
+                !attachment
+                    .attached
+                    .iter()
+                    .any(|attached| attached.scrutin == key.uid)
+            })
     }
 
     fn own_keys(&self, scrutins: &[ScrutinSittingKey]) -> Vec<ScrutinSittingKey> {
@@ -695,7 +720,6 @@ mod tests {
 
         assert_eq!(fingerprints.len(), 1);
     }
-
 
     #[test]
     fn reads_the_four_numbers_of_an_announced_result() {
@@ -1020,5 +1044,56 @@ mod tests {
                 "Début. (Exclamations)\n\nSuite. (Applaudissements)"
             )]
         );
+    }
+
+    fn final_key(uid_raw: &str, sitting: &str, numbers: (u16, u16, u16, u16)) -> ScrutinSittingKey {
+        ScrutinSittingKey::new(
+            uid(uid_raw),
+            SittingRef::new(sitting.into()).unwrap(),
+            result(
+                numbers.0.into(),
+                numbers.1.into(),
+                numbers.2.into(),
+                numbers.3.into(),
+            ),
+            "l'ensemble du projet de loi",
+        )
+    }
+
+    fn record_of(entries: Vec<SittingEntry>) -> SittingRecord {
+        SittingRecord::new(NewSittingRecord {
+            uid: SittingRecordUid::new("CR1".into()).unwrap(),
+            sitting_ref: SittingRef::new(SITTING.into()).unwrap(),
+            date: NaiveDate::from_ymd_opt(2025, 3, 10).unwrap(),
+            version: "avant_JO".into(),
+            generated_at: chrono::DateTime::UNIX_EPOCH,
+            entries,
+        })
+    }
+
+    #[test]
+    fn tells_a_final_vote_of_the_sitting_left_without_its_result() {
+        let keys = [
+            final_key("V1", SITTING, FINAL_A),
+            final_key("V2", SITTING, FINAL_B),
+        ];
+        let record = record_of(vec![announced(FINAL_A)]);
+
+        let attachment = record.attach(&keys);
+
+        assert!(record.leaves_a_final_vote_unattached(&attachment, &keys));
+    }
+
+    #[test]
+    fn ignores_the_final_votes_of_other_sittings_once_its_own_are_attached() {
+        let keys = [
+            final_key("V1", SITTING, FINAL_A),
+            final_key("V9", OTHER_SITTING, FINAL_B),
+        ];
+        let record = record_of(vec![announced(FINAL_A)]);
+
+        let attachment = record.attach(&keys);
+
+        assert!(!record.leaves_a_final_vote_unattached(&attachment, &keys));
     }
 }

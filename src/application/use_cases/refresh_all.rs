@@ -262,7 +262,7 @@ impl<'a> RefreshAll<'a> {
             self.scrutin_repository,
             self.actor_repository,
         )
-        .execute(CURRENT_LEGISLATURE)
+        .execute(CURRENT_LEGISLATURE, today)
         .await
         {
             Ok(summary) => (Some(summary), None),
