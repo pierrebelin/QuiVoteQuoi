@@ -61,8 +61,20 @@ impl<'a> ListScrutins<'a> {
 
     pub async fn execute(&self, filter: ScrutinFilter) -> Result<ScrutinListPage, RepositoryError> {
         let page = self.repository.list(&filter).await?;
-        let uids: Vec<ScrutinUid> = page
-            .items
+        let items = self.enrich(page.items).await?;
+        Ok(ScrutinListPage {
+            items,
+            total: page.total,
+        })
+    }
+
+    /// Ajoute a chaque ligne son libelle court, ses amendements cites et son
+    /// dossier, en lectures groupees sur l'ensemble des lignes.
+    async fn enrich(
+        &self,
+        summaries: Vec<ScrutinSummary>,
+    ) -> Result<Vec<ScrutinListItem>, RepositoryError> {
+        let uids: Vec<ScrutinUid> = summaries
             .iter()
             .filter_map(|summary| ScrutinUid::new(summary.uid.clone()).ok())
             .collect();
@@ -85,10 +97,9 @@ impl<'a> ListScrutins<'a> {
             self.actors.load_directory_for(&authors).await?
         };
 
-        let dossiers = self.dossiers_of(&page.items).await?;
+        let dossiers = self.dossiers_of(&summaries).await?;
 
-        let items = page
-            .items
+        let items = summaries
             .into_iter()
             .map(|summary| {
                 let dossier = summary
@@ -108,10 +119,17 @@ impl<'a> ListScrutins<'a> {
                 }
             })
             .collect();
-        Ok(ScrutinListPage {
-            items,
-            total: page.total,
-        })
+        Ok(items)
+    }
+
+    /// Tous les scrutins de la periode, enrichis comme une ligne de liste.
+    pub async fn execute_between(
+        &self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<Vec<ScrutinListItem>, RepositoryError> {
+        let summaries = self.repository.between(from, to).await?;
+        self.enrich(summaries).await
     }
 
     /// Les dossiers que la page nomme, en une seule lecture: la liste affiche
@@ -456,5 +474,93 @@ mod tests {
         .await;
 
         assert!(page.items[0].dossier.is_none());
+    }
+
+    fn on(date: (i32, u32, u32), mut row: ScrutinSummary) -> ScrutinSummary {
+        row.date = chrono::NaiveDate::from_ymd_opt(date.0, date.1, date.2).unwrap();
+        row
+    }
+
+    fn day(d: u32) -> chrono::NaiveDate {
+        chrono::NaiveDate::from_ymd_opt(2026, 11, d).unwrap()
+    }
+
+    fn fake_scrutins(rows: Vec<ScrutinSummary>) -> FakeScrutins {
+        FakeScrutins {
+            rows,
+            total: 0,
+            shape: DatasetShape::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn lists_every_scrutin_of_a_period_beyond_the_page_cap() {
+        let rows: Vec<ScrutinSummary> = (0..362)
+            .map(|i| on((2026, 11, 3), scrutin_row(&format!("S{i}"), "l'ensemble du projet de loi")))
+            .collect();
+        let repository = fake_scrutins(rows);
+
+        let items = ListScrutins::new(
+            &repository,
+            &citations(vec![]),
+            &actors(),
+            &FakeDossiers::default(),
+        )
+        .execute_between(day(2), day(8))
+        .await
+        .unwrap();
+
+        assert_eq!(items.len(), 362);
+    }
+
+    #[tokio::test]
+    async fn leaves_out_the_scrutins_outside_the_period() {
+        let repository = fake_scrutins(vec![
+            on((2026, 11, 1), scrutin_row("S0", "l'ensemble du projet de loi")),
+            on((2026, 11, 2), scrutin_row("S1", "l'ensemble du projet de loi")),
+            on((2026, 11, 8), scrutin_row("S2", "l'ensemble du projet de loi")),
+            on((2026, 11, 9), scrutin_row("S3", "l'ensemble du projet de loi")),
+        ]);
+
+        let items = ListScrutins::new(
+            &repository,
+            &citations(vec![]),
+            &actors(),
+            &FakeDossiers::default(),
+        )
+        .execute_between(day(2), day(8))
+        .await
+        .unwrap();
+
+        let uids: Vec<&str> = items.iter().map(|i| i.summary.uid.as_str()).collect();
+        assert_eq!(uids, vec!["S1", "S2"]);
+    }
+
+    #[tokio::test]
+    async fn enriches_a_scrutin_of_a_period_with_its_short_label_and_dossier() {
+        let repository = fake_scrutins(vec![on(
+            (2026, 11, 4),
+            in_dossier("S1", "DLR5L17N54629"),
+        )]);
+        let dossiers = FakeDossiers {
+            dossiers: vec![listed_dossier(
+                "DLR5L17N54629",
+                DossierOutcome::NoRecordedConclusion,
+                Some(LegislativeStage::FirstReadingAN),
+            )],
+            ..Default::default()
+        };
+
+        let items = ListScrutins::new(&repository, &citations(vec![]), &actors(), &dossiers)
+            .execute_between(day(2), day(8))
+            .await
+            .unwrap();
+
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].short_label.as_str(), "Vote sur l'article 3");
+        assert_eq!(
+            items[0].dossier.as_ref().unwrap().uid().as_str(),
+            "DLR5L17N54629"
+        );
     }
 }

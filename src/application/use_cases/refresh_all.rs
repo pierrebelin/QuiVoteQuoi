@@ -434,6 +434,26 @@ mod tests {
         async fn dataset_shape(&self) -> Result<DatasetShape, ScrutinRepositoryError> {
             unreachable!()
         }
+
+        async fn between(
+            &self,
+            _from: NaiveDate,
+            _to: NaiveDate,
+        ) -> Result<Vec<ScrutinSummary>, ScrutinRepositoryError> {
+            unreachable!()
+        }
+
+        async fn count_between(
+            &self,
+            _from: NaiveDate,
+            _to: NaiveDate,
+        ) -> Result<i64, ScrutinRepositoryError> {
+            unreachable!()
+        }
+
+        async fn latest_scrutin_date(&self) -> Result<Option<NaiveDate>, ScrutinRepositoryError> {
+            unreachable!()
+        }
     }
 
     /// Source d'amendements muette: le rafraichissement des amendements n'est pas

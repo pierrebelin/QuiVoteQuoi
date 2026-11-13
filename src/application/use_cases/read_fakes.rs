@@ -78,6 +78,32 @@ impl ScrutinRepository for FakeScrutins {
     async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
         Ok(self.shape.clone())
     }
+    async fn between(
+        &self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<Vec<ScrutinSummary>, RepositoryError> {
+        Ok(self
+            .rows
+            .iter()
+            .filter(|row| from <= row.date && row.date <= to)
+            .cloned()
+            .collect())
+    }
+    async fn count_between(
+        &self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<i64, RepositoryError> {
+        Ok(self
+            .rows
+            .iter()
+            .filter(|row| from <= row.date && row.date <= to)
+            .count() as i64)
+    }
+    async fn latest_scrutin_date(&self) -> Result<Option<chrono::NaiveDate>, RepositoryError> {
+        Ok(self.rows.iter().map(|row| row.date).max())
+    }
 }
 
 /// Ligne d'amendement d'un auteur `PA1` du groupe `PO_A`, sort adopte, exposé publié.

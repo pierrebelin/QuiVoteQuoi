@@ -172,6 +172,8 @@ impl FinalVoteRepository for PgFinalVoteRepository {
                        AND ta.subject_id = dt.text_key
                        AND ta.closed_on IS NULL
                        AND ta.family_code = $1))
+               AND ($4::date IS NULL OR s.scrutin_date >= $4)
+               AND ($5::date IS NULL OR s.scrutin_date <= $5)
              ORDER BY s.scrutin_date DESC, s.number DESC
              LIMIT $2 OFFSET $3"
         );
@@ -180,6 +182,8 @@ impl FinalVoteRepository for PgFinalVoteRepository {
             .bind(filter.family.map(|f| f.as_str()))
             .bind(filter.limit)
             .bind(filter.offset)
+            .bind(filter.from)
+            .bind(filter.to)
             .persistent(false)
             .fetch_all(&self.pool)
             .await

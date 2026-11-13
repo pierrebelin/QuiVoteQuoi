@@ -85,4 +85,17 @@ pub trait ScrutinRepository: Send + Sync {
 
     /// Read model de la page « Comprendre » : volumétrie et répartitions.
     async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError>;
+
+    /// Scrutins de la periode, bornes incluses, date puis numero, sans plafond (RM-01).
+    async fn between(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<Vec<ScrutinSummary>, RepositoryError>;
+
+    /// Nombre de scrutins de la periode, bornes incluses.
+    async fn count_between(&self, from: NaiveDate, to: NaiveDate) -> Result<i64, RepositoryError>;
+
+    /// Date du dernier scrutin publie; `None` sur une base vide.
+    async fn latest_scrutin_date(&self) -> Result<Option<NaiveDate>, RepositoryError>;
 }

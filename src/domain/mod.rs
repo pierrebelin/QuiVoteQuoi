@@ -23,3 +23,4 @@ pub mod theme;
 pub mod theme_rules;
 pub mod sitting_record;
 pub mod vote_explanation;
+pub mod week;

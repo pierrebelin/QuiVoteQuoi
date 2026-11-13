@@ -37,6 +37,9 @@ pub struct BrowseFinalVotesCommand {
     /// classement. La comparaison detaillee, ou les pourcentages s'affichent,
     /// reste bornee a `MAX_COMPARED_GROUPS` groupes choisis.
     pub all_groups: bool,
+    /// Bornes incluses de la periode lue; `None` = sans borne.
+    pub from: Option<chrono::NaiveDate>,
+    pub to: Option<chrono::NaiveDate>,
     pub limit: Option<i64>,
     pub offset: Option<i64>,
 }
@@ -130,6 +133,8 @@ impl<'a> BrowseFinalVotes<'a> {
             // Un groupe renomme repond a plusieurs identifiants: les demander
             // tous evite que ses votes d'avant le changement de nom
             // disparaissent de la comparaison (README.md §2).
+            from: command.from,
+            to: command.to,
             group_uids: selected
                 .iter()
                 .flat_map(|group| uids_of(&group.uid))
@@ -290,7 +295,7 @@ fn build_stance(record: &GroupTallyRecord) -> Result<GroupStance, ActorError> {
             .majority_position
             .as_deref()
             .and_then(VotePosition::parse),
-        record.tally.clone(),
+        record.tally,
     ))
 }
 
@@ -322,6 +327,8 @@ mod tests {
             let records = self.records.lock().unwrap();
             let items: Vec<FinalVoteRecord> = records
                 .iter()
+                .filter(|record| filter.from.is_none_or(|from| record.date >= from))
+                .filter(|record| filter.to.is_none_or(|to| record.date <= to))
                 .filter(|record| match filter.family {
                     Some(family) => record.families.iter().any(|f| f.family == family),
                     None => true,
@@ -713,6 +720,69 @@ mod tests {
 
         assert_eq!(four.items[0].vote.stances().len(), MAX_COMPARED_GROUPS);
         assert!(matches!(error, BrowseFinalVotesError::TooManyGroups(5)));
+    }
+
+    fn dated(uid: &str, y: i32, m: u32, d: u32) -> FinalVoteRecord {
+        let mut r = record(
+            uid,
+            vec![
+                tally_record("PO1", "RN", 2, 84),
+                tally_record("PO2", "SOC", 60, 0),
+                tally_record("PO3", "UDR", 0, 16),
+                tally_record("PO4", "EPR", 90, 0),
+                tally_record("PO5", "LFI", 0, 70),
+            ],
+        );
+        r.date = NaiveDate::from_ymd_opt(y, m, d).unwrap();
+        r
+    }
+
+    fn dated_repository() -> InMemoryFinalVoteRepository {
+        let repository = five_group_repository();
+        *repository.records.lock().unwrap() = vec![
+            dated("S1", 2026, 3, 10),
+            dated("S2", 2026, 5, 27),
+            dated("S3", 2026, 9, 1),
+        ];
+        repository
+    }
+
+    #[tokio::test]
+    async fn lists_only_the_final_votes_of_a_period_with_every_group() {
+        let repository = dated_repository();
+
+        let view = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                all_groups: true,
+                from: NaiveDate::from_ymd_opt(2026, 4, 1),
+                to: NaiveDate::from_ymd_opt(2026, 6, 30),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(view.items.len(), 1);
+        assert_eq!(view.items[0].vote.date(), NaiveDate::from_ymd_opt(2026, 5, 27).unwrap());
+        assert_eq!(view.items[0].vote.stances().len(), view.groups.len());
+    }
+
+    #[tokio::test]
+    async fn lists_every_final_vote_when_no_period_is_given() {
+        let repository = dated_repository();
+
+        let view = BrowseFinalVotes::new(&repository)
+            .execute(BrowseFinalVotesCommand {
+                all_groups: true,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        assert_eq!(view.items.len(), 3);
+        assert!(view
+            .items
+            .iter()
+            .all(|entry| entry.vote.stances().len() == view.groups.len()));
     }
 
     /// Depot portant un groupe renomme: l'ancien identifiant sur un vote, le

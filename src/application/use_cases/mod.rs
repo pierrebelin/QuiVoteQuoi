@@ -17,6 +17,7 @@ pub mod get_dossier_detail;
 pub mod get_dossier_group_actions;
 pub mod get_group_detail;
 pub mod get_scrutin_detail;
+pub mod get_week_of_votes;
 pub mod journaling;
 pub mod list_scrutins;
 pub mod link_scrutins_to_amendments;

@@ -50,6 +50,8 @@ impl From<FinalVoteListQuery> for BrowseFinalVotesCommand {
                 .filter(|token| !token.is_empty())
                 .collect(),
             all_groups: query.tous_groupes.unwrap_or(false),
+            from: None,
+            to: None,
             limit: query.limit,
             offset: query.offset,
         }

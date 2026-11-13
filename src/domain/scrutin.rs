@@ -246,6 +246,7 @@ pub struct Outcome {
 
 impl Outcome {
     pub const ADOPTED: &'static str = "adopt\u{00e9}";
+    pub const REJECTED: &'static str = "rejet\u{00e9}";
 
     pub fn new(code: String, label: String) -> Result<Self, ScrutinError> {
         if code.trim().is_empty() {

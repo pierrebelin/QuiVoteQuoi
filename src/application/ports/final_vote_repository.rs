@@ -17,6 +17,9 @@ pub struct FinalVoteFilter {
     pub family: Option<FamilyCode>,
     /// Groupes dont la position est demandee, dans l'ordre d'affichage.
     pub group_uids: Vec<String>,
+    /// Bornes incluses de la periode; `None` = sans borne.
+    pub from: Option<NaiveDate>,
+    pub to: Option<NaiveDate>,
     pub limit: i64,
     pub offset: i64,
 }
@@ -26,6 +29,8 @@ impl Default for FinalVoteFilter {
         Self {
             family: None,
             group_uids: Vec::new(),
+            from: None,
+            to: None,
             limit: 20,
             offset: 0,
         }

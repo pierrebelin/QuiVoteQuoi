@@ -29,6 +29,8 @@ pub struct InMemoryThemeRepository {
     pub awaiting: Mutex<Vec<DebatedText>>,
     pub awaiting_dossiers: Mutex<Vec<PendingDossier>>,
     pub method_report: Mutex<Option<MethodReport>>,
+    /// Familles courantes semees par uid de scrutin, servies par `families_of_scrutins`.
+    pub scrutin_families: Mutex<HashMap<String, Vec<AssignedFamily>>>,
 }
 
 impl InMemoryThemeRepository {
@@ -210,9 +212,16 @@ impl ThemeRepository for InMemoryThemeRepository {
 
     async fn families_of_scrutins(
         &self,
-        _scrutin_uids: &[String],
+        scrutin_uids: &[String],
     ) -> Result<HashMap<String, Vec<AssignedFamily>>, RepositoryError> {
-        Ok(HashMap::new())
+        Ok(self
+            .scrutin_families
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(uid, _)| scrutin_uids.contains(uid))
+            .map(|(uid, families)| (uid.clone(), families.clone()))
+            .collect())
     }
 
     async fn families_of_dossier(

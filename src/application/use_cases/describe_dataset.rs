@@ -107,6 +107,26 @@ mod tests {
         async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
             Ok(self.shape.lock().unwrap().clone())
         }
+
+        async fn between(
+            &self,
+            _from: chrono::NaiveDate,
+            _to: chrono::NaiveDate,
+        ) -> Result<Vec<ScrutinSummary>, RepositoryError> {
+            unreachable!()
+        }
+
+        async fn count_between(
+            &self,
+            _from: chrono::NaiveDate,
+            _to: chrono::NaiveDate,
+        ) -> Result<i64, RepositoryError> {
+            unreachable!()
+        }
+
+        async fn latest_scrutin_date(&self) -> Result<Option<chrono::NaiveDate>, RepositoryError> {
+            unreachable!()
+        }
     }
 
     async fn themes_with(count: usize) -> InMemoryThemeRepository {

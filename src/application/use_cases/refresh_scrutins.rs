@@ -268,6 +268,27 @@ mod tests {
         async fn dataset_shape(&self) -> Result<DatasetShape, RepositoryError> {
             unreachable!()
         }
+
+        async fn between(
+            &self,
+            _from: NaiveDate,
+            _to: NaiveDate,
+        ) -> Result<Vec<crate::application::ports::scrutin_repository::ScrutinSummary>, RepositoryError>
+        {
+            unreachable!()
+        }
+
+        async fn count_between(
+            &self,
+            _from: NaiveDate,
+            _to: NaiveDate,
+        ) -> Result<i64, RepositoryError> {
+            unreachable!()
+        }
+
+        async fn latest_scrutin_date(&self) -> Result<Option<NaiveDate>, RepositoryError> {
+            unreachable!()
+        }
     }
 
     struct StubActorRepository {

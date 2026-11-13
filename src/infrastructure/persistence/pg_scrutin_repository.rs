@@ -470,6 +470,49 @@ impl ScrutinRepository for PgScrutinRepository {
         Ok(rows.iter().map(summary_from_row).collect())
     }
 
+    async fn between(
+        &self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<Vec<ScrutinSummary>, RepositoryError> {
+        let mut query: QueryBuilder<Postgres> = QueryBuilder::new(SUMMARY_SELECT);
+        query.push(" WHERE s.scrutin_date BETWEEN ");
+        query.push_bind(from);
+        query.push(" AND ");
+        query.push_bind(to);
+        query.push(" ORDER BY s.scrutin_date, length(s.number), s.number");
+
+        let rows = query
+            .build()
+            .persistent(false)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(db)?;
+        Ok(rows.iter().map(summary_from_row).collect())
+    }
+
+    async fn count_between(
+        &self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<i64, RepositoryError> {
+        sqlx::query_scalar("SELECT count(*) FROM scrutins WHERE scrutin_date BETWEEN $1 AND $2")
+            .bind(from)
+            .bind(to)
+            .persistent(false)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(db)
+    }
+
+    async fn latest_scrutin_date(&self) -> Result<Option<chrono::NaiveDate>, RepositoryError> {
+        sqlx::query_scalar("SELECT max(scrutin_date) FROM scrutins")
+            .persistent(false)
+            .fetch_one(&self.pool)
+            .await
+            .map_err(db)
+    }
+
     async fn sitting_keys(
         &self,
     ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {
