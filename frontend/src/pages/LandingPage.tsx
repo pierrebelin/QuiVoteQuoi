@@ -9,10 +9,13 @@ import { finalVoteCard } from '../components/voteCardData'
 import { FOCUS_RING } from '../components/entry/styles'
 import { InfoTip } from '../components/InfoTip'
 import { Card, Loading, Note } from '../components/ui'
+import DayPills from '../components/week/DayPills'
+import WeekFigures from '../components/week/WeekFigures'
 import { ALL_LOGOS } from '../content/logos'
 import { PORTRAITS } from '../content/portraits'
 import { GITHUB_REPOSITORY_URL } from '../lib/repository'
 import { useReveal } from '../lib/useReveal'
+import { votesWord, weekSpan } from '../lib/week'
 import {
   ENTRY_PATH,
   PARAM_GROUPS,
@@ -22,6 +25,7 @@ import {
 import { fetchJson } from '../lib/fetchJson'
 import type { FinalVoteListResponse } from '../types/finalVotes'
 import type { ScrutinListResponse } from '../types/scrutins'
+import type { WeekResponse } from '../types/week'
 
 /**
  * Usages du site, formulés comme des gestes de lecteur et non comme le nom des
@@ -292,6 +296,37 @@ const EXTERNAL_LINK = 'text-sm font-medium link'
 const DESKTOP_CARD = 'md:rounded md:border md:border-line md:bg-surface md:p-5 md:shadow-card'
 
 /**
+ * La semaine en cours, résumée : ses nombres et ses jours, sans sélection. Une
+ * semaine en cours encore vide laisse la place à la dernière semaine votée,
+ * comme sur la page La semaine ; le titre le dit.
+ */
+function WeekSummary({ week }: { week: WeekResponse }) {
+  const texts = week.texts_count
+  return (
+    <section aria-labelledby="semaine" className="space-y-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="semaine" className="heading-4">
+          {week.is_current ? 'Cette semaine' : 'Dernière semaine de votes'}
+        </h3>
+        <p className="text-[13px] text-ink-soft md:text-sm">{weekSpan(week.monday)}</p>
+      </div>
+      <div className="flex flex-col gap-3 rounded border border-line bg-surface p-4 md:grid md:grid-cols-[minmax(0,420px)_minmax(0,1fr)] md:items-center md:gap-x-10 md:px-6 md:py-5">
+        <WeekFigures totals={week.totals} />
+        <DayPills days={week.days} />
+        <p className="border-t border-line pt-2.5 text-[12.5px] leading-[18px] text-ink-faint md:col-span-2 md:pt-3 md:text-[13px]">
+          Sur {texts} texte{texts > 1 ? 's' : ''}
+          {week.last_published &&
+            ` · dernier vote publié le ${new Date(week.last_published + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
+        </p>
+      </div>
+      <Link to="/semaine" className="inline-block text-sm font-medium link">
+        Tous les votes de la semaine
+      </Link>
+    </section>
+  )
+}
+
+/**
  * Accueil : ce que fait le site, en un écran, puis où aller ; ensuite ce qu'on
  * trouve derrière un vote, les règles qui tiennent la neutralité, les sources.
  * Le parcours par sujet vit sur /par-sujet.
@@ -310,6 +345,13 @@ export default function LandingPage() {
     queryKey: ['votes-finaux', 'dernier'],
     queryFn: () =>
       fetchJson<FinalVoteListResponse>('/api/votes-finaux?tous_groupes=true&limit=1&offset=0'),
+    enabled: !legacyEntry,
+    retry: false,
+  })
+  // Même clé que la page La semaine : y aller depuis l'accueil ne recharge rien.
+  const week = useQuery({
+    queryKey: ['week', 'current'],
+    queryFn: () => fetchJson<WeekResponse>('/api/semaine'),
     enabled: !legacyEntry,
     retry: false,
   })
@@ -343,17 +385,18 @@ export default function LandingPage() {
           </p>
           <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Link
-              to={ENTRY_PATH}
-              className={`group inline-flex min-h-[50px] items-center justify-center gap-1.5 rounded bg-accent px-5 text-[15px] font-semibold text-surface transition-colors hover:bg-accent-strong ${FOCUS_RING}`}
-            >
-              Voir les votes par sujet
-              <Arrow />
-            </Link>
-            <Link
               to="/semaine"
-              className={`inline-flex min-h-12 items-center justify-center rounded border-[1.5px] border-line bg-surface px-5 text-[15px] font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS_RING}`}
+              className={`group inline-flex min-h-[64px] items-center justify-between gap-3 rounded bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center ${FOCUS_RING}`}
             >
-              Votes de la semaine
+              <span className="flex flex-col text-left">
+                <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
+                {week.data && (
+                  <span className="text-[13px] leading-[18px] font-medium text-surface/80">
+                    {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
+                  </span>
+                )}
+              </span>
+              <Arrow />
             </Link>
             <Link
               to="/candidats-2027"
@@ -409,6 +452,8 @@ export default function LandingPage() {
             </Card>
           )}
         </section>
+
+        {week.data && <WeekSummary week={week.data} />}
       </div>
 
       {/* Sous 768 px : liste, puis une carte pour les règles et les refus. Au-delà :

@@ -4,37 +4,17 @@ import { Link, useParams } from 'react-router'
 import VotesTabs from '../components/VotesTabs'
 import VoteCard from '../components/VoteCard'
 import DayPills from '../components/week/DayPills'
+import WeekFigures from '../components/week/WeekFigures'
 import WeekTextCard from '../components/week/WeekTextCard'
 import { CoverageNote } from '../components/ScrutinList'
 import { InfoTip } from '../components/InfoTip'
 import { ErrorPanel, Loading } from '../components/ui'
 import { finalVoteCard, WHOLE_TEXT_KICKER } from '../components/voteCardData'
 import { fetchJson } from '../lib/fetchJson'
-import { formatDate } from '../types/scrutins'
+import { votesWord, weekSpan } from '../lib/week'
 import type { WeekResponse } from '../types/week'
 
 const METHOD_PATH = '/votes-par-groupe/methode'
-
-const votes = (count: number) => `${count.toLocaleString('fr-FR')} vote${count > 1 ? 's' : ''}`
-
-function addDays(iso: string, days: number): string {
-  const date = new Date(iso + 'T00:00:00Z')
-  date.setUTCDate(date.getUTCDate() + days)
-  return date.toISOString().slice(0, 10)
-}
-
-/** « Du 9 au 15 novembre 2026 », le mois et l'année du lundi omis quand ce sont les mêmes. */
-function weekSpan(monday: string): string {
-  const sunday = addDays(monday, 6)
-  const sameMonth = monday.slice(0, 7) === sunday.slice(0, 7)
-  const sameYear = monday.slice(0, 4) === sunday.slice(0, 4)
-  const first = new Date(monday + 'T00:00:00').toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    ...(sameMonth ? {} : { month: 'long' }),
-    ...(sameYear ? {} : { year: 'numeric' }),
-  })
-  return `Du ${first} au ${formatDate(sunday)}`
-}
 
 function Chevron({ direction }: { direction: 'left' | 'right' }) {
   return (
@@ -153,20 +133,7 @@ export default function WeekPage() {
         </div>
 
         <div className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-surface p-4 md:w-[520px] md:gap-3 md:px-6 md:py-5">
-          <div className="grid grid-cols-3 gap-2 md:gap-4">
-            {[
-              { value: totals.votes, label: `vote${totals.votes > 1 ? 's' : ''} public${totals.votes > 1 ? 's' : ''}`, tone: '' },
-              { value: totals.adopted, label: `adopté${totals.adopted > 1 ? 's' : ''}`, tone: 'text-yes' },
-              { value: totals.rejected, label: `rejeté${totals.rejected > 1 ? 's' : ''}`, tone: 'text-no' },
-            ].map((stat) => (
-              <div key={stat.label}>
-                <p className={`figure text-[30px] leading-[34px] tracking-normal md:text-[40px] md:leading-[44px] ${stat.tone}`}>
-                  {stat.value.toLocaleString('fr-FR')}
-                </p>
-                <p className="text-[12.5px] leading-[17px] text-ink-soft md:text-[13.5px]">{stat.label}</p>
-              </div>
-            ))}
-          </div>
+          <WeekFigures totals={totals} />
           {totals.others.length > 0 && (
             <p className="text-[12.5px] text-ink-soft">
               Dont {totals.others.map((other) => `${other.count} ${other.label}`).join(', ')}
@@ -231,7 +198,7 @@ export default function WeekPage() {
                 Tous les votes, texte par texte
               </h2>
               <p className="mt-0.5 text-[13.5px] leading-5 text-ink-soft">
-                {votes(shownVotes)} sur {shownTextCount} texte{shownTextCount > 1 ? 's' : ''}
+                {votesWord(shownVotes)} sur {shownTextCount} texte{shownTextCount > 1 ? 's' : ''}
                 {day ? ' ce jour' : ''}, dans l’ordre du premier vote de la semaine.
               </p>
             </div>
@@ -253,12 +220,12 @@ export default function WeekPage() {
       <div className="grid gap-2.5 md:grid-cols-2 md:gap-4">
         {data.previous && previousLabel && (
           <FooterLink to={`/semaine/${data.previous.monday}`} caption="Semaine précédente">
-            {previousLabel} · {votes(data.previous.votes)}
+            {previousLabel} · {votesWord(data.previous.votes)}
           </FooterLink>
         )}
         <FooterLink to="/scrutins" caption="Sans découpage par semaine">
           Tous les votes de la législature
-          {legislature.data && ` · ${votes(legislature.data.total)}`}
+          {legislature.data && ` · ${votesWord(legislature.data.total)}`}
         </FooterLink>
       </div>
       <CoverageNote note={data.coverage_note} />
