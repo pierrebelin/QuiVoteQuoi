@@ -19,27 +19,37 @@ const EMPTY: Record<Exclude<WeekDayState, 'voted'>, { mark: string; caption: str
  * vote n'est pas cliquable. Une pastille active se désactive en la reprenant :
  * sans jour choisi, la semaine entière est montrée. Sans `onSelect`, les
  * pastilles ne filtrent rien et ne font que montrer la semaine (accueil).
+ * `compact` garde le format téléphone à toutes les largeurs (colonne étroite).
  */
 export default function DayPills({
   days,
   selected,
   onSelect,
+  compact = false,
 }: {
   days: WeekDay[]
   selected?: string | null
   onSelect?: (date: string | null) => void
+  compact?: boolean
 }) {
   const list = (
-    <ul className="flex gap-[5px] md:gap-2" aria-label={onSelect ? 'Filtrer par jour' : 'Votes par jour'}>
+    <ul className={`flex gap-[5px] ${compact ? '' : 'md:gap-2'}`} aria-label={onSelect ? 'Filtrer par jour' : 'Votes par jour'}>
       {days.map((day) => {
         const active = day.date === selected
         const enabled = day.state === 'voted'
         const empty = day.state === 'voted' ? null : EMPTY[day.state]
         const label = `${weekday(day.date, 'long')} : ${empty ? empty.caption : `${day.votes} vote${day.votes > 1 ? 's' : ''}`}`
-        const pill = `flex min-h-[52px] w-full flex-col items-center justify-center rounded-[14px] px-0.5 py-1 whitespace-nowrap md:min-h-14 md:items-start md:gap-0.5 md:px-4 md:py-2.5 ${
+        const pill = `flex min-h-[52px] w-full flex-col items-center justify-center rounded-[14px] px-0.5 py-1 whitespace-nowrap ${
+          compact ? '' : 'md:min-h-14 md:items-start md:gap-0.5 md:px-4 md:py-2.5'
+        } ${
           active ? 'bg-ink text-surface' : 'bg-surface text-ink ring-1 ring-line'
         }`
-        const content = (
+        const content = compact ? (
+          <>
+            <span className="text-xs opacity-85">{weekday(day.date, 'short')}</span>
+            <span className="figure text-[15px] leading-5">{empty ? empty.mark : day.votes}</span>
+          </>
+        ) : (
           <>
             <span className="text-xs opacity-85 md:hidden">{weekday(day.date, 'short')}</span>
             <span className="hidden text-sm md:inline">{weekday(day.date, 'long')}</span>

@@ -298,28 +298,30 @@ const DESKTOP_CARD = 'md:rounded md:border md:border-line md:bg-surface md:p-5 m
 /**
  * La semaine en cours, résumée : ses nombres et ses jours, sans sélection. Une
  * semaine en cours encore vide laisse la place à la dernière semaine votée,
- * comme sur la page La semaine ; le titre le dit.
+ * comme sur la page La semaine ; le titre le dit. À partir de 1280 px, la carte
+ * monte à droite de l'accroche, à côté du bouton qui mène déjà à la semaine :
+ * son propre lien y disparaît.
  */
 function WeekSummary({ week }: { week: WeekResponse }) {
   const texts = week.texts_count
   return (
-    <section aria-labelledby="semaine" className="space-y-2.5">
+    <section aria-labelledby="semaine" className="space-y-2.5 xl:col-start-2 xl:row-start-1 xl:self-center">
       <div className="flex items-baseline justify-between gap-3">
         <h3 id="semaine" className="heading-4">
           {week.is_current ? 'Cette semaine' : 'Dernière semaine de votes'}
         </h3>
         <p className="text-[13px] text-ink-soft md:text-sm">{weekSpan(week.monday)}</p>
       </div>
-      <div className="flex flex-col gap-3 rounded border border-line bg-surface p-4 md:grid md:grid-cols-[minmax(0,420px)_minmax(0,1fr)] md:items-center md:gap-x-10 md:px-6 md:py-5">
+      <div className="flex flex-col gap-3 rounded border border-line bg-surface p-4 md:grid md:grid-cols-[minmax(0,420px)_minmax(0,1fr)] md:items-center md:gap-x-10 md:px-6 md:py-5 xl:flex xl:items-stretch xl:p-5">
         <WeekFigures totals={week.totals} />
-        <DayPills days={week.days} />
+        <DayPills days={week.days} compact />
         <p className="border-t border-line pt-2.5 text-[12.5px] leading-[18px] text-ink-faint md:col-span-2 md:pt-3 md:text-[13px]">
           Sur {texts} texte{texts > 1 ? 's' : ''}
           {week.last_published &&
             ` · dernier vote publié le ${new Date(week.last_published + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
         </p>
       </div>
-      <Link to="/semaine" className="inline-block text-sm font-medium link">
+      <Link to="/semaine" className="inline-block text-sm font-medium link xl:hidden">
         Tous les votes de la semaine
       </Link>
     </section>
@@ -368,8 +370,8 @@ export default function LandingPage() {
 
   return (
     <div className="space-y-8 md:space-y-12">
-      <div className="grid items-start gap-8 md:gap-14">
-        <section aria-labelledby="promesse" className="rise-in md:pt-6">
+      <div className="grid items-start gap-8 md:gap-14 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <section aria-labelledby="promesse" className="rise-in md:pt-6 xl:col-start-1 xl:row-start-1">
           <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
             Assemblée nationale
           </p>
@@ -409,7 +411,7 @@ export default function LandingPage() {
           <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
         </section>
 
-        <section aria-labelledby="dernier-vote" className="space-y-2.5">
+        <section aria-labelledby="dernier-vote" className="space-y-2.5 xl:col-span-2">
           <h3 id="dernier-vote" className="heading-4">
             Dernier vote sur l’ensemble d’un texte
           </h3>
