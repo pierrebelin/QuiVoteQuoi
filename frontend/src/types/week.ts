@@ -1,3 +1,4 @@
+import type { FinalVoteDto, GroupDto } from './finalVotes'
 import type { DossierStatusDto, ScrutinSummaryDto } from './scrutins'
 import type { AssignedFamilyDto } from './themes'
 
@@ -19,49 +20,6 @@ export interface WeekDay {
   date: string
   votes: number
   state: WeekDayState
-}
-
-export interface WeekGroupTally {
-  votes_for: number
-  votes_against: number
-  abstentions: number
-  not_voting: number
-  voluntary_not_voting: number
-}
-
-export interface WeekGroupStance {
-  group_uid: string
-  abbrev: string
-  label: string
-  color: string | null
-  member_count: number | null
-  majority: string | null
-  majority_label: string | null
-  tally: WeekGroupTally
-}
-
-export interface WeekFamily {
-  family: string
-  opened_on: string
-}
-
-export interface WeekFinalVote {
-  scrutin_uid: string
-  number: string
-  date: string
-  text_label: string
-  outcome_code: string
-  outcome_label: string
-  families: WeekFamily[]
-  groups: WeekGroupStance[]
-}
-
-export interface WeekGroup {
-  uid: string
-  abbrev: string
-  label: string
-  color: string | null
-  final_vote_count: number
 }
 
 export interface WeekLatestFinal {
@@ -96,8 +54,9 @@ export interface WeekResponse {
   totals: WeekTotals
   texts_count: number
   days: WeekDay[]
-  final_votes: WeekFinalVote[]
-  groups: WeekGroup[]
+  /** Votes sur l'ensemble, au format de l'accueil (`/api/votes-finaux`). */
+  final_votes: FinalVoteDto[]
+  groups: GroupDto[]
   texts: WeekText[]
   previous: { monday: string; votes: number } | null
   next: string | null

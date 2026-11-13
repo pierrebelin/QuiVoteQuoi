@@ -15,7 +15,7 @@ import type { VoteCardProps } from './VoteCard'
 type CardData = Omit<VoteCardProps, 'size' | 'bare'>
 
 /** Accord de l'issue avec le texte voté : « la proposition » / « le projet ». */
-function agreed(adopted: boolean, label: string): string {
+export function agreed(adopted: boolean, label: string): string {
   const feminine = /^(proposition|motion|résolution)\b/i.test(label.trim())
   return `${adopted ? 'Adopté' : 'Rejeté'}${feminine ? 'e' : ''}`
 }

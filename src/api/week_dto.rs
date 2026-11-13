@@ -2,11 +2,9 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use crate::api::final_vote_dto::{GroupDto, StanceDto};
+use crate::api::final_vote_dto::{FinalVoteDto, GroupDto};
 use crate::api::scrutin_dto::{DossierStatusDto, ScrutinSummaryDto, SHOW_OF_HANDS_NOTE};
 use crate::api::theme_dto::AssignedFamilyDto;
-use crate::application::ports::theme_repository::AssignedFamily;
-use crate::application::use_cases::browse_final_votes::FinalVoteEntry;
 use crate::application::use_cases::get_week_of_votes::{
     CardTally, OutcomeCount, TextCard, WeekDay, WeekOfVotes,
 };
@@ -39,18 +37,6 @@ pub struct WeekDayDto {
     pub state: &'static str,
 }
 
-#[derive(Debug, Serialize)]
-pub struct WeekFinalVoteDto {
-    pub scrutin_uid: String,
-    pub number: String,
-    pub date: NaiveDate,
-    pub text_label: String,
-    pub outcome_code: String,
-    pub outcome_label: String,
-    pub families: Vec<AssignedFamilyDto>,
-    pub groups: Vec<StanceDto>,
-}
-
 /// Semaine precedente: son lundi et son nombre de votes (RM-15).
 #[derive(Debug, Serialize)]
 pub struct PreviousWeekDto {
@@ -68,7 +54,7 @@ pub struct WeekResponse {
     pub totals: OutcomeCountDto,
     pub texts_count: usize,
     pub days: Vec<WeekDayDto>,
-    pub final_votes: Vec<WeekFinalVoteDto>,
+    pub final_votes: Vec<FinalVoteDto>,
     pub groups: Vec<GroupDto>,
     pub texts: Vec<WeekTextDto>,
     pub previous: Option<PreviousWeekDto>,
@@ -171,9 +157,10 @@ impl From<WeekOfVotes> for WeekResponse {
             final_votes: view
                 .final_votes
                 .into_iter()
-                .map(|entry| {
+                .map(|mut entry| {
                     let uid = entry.vote.scrutin_uid().to_string();
-                    WeekFinalVoteDto::from((entry, families.remove(&uid).unwrap_or_default()))
+                    entry.families = families.remove(&uid).unwrap_or_default();
+                    FinalVoteDto::from(entry)
                 })
                 .collect(),
             groups: view.groups.into_iter().map(GroupDto::from).collect(),
@@ -216,23 +203,6 @@ impl From<WeekDay> for WeekDayDto {
             date: day.date,
             votes,
             state: day.state.as_str(),
-        }
-    }
-}
-
-/// Un vote sur l'ensemble, avec la position de chaque groupe et les familles de son scrutin.
-impl From<(FinalVoteEntry, Vec<AssignedFamily>)> for WeekFinalVoteDto {
-    fn from((entry, families): (FinalVoteEntry, Vec<AssignedFamily>)) -> Self {
-        let vote = entry.vote;
-        Self {
-            scrutin_uid: vote.scrutin_uid().to_string(),
-            number: vote.number().to_string(),
-            date: vote.date(),
-            text_label: vote.text_label().to_string(),
-            outcome_code: vote.outcome().code().to_string(),
-            outcome_label: vote.outcome().label().to_string(),
-            families: families.into_iter().map(AssignedFamilyDto::from).collect(),
-            groups: vote.stances().iter().map(StanceDto::from).collect(),
         }
     }
 }
@@ -439,11 +409,14 @@ mod tests {
         assert_eq!(vote["scrutin_uid"], "VTANR5L17V12");
         assert_eq!(vote["number"], "12");
         assert_eq!(vote["outcome_label"], "adopt\u{00e9}");
-        assert_eq!(vote["groups"].as_array().unwrap().len(), 2);
-        assert_eq!(vote["groups"][0]["abbrev"], "RN");
-        assert_eq!(vote["groups"][0]["majority"], "for");
-        assert_eq!(vote["groups"][0]["tally"]["votes_for"], 100);
-        assert_eq!(vote["groups"][1]["majority"], "against");
+        assert_eq!(vote["adopted"], true);
+        assert_eq!(vote["ballot_type_label"], "scrutin public solennel");
+        assert_eq!(vote["synthesis"]["votes_for"], 0);
+        assert_eq!(vote["stances"].as_array().unwrap().len(), 2);
+        assert_eq!(vote["stances"][0]["abbrev"], "RN");
+        assert_eq!(vote["stances"][0]["majority"], "for");
+        assert_eq!(vote["stances"][0]["tally"]["votes_for"], 100);
+        assert_eq!(vote["stances"][1]["majority"], "against");
         assert_eq!(json["groups"].as_array().unwrap().len(), 1);
         assert_eq!(json["groups"][0]["abbrev"], "RN");
         assert_eq!(json["groups"][0]["final_vote_count"], 7);

@@ -440,7 +440,8 @@ export default function ScrutinListPage() {
 
   return (
     <>
-      <div className="mb-5">
+      <VotesTabs current="liste" />
+      <div className="mt-[22px] mb-5">
         {/* Le compteur reste sur la ligne du titre dans les deux vues, quelle que soit la longueur de son libellé. */}
         <div className="flex items-end justify-between gap-4">
           <h1 className="heading-2">
@@ -466,7 +467,6 @@ export default function ScrutinListPage() {
         <p className="mt-1 hidden max-w-2xl text-ink-soft md:block">{lede}</p>
       </div>
 
-      <VotesTabs current="liste" />
       <div className="mb-4">
         <ViewToggle view={view} onChange={changeView} />
       </div>
