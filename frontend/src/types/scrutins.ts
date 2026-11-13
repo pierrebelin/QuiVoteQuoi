@@ -235,6 +235,24 @@ export const explanationsStateLabels: Record<Exclude<ExplanationsState, 'explain
   no_explanation: "Aucune explication de vote n'a été prononcée avant ce vote.",
 }
 
+/** La source publie « avant_JO » pour la version provisoire du compte rendu. */
+const PROVISIONAL_REPORT = 'avant_JO'
+
+/**
+ * Libellé de l'état sans explication. Un compte rendu provisoire est publié
+ * par morceaux : un vote qu'on n'y retrouve pas est d'abord un vote que le
+ * compte rendu n'atteint pas encore, pas un défaut de rattachement.
+ */
+export function explanationsStateLabel(
+  state: Exclude<ExplanationsState, 'explained'>,
+  reportVersion: string | null,
+): string {
+  if (state === 'not_attached' && reportVersion === PROVISIONAL_REPORT) {
+    return "Le compte rendu de cette séance est publié par morceaux et ne va pas encore jusqu'à ce vote. Les explications éventuelles s'afficheront quand l'Assemblée publiera la suite."
+  }
+  return explanationsStateLabels[state]
+}
+
 export const positionLabels: Record<VoteDto['position'], string> = {
   for: 'Pour',
   against: 'Contre',

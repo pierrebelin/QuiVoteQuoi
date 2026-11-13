@@ -40,7 +40,7 @@ import type {
   VoteDto,
 } from '../types/scrutins'
 import {
-  explanationsStateLabels,
+  explanationsStateLabel,
   leadingPosition,
   positionClasses,
   positionLabels,
@@ -367,7 +367,7 @@ function ExplanationsAbsent({ explanations }: { explanations: Explanations }) {
         Explications de vote
       </h3>
       <p className="text-sm text-ink-soft">
-        {explanationsStateLabels[explanations.state]}
+        {explanationsStateLabel(explanations.state, explanations.report_version)}
         {explanations.source_url && (
           <>
             {' '}
