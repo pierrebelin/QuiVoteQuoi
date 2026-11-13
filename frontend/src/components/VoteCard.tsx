@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react'
+import { useCallback, useState, type CSSProperties, type ReactNode } from 'react'
 import { Link } from 'react-router'
 import { GROUP_LOGOS } from '../content/logos'
 import {
@@ -202,6 +202,9 @@ function GroupsByPosition({
   })
   const followedGroups = groups.filter((group) => followed.includes(group.abbrev))
   const focus = followedGroups.length === 1 ? followedGroups[0] : null
+  // Rang de chaque logo dans l'ordre de lecture, toutes rangées confondues :
+  // il règle son retard d'arrivée (`.tiles-in`, index.css).
+  let tile = 0
 
   return (
     <div className="space-y-2.5">
@@ -229,13 +232,13 @@ function GroupsByPosition({
                   {row.label}
                 </span>
               </div>
-              <ul className="flex flex-wrap gap-1.5" aria-label={row.label}>
+              <ul className="tiles-in flex flex-wrap gap-1.5" aria-label={row.label}>
                 {members.map(({ group, stance }) => {
                   const on = followed.includes(group.abbrev)
                   const isOpen = opened?.group.uid === group.uid
                   const description = stanceDescription(group, stance)
                   return (
-                    <li key={group.uid}>
+                    <li key={group.uid} style={{ '--tile': tile++ } as CSSProperties}>
                       <button
                         type="button"
                         aria-label={description}
@@ -246,7 +249,7 @@ function GroupsByPosition({
                           setOpened(isOpen ? null : { group, anchor: event.currentTarget })
                         }
                         // Le logo reste à 30 px de haut, la zone de toucher atteint 44 px.
-                        className={`relative flex h-[30px] w-11 items-center justify-center rounded bg-white p-[3px] ring-1 ring-black/10 ring-inset transition-opacity after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${FOCUS_RING} ${
+                        className={`relative flex h-[30px] w-11 items-center justify-center rounded bg-white p-[3px] ring-1 ring-black/10 ring-inset transition-[opacity,transform] motion-safe:hover:-translate-y-0.5 after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${FOCUS_RING} ${
                           on ? 'ring-2 ring-ink' : ''
                         } ${isOpen ? 'outline-2 outline-offset-1 outline-accent' : ''} ${
                           dimOthers && !on && !isOpen ? 'opacity-35 hover:opacity-80' : ''

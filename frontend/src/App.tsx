@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { Outlet, Link, useLocation } from 'react-router'
 import Logo from './components/Logo'
 import MobileNav from './components/MobileNav'
@@ -15,8 +16,35 @@ import { GITHUB_REPOSITORY_URL } from './lib/repository'
  *
  * En dessous, la navigation est la barre basse de `MobileNav`.
  */
+/**
+ * Changement de page : le contenu monte de quelques pixels en apparaissant.
+ * Le premier rendu n'est pas animé (rien ne change), ni les visites qui ont
+ * demandé moins d'animations. Le contenu n'est pas remonté : l'état des
+ * pages (filtres, tiroirs) n'est pas touché.
+ */
+function usePageEntrance(pathname: string) {
+  const ref = useRef<HTMLElement>(null)
+  // Chemin déjà affiché : l'effet relancé sans navigation (StrictMode, en
+  // développement) ne rejoue pas l'entrée.
+  const affiche = useRef(pathname)
+  useEffect(() => {
+    if (affiche.current === pathname) return
+    affiche.current = pathname
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    ref.current?.animate(
+      [
+        { opacity: 0, transform: 'translateY(8px)' },
+        { opacity: 1, transform: 'none' },
+      ],
+      { duration: 280, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+    )
+  }, [pathname])
+  return ref
+}
+
 export default function App() {
   const { pathname } = useLocation()
+  const main = usePageEntrance(pathname)
   return (
     <div className="flex min-h-screen flex-col bg-canvas pb-[var(--mobile-nav-h)] text-ink">
       {/*
@@ -72,7 +100,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
+      <main ref={main} className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
         <Outlet />
       </main>
 

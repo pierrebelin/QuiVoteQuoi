@@ -170,7 +170,7 @@ function BreakdownPopover({
             aria-label={`Répartition des votes : ${group.label}`}
             initialFocus={closeButtonRef}
             finalFocus={false}
-            className="w-80 rounded border border-line-strong bg-surface px-4 py-3.5 text-ink shadow-[0_12px_34px_rgb(0_0_0/0.3)] outline-none"
+            className="w-80 origin-[var(--transform-origin)] rounded border border-line-strong bg-surface px-4 py-3.5 text-ink shadow-[0_12px_34px_rgb(0_0_0/0.3)] outline-none motion-safe:transition-[opacity,scale] motion-safe:duration-150 motion-safe:ease-out data-[ending-style]:scale-95 data-[ending-style]:opacity-0 data-[starting-style]:scale-95 data-[starting-style]:opacity-0"
           >
             <Popover.Arrow
               className={(state) =>

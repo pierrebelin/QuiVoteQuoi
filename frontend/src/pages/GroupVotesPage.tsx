@@ -60,7 +60,7 @@ function stanceGridCols(count: number) {
 /** Barre des trois parts. Elle rend visible ce que le pourcentage résume. */
 function ShareBar({ share }: { share: NonNullable<StanceDto['share']> }) {
   return (
-    <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-surface-soft">
+    <div className="bar-grow flex h-1.5 w-full overflow-hidden rounded-full bg-surface-soft">
       <div className="bg-yes-bar" style={{ width: `${share.for_percent}%` }} />
       <div className="bg-no-bar" style={{ width: `${share.against_percent}%` }} />
       <div className="bg-abstain-bar" style={{ width: `${share.abstention_percent}%` }} />

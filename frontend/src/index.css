@@ -148,6 +148,54 @@
 }
 
 /*
+ * Effets d'arrivée, dans le prolongement de l'hémicycle. Tous sont réservés
+ * aux visiteurs qui n'ont pas demandé moins d'animations : sans eux, chaque
+ * élément est à son état final dès le premier rendu.
+ *
+ * - `.bar-grow` : une barre de répartition se remplit de gauche à droite, au
+ *   rythme des nombres qui défilent.
+ * - `.tiles-in` : les logos des groupes arrivent l'un après l'autre, dans
+ *   l'ordre de lecture ; `--tile` (posé par `VoteCard.tsx`) est leur rang.
+ * - `details` : le contenu déplié glisse en place au lieu d'apparaître d'un
+ *   bloc.
+ */
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.85);
+  }
+}
+
+@keyframes unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bar-grow {
+    transform-origin: left center;
+    animation: bar-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .tiles-in > li {
+    animation: tile-in 0.36s cubic-bezier(0.2, 0.9, 0.25, 1.2) both;
+    animation-delay: calc(250ms + min(var(--tile, 0), 16) * 35ms);
+  }
+
+  details[open] > summary ~ * {
+    animation: unfold 0.22s ease-out;
+  }
+}
+
+/*
  * Hauteur que la barre de navigation basse retire au bas de l'écran : zéro dès
  * `md`, où la barre haute reprend la main. Ce qui doit rester visible au-dessus
  * d'elle (pied de page, barre d'action collante) s'en sert comme décalage.

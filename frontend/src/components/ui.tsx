@@ -271,7 +271,7 @@ export function VoteBar({
   return (
     <div className="w-full rounded-full bg-surface-soft">
       <div
-        className={`flex overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-1.5'}`}
+        className={`bar-grow flex overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-1.5'}`}
         style={{ width: `${scale * 100}%` }}
         role="img"
         title={label}

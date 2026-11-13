@@ -74,7 +74,7 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 /** Barre des trois parts. Elle rend visible ce que le pourcentage résume. */
 function RateBar({ rates }: { rates: ParticipationRatesDto }) {
   return (
-    <div className="flex h-2 w-full overflow-hidden rounded-full bg-surface-soft">
+    <div className="bar-grow flex h-2 w-full overflow-hidden rounded-full bg-surface-soft">
       <div
         className={RATE_BARS.expressed}
         style={{ width: `${rates.expressed_per_mille / 10}%` }}
