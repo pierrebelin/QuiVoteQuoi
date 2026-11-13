@@ -17,7 +17,6 @@ import {
   PARAM_THEMES,
 } from '../lib/entryFlow'
 import { fetchJson } from '../lib/fetchJson'
-import { useLargeScreen } from '../lib/useLargeScreen'
 import type { FinalVoteListResponse } from '../types/finalVotes'
 import type { ScrutinListResponse } from '../types/scrutins'
 
@@ -298,9 +297,6 @@ export default function LandingPage() {
     retry: false,
   })
 
-  // Les sièges ne se chargent qu'à partir de 1024 px, où l'hémicycle a sa place.
-  const large = useLargeScreen()
-
   if (legacyEntry) return <Navigate to={`${ENTRY_PATH}${location.search}`} replace />
 
   const vote = latest.data?.items[0]
@@ -358,13 +354,11 @@ export default function LandingPage() {
               wide
               {...finalVoteCard(vote, groups)}
               figure={
-                large ? (
-                  <LatestVoteHemicycle
-                    scrutinUid={vote.scrutin_uid}
-                    tally={vote.synthesis}
-                    labelledBy="dernier-vote"
-                  />
-                ) : undefined
+                <LatestVoteHemicycle
+                  scrutinUid={vote.scrutin_uid}
+                  tally={vote.synthesis}
+                  labelledBy="dernier-vote"
+                />
               }
             />
           ) : (

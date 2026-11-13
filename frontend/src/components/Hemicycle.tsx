@@ -74,6 +74,18 @@ function Infobulle({ place }: { place: Place }) {
   )
 }
 
+/** Durée du remplissage, du premier siège à gauche au dernier à droite. */
+const REMPLISSAGE_MS = 1000
+
+/**
+ * Retard d'apparition d'un siège : proportionnel à son angle depuis le bas
+ * gauche de l'hémicycle, pour un remplissage de gauche à droite.
+ */
+function retardRemplissage({ x, y }: { x: number; y: number }): number {
+  const angle = Math.atan2(PLAN_VUE.hauteur - y, x - PLAN_VUE.largeur / 2)
+  return Math.round((1 - angle / Math.PI) * REMPLISSAGE_MS)
+}
+
 /**
  * Les sièges de l'hémicycle, chacun coloré par la position du député qui
  * l'occupe.
@@ -161,7 +173,7 @@ export default function Hemicycle({
     <div className="relative">
       <svg
         viewBox={`0 0 ${PLAN_VUE.largeur} ${PLAN_VUE.hauteur}`}
-        className="block w-full"
+        className="seats-in block w-full"
         role="img"
         aria-labelledby={labelledBy}
         onPointerMove={viser}
@@ -175,6 +187,7 @@ export default function Hemicycle({
                 cx={place.x}
                 cy={place.y}
                 r={RAYON_SIEGE}
+                style={{ animationDelay: `${retardRemplissage(place)}ms` }}
               />
             ))}
           </g>

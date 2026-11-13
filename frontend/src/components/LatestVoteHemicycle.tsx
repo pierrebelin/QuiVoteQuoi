@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import CountUp from './CountUp'
 import Hemicycle from './Hemicycle'
 import { PLAN_VUE } from './planHemicycle'
 import { siegesDesGroupes } from './sieges'
@@ -13,7 +14,7 @@ const COUNTS = [
 ] as const
 
 /**
- * Hémicycle du dernier vote sur l'ensemble, pour la carte large de l'accueil :
+ * Hémicycle du dernier vote sur l'ensemble, pour la carte de l'accueil :
  * les sièges du scrutin, puis le décompte de toute l'Assemblée en grands
  * chiffres. Les nombres viennent du décompte publié, jamais des sièges
  * dessinés : un siège sans position localisable ne doit rien retrancher.
@@ -58,7 +59,7 @@ export default function LatestVoteHemicycle({
             <span
               className={`block font-heading text-[40px] leading-none font-[560] tracking-[-0.04em] ${count.className}`}
             >
-              {tally[count.key]}
+              <CountUp value={tally[count.key]} />
             </span>
             <span className="mt-1 block text-[13px] leading-[18px] text-ink-soft">
               {count.label}

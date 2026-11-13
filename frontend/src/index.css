@@ -124,6 +124,30 @@
 }
 
 /*
+ * Hémicycle (identité C1, chantier 4) : les sièges apparaissent de gauche à
+ * droite, chacun avec le retard que `Hemicycle.tsx` pose selon son angle. Le
+ * cercle de survol, hors des groupes, n'est pas animé.
+ */
+@keyframes seat-in {
+  from {
+    opacity: 0;
+    transform: scale(0.15);
+  }
+}
+
+.seats-in g > circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: seat-in 0.42s cubic-bezier(0.2, 0.9, 0.25, 1.25) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seats-in g > circle {
+    animation: none;
+  }
+}
+
+/*
  * Hauteur que la barre de navigation basse retire au bas de l'écran : zéro dès
  * `md`, où la barre haute reprend la main. Ce qui doit rester visible au-dessus
  * d'elle (pied de page, barre d'action collante) s'en sert comme décalage.

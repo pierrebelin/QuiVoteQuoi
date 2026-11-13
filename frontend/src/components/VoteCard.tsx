@@ -66,8 +66,9 @@ export interface VoteCardProps {
   /** Carte seule en pleine largeur : à partir de 1024 px, l'intitulé à gauche,
    * les groupes et le décompte à droite. */
   wide?: boolean
-  /** Carte large seulement, à partir de 1024 px : l'intitulé passe sur toute la
-   * largeur, puis cette figure (l'hémicycle de l'accueil) à gauche des groupes. */
+  /** Carte large seulement : cette figure (l'hémicycle de l'accueil) passe sous
+   * l'intitulé, au-dessus des groupes ; à partir de 1024 px, l'intitulé prend
+   * toute la largeur et la figure se place à gauche des groupes. */
   figure?: ReactNode
 }
 
@@ -358,7 +359,7 @@ export default function VoteCard({
 
       {withFigure ? (
         <div className="lg:mt-[22px] lg:grid lg:grid-cols-2 lg:items-center lg:gap-x-12 lg:border-t lg:border-line lg:pt-[22px]">
-          <div className="hidden lg:block">{figure}</div>
+          <div className="mt-2 mb-[18px] lg:my-0">{figure}</div>
           {results}
         </div>
       ) : (

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { REJECTION_NOT_FINAL } from '../lib/dossierStatus'
 import { FamilyIllustration } from '../components/FamilyIllustration'
+import CountUp from '../components/CountUp'
 import GuideLink from '../components/GuideLink'
 import Hemicycle from '../components/Hemicycle'
 import { PoliticalLogo } from '../components/PoliticalLogo'
@@ -782,7 +783,7 @@ export default function ScrutinDetailPage() {
               ).map(([label, value, color]) => (
                 <div key={label}>
                   <p className={`figure text-[48px] ${color}`}>
-                    {value}
+                    <CountUp value={value} />
                   </p>
                   <p className="mt-1 text-xs text-ink-faint">{label}</p>
                 </div>
