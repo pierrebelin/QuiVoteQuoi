@@ -411,7 +411,7 @@ mod tests {
 
     /// Lignes de la plus recente a la plus ancienne, comme la liste publiee.
     fn repository(mut rows: Vec<ScrutinSummary>) -> FakeScrutins {
-        rows.sort_by(|a, b| b.date.cmp(&a.date));
+        rows.sort_by_key(|b| std::cmp::Reverse(b.date));
         FakeScrutins {
             rows,
             total: 0,
