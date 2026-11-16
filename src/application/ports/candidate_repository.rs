@@ -58,6 +58,18 @@ pub struct ChangedSourceRecord {
     pub changed_at: DateTime<Utc>,
     /// Candidatures qui s'appuient sur cette source, pour orienter la revue.
     pub candidate_names: Vec<String>,
+    /// Ce qui a changé, quand la lecture précédente avait gardé son texte.
+    pub excerpt: Option<ChangeExcerpt>,
+}
+
+/// Fragments de texte ajoutés et retirés lors d'un changement de source.
+/// Les listes sont tronquées ; les totaux comptent tous les fragments.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangeExcerpt {
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+    pub added_total: u32,
+    pub removed_total: u32,
 }
 
 #[async_trait]

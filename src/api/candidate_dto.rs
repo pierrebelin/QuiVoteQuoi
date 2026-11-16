@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::application::ports::candidate_repository::{
     CandidateParliamentaryGroupRecord, CandidateProgramProposalRecord, CandidateRecord,
-    ChangedSourceRecord, PoliticalOrganizationRecord,
+    ChangeExcerpt, ChangedSourceRecord, PoliticalOrganizationRecord,
 };
 use crate::application::use_cases::browse_candidates::{
     BrowseCandidatesCommand, CandidateComparisonView, MAX_COMPARED_CANDIDATES,
@@ -189,6 +189,28 @@ pub struct ChangedSourceDto {
     pub source_url: String,
     pub changed_at: chrono::DateTime<chrono::Utc>,
     pub candidates: Vec<String>,
+    /// `null` quand la lecture précédente n'avait pas gardé son texte.
+    pub excerpt: Option<ChangeExcerptDto>,
+}
+
+/// Fragments ajoutés et retirés, tronqués ; les totaux comptent tout.
+#[derive(Debug, Serialize)]
+pub struct ChangeExcerptDto {
+    pub added: Vec<String>,
+    pub removed: Vec<String>,
+    pub added_total: u32,
+    pub removed_total: u32,
+}
+
+impl From<ChangeExcerpt> for ChangeExcerptDto {
+    fn from(excerpt: ChangeExcerpt) -> Self {
+        Self {
+            added: excerpt.added,
+            removed: excerpt.removed,
+            added_total: excerpt.added_total,
+            removed_total: excerpt.removed_total,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -205,6 +227,7 @@ impl From<Vec<ChangedSourceRecord>> for ChangedSourcesResponse {
                     source_url: record.source_url,
                     changed_at: record.changed_at,
                     candidates: record.candidate_names,
+                    excerpt: record.excerpt.map(Into::into),
                 })
                 .collect(),
         }
