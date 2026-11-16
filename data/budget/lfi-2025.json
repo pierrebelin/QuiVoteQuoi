@@ -1,0 +1,40 @@
+{
+  "year": 2025,
+  "stage": "lfi",
+  "law": {
+    "number": "2025-127",
+    "date": "2025-02-14",
+    "credits_article": 139,
+    "adoption_procedure": "article_49_3",
+    "legifrance_url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000051168007"
+  },
+  "source": {
+    "file": "lfi-2025-credits-ae-cp.xls",
+    "title": "Crédits AE et CP votés",
+    "url": "https://www.budget.gouv.fr/documentation/file-download/28970",
+    "published_on": "2025-02-17",
+    "downloaded_on": "2026-11-16",
+    "sha256": "eaf85b6b4a0a34e5ebee41dc5669faf5701618d29fc9b5c6545e91ff10cfb264"
+  },
+  "nomenclature": {
+    "file": "lfi-2025-nomenclature-destination.xls",
+    "title": "Nomenclature par destination",
+    "url": "https://www.budget.gouv.fr/documentation/file-download/28964",
+    "published_on": "2025-02-17",
+    "sha256": "594e031da36a50e98811a6cac0027df3d3f5a0e1caa59d471b52bf24f828d9e4",
+    "absent_from_law": [369]
+  },
+  "expected": {
+    "general_budget_cp_euros": 582396983244,
+    "missions": 34,
+    "programmes": 140,
+    "off_budget": [
+      {
+        "mission": "Avances à l'audiovisuel public",
+        "kind": "concours_financiers",
+        "programmes": 7,
+        "cp_euros": 3949162945
+      }
+    ]
+  }
+}

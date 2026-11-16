@@ -61,6 +61,12 @@ pub struct ManifestNomenclature {
     pub url: String,
     pub published_on: NaiveDate,
     pub sha256: String,
+    /// Programmes de la nomenclature que l'état B de la loi ne cite pas
+    /// (programme clos gardé par Chorus, comme le 369 en 2025) : l'import les
+    /// écarte au lieu de les montrer à 0 €. Relevés dans la loi, jamais déduits
+    /// des fichiers.
+    #[serde(default)]
+    pub absent_from_law: Vec<u16>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
