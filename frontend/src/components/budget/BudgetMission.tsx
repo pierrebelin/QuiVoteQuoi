@@ -1,6 +1,7 @@
 import { Link } from 'react-router'
 import type { BudgetMissionDto } from '../../types/budget'
 import {
+  amountParts,
   barWidth,
   formatAmount,
   formatMissionShare,
@@ -8,6 +9,8 @@ import {
   accountLabel,
 } from '../../lib/budgetFormat'
 import { Icon } from '../icons'
+import { sliceColor, toSlices } from '../../lib/budgetSlices'
+import { Donut, Swatch } from './BudgetDonut'
 
 /*
  * Pièces de la page budget : la barre, la ligne d'une mission et son détail
@@ -15,10 +18,14 @@ import { Icon } from '../icons'
  * dans le panneau de droite à 1280 px.
  */
 
-export function AmountBar({ width }: { width: string }) {
+/** Barre de montant ; `color` reprend la couleur d'une part d'anneau, l'accent sinon. */
+export function AmountBar({ width, color }: { width: string; color?: string }) {
   return (
     <span aria-hidden="true" className="block h-2 overflow-hidden rounded-full bg-surface-soft">
-      <span className="block h-2 rounded-full bg-accent" style={{ width }} />
+      <span
+        className="block h-2 rounded-full bg-accent"
+        style={color ? { width, backgroundColor: color } : { width }}
+      />
     </span>
   )
 }
@@ -110,16 +117,48 @@ export function OffBudgetRow({
   )
 }
 
-/** Programmes de la mission et lien vers son sujet. */
-export function MissionDetail({ mission }: { mission: BudgetMissionDto }) {
+/**
+ * Programmes de la mission et lien vers son sujet. L'anneau nomme les plus
+ * gros programmes ; chaque ligne de la liste prend la couleur de sa part.
+ */
+export function MissionDetail({ mission, year }: { mission: BudgetMissionDto; year: number }) {
   const largest = Math.max(0, ...mission.programmes.map((programme) => programme.cp_euros))
+  const byAmount = [...mission.programmes].sort((a, b) => b.cp_euros - a.cp_euros)
+  const slices = toSlices(
+    byAmount,
+    (programme) => ({
+      key: String(programme.number),
+      label: programme.name,
+      euros: programme.cp_euros,
+    }),
+    (count) => `${count} autre${count > 1 ? 's' : ''} programme${count > 1 ? 's' : ''}`,
+  )
+  const colorOf = new Map(
+    slices.flatMap((slice) => slice.items.map((programme) => [programme.number, slice.colorIndex])),
+  )
+  const center = amountParts(mission.cp_euros)
   return (
     <div className="flex flex-col gap-3.5">
-      {mission.account_kind !== 'budget_general' && (
+      <div className="flex items-center gap-4">
+        <Donut
+          slices={slices}
+          size={132}
+          label={`Répartition entre les programmes : ${slices
+            .map((slice) => `${slice.label} ${formatProgrammeShare(slice.euros, mission.cp_euros)}`)
+            .join(', ')}`}
+        >
+          <p className="figure text-[22px] leading-[26px] text-ink">
+            {center.value}
+            <span className="ml-1 text-[0.55em] font-medium">{center.unit}</span>
+          </p>
+          <p className="text-[11.5px] leading-[15px] text-ink-faint">en {year}</p>
+        </Donut>
         <p className="text-[13px] leading-[19px] text-ink-soft">
-          Ce compte est hors budget général : il n’entre pas dans le total.
+          {mission.account_kind !== 'budget_general'
+            ? 'Ce compte est hors budget général : il n’entre pas dans le total.'
+            : `Répartition entre ses ${mission.programmes.length} programmes.`}
         </p>
-      )}
+      </div>
       <ul className="flex flex-col border-b border-line">
         {mission.programmes.map((programme) => (
           <li key={programme.number} className="flex flex-col gap-1.5 border-t border-line py-2.5">
@@ -127,14 +166,20 @@ export function MissionDetail({ mission }: { mission: BudgetMissionDto }) {
               <span className="min-w-9 shrink-0 rounded-md bg-surface-soft px-1.5 text-center text-xs leading-5 font-semibold text-ink-soft">
                 {programme.number}
               </span>
-              <span className="flex-1 text-sm leading-5 text-ink">{programme.name}</span>
+              <span className="flex flex-1 items-center gap-2 text-sm leading-5 text-ink">
+                <Swatch colorIndex={colorOf.get(programme.number) ?? 0} />
+                {programme.name}
+              </span>
               <span className="text-sm leading-5 font-semibold whitespace-nowrap text-ink">
                 {formatAmount(programme.cp_euros)}
               </span>
             </span>
             <span className="flex items-center gap-2.5 pl-[46px]">
               <span className="flex-1">
-                <AmountBar width={barWidth(programme.cp_euros, largest)} />
+                <AmountBar
+                  width={barWidth(programme.cp_euros, largest)}
+                  color={sliceColor(colorOf.get(programme.number) ?? 0)}
+                />
               </span>
               <span className="w-12 text-right text-[12.5px] leading-4 text-ink-faint">
                 {formatProgrammeShare(programme.cp_euros, mission.cp_euros)}

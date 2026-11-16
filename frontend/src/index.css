@@ -290,6 +290,26 @@
      émettrait pas. */
   --color-logo-blue: #16233f;
   --color-logo-red: #9e3038;
+
+  /* Parts des anneaux du budget (BudgetDonut.tsx), dans l'ordre des parts ; la
+     sixième, grise, regroupe les autres. Contrôlées pour le daltonisme entre
+     parts voisines ; trois sont sous 3:1 contre la surface, d'où la légende
+     chiffrée toujours affichée. Aucune n'est une couleur de groupe. */
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #eda100;
+  --chart-5: #e87ba4;
+  --chart-6: #cbc9c2;
+}
+
+html[data-theme='dark'] {
+  --chart-1: #3987e5;
+  --chart-2: #d95926;
+  --chart-3: #199e70;
+  --chart-4: #c98500;
+  --chart-5: #d55181;
+  --chart-6: #46443e;
 }
 
 @media (min-width: 48rem) {

@@ -3,22 +3,13 @@ import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { fetchJson } from '../lib/fetchJson'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import {
-  amountParts,
-  formatAmount,
-  formatLawDate,
-  missionSubtitle,
-  spendingNote,
-} from '../lib/budgetFormat'
+import { formatLawDate, missionSubtitle, spendingNote } from '../lib/budgetFormat'
 import type { BudgetExerciseDto, BudgetMissionDto } from '../types/budget'
 import { BottomSheet } from '../components/BottomSheet'
 import { ErrorPanel, Loading } from '../components/ui'
 import { Icon } from '../components/icons'
-import {
-  MissionDetail,
-  MissionRow,
-  OffBudgetRow,
-} from '../components/budget/BudgetMission'
+import { MissionDetail, MissionRow, OffBudgetRow } from '../components/budget/BudgetMission'
+import { BudgetBreakdown } from '../components/budget/BudgetBreakdown'
 
 /*
  * Budget de l'État voté en loi de finances initiale : le budget général par
@@ -62,7 +53,6 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
   const missions = general.missions
   const all = [...missions, ...offBudget]
   const largest = missions[0]?.cp_euros ?? 0
-  const programmeCount = missions.reduce((sum, mission) => sum + mission.programmes.length, 0)
 
   const chosen = all.find((mission) => mission.name === selectedName)
   const panelMission: BudgetMissionDto | undefined = chosen ?? missions[0]
@@ -73,8 +63,6 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
   }
   const isSelected = (mission: BudgetMissionDto) => wide && panelMission?.name === mission.name
 
-  const total = amountParts(general.cp_euros)
-  const refunds = general.refunds_and_rebates_cp_euros
   const lawDate = formatLawDate(exercise.law.date)
 
   return (
@@ -119,31 +107,16 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
         )}
       </header>
 
-      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[auto_auto_1fr] xl:items-start">
-        {/* Chiffre clé : avant la liste au téléphone, en tête de colonne à 1280 px. */}
-        <div className="flex flex-col gap-1.5 rounded border border-line bg-surface p-[18px] xl:col-start-2 xl:row-start-1">
-          <p className="text-[13.5px] leading-[19px] text-ink-soft">
-            Crédits de paiement du budget général
-          </p>
-          <p className="figure text-[44px] text-ink xl:text-[52px]">
-            {total.value}
-            <span className="ml-1.5 text-[0.5em] font-medium">{total.unit}</span>
-          </p>
-          {refunds !== null && (
-            <p className="text-[12.5px] leading-[18px] text-ink-faint">
-              Dont {formatAmount(refunds)} de remboursements et dégrèvements d’impôts ;{' '}
-              {formatAmount(general.cp_euros - refunds)} hors ceux-ci.
-            </p>
-          )}
-          <p className="mt-1.5 border-t border-line pt-2.5 text-[12.5px] leading-[18px] text-ink-soft">
-            {missions.length} missions · {programmeCount} programmes · article{' '}
-            {exercise.law.credits_article} de la loi n° {exercise.law.number} du {lawDate}
-          </p>
+      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[auto_auto_auto_1fr] xl:items-start">
+        {/* Répartition : avant la liste, sur toute la largeur à 1280 px pour laisser
+            le panneau de détail en haut de la colonne de droite. */}
+        <div className="xl:col-span-2 xl:row-start-1">
+          <BudgetBreakdown exercise={exercise} onSelectMission={select} />
         </div>
 
         <section
           aria-labelledby="budget-missions"
-          className="flex flex-col gap-3 xl:col-start-1 xl:row-span-3 xl:row-start-1 xl:gap-3.5 xl:rounded xl:border xl:border-line xl:bg-surface xl:px-3.5 xl:pt-5 xl:pb-3.5"
+          className="flex flex-col gap-3 xl:col-start-1 xl:row-span-3 xl:row-start-2 xl:gap-3.5 xl:rounded xl:border xl:border-line xl:bg-surface xl:px-3.5 xl:pt-5 xl:pb-3.5"
         >
           <div className="flex flex-col gap-0.5 xl:px-1.5">
             <h2 id="budget-missions" className="heading-4 text-ink">
@@ -218,7 +191,7 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
                 {missionSubtitle(panelMission, general.cp_euros, year)}
               </p>
             </div>
-            <MissionDetail mission={panelMission} />
+            <MissionDetail mission={panelMission} year={year} />
           </section>
         )}
       </div>
@@ -246,7 +219,7 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
               <p className="mb-3.5 text-[13px] leading-[19px] text-ink-soft">
                 {missionSubtitle(chosen, general.cp_euros, year)}
               </p>
-              <MissionDetail mission={chosen} />
+              <MissionDetail mission={chosen} year={year} />
             </div>
           )}
         </BottomSheet>
