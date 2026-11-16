@@ -2,12 +2,14 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
 
 use super::db;
 use crate::application::ports::candidate_repository::{
     CandidateParliamentaryGroupRecord, CandidateProgramProposalRecord, CandidateRecord,
-    CandidateRepository, ChangedSourceRecord, PoliticalOrganizationRecord, RepositoryError,
+    CandidateRepository, ChangeExcerpt, ChangedSourceRecord, PoliticalOrganizationRecord,
+    RepositoryError,
 };
 use crate::domain::candidate::CandidateId;
 use crate::domain::theme::FamilyCode;
@@ -20,6 +22,39 @@ impl PgCandidateRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
+}
+
+/// Extrait d'un changement, absent quand la lecture précédente n'avait pas de
+/// texte gardé : les deux textes et les deux totaux sont alors nuls.
+fn change_excerpt(row: &PgRow) -> Result<Option<ChangeExcerpt>, RepositoryError> {
+    let added: Option<String> = row.try_get("last_added_text").map_err(db)?;
+    let removed: Option<String> = row.try_get("last_removed_text").map_err(db)?;
+    let added_total: Option<i32> = row.try_get("last_added_count").map_err(db)?;
+    let removed_total: Option<i32> = row.try_get("last_removed_count").map_err(db)?;
+    let (Some(added), Some(removed), Some(added_total), Some(removed_total)) =
+        (added, removed, added_total, removed_total)
+    else {
+        return Ok(None);
+    };
+    Ok(Some(ChangeExcerpt {
+        added: fragments(&added),
+        removed: fragments(&removed),
+        added_total: count(added_total)?,
+        removed_total: count(removed_total)?,
+    }))
+}
+
+fn fragments(text: &str) -> Vec<String> {
+    text.lines()
+        .filter(|line| !line.is_empty())
+        .map(str::to_owned)
+        .collect()
+}
+
+fn count(raw: i32) -> Result<u32, RepositoryError> {
+    u32::try_from(raw).map_err(|_| {
+        RepositoryError::Database(format!("negative fragment count in database: {raw}"))
+    })
 }
 
 fn candidate_id(raw: String) -> Result<CandidateId, RepositoryError> {
@@ -35,25 +70,28 @@ impl CandidateRepository for PgCandidateRepository {
         since: DateTime<Utc>,
     ) -> Result<Vec<ChangedSourceRecord>, RepositoryError> {
         let rows = sqlx::query(
+            // Seules les sources de programme sont surveillées ; le site
+            // officiel n'est lu que pour repérer un nouveau PDF. Une adresse
+            // qu'aucune candidature n'utilise plus n'est pas une alerte.
             "WITH usage AS (
-                 SELECT declaration_source_url AS url, display_name FROM presidential_candidates
+                 SELECT split_part(program_url, '#', 1) AS url, display_name
+                   FROM presidential_candidates
                  UNION SELECT official_site_url, display_name FROM presidential_candidates
-                 UNION SELECT program_url, display_name FROM presidential_candidates
-                 UNION SELECT link.source_url, candidate.display_name
-                         FROM candidate_political_organizations link
-                         JOIN presidential_candidates candidate ON candidate.id = link.candidate_id
                  UNION SELECT split_part(proposal.source_url, '#', 1), candidate.display_name
                          FROM candidate_program_proposals proposal
                          JOIN presidential_candidates candidate ON candidate.id = proposal.candidate_id
              )
              SELECT observation.source_url, observation.last_changed_at,
-                    COALESCE(array_agg(DISTINCT usage.display_name)
-                             FILTER (WHERE usage.display_name IS NOT NULL), '{}') AS candidate_names
+                    array_agg(DISTINCT usage.display_name) AS candidate_names,
+                    observation.last_added_text, observation.last_removed_text,
+                    observation.last_added_count, observation.last_removed_count
                FROM candidate_program_source_observations observation
-               LEFT JOIN usage ON usage.url = observation.source_url
+               JOIN usage ON usage.url = observation.source_url
               WHERE observation.last_changed_at > observation.first_observed_at
                 AND observation.last_changed_at > $1
-              GROUP BY observation.source_url, observation.last_changed_at
+              GROUP BY observation.source_url, observation.last_changed_at,
+                       observation.last_added_text, observation.last_removed_text,
+                       observation.last_added_count, observation.last_removed_count
               ORDER BY observation.last_changed_at DESC, observation.source_url",
         )
         .persistent(false)
@@ -68,6 +106,7 @@ impl CandidateRepository for PgCandidateRepository {
                     source_url: row.try_get("source_url").map_err(db)?,
                     changed_at: row.try_get("last_changed_at").map_err(db)?,
                     candidate_names: row.try_get("candidate_names").map_err(db)?,
+                    excerpt: change_excerpt(&row)?,
                 })
             })
             .collect()
