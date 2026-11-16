@@ -25,6 +25,7 @@ export const NAV_TABS: NavEntry[] = [
 ]
 
 export const NAV_MORE: NavEntry[] = [
+  { to: '/budget', label: 'Budget de l’État', icon: 'budget', covers: ['/budget'] },
   { to: '/comprendre', label: 'Comprendre', icon: 'comprendre', covers: ['/comprendre'] },
 ]
 

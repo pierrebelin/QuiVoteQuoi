@@ -20,6 +20,7 @@ import UnassignedTextsPage from './pages/UnassignedTextsPage.tsx'
 import TextDetailPage from './pages/TextDetailPage.tsx'
 import WeekPage from './pages/WeekPage.tsx'
 import ComprendrePage from './pages/ComprendrePage.tsx'
+import BudgetPage from './pages/BudgetPage.tsx'
 import CandidateComparisonPage from './pages/CandidateComparisonPage.tsx'
 import ThemeRedirect from './pages/ThemeRedirect.tsx'
 import { ENTRY_PATH } from './lib/entryFlow'
@@ -53,6 +54,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="semaine" element={<WeekPage />} />
             <Route path="semaine/:date" element={<WeekPage />} />
             <Route path="comprendre" element={<ComprendrePage />} />
+            <Route path="budget" element={<BudgetPage />} />
+            <Route path="budget/:year" element={<BudgetPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

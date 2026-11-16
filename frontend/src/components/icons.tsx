@@ -38,6 +38,12 @@ const PATHS = {
       <path d="M12 17h.01" />
     </>
   ),
+  budget: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M15.2 8.6a4 4 0 1 0 0 6.8M7.6 11h5.6M7.6 13.4h5" />
+    </>
+  ),
   plus: (
     <>
       <circle cx="5" cy="12" r="1.4" />
