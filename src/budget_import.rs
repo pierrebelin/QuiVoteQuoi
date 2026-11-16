@@ -71,8 +71,12 @@ pub async fn import_budget(manifest_path: &Path, dry_run: bool) -> Result<Import
     let discarded_types = credits.discarded_types.into_iter().collect();
     let nomenclature =
         read_nomenclature(&nomenclature_path, resolved.year).map_err(|error| error.to_string())?;
-    let lines = complete_with_nomenclature(credits.lines, &nomenclature)
-        .map_err(|error| error.to_string())?;
+    let lines = complete_with_nomenclature(
+        credits.lines,
+        &nomenclature,
+        &manifest.nomenclature.absent_from_law,
+    )
+    .map_err(|error| error.to_string())?;
 
     let command = ImportBudgetExerciseCommand {
         year: resolved.year,

@@ -107,13 +107,39 @@ pub fn parse_nomenclature_rows(
 
 /// Lignes de crédits complétées des programmes de la nomenclature absents du
 /// fichier des crédits, à 0 €. Les noms des programmes dotés restent ceux du
-/// fichier des crédits.
+/// fichier des crédits. Les programmes `absent_from_law` (numéros que la loi
+/// ne cite pas) sont écartés, y compris de leur ligne à 0 € du fichier des
+/// crédits ; un tel numéro doté de crédits de paiement, ou inconnu de la
+/// nomenclature, est refusé plutôt que deviné.
 pub fn complete_with_nomenclature(
-    credits: Vec<BudgetLine>,
+    mut credits: Vec<BudgetLine>,
     nomenclature: &[NomenclatureProgramme],
+    absent_from_law: &[u16],
 ) -> Result<Vec<BudgetLine>, WorkbookError> {
+    let invalid = |reason: String| WorkbookError::InvalidRow { row: 0, reason };
+    for number in absent_from_law {
+        if !nomenclature
+            .iter()
+            .any(|programme| programme.number == *number)
+        {
+            return Err(invalid(format!(
+                "programme {number} is declared absent from the law but is missing from the nomenclature"
+            )));
+        }
+        if credits
+            .iter()
+            .any(|line| line.programme_number.get() == *number && line.cp.get() != 0)
+        {
+            return Err(invalid(format!(
+                "programme {number} has credits but is declared absent from the law"
+            )));
+        }
+    }
+    credits.retain(|line| !absent_from_law.contains(&line.programme_number.get()));
+
     let listed: BTreeMap<(&'static str, u16), &NomenclatureProgramme> = nomenclature
         .iter()
+        .filter(|programme| !absent_from_law.contains(&programme.number))
         .map(|programme| {
             (
                 (programme.account_kind.as_str(), programme.number),
@@ -153,7 +179,6 @@ pub fn complete_with_nomenclature(
         if credited.contains(&key) {
             continue;
         }
-        let invalid = |reason: String| WorkbookError::InvalidRow { row: 0, reason };
         lines.push(BudgetLine {
             account_kind: programme.account_kind,
             mission: programme.mission.clone(),
@@ -296,9 +321,12 @@ mod tests {
             ),
         ];
 
-        let lines =
-            complete_with_nomenclature(vec![credit("Pouvoirs publics", 511, 100)], &nomenclature)
-                .unwrap();
+        let lines = complete_with_nomenclature(
+            vec![credit("Pouvoirs publics", 511, 100)],
+            &nomenclature,
+            &[],
+        )
+        .unwrap();
 
         assert_eq!(lines.len(), 2);
         let haute_cour = lines
@@ -316,7 +344,8 @@ mod tests {
 
     #[test]
     fn a_credited_programme_unknown_to_the_nomenclature_is_refused() {
-        let error = complete_with_nomenclature(vec![credit("Justice", 101, 1)], &[]).unwrap_err();
+        let error =
+            complete_with_nomenclature(vec![credit("Justice", 101, 1)], &[], &[]).unwrap_err();
 
         assert!(matches!(error, WorkbookError::InvalidRow { .. }));
     }
@@ -330,8 +359,79 @@ mod tests {
             "Accès",
         )];
 
-        let error =
-            complete_with_nomenclature(vec![credit("Justice", 101, 1)], &nomenclature).unwrap_err();
+        let error = complete_with_nomenclature(vec![credit("Justice", 101, 1)], &nomenclature, &[])
+            .unwrap_err();
+
+        assert!(matches!(error, WorkbookError::InvalidRow { .. }));
+    }
+
+    fn debt_nomenclature() -> Vec<NomenclatureProgramme> {
+        vec![
+            programme(
+                AccountKind::GeneralBudget,
+                "Engagements financiers de l'État",
+                117,
+                "Charge de la dette",
+            ),
+            programme(
+                AccountKind::GeneralBudget,
+                "Engagements financiers de l'État",
+                369,
+                "Amortissement de la dette covid",
+            ),
+        ]
+    }
+
+    #[test]
+    fn a_programme_the_law_does_not_list_is_left_out_instead_of_entering_at_zero() {
+        let lines = complete_with_nomenclature(
+            vec![credit("Engagements financiers de l'État", 117, 100)],
+            &debt_nomenclature(),
+            &[369],
+        )
+        .unwrap();
+
+        let numbers: Vec<u16> = lines
+            .iter()
+            .map(|line| line.programme_number.get())
+            .collect();
+        assert_eq!(numbers, vec![117]);
+    }
+
+    #[test]
+    fn a_programme_declared_absent_from_the_law_but_credited_is_refused() {
+        let error = complete_with_nomenclature(
+            vec![credit("Engagements financiers de l'État", 369, 1)],
+            &debt_nomenclature(),
+            &[369],
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, WorkbookError::InvalidRow { .. }));
+    }
+
+    #[test]
+    fn the_zero_line_of_a_programme_absent_from_the_law_is_dropped_from_the_credits() {
+        let lines = complete_with_nomenclature(
+            vec![
+                credit("Engagements financiers de l'État", 117, 100),
+                credit("Engagements financiers de l'État", 369, 0),
+            ],
+            &debt_nomenclature(),
+            &[369],
+        )
+        .unwrap();
+
+        let numbers: Vec<u16> = lines
+            .iter()
+            .map(|line| line.programme_number.get())
+            .collect();
+        assert_eq!(numbers, vec![117]);
+    }
+
+    #[test]
+    fn a_programme_declared_absent_from_the_law_and_unknown_to_the_nomenclature_is_refused() {
+        let error = complete_with_nomenclature(vec![], &debt_nomenclature(), &[999]).unwrap_err();
 
         assert!(matches!(error, WorkbookError::InvalidRow { .. }));
     }

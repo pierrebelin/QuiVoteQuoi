@@ -32,7 +32,9 @@ pub const MAX_PROGRAMME_NUMBER: u16 = 9_999;
 /// d'impôts : une part importante du total, que la page isole.
 pub const REFUNDS_AND_REBATES_MISSION: &str = "Remboursements et dégrèvements";
 
-/// Rattachement des missions aux sujets du site, validé le 16/11/2026.
+/// Rattachement des missions aux sujets du site, validé le 16/11/2026 pour
+/// les exercices 2025 et 2026 (missions de 2025 disparues ou renommées en 2026
+/// comprises).
 ///
 /// Les noms sont ceux de la loi de finances ; la recherche passe par
 /// `normalize_name` (apostrophes, espaces, casse). Une mission nouvelle d'un
@@ -60,6 +62,7 @@ pub const MISSION_FAMILIES: &[(&str, FamilyCode)] = &[
         "Crédits non répartis",
         FamilyCode::EconomieFinancesPubliques,
     ),
+    ("Plan de relance", FamilyCode::EconomieFinancesPubliques),
     ("Enseignement scolaire", FamilyCode::EducationCulture),
     (
         "Recherche et enseignement supérieur",
@@ -74,6 +77,7 @@ pub const MISSION_FAMILIES: &[(&str, FamilyCode)] = &[
         "Avances à l'audiovisuel public",
         FamilyCode::EducationCulture,
     ),
+    ("Audiovisuel public", FamilyCode::EducationCulture),
     ("Défense", FamilyCode::InternationalDefense),
     (
         "Aide publique au développement",
@@ -85,6 +89,10 @@ pub const MISSION_FAMILIES: &[(&str, FamilyCode)] = &[
     ),
     (
         "Monde combattant, mémoire et liens avec la Nation",
+        FamilyCode::InternationalDefense,
+    ),
+    (
+        "Anciens combattants, mémoire et liens avec la Nation",
         FamilyCode::InternationalDefense,
     ),
     (
@@ -1077,7 +1085,7 @@ mod tests {
     }
 
     #[test]
-    fn the_thirty_three_missions_of_2026_all_have_a_theme() {
+    fn the_missions_of_2025_and_2026_all_have_a_theme() {
         let by_theme: [(FamilyCode, &[&str]); 14] = [
             (
                 FamilyCode::EconomieFinancesPubliques,
@@ -1088,6 +1096,7 @@ mod tests {
                     "Investir pour la France de 2030",
                     "Économie",
                     "Crédits non répartis",
+                    "Plan de relance",
                 ],
             ),
             (
@@ -1098,6 +1107,7 @@ mod tests {
                     "Culture",
                     "Médias, livre et industries culturelles",
                     "Avances à l'audiovisuel public",
+                    "Audiovisuel public",
                 ],
             ),
             (
@@ -1107,6 +1117,7 @@ mod tests {
                     "Aide publique au développement",
                     "Action extérieure de l'État",
                     "Monde combattant, mémoire et liens avec la Nation",
+                    "Anciens combattants, mémoire et liens avec la Nation",
                 ],
             ),
             (
@@ -1166,8 +1177,8 @@ mod tests {
             }
         }
 
-        assert_eq!(count, 33);
-        assert_eq!(MISSION_FAMILIES.len(), 33);
+        assert_eq!(count, 36);
+        assert_eq!(MISSION_FAMILIES.len(), 36);
     }
 
     #[test]

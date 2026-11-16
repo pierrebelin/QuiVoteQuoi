@@ -59,6 +59,16 @@ export function formatLawDate(iso: string): string {
   return `${day === 1 ? '1er' : day} ${monthYear}`
 }
 
+/**
+ * Note sous l'accroche : un exercice en cours ou à venir n'est pas encore
+ * dépensé ; un exercice clos l'a été, mais la page montre toujours le voté.
+ */
+export function spendingNote(year: number, currentYear: number): string {
+  return year < currentYear
+    ? `Montants votés, pas les dépenses réelles : celles de ${year} sont arrêtées par la loi d’approbation des comptes, examinée mi-${year + 1}.`
+    : `Montants votés, pas encore dépensés. Les dépenses réelles de ${year} seront connues mi-${year + 1}.`
+}
+
 export function accountLabel(mission: BudgetMissionDto): string {
   return mission.account_kind === 'budget_general'
     ? 'Mission du budget général'

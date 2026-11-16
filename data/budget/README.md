@@ -28,6 +28,11 @@ récupèrent depuis un navigateur. `shasum -a 256 <fichier>` donne l'empreinte.
 3. `cargo run --bin import-budget -- data/budget/lfi-<année>.json --dry-run`.
    Une mission nouvelle, sans sujet, est refusée : la rattacher dans
    `MISSION_FAMILIES` (`src/domain/budget.rs`) après décision.
+   Un nombre de programmes supérieur à l'état B vient en général d'un programme
+   clos que la nomenclature (référentiel Chorus) garde à 0 € : vérifier qu'il
+   manque bien à l'état B, puis le lister dans `nomenclature.absent_from_law`
+   (369 en 2025). Un programme ainsi écarté qui porterait des crédits fait
+   échouer l'import.
 4. En production, après le déploiement qui apporte les fichiers (les migrations
    tournent au démarrage du service), sur le VPS :
 
