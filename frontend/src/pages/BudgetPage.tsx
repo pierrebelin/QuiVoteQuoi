@@ -3,7 +3,13 @@ import { Link, useParams } from 'react-router'
 import { useQuery } from '@tanstack/react-query'
 import { fetchJson } from '../lib/fetchJson'
 import { useMediaQuery } from '../lib/useMediaQuery'
-import { amountParts, formatAmount, formatLawDate, missionSubtitle } from '../lib/budgetFormat'
+import {
+  amountParts,
+  formatAmount,
+  formatLawDate,
+  missionSubtitle,
+  spendingNote,
+} from '../lib/budgetFormat'
 import type { BudgetExerciseDto, BudgetMissionDto } from '../types/budget'
 import { BottomSheet } from '../components/BottomSheet'
 import { ErrorPanel, Loading } from '../components/ui'
@@ -90,8 +96,7 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
         >
           <Icon name="info" className="mt-px size-[18px] shrink-0" />
           <p className="text-[13.5px] leading-5">
-            Montants votés, pas encore dépensés. Les dépenses réelles de {year} seront connues
-            mi-{year + 1}.
+            {spendingNote(year, new Date().getFullYear())}
           </p>
         </div>
         {exercise.available_years.length > 1 && (
