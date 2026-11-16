@@ -9,6 +9,7 @@ use quivotequoi::application::ports::amendment_source::AmendmentSource;
 use quivotequoi::application::ports::assembly_source::AssemblySource;
 use quivotequoi::application::ports::brief_generator::BriefGenerator;
 use quivotequoi::application::ports::brief_line_repository::BriefLineRepository;
+use quivotequoi::application::ports::budget_repository::BudgetRepository;
 use quivotequoi::application::ports::candidate_repository::CandidateRepository;
 use quivotequoi::application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, DossierSummaryRepository,
@@ -53,6 +54,7 @@ use quivotequoi::infrastructure::national_assembly::text_version_client::TextVer
 use quivotequoi::infrastructure::persistence::pg_actor_repository::PgActorRepository;
 use quivotequoi::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
 use quivotequoi::infrastructure::persistence::pg_brief_line_repository::PgBriefLineRepository;
+use quivotequoi::infrastructure::persistence::pg_budget_repository::PgBudgetRepository;
 use quivotequoi::infrastructure::persistence::pg_candidate_repository::PgCandidateRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_group_actions_repository::PgDossierGroupActionsRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_repository::PgDossierRepository;
@@ -106,6 +108,8 @@ async fn main() {
         Arc::new(PgTextVersionRepository::new(db.clone()));
     let brief_line_repository: Arc<dyn BriefLineRepository> =
         Arc::new(PgBriefLineRepository::new(db.clone()));
+    let budget_repository: Arc<dyn BudgetRepository> =
+        Arc::new(PgBudgetRepository::new(db.clone()));
     let sitting_record_source: Arc<dyn SittingRecordSource> =
         Arc::new(SittingRecordClient::new());
     let vote_explanation_repository: Arc<dyn VoteExplanationRepository> =
@@ -289,6 +293,7 @@ async fn main() {
         legal_text_source,
         brief_generator,
         brief_line_repository,
+        budget_repository,
         sitting_record_source,
         vote_explanation_repository,
     };

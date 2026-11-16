@@ -6,6 +6,7 @@ pub mod amendment_source;
 pub mod assembly_source;
 pub mod brief_generator;
 pub mod brief_line_repository;
+pub mod budget_repository;
 pub mod candidate_repository;
 pub mod dossier_group_actions_repository;
 pub mod dossier_repository;

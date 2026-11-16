@@ -35,6 +35,7 @@ use quivotequoi::infrastructure::national_assembly::text_version_client::TextVer
 use quivotequoi::infrastructure::persistence::pg_actor_repository::PgActorRepository;
 use quivotequoi::infrastructure::persistence::pg_amendment_repository::PgAmendmentRepository;
 use quivotequoi::infrastructure::persistence::pg_brief_line_repository::PgBriefLineRepository;
+use quivotequoi::infrastructure::persistence::pg_budget_repository::PgBudgetRepository;
 use quivotequoi::infrastructure::persistence::pg_candidate_repository::PgCandidateRepository;
 use quivotequoi::infrastructure::persistence::pg_dossier_repository::PgDossierRepository;
 use quivotequoi::infrastructure::persistence::pg_final_vote_repository::PgFinalVoteRepository;
@@ -105,6 +106,7 @@ fn state() -> AppState {
         legal_text_source: Arc::new(UnavailableLegalTextSource),
         brief_generator: Arc::new(UnavailableBriefGenerator),
         brief_line_repository: Arc::new(PgBriefLineRepository::new(db.clone())),
+        budget_repository: Arc::new(PgBudgetRepository::new(db.clone())),
         sitting_record_source: Arc::new(SittingRecordClient::new()),
         vote_explanation_repository: Arc::new(PgVoteExplanationRepository::new(db)),
     }

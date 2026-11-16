@@ -3,6 +3,7 @@ pub mod amendment;
 pub mod amendment_citation;
 pub mod article;
 pub mod brief_line;
+pub mod budget;
 pub mod candidate;
 pub mod cited_article;
 pub mod dataset;

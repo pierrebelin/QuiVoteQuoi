@@ -12,12 +12,14 @@ pub mod describe_freshness;
 pub mod describe_method;
 pub mod extract_debated_texts;
 pub mod fetch_recent_dossiers;
+pub mod get_budget_exercise;
 pub mod get_dossier_brief;
 pub mod get_dossier_detail;
 pub mod get_dossier_group_actions;
 pub mod get_group_detail;
 pub mod get_scrutin_detail;
 pub mod get_week_of_votes;
+pub mod import_budget_exercise;
 pub mod journaling;
 pub mod list_scrutins;
 pub mod link_scrutins_to_amendments;
@@ -44,4 +46,6 @@ pub mod brief_fakes;
 pub mod explanation_fakes;
 #[cfg(test)]
 pub mod sitting_record_fakes;
+#[cfg(test)]
+pub mod budget_fakes;
 pub mod refresh_vote_explanations;

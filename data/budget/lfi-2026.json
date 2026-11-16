@@ -1,0 +1,39 @@
+{
+  "year": 2026,
+  "stage": "lfi",
+  "law": {
+    "number": "2026-103",
+    "date": "2026-02-19",
+    "credits_article": 148,
+    "adoption_procedure": "article_49_3",
+    "legifrance_url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000053508155"
+  },
+  "source": {
+    "file": "lfi-2026-credits-ae-cp.xls",
+    "title": "Crédits AE et CP votés",
+    "url": "https://www.budget.gouv.fr/documentation/file-download/32270",
+    "published_on": "2026-03-03",
+    "downloaded_on": "2026-11-16",
+    "sha256": "a1ceef231a8f316a000071a9368a5f08cb97d0f744eda218829086214b2cbd8a"
+  },
+  "nomenclature": {
+    "file": "lfi-2026-nomenclature-destination.xls",
+    "title": "Nomenclature par destination",
+    "url": "https://www.budget.gouv.fr/documentation/file-download/32276",
+    "published_on": "2026-03-03",
+    "sha256": "58ae3cdf49977174a5310d72bbb3299bf7590d412c18d2429eb02a199c0ea147"
+  },
+  "expected": {
+    "general_budget_cp_euros": 593890071649,
+    "missions": 32,
+    "programmes": 131,
+    "off_budget": [
+      {
+        "mission": "Avances à l'audiovisuel public",
+        "kind": "concours_financiers",
+        "programmes": 7,
+        "cp_euros": 3863312945
+      }
+    ]
+  }
+}

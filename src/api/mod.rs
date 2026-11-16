@@ -1,4 +1,5 @@
 pub mod amendment_dto;
+pub mod budget_dto;
 pub mod candidate_dto;
 pub mod clock;
 pub mod dossier_group_actions_dto;

@@ -1,4 +1,5 @@
 pub mod amendment_handlers;
+pub mod budget_handlers;
 pub mod candidate_handlers;
 pub mod dossier_handlers;
 pub mod final_vote_handlers;
