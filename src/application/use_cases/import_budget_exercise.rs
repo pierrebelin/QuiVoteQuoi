@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::application::ports::budget_repository::{BudgetRepository, RepositoryError};
 use crate::domain::budget::{
     normalize_name, AccountKind, BudgetError, BudgetExercise, BudgetStage, BudgetYear, Euros,
-    Expectations, LawReference, Mission, NewBudgetExercise, Programme, ProgrammeNumber,
-    SourceReference,
+    Expectations, LawReference, Mission, NatureBreakdown, NewBudgetExercise, Programme,
+    ProgrammeAction, ProgrammeNumber, SourceReference,
 };
 
 /// Une ligne du fichier officiel, déjà ramenée à un programme : le lecteur du
@@ -16,6 +16,8 @@ pub struct BudgetLine {
     pub programme_number: ProgrammeNumber,
     pub programme_name: String,
     pub cp: Euros,
+    /// Vide pour un programme que la nomenclature seule connaît (0 €).
+    pub actions: Vec<ProgrammeAction>,
 }
 
 /// Un exercice à importer : ses références, les lignes du fichier et les
@@ -45,6 +47,10 @@ pub struct ImportReport {
     pub general_budget_missions: usize,
     pub general_budget_programmes: usize,
     pub general_budget_total: Euros,
+    /// Actions des programmes du budget général.
+    pub general_budget_actions: usize,
+    /// Nature de tout le budget général, remboursements compris.
+    pub general_budget_nature: NatureBreakdown,
     pub off_budget: Vec<ImportedAccount>,
     /// Lignes hors budget général que les attendus ne listent pas : écartées de
     /// l'exercice, donc invisibles ailleurs, d'où leur compte ici.
@@ -121,10 +127,11 @@ impl<'a> ImportBudgetExercise<'a> {
                 });
                 drafts.len() - 1
             });
-            drafts[position].programmes.push(Programme::new(
+            drafts[position].programmes.push(Programme::with_actions(
                 line.programme_number,
                 line.programme_name,
                 line.cp,
+                line.actions,
             )?);
         }
 
@@ -159,6 +166,12 @@ impl<'a> ImportBudgetExercise<'a> {
                 .map(|mission| mission.programmes().len())
                 .sum(),
             general_budget_total: exercise.general_budget_total(),
+            general_budget_actions: exercise
+                .general_budget_missions()
+                .flat_map(Mission::programmes)
+                .map(|programme| programme.actions().len())
+                .sum(),
+            general_budget_nature: exercise.general_budget_nature(),
             off_budget: exercise
                 .off_budget_missions()
                 .map(|mission| ImportedAccount {
@@ -179,15 +192,26 @@ mod tests {
     use crate::application::use_cases::budget_fakes::{
         euros, law, source, InMemoryBudgetRepository,
     };
-    use crate::domain::budget::OffBudgetAccount;
+    use crate::domain::budget::{ActionCode, CategoryCredit, OffBudgetAccount, SpendingCategory};
 
+    /// Ligne d'un programme doté d'une action unique en fonctionnement.
     fn line(kind: AccountKind, mission: &str, number: u16, name: &str, cp: i64) -> BudgetLine {
+        let action = ProgrammeAction::new(
+            ActionCode::new("01").unwrap(),
+            "Action unique",
+            vec![CategoryCredit {
+                category: SpendingCategory::new(31).unwrap(),
+                cp: euros(cp),
+            }],
+        )
+        .unwrap();
         BudgetLine {
             account_kind: kind,
             mission: mission.to_string(),
             programme_number: ProgrammeNumber::new(number).unwrap(),
             programme_name: name.to_string(),
             cp: euros(cp),
+            actions: vec![action],
         }
     }
 

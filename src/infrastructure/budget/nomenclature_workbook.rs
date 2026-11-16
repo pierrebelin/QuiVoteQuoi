@@ -186,6 +186,7 @@ pub fn complete_with_nomenclature(
                 .map_err(|error| invalid(error.to_string()))?,
             programme_name: programme.name.clone(),
             cp: Euros::new(0).map_err(|error| invalid(error.to_string()))?,
+            actions: Vec::new(),
         });
     }
     Ok(lines)
@@ -239,6 +240,7 @@ mod tests {
             programme_number: ProgrammeNumber::new(number).unwrap(),
             programme_name: format!("Programme {number}"),
             cp: Euros::new(cp).unwrap(),
+            actions: Vec::new(),
         }
     }
 

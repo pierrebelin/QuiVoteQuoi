@@ -1,8 +1,10 @@
 use chrono::NaiveDate;
 use serde::Serialize;
 
-use crate::application::use_cases::get_budget_exercise::{BudgetView, MissionView};
-use crate::domain::budget::{BudgetYear, Programme};
+use crate::application::use_cases::get_budget_exercise::{
+    ActionView, BudgetView, MissionView, ProgrammeView,
+};
+use crate::domain::budget::{BudgetYear, CategoryCredit, NatureBreakdown, NatureShare};
 use crate::domain::theme::FamilyCode;
 
 /// Année lue dans l'adresse. `None` pour tout ce qui n'est pas une année de
@@ -32,19 +34,98 @@ impl From<FamilyCode> for BudgetThemeDto {
     }
 }
 
+/// Catégorie de dépense (deux chiffres) et son libellé officiel.
+#[derive(Debug, Serialize)]
+pub struct BudgetCategoryDto {
+    pub code: u8,
+    pub label: &'static str,
+    pub cp_euros: i64,
+}
+
+impl From<CategoryCredit> for BudgetCategoryDto {
+    fn from(credit: CategoryCredit) -> Self {
+        Self {
+            code: credit.category.code(),
+            label: credit.category.official_label(),
+            cp_euros: credit.cp.get(),
+        }
+    }
+}
+
+/// Nature d'une dépense : titre de la LOLF (art. 5), libellé officiel, et ses
+/// catégories. Les libellés simples sont ceux de la page.
+#[derive(Debug, Serialize)]
+pub struct BudgetNatureDto {
+    pub title: u8,
+    pub label: &'static str,
+    pub cp_euros: i64,
+    pub categories: Vec<BudgetCategoryDto>,
+}
+
+impl From<NatureShare> for BudgetNatureDto {
+    fn from(share: NatureShare) -> Self {
+        Self {
+            title: share.nature.title(),
+            label: share.nature.official_label(),
+            cp_euros: share.cp.get(),
+            categories: share
+                .categories
+                .into_iter()
+                .map(BudgetCategoryDto::from)
+                .collect(),
+        }
+    }
+}
+
+/// Titres présents, du 1 au 7.
+fn natures_of(breakdown: NatureBreakdown) -> Vec<BudgetNatureDto> {
+    breakdown
+        .natures()
+        .iter()
+        .cloned()
+        .map(BudgetNatureDto::from)
+        .collect()
+}
+
+#[derive(Debug, Serialize)]
+pub struct BudgetActionDto {
+    pub code: String,
+    pub name: String,
+    pub cp_euros: i64,
+}
+
+impl From<ActionView> for BudgetActionDto {
+    fn from(action: ActionView) -> Self {
+        Self {
+            code: action.code.as_str().to_string(),
+            name: action.name,
+            cp_euros: action.total.get(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct BudgetProgrammeDto {
     pub number: u16,
     pub name: String,
     pub cp_euros: i64,
+    pub nature: Vec<BudgetNatureDto>,
+    /// Triées par montant décroissant ; vide pour un programme à 0 €.
+    pub actions: Vec<BudgetActionDto>,
 }
 
-impl From<Programme> for BudgetProgrammeDto {
-    fn from(programme: Programme) -> Self {
+impl From<ProgrammeView> for BudgetProgrammeDto {
+    fn from(programme: ProgrammeView) -> Self {
         Self {
-            number: programme.number().get(),
-            name: programme.name().to_string(),
-            cp_euros: programme.cp().get(),
+            number: programme.number.get(),
+            name: programme.name,
+            cp_euros: programme.total.get(),
+            nature: natures_of(programme.nature),
+            actions: programme
+                .actions
+                .into_iter()
+                .map(BudgetActionDto::from)
+                .collect(),
         }
     }
 }
@@ -57,6 +138,8 @@ pub struct BudgetMissionDto {
     /// l'import la refuse, donc un exercice publié n'en porte pas.
     pub theme: Option<BudgetThemeDto>,
     pub cp_euros: i64,
+    /// Ce que paient ses crédits, titre par titre.
+    pub nature: Vec<BudgetNatureDto>,
     pub programmes: Vec<BudgetProgrammeDto>,
 }
 
@@ -67,6 +150,7 @@ impl From<MissionView> for BudgetMissionDto {
             account_kind: mission.account_kind.as_str(),
             theme: mission.theme.map(BudgetThemeDto::from),
             cp_euros: mission.total.get(),
+            nature: natures_of(mission.nature),
             programmes: mission
                 .programmes
                 .into_iter()
@@ -99,6 +183,9 @@ pub struct GeneralBudgetDto {
     pub cp_euros: i64,
     /// Comprise dans `cp_euros`. `null` si l'exercice n'a pas cette mission.
     pub refunds_and_rebates_cp_euros: Option<i64>,
+    /// Nature des dépenses hors mission des remboursements et dégrèvements :
+    /// sa somme et `refunds_and_rebates_cp_euros` redonnent `cp_euros`.
+    pub nature_without_refunds: Vec<BudgetNatureDto>,
     pub missions: Vec<BudgetMissionDto>,
 }
 
@@ -137,6 +224,7 @@ impl From<BudgetView> for BudgetExerciseResponse {
             general_budget: GeneralBudgetDto {
                 cp_euros: view.general_budget_total.get(),
                 refunds_and_rebates_cp_euros: view.refunds_and_rebates_total.map(|e| e.get()),
+                nature_without_refunds: natures_of(view.general_budget_nature),
                 missions: view
                     .general_budget_missions
                     .into_iter()
@@ -214,6 +302,7 @@ mod tests {
                 "general_budget": {
                     "cp_euros": 550,
                     "refunds_and_rebates_cp_euros": 300,
+                    "nature_without_refunds": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 250, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 250 }] }],
                     "missions": [
                         {
                             "name": "Remboursements et dégrèvements",
@@ -223,8 +312,15 @@ mod tests {
                                 "label": "Économie / finances publiques"
                             },
                             "cp_euros": 300,
+                            "nature": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 300, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 300 }] }],
                             "programmes": [
-                                { "number": 200, "name": "Remboursements d'impôts d'État", "cp_euros": 300 }
+                                {
+                                    "number": 200,
+                                    "name": "Remboursements d'impôts d'État",
+                                    "cp_euros": 300,
+                                    "nature": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 300, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 300 }] }],
+                                    "actions": [{ "code": "01", "name": "Action unique", "cp_euros": 300 }]
+                                }
                             ]
                         },
                         {
@@ -232,8 +328,15 @@ mod tests {
                             "account_kind": "budget_general",
                             "theme": { "code": "education-culture", "label": "Éducation / culture" },
                             "cp_euros": 250,
+                            "nature": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 250, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 250 }] }],
                             "programmes": [
-                                { "number": 131, "name": "Création", "cp_euros": 250 }
+                                {
+                                    "number": 131,
+                                    "name": "Création",
+                                    "cp_euros": 250,
+                                    "nature": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 250, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 250 }] }],
+                                    "actions": [{ "code": "01", "name": "Action unique", "cp_euros": 250 }]
+                                }
                             ]
                         }
                     ]
@@ -244,8 +347,15 @@ mod tests {
                         "account_kind": "concours_financiers",
                         "theme": { "code": "education-culture", "label": "Éducation / culture" },
                         "cp_euros": 50,
+                        "nature": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 50, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 50 }] }],
                         "programmes": [
-                            { "number": 841, "name": "France Télévisions", "cp_euros": 50 }
+                            {
+                                    "number": 841,
+                                    "name": "France Télévisions",
+                                    "cp_euros": 50,
+                                    "nature": [{ "title": 3, "label": "Dépenses de fonctionnement", "cp_euros": 50, "categories": [{ "code": 31, "label": "Dépenses de fonctionnement autres que celles de personnel", "cp_euros": 50 }] }],
+                                    "actions": [{ "code": "01", "name": "Action unique", "cp_euros": 50 }]
+                                }
                         ]
                     }
                 ],

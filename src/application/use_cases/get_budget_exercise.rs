@@ -2,8 +2,8 @@ use std::cmp::Reverse;
 
 use crate::application::ports::budget_repository::{BudgetRepository, RepositoryError};
 use crate::domain::budget::{
-    AccountKind, BudgetExercise, BudgetStage, BudgetYear, Euros, LawReference, Mission, Programme,
-    SourceReference,
+    AccountKind, ActionCode, BudgetExercise, BudgetStage, BudgetYear, Euros, LawReference, Mission,
+    NatureBreakdown, Programme, ProgrammeNumber, SourceReference,
 };
 use crate::domain::theme::FamilyCode;
 
@@ -17,7 +17,48 @@ pub enum GetBudgetExerciseError {
     Repository(#[from] RepositoryError),
 }
 
-/// Une mission, ses programmes et son sujet.
+/// Une action et ses CP, toutes catégories confondues.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActionView {
+    pub code: ActionCode,
+    pub name: String,
+    pub total: Euros,
+}
+
+/// Un programme, la nature de ses dépenses et ses actions.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgrammeView {
+    pub number: ProgrammeNumber,
+    pub name: String,
+    pub total: Euros,
+    pub nature: NatureBreakdown,
+    /// De la plus dotée à la moins dotée ; à égalité, par code.
+    pub actions: Vec<ActionView>,
+}
+
+impl From<&Programme> for ProgrammeView {
+    fn from(programme: &Programme) -> Self {
+        let mut actions: Vec<ActionView> = programme
+            .actions()
+            .iter()
+            .map(|action| ActionView {
+                code: action.code().clone(),
+                name: action.name().to_string(),
+                total: action.total(),
+            })
+            .collect();
+        actions.sort_by(|a, b| b.total.cmp(&a.total).then_with(|| a.code.cmp(&b.code)));
+        Self {
+            number: programme.number(),
+            name: programme.name().to_string(),
+            total: programme.cp(),
+            nature: programme.nature(),
+            actions,
+        }
+    }
+}
+
+/// Une mission, ses programmes, son sujet et la nature de ses dépenses.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MissionView {
     pub name: String,
@@ -26,19 +67,25 @@ pub struct MissionView {
     /// l'import la refuse, donc un exercice en base n'en porte pas.
     pub theme: Option<FamilyCode>,
     pub total: Euros,
+    pub nature: NatureBreakdown,
     /// Du plus doté au moins doté ; à égalité, par numéro.
-    pub programmes: Vec<Programme>,
+    pub programmes: Vec<ProgrammeView>,
 }
 
 impl From<&Mission> for MissionView {
     fn from(mission: &Mission) -> Self {
-        let mut programmes = mission.programmes().to_vec();
-        programmes.sort_by_key(|programme| (Reverse(programme.cp()), programme.number()));
+        let mut programmes: Vec<ProgrammeView> = mission
+            .programmes()
+            .iter()
+            .map(ProgrammeView::from)
+            .collect();
+        programmes.sort_by_key(|programme| (Reverse(programme.total), programme.number));
         Self {
             name: mission.name().to_string(),
             account_kind: mission.account_kind(),
             theme: mission.theme(),
             total: mission.total(),
+            nature: mission.nature(),
             programmes,
         }
     }
@@ -55,6 +102,9 @@ pub struct BudgetView {
     pub general_budget_total: Euros,
     /// Comprise dans `general_budget_total`.
     pub refunds_and_rebates_total: Option<Euros>,
+    /// Nature du budget général sans la mission des remboursements et
+    /// dégrèvements : avec `refunds_and_rebates_total`, redonne le total.
+    pub general_budget_nature: NatureBreakdown,
     /// De la mission la plus dotée à la moins dotée ; à égalité, par nom.
     pub general_budget_missions: Vec<MissionView>,
     pub off_budget_missions: Vec<MissionView>,
@@ -106,6 +156,7 @@ fn view_of(exercise: &BudgetExercise, available_years: Vec<BudgetYear>) -> Budge
         source: exercise.source().clone(),
         general_budget_total: exercise.general_budget_total(),
         refunds_and_rebates_total: exercise.refunds_and_rebates_total(),
+        general_budget_nature: exercise.nature_without_refunds(),
         general_budget_missions: sorted_views(exercise.general_budget_missions()),
         off_budget_missions: sorted_views(exercise.off_budget_missions()),
         available_years,
@@ -122,7 +173,7 @@ fn sorted_views<'a>(missions: impl Iterator<Item = &'a Mission>) -> Vec<MissionV
 mod tests {
     use super::*;
     use crate::application::use_cases::budget_fakes::{
-        euros, exercise, mission, programme, InMemoryBudgetRepository,
+        action, euros, exercise, mission, programme, programme_with, InMemoryBudgetRepository,
     };
     use crate::domain::budget::AdoptionProcedure;
 
@@ -275,7 +326,7 @@ mod tests {
                 .unwrap()
                 .programmes
                 .iter()
-                .map(|programme| programme.number().get())
+                .map(|programme| programme.number.get())
                 .collect()
         };
         assert_eq!(numbers("Défense"), vec![144, 178]);
@@ -332,5 +383,56 @@ mod tests {
         assert_eq!(view.law.number, "2026-103");
         assert_eq!(view.law.adoption_procedure, AdoptionProcedure::Article49_3);
         assert_eq!(view.source.title, "Crédits AE et CP votés");
+    }
+
+    #[tokio::test]
+    async fn actions_come_by_decreasing_amount_then_by_code() {
+        let repository = InMemoryBudgetRepository::with_exercises(vec![exercise(
+            2026,
+            vec![mission(
+                "Justice",
+                AccountKind::GeneralBudget,
+                vec![programme_with(
+                    101,
+                    "Accès au droit",
+                    100,
+                    vec![
+                        action("03", "Aide aux victimes", vec![(64, 20)]),
+                        action("01", "Aide juridictionnelle", vec![(61, 50), (31, 10)]),
+                        action("02", "Accès au droit", vec![(64, 20)]),
+                    ],
+                )],
+            )],
+        )]);
+
+        let view = view_of_year(&repository, None).await.unwrap();
+
+        let actions: Vec<(&str, i64)> = view.general_budget_missions[0].programmes[0]
+            .actions
+            .iter()
+            .map(|action| (action.code.as_str(), action.total.get()))
+            .collect();
+        assert_eq!(actions, vec![("01", 60), ("02", 20), ("03", 20)]);
+    }
+
+    #[tokio::test]
+    async fn the_exercise_nature_leaves_the_refunds_out_and_each_mission_has_its_own() {
+        let repository = InMemoryBudgetRepository::with_exercises(vec![sample_exercise(2026)]);
+
+        let view = view_of_year(&repository, None).await.unwrap();
+
+        // Culture 500 + Défense 1 000, en fonctionnement ; remboursements 300 à part.
+        assert_eq!(view.general_budget_nature.total(), euros(1_500));
+        assert_eq!(
+            view.general_budget_nature.total().get()
+                + view.refunds_and_rebates_total.unwrap().get(),
+            view.general_budget_total.get()
+        );
+        let refunds = view
+            .general_budget_missions
+            .iter()
+            .find(|mission| mission.name == "Remboursements et dégrèvements")
+            .unwrap();
+        assert_eq!(refunds.nature.total(), euros(300));
     }
 }
