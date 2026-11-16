@@ -7,7 +7,7 @@ use crate::infrastructure::config;
 use crate::AppState;
 
 use super::handlers::{
-    amendment_handlers, candidate_handlers, dossier_handlers, final_vote_handlers, group_handlers,
+    amendment_handlers, budget_handlers, candidate_handlers, dossier_handlers, final_vote_handlers, group_handlers,
     guide_handlers, health_handlers, scrutin_handlers, theme_handlers,
     week_handlers,
 };
@@ -88,6 +88,10 @@ fn read_routes() -> Router<AppState> {
             "/api/scrutins/{uid}",
             get(scrutin_handlers::get_scrutin_detail),
         )
+        // Budget de l'Etat: credits de paiement votes en loi de finances
+        // initiale. Sans annee, l'exercice le plus recent.
+        .route("/api/budget", get(budget_handlers::get_latest_budget))
+        .route("/api/budget/{year}", get(budget_handlers::get_budget))
         // Guide de lecture: chiffres de la page « Comprendre ».
         .route("/api/dataset", get(guide_handlers::get_dataset))
         // Fraicheur des sources: pied de page, bandeau et workflow de controle.

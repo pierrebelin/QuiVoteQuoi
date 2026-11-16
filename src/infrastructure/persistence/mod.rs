@@ -2,6 +2,7 @@ pub mod pg_actor_repository;
 pub mod pg_amendment_repository;
 pub mod pg_amendment_citation_repository;
 pub mod pg_brief_line_repository;
+pub mod pg_budget_repository;
 pub mod pg_candidate_repository;
 pub mod pg_dossier_group_actions_repository;
 pub mod pg_dossier_repository;

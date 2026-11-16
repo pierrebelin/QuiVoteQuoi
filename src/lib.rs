@@ -1,5 +1,6 @@
 pub mod api;
 pub mod application;
+pub mod budget_import;
 pub mod domain;
 pub mod infrastructure;
 
@@ -13,6 +14,7 @@ use application::ports::amendment_source::AmendmentSource;
 use application::ports::assembly_source::AssemblySource;
 use application::ports::brief_generator::BriefGenerator;
 use application::ports::brief_line_repository::BriefLineRepository;
+use application::ports::budget_repository::BudgetRepository;
 use application::ports::candidate_repository::CandidateRepository;
 use application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, DossierSummaryRepository,
@@ -56,6 +58,7 @@ pub struct AppState {
     pub legal_text_source: Arc<dyn LegalTextSource>,
     pub brief_generator: Arc<dyn BriefGenerator>,
     pub brief_line_repository: Arc<dyn BriefLineRepository>,
+    pub budget_repository: Arc<dyn BudgetRepository>,
     pub sitting_record_source: Arc<dyn application::ports::sitting_record_source::SittingRecordSource>,
     pub vote_explanation_repository:
         Arc<dyn application::ports::vote_explanation_repository::VoteExplanationRepository>,
