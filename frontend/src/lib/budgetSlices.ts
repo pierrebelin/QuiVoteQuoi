@@ -17,8 +17,13 @@ export interface Slice<T> {
   items: T[]
 }
 
+/**
+ * Couleur d'un rang. Au-delà de la part « autres », deux gris réservés à la
+ * répartition par nature : 6 = remboursements d'impôts, 7 = autres titres.
+ */
 export function sliceColor(colorIndex: number): string {
-  return `var(--chart-${colorIndex + 1})`
+  if (colorIndex <= NAMED_SLICES) return `var(--chart-${colorIndex + 1})`
+  return colorIndex === NAMED_SLICES + 1 ? 'var(--color-ink-faint)' : 'var(--color-line-strong)'
 }
 
 /**
