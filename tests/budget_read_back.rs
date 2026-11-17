@@ -1,4 +1,5 @@
-//! Un exercice budgétaire s'écrit en une transaction et se relit à l'identique ;
+//! Un exercice budgétaire s'écrit en une transaction et se relit à l'identique,
+//! actions et catégories de dépense comprises ;
 //! en remplacer un n'en laisse rien de l'ancien ; un remplacement qui échoue
 //! laisse l'ancien intact.
 //!
@@ -19,8 +20,9 @@
 use chrono::NaiveDate;
 use quivotequoi::application::ports::budget_repository::BudgetRepository;
 use quivotequoi::domain::budget::{
-    AccountKind, AdoptionProcedure, BudgetExercise, BudgetStage, BudgetYear, Euros, LawReference,
-    Mission, NewBudgetExercise, Programme, ProgrammeNumber, SourceReference,
+    AccountKind, ActionCode, AdoptionProcedure, BudgetExercise, BudgetStage, BudgetYear,
+    CategoryCredit, Euros, LawReference, Mission, NewBudgetExercise, Programme, ProgrammeAction,
+    ProgrammeNumber, SourceReference, SpendingCategory,
 };
 use quivotequoi::infrastructure::persistence::pg_budget_repository::PgBudgetRepository;
 use sqlx::postgres::PgPoolOptions;
@@ -54,6 +56,33 @@ fn programme(number: u16, name: &str, cp: i64) -> Programme {
         ProgrammeNumber::new(number).unwrap(),
         name,
         Euros::new(cp).unwrap(),
+    )
+    .unwrap()
+}
+
+/// Action et ses crédits en (catégorie, CP), catégories en ordre croissant :
+/// l'ordre de lecture.
+fn action(code: &str, name: &str, credits: &[(u8, i64)]) -> ProgrammeAction {
+    ProgrammeAction::new(
+        ActionCode::new(code).unwrap(),
+        name,
+        credits
+            .iter()
+            .map(|(category, cp)| CategoryCredit {
+                category: SpendingCategory::new(*category).unwrap(),
+                cp: Euros::new(*cp).unwrap(),
+            })
+            .collect(),
+    )
+    .unwrap()
+}
+
+fn programme_with(number: u16, name: &str, cp: i64, actions: Vec<ProgrammeAction>) -> Programme {
+    Programme::with_actions(
+        ProgrammeNumber::new(number).unwrap(),
+        name,
+        Euros::new(cp).unwrap(),
+        actions,
     )
     .unwrap()
 }
@@ -94,14 +123,33 @@ fn sample(year_value: u16) -> BudgetExercise {
                 "Alpha mission",
                 AccountKind::GeneralBudget,
                 vec![
-                    programme(101, "Premier", 600),
-                    programme(102, "Second", 400),
+                    programme_with(
+                        101,
+                        "Premier",
+                        600,
+                        vec![
+                            action("01", "Aide juridictionnelle", &[(21, 100), (61, 450)]),
+                            action("02", "Aide aux victimes", &[(31, 0), (64, 50)]),
+                        ],
+                    ),
+                    programme_with(
+                        102,
+                        "Second",
+                        400,
+                        vec![action("01", "Unique", &[(32, 400)])],
+                    ),
+                    programme(103, "Sans crédits", 0),
                 ],
             ),
             mission(
                 "Beta account",
                 AccountKind::FinancialAssistance,
-                vec![programme(841, "Avances", 50)],
+                vec![programme_with(
+                    841,
+                    "Avances",
+                    50,
+                    vec![action("01", "Avances", &[(71, 50)])],
+                )],
             ),
         ],
     )

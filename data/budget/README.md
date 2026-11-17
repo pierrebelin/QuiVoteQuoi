@@ -4,7 +4,10 @@ Un exercice = trois fichiers, versionnés tels quels :
 
 - `lfi-<année>-credits-ae-cp.xls` : « Crédits AE et CP votés », budget.gouv.fr
   (Documentation › Exercice <année> › Loi de finances initiale). Crédits de
-  paiement par mission, programme, action et catégorie.
+  paiement par mission, programme, action et catégorie. L'import garde les
+  actions et leur nature de dépense (catégorie, dont le premier chiffre est le
+  titre de la LOLF, art. 5) ; il refuse un titre contraire à la catégorie et des
+  actions dont la somme diffère des CP de leur programme.
 - `lfi-<année>-nomenclature-destination.xls` : « Nomenclature par
   destination », même page. Seule source des programmes dotés de 0 €, que le
   fichier des crédits omet (README §2 : tous les programmes sont montrés).

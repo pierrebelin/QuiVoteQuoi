@@ -7,8 +7,9 @@ use sqlx::{PgPool, Row};
 use super::{db, invalid_row};
 use crate::application::ports::budget_repository::{BudgetRepository, RepositoryError};
 use crate::domain::budget::{
-    AccountKind, AdoptionProcedure, BudgetExercise, BudgetStage, BudgetYear, Euros, LawReference,
-    Mission, NewBudgetExercise, Programme, ProgrammeNumber, SourceReference,
+    AccountKind, ActionCode, AdoptionProcedure, BudgetExercise, BudgetStage, BudgetYear,
+    CategoryCredit, Euros, LawReference, Mission, NewBudgetExercise, Programme, ProgrammeAction,
+    ProgrammeNumber, SourceReference, SpendingCategory,
 };
 
 pub struct PgBudgetRepository {
@@ -21,6 +22,96 @@ impl PgBudgetRepository {
     }
 }
 
+impl PgBudgetRepository {
+    /// Actions de l'exercice par numéro de programme, dans l'ordre des codes ;
+    /// leurs crédits dans l'ordre des catégories.
+    async fn actions_of(
+        &self,
+        year: i16,
+    ) -> Result<HashMap<i16, Vec<ProgrammeAction>>, RepositoryError> {
+        let rows = sqlx::query(
+            "SELECT programme_number, action_code, action_name, category, cp_euros
+               FROM budget_actions
+              WHERE year = $1
+              ORDER BY programme_number, action_code, category",
+        )
+        .bind(year)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        // (programme, code) → (nom, crédits), dans l'ordre de lecture.
+        let mut drafts: Vec<(i16, String, String, Vec<CategoryCredit>)> = Vec::new();
+        for row in &rows {
+            let programme: i16 = row.get("programme_number");
+            let code: String = row.get("action_code");
+            let category: i16 = row.get("category");
+            let credit = CategoryCredit {
+                category: SpendingCategory::new(u8::try_from(category).map_err(invalid_row)?)
+                    .map_err(invalid_row)?,
+                cp: Euros::new(row.get("cp_euros")).map_err(invalid_row)?,
+            };
+            match drafts.last_mut() {
+                Some((number, known, _, credits)) if *number == programme && *known == code => {
+                    credits.push(credit);
+                }
+                _ => drafts.push((programme, code, row.get("action_name"), vec![credit])),
+            }
+        }
+
+        let mut actions_of: HashMap<i16, Vec<ProgrammeAction>> = HashMap::new();
+        for (programme, code, name, credits) in drafts {
+            let action =
+                ProgrammeAction::new(ActionCode::new(code).map_err(invalid_row)?, name, credits)
+                    .map_err(invalid_row)?;
+            actions_of.entry(programme).or_default().push(action);
+        }
+        Ok(actions_of)
+    }
+}
+
+/// Une requête par programme : ses lignes action × catégorie en tableaux.
+async fn insert_actions(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    year: i16,
+    programme: &Programme,
+) -> Result<(), RepositoryError> {
+    let mut codes: Vec<&str> = Vec::new();
+    let mut names: Vec<&str> = Vec::new();
+    let mut categories: Vec<i16> = Vec::new();
+    let mut amounts: Vec<i64> = Vec::new();
+    for action in programme.actions() {
+        for credit in action.credits() {
+            codes.push(action.code().as_str());
+            names.push(action.name());
+            categories.push(i16::from(credit.category.code()));
+            amounts.push(credit.cp.get());
+        }
+    }
+    if codes.is_empty() {
+        return Ok(());
+    }
+    sqlx::query(
+        "INSERT INTO budget_actions
+            (year, programme_number, action_code, action_name, category, cp_euros)
+         SELECT $1, $2, code, name, category, cp
+           FROM UNNEST($3::text[], $4::text[], $5::smallint[], $6::bigint[])
+             AS line (code, name, category, cp)",
+    )
+    .bind(year)
+    .bind(i16::try_from(programme.number().get()).map_err(invalid_row)?)
+    .bind(&codes)
+    .bind(&names)
+    .bind(&categories)
+    .bind(&amounts)
+    .persistent(false)
+    .execute(&mut **tx)
+    .await
+    .map_err(db)?;
+    Ok(())
+}
+
 #[async_trait]
 impl BudgetRepository for PgBudgetRepository {
     async fn replace_exercise(&self, exercise: &BudgetExercise) -> Result<(), RepositoryError> {
@@ -30,7 +121,8 @@ impl BudgetRepository for PgBudgetRepository {
 
         // Une seule transaction : un échec à mi-chemin laisse l'ancien exercice
         // en place, jamais un exercice à moitié remplacé. La suppression de la
-        // ligne d'exercice emporte ses missions et ses programmes (CASCADE).
+        // ligne d'exercice emporte ses missions, ses programmes et leurs
+        // actions (CASCADE).
         let mut tx = self.pool.begin().await.map_err(db)?;
 
         sqlx::query("DELETE FROM budget_exercises WHERE year = $1")
@@ -90,6 +182,8 @@ impl BudgetRepository for PgBudgetRepository {
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
+
+                insert_actions(&mut tx, year, programme).await?;
             }
         }
 
@@ -159,14 +253,17 @@ impl BudgetRepository for PgBudgetRepository {
         .await
         .map_err(db)?;
 
+        let mut actions_of = self.actions_of(key).await?;
+
         let mut programmes_of: HashMap<String, Vec<Programme>> = HashMap::new();
         for row in &programme_rows {
             let number: i16 = row.get("number");
-            let programme = Programme::new(
+            let programme = Programme::with_actions(
                 ProgrammeNumber::new(u16::try_from(number).map_err(invalid_row)?)
                     .map_err(invalid_row)?,
                 row.get::<String, _>("name"),
                 Euros::new(row.get("cp_euros")).map_err(invalid_row)?,
+                actions_of.remove(&number).unwrap_or_default(),
             )
             .map_err(invalid_row)?;
             programmes_of

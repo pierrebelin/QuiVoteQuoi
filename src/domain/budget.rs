@@ -162,6 +162,33 @@ pub enum BudgetError {
     EmptyProgrammeName,
     #[error("{0} must not be empty")]
     EmptyField(&'static str),
+    #[error("action code must not be empty")]
+    EmptyActionCode,
+    #[error("action name must not be empty")]
+    EmptyActionName,
+    #[error("unknown spending category: {0}")]
+    UnknownCategory(u8),
+    #[error("action {action} lists category {category} twice")]
+    DuplicateCategory {
+        action: ActionCode,
+        category: SpendingCategory,
+    },
+    #[error("programme {programme} lists action {action} twice")]
+    DuplicateAction {
+        programme: ProgrammeNumber,
+        action: ActionCode,
+    },
+    #[error("programme {programme} totals {expected} euros but its actions total {actual}")]
+    ActionTotalMismatch {
+        programme: ProgrammeNumber,
+        expected: Euros,
+        actual: Euros,
+    },
+    #[error("programme {programme} has {cp} euros but no action")]
+    ProgrammeWithoutActions {
+        programme: ProgrammeNumber,
+        cp: Euros,
+    },
 
     #[error("mission listed twice: {mission}")]
     DuplicateMission { mission: String },
@@ -365,24 +392,294 @@ pub struct SourceReference {
     pub sha256: String,
 }
 
+/// Nature d'une dépense : le titre de la LOLF (art. 5, I), premier chiffre de
+/// la catégorie.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Nature {
+    PublicAuthorities,
+    Personnel,
+    Operating,
+    DebtCharges,
+    Investment,
+    Intervention,
+    FinancialOperations,
+}
+
+impl Nature {
+    pub const ALL: [Nature; 7] = [
+        Self::PublicAuthorities,
+        Self::Personnel,
+        Self::Operating,
+        Self::DebtCharges,
+        Self::Investment,
+        Self::Intervention,
+        Self::FinancialOperations,
+    ];
+
+    /// Numéro du titre, de 1 à 7.
+    pub fn title(&self) -> u8 {
+        match self {
+            Self::PublicAuthorities => 1,
+            Self::Personnel => 2,
+            Self::Operating => 3,
+            Self::DebtCharges => 4,
+            Self::Investment => 5,
+            Self::Intervention => 6,
+            Self::FinancialOperations => 7,
+        }
+    }
+
+    pub fn from_title(title: u8) -> Option<Self> {
+        Self::ALL.into_iter().find(|nature| nature.title() == title)
+    }
+
+    /// Libellé du titre dans la LOLF, art. 5, I.
+    pub fn official_label(&self) -> &'static str {
+        match self {
+            Self::PublicAuthorities => "Dotations des pouvoirs publics",
+            Self::Personnel => "Dépenses de personnel",
+            Self::Operating => "Dépenses de fonctionnement",
+            Self::DebtCharges => "Charges de la dette de l'État",
+            Self::Investment => "Dépenses d'investissement",
+            Self::Intervention => "Dépenses d'intervention",
+            Self::FinancialOperations => "Dépenses d'opérations financières",
+        }
+    }
+}
+
+/// Catégories de dépense de la nomenclature par nature, avec leur libellé :
+/// LOLF art. 5, II, plus la catégorie 10 (titre 1, qui n'a qu'une catégorie)
+/// et la catégorie 53 de la nomenclature d'exécution. Une catégorie absente de
+/// cette liste fait échouer l'import plutôt que d'être rangée au jugé.
+const CATEGORIES: &[(u8, &str)] = &[
+    (10, "Dotations des pouvoirs publics"),
+    (21, "Rémunérations d'activité"),
+    (22, "Cotisations et contributions sociales"),
+    (23, "Prestations sociales et allocations diverses"),
+    (
+        31,
+        "Dépenses de fonctionnement autres que celles de personnel",
+    ),
+    (32, "Subventions pour charges de service public"),
+    (41, "Intérêts de la dette financière négociable"),
+    (42, "Intérêts de la dette financière non négociable"),
+    (43, "Charges financières diverses"),
+    (51, "Dépenses pour immobilisations corporelles de l'État"),
+    (52, "Dépenses pour immobilisations incorporelles de l'État"),
+    (53, "Subventions pour charges d'investissement"),
+    (61, "Transferts aux ménages"),
+    (62, "Transferts aux entreprises"),
+    (63, "Transferts aux collectivités territoriales"),
+    (64, "Transferts aux autres collectivités"),
+    (65, "Appels en garantie"),
+    (71, "Prêts et avances"),
+    (72, "Dotations en fonds propres"),
+    (73, "Dépenses de participations financières"),
+];
+
+/// Catégorie de dépense (deux chiffres). Son premier chiffre est le titre.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SpendingCategory(u8);
+
+impl SpendingCategory {
+    pub fn new(code: u8) -> Result<Self, BudgetError> {
+        if !CATEGORIES.iter().any(|(known, _)| *known == code) {
+            return Err(BudgetError::UnknownCategory(code));
+        }
+        Ok(Self(code))
+    }
+
+    pub fn code(&self) -> u8 {
+        self.0
+    }
+
+    pub fn nature(&self) -> Nature {
+        Nature::from_title(self.0 / 10).expect("every listed category starts with a title 1 to 7")
+    }
+
+    pub fn official_label(&self) -> &'static str {
+        CATEGORIES
+            .iter()
+            .find(|(code, _)| *code == self.0)
+            .map(|(_, label)| *label)
+            .expect("a category is only built from the listed codes")
+    }
+}
+
+impl std::fmt::Display for SpendingCategory {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:02}", self.0)
+    }
+}
+
+/// Code d'une action dans son programme, tel que le fichier l'écrit (« 01 »).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ActionCode(String);
+
+impl ActionCode {
+    pub fn new(code: impl Into<String>) -> Result<Self, BudgetError> {
+        let code = code.into().trim().to_string();
+        if code.is_empty() {
+            return Err(BudgetError::EmptyActionCode);
+        }
+        Ok(Self(code))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for ActionCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// CP d'une action pour une catégorie de dépense.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CategoryCredit {
+    pub category: SpendingCategory,
+    pub cp: Euros,
+}
+
+/// Action d'un programme et ses crédits par catégorie de dépense. Une action
+/// votée à 0 € de CP (des AE seulement) est gardée : elle est dans la loi.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ProgrammeAction {
+    code: ActionCode,
+    name: String,
+    credits: Vec<CategoryCredit>,
+}
+
+impl ProgrammeAction {
+    pub fn new(
+        code: ActionCode,
+        name: impl Into<String>,
+        credits: Vec<CategoryCredit>,
+    ) -> Result<Self, BudgetError> {
+        let name = name.into().trim().to_string();
+        if name.is_empty() {
+            return Err(BudgetError::EmptyActionName);
+        }
+        let mut seen = HashSet::new();
+        if let Some(twice) = credits.iter().find(|credit| !seen.insert(credit.category)) {
+            return Err(BudgetError::DuplicateCategory {
+                action: code,
+                category: twice.category,
+            });
+        }
+        Ok(Self {
+            code,
+            name,
+            credits,
+        })
+    }
+
+    pub fn code(&self) -> &ActionCode {
+        &self.code
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn credits(&self) -> &[CategoryCredit] {
+        &self.credits
+    }
+
+    pub fn total(&self) -> Euros {
+        self.credits.iter().map(|credit| credit.cp).sum()
+    }
+}
+
+/// Répartition par nature : chaque titre présent, ses CP et ses catégories,
+/// par titre puis par catégorie croissants.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct NatureBreakdown {
+    natures: Vec<NatureShare>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct NatureShare {
+    pub nature: Nature,
+    pub cp: Euros,
+    pub categories: Vec<CategoryCredit>,
+}
+
+impl NatureBreakdown {
+    /// Somme des crédits par catégorie, regroupés par titre.
+    pub fn of<'a>(credits: impl IntoIterator<Item = &'a CategoryCredit>) -> Self {
+        let mut by_category: std::collections::BTreeMap<SpendingCategory, Euros> =
+            std::collections::BTreeMap::new();
+        for credit in credits {
+            let total = by_category.entry(credit.category).or_insert(Euros::ZERO);
+            *total = [*total, credit.cp].into_iter().sum();
+        }
+        let mut natures: Vec<NatureShare> = Vec::new();
+        for (category, cp) in by_category {
+            let credit = CategoryCredit { category, cp };
+            match natures.last_mut() {
+                Some(share) if share.nature == category.nature() => {
+                    share.cp = [share.cp, cp].into_iter().sum();
+                    share.categories.push(credit);
+                }
+                _ => natures.push(NatureShare {
+                    nature: category.nature(),
+                    cp,
+                    categories: vec![credit],
+                }),
+            }
+        }
+        Self { natures }
+    }
+
+    pub fn natures(&self) -> &[NatureShare] {
+        &self.natures
+    }
+
+    pub fn total(&self) -> Euros {
+        self.natures.iter().map(|share| share.cp).sum()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Programme {
     number: ProgrammeNumber,
     name: String,
     cp: Euros,
+    actions: Vec<ProgrammeAction>,
 }
 
 impl Programme {
+    /// Programme sans action : celui que la nomenclature seule connaît (0 €),
+    /// ou dont le détail n'est pas lu.
     pub fn new(
         number: ProgrammeNumber,
         name: impl Into<String>,
         cp: Euros,
     ) -> Result<Self, BudgetError> {
+        Self::with_actions(number, name, cp, Vec::new())
+    }
+
+    /// Programme et ses actions. Leur somme n'est contrôlée que par
+    /// `BudgetExercise::verify`, qui nomme le programme en écart.
+    pub fn with_actions(
+        number: ProgrammeNumber,
+        name: impl Into<String>,
+        cp: Euros,
+        actions: Vec<ProgrammeAction>,
+    ) -> Result<Self, BudgetError> {
         let name = name.into().trim().to_string();
         if name.is_empty() {
             return Err(BudgetError::EmptyProgrammeName);
         }
-        Ok(Self { number, name, cp })
+        Ok(Self {
+            number,
+            name,
+            cp,
+            actions,
+        })
     }
 
     pub fn number(&self) -> ProgrammeNumber {
@@ -395,6 +692,22 @@ impl Programme {
 
     pub fn cp(&self) -> Euros {
         self.cp
+    }
+
+    pub fn actions(&self) -> &[ProgrammeAction] {
+        &self.actions
+    }
+
+    pub fn actions_total(&self) -> Euros {
+        self.actions.iter().map(ProgrammeAction::total).sum()
+    }
+
+    fn credits(&self) -> impl Iterator<Item = &CategoryCredit> {
+        self.actions.iter().flat_map(ProgrammeAction::credits)
+    }
+
+    pub fn nature(&self) -> NatureBreakdown {
+        NatureBreakdown::of(self.credits())
     }
 }
 
@@ -444,6 +757,15 @@ impl Mission {
     /// Sujet du site auquel la mission est rattachée, s'il en a un.
     pub fn theme(&self) -> Option<FamilyCode> {
         family_of(&self.name)
+    }
+
+    /// Ce que paient ses crédits : la nature de toutes ses actions.
+    pub fn nature(&self) -> NatureBreakdown {
+        NatureBreakdown::of(self.programmes.iter().flat_map(Programme::credits))
+    }
+
+    fn is_refunds_and_rebates(&self) -> bool {
+        normalize_name(&self.name) == normalize_name(REFUNDS_AND_REBATES_MISSION)
     }
 }
 
@@ -569,10 +891,31 @@ impl BudgetExercise {
     /// CP de la mission des remboursements et dégrèvements, comprise dans le
     /// total du budget général. `None` quand l'exercice ne la porte pas.
     pub fn refunds_and_rebates_total(&self) -> Option<Euros> {
-        let wanted = normalize_name(REFUNDS_AND_REBATES_MISSION);
         self.general_budget_missions()
-            .find(|mission| normalize_name(mission.name()) == wanted)
+            .find(|mission| mission.is_refunds_and_rebates())
             .map(Mission::total)
+    }
+
+    /// Nature des dépenses de tout le budget général.
+    pub fn general_budget_nature(&self) -> NatureBreakdown {
+        NatureBreakdown::of(
+            self.general_budget_missions()
+                .flat_map(Mission::programmes)
+                .flat_map(Programme::credits),
+        )
+    }
+
+    /// Nature des dépenses du budget général, mission des remboursements et
+    /// dégrèvements mise à part : ce sont des impôts rendus, pas une dépense
+    /// de politique publique. Avec `refunds_and_rebates_total`, la somme
+    /// redonne le total du budget général.
+    pub fn nature_without_refunds(&self) -> NatureBreakdown {
+        NatureBreakdown::of(
+            self.general_budget_missions()
+                .filter(|mission| !mission.is_refunds_and_rebates())
+                .flat_map(Mission::programmes)
+                .flat_map(Programme::credits),
+        )
     }
 
     /// Compare l'exercice aux attendus. Le premier écart arrête la vérification,
@@ -585,6 +928,7 @@ impl BudgetExercise {
         self.check_unique_missions()?;
         self.check_no_empty_mission()?;
         self.check_unique_programmes()?;
+        self.check_actions()?;
         self.check_every_mission_has_a_theme()?;
         self.check_no_unexpected_off_budget_account(expectations)?;
         self.check_general_budget(expectations)?;
@@ -618,6 +962,42 @@ impl BudgetExercise {
             if !seen.insert(programme.number()) {
                 return Err(BudgetError::DuplicateProgramme {
                     number: programme.number(),
+                });
+            }
+        }
+        Ok(())
+    }
+
+    /// Les actions d'un programme redonnent ses CP, au centime près. Un
+    /// programme doté a des actions ; un programme à 0 € n'en a que si le
+    /// fichier en vote à 0 € (autorisations d'engagement seules).
+    fn check_actions(&self) -> Result<(), BudgetError> {
+        for programme in self.missions.iter().flat_map(Mission::programmes) {
+            let mut seen = HashSet::new();
+            if let Some(twice) = programme
+                .actions()
+                .iter()
+                .find(|action| !seen.insert(action.code()))
+            {
+                return Err(BudgetError::DuplicateAction {
+                    programme: programme.number(),
+                    action: twice.code().clone(),
+                });
+            }
+            if programme.actions().is_empty() {
+                if programme.cp() != Euros::ZERO {
+                    return Err(BudgetError::ProgrammeWithoutActions {
+                        programme: programme.number(),
+                        cp: programme.cp(),
+                    });
+                }
+                continue;
+            }
+            if programme.actions_total() != programme.cp() {
+                return Err(BudgetError::ActionTotalMismatch {
+                    programme: programme.number(),
+                    expected: programme.cp(),
+                    actual: programme.actions_total(),
                 });
             }
         }
@@ -735,8 +1115,47 @@ mod tests {
         Euros::new(amount).unwrap()
     }
 
+    fn credit(category: u8, cp: i64) -> CategoryCredit {
+        CategoryCredit {
+            category: SpendingCategory::new(category).unwrap(),
+            cp: euros(cp),
+        }
+    }
+
+    fn action(code: &str, credits: Vec<CategoryCredit>) -> ProgrammeAction {
+        ProgrammeAction::new(
+            ActionCode::new(code).unwrap(),
+            format!("Action {code}"),
+            credits,
+        )
+        .unwrap()
+    }
+
+    fn programme_with(number: u16, cp: i64, actions: Vec<ProgrammeAction>) -> Programme {
+        Programme::with_actions(
+            ProgrammeNumber::new(number).unwrap(),
+            format!("Programme {number}"),
+            euros(cp),
+            actions,
+        )
+        .unwrap()
+    }
+
+    /// Programme doté d'une action unique en fonctionnement (catégorie 31),
+    /// sans action quand il est à 0 €.
     fn programme(number: u16, name: &str, cp: i64) -> Programme {
-        Programme::new(ProgrammeNumber::new(number).unwrap(), name, euros(cp)).unwrap()
+        let actions = if cp == 0 {
+            Vec::new()
+        } else {
+            vec![action("01", vec![credit(31, cp)])]
+        };
+        Programme::with_actions(
+            ProgrammeNumber::new(number).unwrap(),
+            name,
+            euros(cp),
+            actions,
+        )
+        .unwrap()
     }
 
     fn mission(name: &str, kind: AccountKind, programmes: Vec<Programme>) -> Mission {
@@ -1233,5 +1652,191 @@ mod tests {
             Some(BudgetStage::Lfi)
         );
         assert_eq!(BudgetStage::parse("plf"), None);
+    }
+    #[test]
+    fn the_title_of_a_category_is_its_first_digit() {
+        assert_eq!(
+            SpendingCategory::new(21).unwrap().nature(),
+            Nature::Personnel
+        );
+        assert_eq!(
+            SpendingCategory::new(64).unwrap().nature(),
+            Nature::Intervention
+        );
+        assert_eq!(
+            SpendingCategory::new(10).unwrap().nature(),
+            Nature::PublicAuthorities
+        );
+    }
+
+    #[test]
+    fn a_category_outside_the_nomenclature_is_refused() {
+        assert_eq!(
+            SpendingCategory::new(66),
+            Err(BudgetError::UnknownCategory(66))
+        );
+        assert_eq!(
+            SpendingCategory::new(0),
+            Err(BudgetError::UnknownCategory(0))
+        );
+    }
+
+    #[test]
+    fn every_title_round_trips_through_its_number() {
+        for nature in Nature::ALL {
+            assert_eq!(Nature::from_title(nature.title()), Some(nature));
+        }
+        assert_eq!(Nature::from_title(8), None);
+    }
+
+    #[test]
+    fn a_blank_action_code_is_refused() {
+        assert_eq!(ActionCode::new("  "), Err(BudgetError::EmptyActionCode));
+    }
+
+    #[test]
+    fn an_action_listing_a_category_twice_is_refused() {
+        let error = ProgrammeAction::new(
+            ActionCode::new("01").unwrap(),
+            "Aide juridictionnelle",
+            vec![credit(61, 1), credit(61, 2)],
+        )
+        .unwrap_err();
+
+        assert!(matches!(error, BudgetError::DuplicateCategory { .. }));
+    }
+
+    #[test]
+    fn the_nature_sums_categories_and_groups_them_by_title() {
+        let programme = programme_with(
+            101,
+            100,
+            vec![
+                action("01", vec![credit(61, 40), credit(31, 5)]),
+                action("02", vec![credit(61, 10), credit(64, 20), credit(21, 25)]),
+            ],
+        );
+
+        let nature = programme.nature();
+
+        let titles: Vec<(u8, i64)> = nature
+            .natures()
+            .iter()
+            .map(|share| (share.nature.title(), share.cp.get()))
+            .collect();
+        assert_eq!(titles, vec![(2, 25), (3, 5), (6, 70)]);
+        let interventions: Vec<(u8, i64)> = nature.natures()[2]
+            .categories
+            .iter()
+            .map(|credit| (credit.category.code(), credit.cp.get()))
+            .collect();
+        assert_eq!(interventions, vec![(61, 50), (64, 20)]);
+        assert_eq!(nature.total(), euros(100));
+    }
+
+    #[test]
+    fn actions_that_do_not_add_up_to_their_programme_are_refused() {
+        let mut missions = sample_missions();
+        missions[1] = mission(
+            "Culture",
+            AccountKind::GeneralBudget,
+            vec![programme_with(
+                131,
+                250,
+                vec![action("01", vec![credit(31, 249)])],
+            )],
+        );
+
+        let error = exercise_of(missions).verify(&expectations()).unwrap_err();
+
+        assert_eq!(
+            error,
+            BudgetError::ActionTotalMismatch {
+                programme: ProgrammeNumber::new(131).unwrap(),
+                expected: euros(250),
+                actual: euros(249),
+            }
+        );
+    }
+
+    #[test]
+    fn a_funded_programme_without_actions_is_refused() {
+        let mut missions = sample_missions();
+        missions[1] = mission(
+            "Culture",
+            AccountKind::GeneralBudget,
+            vec![programme_with(131, 250, Vec::new())],
+        );
+
+        let error = exercise_of(missions).verify(&expectations()).unwrap_err();
+
+        assert!(matches!(error, BudgetError::ProgrammeWithoutActions { .. }));
+    }
+
+    #[test]
+    fn a_programme_at_zero_may_carry_actions_voted_at_zero() {
+        let mut missions = sample_missions();
+        missions[1] = mission(
+            "Culture",
+            AccountKind::GeneralBudget,
+            vec![
+                programme(131, "Création", 250),
+                programme_with(336, 0, vec![action("01", vec![credit(31, 0)])]),
+            ],
+        );
+        let mut expected = expectations();
+        expected.programmes = 4;
+
+        assert_eq!(exercise_of(missions).verify(&expected), Ok(()));
+    }
+
+    #[test]
+    fn an_action_listed_twice_in_a_programme_is_refused() {
+        let mut missions = sample_missions();
+        missions[1] = mission(
+            "Culture",
+            AccountKind::GeneralBudget,
+            vec![programme_with(
+                131,
+                250,
+                vec![
+                    action("01", vec![credit(31, 100)]),
+                    action("01", vec![credit(32, 150)]),
+                ],
+            )],
+        );
+
+        let error = exercise_of(missions).verify(&expectations()).unwrap_err();
+
+        assert!(matches!(error, BudgetError::DuplicateAction { .. }));
+    }
+
+    #[test]
+    fn the_exercise_nature_sets_the_refunds_mission_apart() {
+        let mut missions = sample_missions();
+        missions.push(mission(
+            REFUNDS_AND_REBATES_MISSION,
+            AccountKind::GeneralBudget,
+            vec![programme_with(
+                200,
+                300,
+                vec![action("11", vec![credit(62, 300)])],
+            )],
+        ));
+        let exercise = exercise_of(missions);
+
+        let nature = exercise.nature_without_refunds();
+
+        assert_eq!(nature.total(), euros(1_250));
+        assert!(nature
+            .natures()
+            .iter()
+            .all(|share| share.nature != Nature::Intervention));
+        assert_eq!(
+            exercise
+                .refunds_and_rebates_total()
+                .map(|total| total.get()),
+            Some(300)
+        );
     }
 }

@@ -11,8 +11,9 @@ use chrono::NaiveDate;
 
 use crate::application::ports::budget_repository::{BudgetRepository, RepositoryError};
 use crate::domain::budget::{
-    AccountKind, AdoptionProcedure, BudgetExercise, BudgetStage, BudgetYear, Euros, LawReference,
-    Mission, NewBudgetExercise, Programme, ProgrammeNumber, SourceReference,
+    AccountKind, ActionCode, AdoptionProcedure, BudgetExercise, BudgetStage, BudgetYear,
+    CategoryCredit, Euros, LawReference, Mission, NewBudgetExercise, Programme, ProgrammeAction,
+    ProgrammeNumber, SourceReference, SpendingCategory,
 };
 
 #[derive(Default)]
@@ -77,8 +78,46 @@ pub fn euros(amount: i64) -> Euros {
     Euros::new(amount).unwrap()
 }
 
+/// Programme doté d'une action unique en fonctionnement (catégorie 31), sans
+/// action à 0 €.
 pub fn programme(number: u16, name: &str, cp: i64) -> Programme {
-    Programme::new(ProgrammeNumber::new(number).unwrap(), name, euros(cp)).unwrap()
+    let actions = if cp == 0 {
+        Vec::new()
+    } else {
+        vec![action("01", "Action unique", vec![(31, cp)])]
+    };
+    programme_with(number, name, cp, actions)
+}
+
+pub fn programme_with(
+    number: u16,
+    name: &str,
+    cp: i64,
+    actions: Vec<ProgrammeAction>,
+) -> Programme {
+    Programme::with_actions(
+        ProgrammeNumber::new(number).unwrap(),
+        name,
+        euros(cp),
+        actions,
+    )
+    .unwrap()
+}
+
+/// Action et ses crédits, donnés en (catégorie, CP).
+pub fn action(code: &str, name: &str, credits: Vec<(u8, i64)>) -> ProgrammeAction {
+    ProgrammeAction::new(
+        ActionCode::new(code).unwrap(),
+        name,
+        credits
+            .into_iter()
+            .map(|(category, cp)| CategoryCredit {
+                category: SpendingCategory::new(category).unwrap(),
+                cp: euros(cp),
+            })
+            .collect(),
+    )
+    .unwrap()
 }
 
 pub fn mission(name: &str, kind: AccountKind, programmes: Vec<Programme>) -> Mission {

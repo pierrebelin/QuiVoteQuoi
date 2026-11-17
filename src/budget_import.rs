@@ -121,6 +121,18 @@ pub fn describe(outcome: &ImportOutcome) -> Vec<String> {
         report.general_budget_programmes,
         report.general_budget_total
     )];
+    lines.push(format!(
+        "{} actions au budget général",
+        report.general_budget_actions
+    ));
+    for share in report.general_budget_nature.natures() {
+        lines.push(format!(
+            "titre {} ({}) : {} €",
+            share.nature.title(),
+            share.nature.official_label(),
+            share.cp
+        ));
+    }
     for account in &report.off_budget {
         lines.push(format!(
             "hors budget général : {} — {} programmes, {} €",

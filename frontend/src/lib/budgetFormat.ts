@@ -46,6 +46,13 @@ export function formatProgrammeShare(euros: number, total: number): string {
   return `${decimals(share, 1)}${NBSP}%`
 }
 
+/** Part d'une nature : une décimale ; une part non nulle mais minuscule, « < 0,1 % ». */
+export function formatNatureShare(euros: number, total: number): string {
+  const share = total > 0 ? (euros / total) * 100 : 0
+  if (share > 0 && share < 0.05) return `<${NBSP}${decimals(0.1, 1)}${NBSP}%`
+  return `${decimals(share, 1)}${NBSP}%`
+}
+
 /** Largeur d'une barre, relative à la plus grosse ligne de la liste. */
 export function barWidth(euros: number, largest: number): string {
   return `${largest > 0 ? ((euros / largest) * 100).toFixed(2) : '0'}%`
