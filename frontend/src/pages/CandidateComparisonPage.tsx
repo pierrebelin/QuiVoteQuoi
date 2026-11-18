@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { CandidateDetails } from '../components/candidates/CandidateDetails'
+import { CandidateChooser, CandidateProgram } from '../components/candidates/CandidateProgram'
 import { CandidateSlots } from '../components/candidates/CandidateSlots'
 import { SubjectCandidates, type FaceToFace } from '../components/candidates/SubjectCandidates'
 import { FaceToFaceBox, SubjectButton, SubjectList } from '../components/candidates/SubjectPicker'
@@ -16,32 +17,40 @@ import type { FamiliesResponse } from '../types/themes'
 const FIVE_MINUTES = 5 * 60_000
 /** Cases affichées sous 768 px ; au-delà, `max_compared_candidates`. */
 const NARROW_SLOTS = 2
-/** Valeur du paramètre `vue` de l'onglet 2 ; sans paramètre, l'onglet Par sujet. */
+/** Valeurs du paramètre `vue` des onglets 2 et 3 ; sans paramètre, l'onglet Par sujet. */
+const CANDIDATE_VIEW = 'candidature'
 const FACE_TO_FACE_VIEW = 'face-a-face'
 const FOCUS =
   'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
 
-type View = 'sujet' | 'face'
+type View = 'sujet' | 'candidature' | 'face'
 
 /**
- * Deux lectures, en onglets :
+ * Trois lectures, en onglets :
  * - Par sujet : un sujet, toutes les candidatures qui ont un extrait dessus,
  *   dans un ordre tiré au hasard à l'arrivée sur la page (aucune n'est toujours
  *   en tête), les autres regroupées en bas ;
+ * - Par candidature : une candidature, tous ses extraits rangés par sujet et
+ *   dépliés ;
  * - Face-à-face : jusqu'à 4 candidatures côte à côte (2 sous 768 px), thème
  *   par thème, avec leur déclaration, leurs sources et leurs groupes associés.
  * Aucune comparaison n'est transformée en score ou verdict, et les colonnes du
  * face-à-face ne sont pas alignées ligne à ligne : cela suggérerait que les
  * extraits se répondent.
  *
- * L'onglet (`vue`), le sujet (`theme`) et le face-à-face (`candidats`) vivent
- * dans l'URL : le lien se partage, et chaque clic est immédiat.
+ * L'onglet (`vue`), le sujet (`theme`), la candidature lue (`candidat`) et le
+ * face-à-face (`candidats`) vivent dans l'URL : le lien se partage, et chaque clic est immédiat.
  */
 export default function CandidateComparisonPage() {
   const [params, setParams] = useSearchParams()
   const wide = useMediaQuery('(min-width: 768px)')
   const theme = params.get('theme') ?? ''
-  const view: View = params.get('vue') === FACE_TO_FACE_VIEW ? 'face' : 'sujet'
+  const view: View =
+    params.get('vue') === FACE_TO_FACE_VIEW
+      ? 'face'
+      : params.get('vue') === CANDIDATE_VIEW
+        ? 'candidature'
+        : 'sujet'
   // Tirée une fois par visite : l'ordre ne bouge plus d'un sujet à l'autre.
   const [seed] = useState(() => Math.floor(Math.random() * 2 ** 32))
 
@@ -80,6 +89,9 @@ export default function CandidateComparisonPage() {
   const visible = useMemo(() => slots.flatMap((candidate) => (candidate ? [candidate] : [])), [slots])
   const visibleIds = visible.map((candidate) => candidate.id).join(',')
 
+  // Candidature de l'onglet Par candidature : un identifiant inconnu vaut aucune.
+  const programCandidate = all.find((candidate) => candidate.id === params.get('candidat')) ?? null
+
   // Sujet de l'onglet Par sujet : celui de l'URL s'il existe, sinon le premier.
   // Le face-à-face, lui, peut n'avoir aucun thème ouvert.
   const familyList = families.data?.families ?? []
@@ -99,7 +111,7 @@ export default function CandidateComparisonPage() {
     retry: false,
   })
 
-  function write(next: { theme?: string; candidats?: string[]; vue?: View }) {
+  function write(next: { theme?: string; candidats?: string[]; candidat?: string; vue?: View }) {
     setParams(
       (previous) => {
         const updated = new URLSearchParams(previous)
@@ -111,8 +123,13 @@ export default function CandidateComparisonPage() {
           if (next.candidats.length > 0) updated.set('candidats', next.candidats.join(','))
           else updated.delete('candidats')
         }
+        if (next.candidat !== undefined) {
+          if (next.candidat) updated.set('candidat', next.candidat)
+          else updated.delete('candidat')
+        }
         if (next.vue !== undefined) {
           if (next.vue === 'face') updated.set('vue', FACE_TO_FACE_VIEW)
+          else if (next.vue === 'candidature') updated.set('vue', CANDIDATE_VIEW)
           else updated.delete('vue')
         }
         return updated
@@ -120,6 +137,14 @@ export default function CandidateComparisonPage() {
       // Changer d'onglet s'inscrit dans l'historique, le reste le remplace.
       { replace: next.vue === undefined },
     )
+  }
+
+  /** Lien vers l'onglet Par candidature : le reste de l'URL (sujet, face-à-face) suit. */
+  function programHref(candidateId: string) {
+    const updated = new URLSearchParams(params)
+    updated.set('vue', CANDIDATE_VIEW)
+    updated.set('candidat', candidateId)
+    return `?${updated}`
   }
 
   function pickCandidate(slot: number, candidateId: string) {
@@ -163,7 +188,7 @@ export default function CandidateComparisonPage() {
           data && (
             <>
               {data.declaration_note && <p>{data.declaration_note}</p>}
-              {view === 'sujet' && data.proposals_note && <p>{data.proposals_note}</p>}
+              {view !== 'face' && data.proposals_note && <p>{data.proposals_note}</p>}
             </>
           )
         }
@@ -228,11 +253,27 @@ export default function CandidateComparisonPage() {
                       theme={subject.code}
                       candidates={shuffled}
                       faceToFace={faceToFace}
+                      programHref={programHref}
                       wide={wide}
                     />
                   </section>
                 </div>
               )}
+
+              {view === 'candidature' &&
+                families.data &&
+                (programCandidate ? (
+                  <CandidateProgram
+                    key={programCandidate.id}
+                    candidate={programCandidate}
+                    candidates={sorted}
+                    families={familyList}
+                    faceToFace={faceToFace}
+                    onPick={(candidat) => write({ candidat })}
+                  />
+                ) : (
+                  <CandidateChooser candidates={shuffled} programHref={programHref} />
+                ))}
 
               {view === 'face' && (
                 <>
@@ -285,6 +326,7 @@ export default function CandidateComparisonPage() {
                             candidate={candidate}
                             theme={theme}
                             groupsFailed={groupsQuery.isError}
+                            programHref={programHref(candidate.id)}
                             groups={
                               groupsCovered.has(candidate.id)
                                 ? (groupsQuery.data?.parliamentary_groups.filter(
@@ -307,7 +349,7 @@ export default function CandidateComparisonPage() {
   )
 }
 
-/** Onglets Par sujet / Face-à-face ; le second montre combien de cases sont prises. */
+/** Onglets Par sujet / Par candidature / Face-à-face ; le dernier montre combien de cases sont prises. */
 function ViewTabs({
   view,
   faceCount,
@@ -319,10 +361,11 @@ function ViewTabs({
 }) {
   const options: { value: View; label: string }[] = [
     { value: 'sujet', label: 'Par sujet' },
+    { value: 'candidature', label: 'Par candidature' },
     { value: 'face', label: 'Face-à-face' },
   ]
   return (
-    <div role="group" aria-label="Vue" className="grid w-full grid-cols-2 gap-1 rounded bg-surface-soft p-[3px] md:w-80">
+    <div role="group" aria-label="Vue" className="grid w-full grid-cols-[1fr_1.3fr_1.1fr] gap-1 rounded bg-surface-soft p-[3px] md:w-[480px]">
       {options.map((option) => {
         const on = view === option.value
         return (
@@ -331,7 +374,7 @@ function ViewTabs({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(option.value)}
-            className={`flex min-h-9 items-center justify-center gap-1.5 rounded px-2 text-[13.5px] font-semibold whitespace-nowrap transition-colors md:text-sm ${FOCUS} ${
+            className={`flex min-h-9 items-center justify-center gap-1.5 rounded px-1 text-[13px] font-semibold whitespace-nowrap transition-colors md:text-sm ${FOCUS} ${
               on ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
             }`}
           >

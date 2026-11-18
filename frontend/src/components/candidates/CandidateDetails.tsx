@@ -5,12 +5,13 @@ import { formatDate } from '../../types/scrutins'
 import { Icon } from '../icons'
 import { SectionTitle } from '../ui'
 import { CandidateLogo, CandidatePortrait } from './CandidateIdentity'
+import { ProgramLink } from './ProgramExcerpt'
 
 const LINK = 'link'
 
 /** Déclaration publique, organisations sourcées, site et programme : ce que
  * README.md §8.2 exige de publier pour chaque candidature. */
-function CandidateSources({ candidate }: { candidate: CandidateDto }) {
+export function CandidateSources({ candidate }: { candidate: CandidateDto }) {
   return (
     <div className="space-y-1.5 text-[13px] leading-relaxed text-ink-soft">
       <p>
@@ -64,7 +65,7 @@ function CandidateSources({ candidate }: { candidate: CandidateDto }) {
 
 /** Groupes associés par une source, avec le lien vers leurs votes (au thème
  * ouvert, le cas échéant). Un groupe n'apparaît que si une source le relie. */
-function GroupLinks({
+export function GroupLinks({
   groups,
   failed,
   theme,
@@ -122,11 +123,14 @@ export function CandidateDetails({
   groups,
   groupsFailed,
   theme,
+  programHref,
 }: {
   candidate: CandidateDto
   groups: CandidateParliamentaryGroupDto[] | null
   groupsFailed: boolean
   theme: string
+  /** Lien vers l'onglet Par candidature, ouvert sur cette candidature. */
+  programHref: string
 }) {
   return (
     <details className="group bg-surface">
@@ -148,6 +152,7 @@ export function CandidateDetails({
       </summary>
       <div className="space-y-4 border-t border-line px-4 py-4">
         <CandidateSources candidate={candidate} />
+        <ProgramLink to={programHref} />
         <section>
           <SectionTitle>Votes des groupes associés</SectionTitle>
           <GroupLinks groups={groups} failed={groupsFailed} theme={theme} />

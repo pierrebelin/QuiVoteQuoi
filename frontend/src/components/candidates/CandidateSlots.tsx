@@ -111,7 +111,7 @@ export function CandidateSlots({
  * choisissables : leur colonne serait vide. Monté à l'ouverture seulement : la
  * recherche repart vide à chaque fois.
  */
-function CandidatePicker({
+export function CandidatePicker({
   candidates,
   current,
   taken,
@@ -122,7 +122,8 @@ function CandidatePicker({
   current: CandidateDto | null
   taken: Set<string>
   onPick: (candidateId: string) => void
-  onClear: () => void
+  /** Absent : pas de bouton « Vider cette case ». */
+  onClear?: () => void
 }) {
   const [search, setSearch] = useState('')
   const query = normalizeText(search.trim())
@@ -220,7 +221,7 @@ function CandidatePicker({
         )}
       </ul>
 
-      {current && (
+      {current && onClear && (
         <div className="shrink-0 border-t border-line px-3.5 py-2.5">
           <button
             type="button"
