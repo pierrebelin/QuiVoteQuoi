@@ -110,6 +110,11 @@ export const PORTRAITS: Record<string, Portrait> = {
     credit: { file: 'Francis Lalanne.png', page: 'https://commons.wikimedia.org/wiki/File:Francis_Lalanne.png', license: 'Licence Art Libre', author: 'Olivier Roller, In Libro Veritas' },
     year: '2011',
   },
+  'sylvain-pierre-durif': {
+    src: '/candidats/sylvain-pierre-durif.jpg',
+    credit: { file: 'Photo de campagne de Sylvain-Pierre Durif', page: 'https://elvita2027.com/assets/img/portrait-sylvain-2.webp', license: 'droits réservés', author: 'elvita2027.com' },
+    year: null,
+  },
   'raphael-glucksmann': {
     src: '/candidats/raphael-glucksmann.jpg',
     credit: { file: '2024-03-03 - Congrès du PSE- 105 - Raphael Glucksmann.jpg', page: 'https://commons.wikimedia.org/wiki/File:2024-03-03_-_Congr%C3%A8s_du_PSE-_105_-_Raphael_Glucksmann.jpg', license: 'Domaine public', author: 'Mathieu Delmestre' },

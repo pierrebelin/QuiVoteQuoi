@@ -657,6 +657,23 @@ const candidates = [
     ],
   },
   {
+    id: 'sylvain-pierre-durif',
+    displayName: 'Sylvain-Pierre Durif',
+    declaredOn: '2026-08-23',
+    declarationSourceUrl: 'https://elvita2027.com/#campagne',
+    declarationSourceLabel: 'elvita2027.com (site de campagne) — « La candidature de Sylvain-Pierre Durif a été annoncée le 23 août 2026 »',
+    officialSiteUrl: 'https://elvita2027.com/',
+    programUrl: 'https://elvita2027.com/#programme',
+    organization: {
+      id: 'elvita',
+      label: 'ELVITA',
+      officialUrl: 'https://elvita2027.com/',
+      sourceUrl: 'https://elvita2027.com/',
+      sourceLabel: 'elvita2027.com — « Une candidature au service d’un message de paix, portée sous la bannière du mouvement ELVITA »',
+    },
+    proposals: [],
+  },
+  {
     id: 'erwan-rohou',
     displayName: 'Erwan Rohou',
     declaredOn: '2026-09-04',
