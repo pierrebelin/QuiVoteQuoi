@@ -1,16 +1,16 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
-import { excerptSourceUrl, organizationLabel } from '../../lib/candidates'
+import { organizationLabel } from '../../lib/candidates'
 import { fetchJson } from '../../lib/fetchJson'
 import type {
   CandidateComparisonResponse,
   CandidateDto,
   CandidateProgramProposalDto,
 } from '../../types/candidates'
-import { formatDate } from '../../types/scrutins'
 import { Icon } from '../icons'
 import { Loading } from '../ui'
 import { CandidatePortrait } from './CandidateIdentity'
+import { ProgramExcerpt, ProgramLink } from './ProgramExcerpt'
 
 const FIVE_MINUTES = 5 * 60_000
 const FOCUS =
@@ -38,12 +38,15 @@ export function SubjectCandidates({
   theme,
   candidates,
   faceToFace,
+  programHref,
   wide,
 }: {
   theme: string
   /** Toutes les candidatures, dans l'ordre d'affichage. */
   candidates: CandidateDto[]
   faceToFace: FaceToFace
+  /** Lien vers l'onglet Par candidature, ouvert sur cette candidature. */
+  programHref: (candidateId: string) => string
   wide: boolean
 }) {
   const query = useQuery<CandidateComparisonResponse>({
@@ -97,6 +100,7 @@ export function SubjectCandidates({
               candidate={candidate}
               proposals={byCandidate.get(candidate.id) ?? []}
               faceToFace={faceToFace}
+              programHref={programHref}
             />
           ))}
         </ul>
@@ -118,10 +122,12 @@ function CandidateExcerptRow({
   candidate,
   proposals,
   faceToFace,
+  programHref,
 }: {
   candidate: CandidateDto
   proposals: CandidateProgramProposalDto[]
   faceToFace: FaceToFace
+  programHref: (candidateId: string) => string
 }) {
   const [open, setOpen] = useState(false)
   const buttonId = useId()
@@ -177,30 +183,19 @@ function CandidateExcerptRow({
           className="flex flex-col gap-3 border-t border-line px-3.5 pt-3 pb-3.5"
         >
           {proposals.map((proposal, index) => (
-            <figure key={`${proposal.source_url}-${index}`} className="border-l-2 border-line pl-3">
-              <p className="text-sm leading-[1.5] text-ink">« {proposal.excerpt} »</p>
-              <figcaption className="mt-1 text-xs leading-[1.3] text-ink-soft">
-                <a
-                  className="inline-flex items-start gap-1 link [overflow-wrap:anywhere]"
-                  href={excerptSourceUrl(proposal.source_url, proposal.excerpt)}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <Icon name="external" className="mt-px size-3 shrink-0" strokeWidth={2} />
-                  <span>{proposal.source_label}</span>
-                </a>
-                {proposal.source_published_on && ` · ${formatDate(proposal.source_published_on)}`}
-              </figcaption>
-            </figure>
+            <ProgramExcerpt key={`${proposal.source_url}-${index}`} proposal={proposal} />
           ))}
-          <FaceToFaceButton candidate={candidate} faceToFace={faceToFace} />
+          <div className="flex flex-col gap-2 md:flex-row md:flex-wrap">
+            <FaceToFaceButton candidate={candidate} faceToFace={faceToFace} />
+            <ProgramLink to={programHref(candidate.id)} />
+          </div>
         </div>
       )}
     </li>
   )
 }
 
-function FaceToFaceButton({ candidate, faceToFace }: { candidate: CandidateDto; faceToFace: FaceToFace }) {
+export function FaceToFaceButton({ candidate, faceToFace }: { candidate: CandidateDto; faceToFace: FaceToFace }) {
   const selected = faceToFace.ids.has(candidate.id)
   const blocked = !selected && faceToFace.full
   return (
