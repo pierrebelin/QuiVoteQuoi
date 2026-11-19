@@ -1,8 +1,9 @@
 name: Sources de programmes
 
 # File de revue humaine des sources de programme (README.md §8.2) : une issue
-# par source modifiée, avec les fragments ajoutés et retirés ; un nouveau
-# changement d'une source déjà en revue s'y ajoute en commentaire. La
+# par candidature, une section par source modifiée avec les fragments ajoutés
+# et retirés ; un nouveau changement d'une candidature déjà en revue s'y
+# ajoute en commentaire. La
 # vérification quotidienne (timer systemd) ne publie jamais rien.
 on:
   schedule:
@@ -45,7 +46,7 @@ jobs:
             -o response.json
           jq -e '.changed_sources | type == "array"' response.json >/dev/null
 
-      - name: Ouvrir ou compléter une issue par source modifiée
+      - name: Ouvrir ou compléter une issue par candidature
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
