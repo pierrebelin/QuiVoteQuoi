@@ -840,14 +840,6 @@
     "sourcePublishedOn": null
   },
   {
-    "candidateId": "benoit-mathieu",
-    "familyCode": "institutions-vie-politique",
-    "excerpt": "Le Référendum d'Initiative Citoyenne (RIC) L'objectif : proposer un article de loi prêt à l'emploi, directement accessible sur ce site.",
-    "sourceUrl": "https://benoitmathieu2027.fr/programme",
-    "sourceLabel": "Cap 500 signatures — Programme 2027 — Concrètement : 2 pivots pour parvenir à faire évoluer la démocratie",
-    "sourcePublishedOn": null
-  },
-  {
     "candidateId": "david-lisnard",
     "familyCode": "economie-finances-publiques",
     "excerpt": "La France doit également s’engager vers la baisse de la dette publique par rapport au PIB, et sans attendre 2027 comme l’indiquent les projections actuelles. D’abord par un plan de lutte contre les gaspillages et doublons pendant 5 ans, puis par l’équilibrage structurel des dépenses et des recettes, ensuite par le reflux de la dette en distinguant ses composantes (dette générale, dette des retraites, dette du Covid, dette climatique…).",
@@ -4706,10 +4698,10 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "economie-finances-publiques",
-    "excerpt": "Ramener le déficit de plus de 5 % à 2 % de la richesse nationale à la fin du mandat.",
+    "excerpt": "Ramener le déficit sous 2,5 % de la richesse nationale à la fin du quinquennat, soit près de 150 milliards d’économies.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/comptes-publics",
     "sourceLabel": "Avec Édouard 2027 — Finances publiques",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
@@ -4722,10 +4714,10 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "pouvoir-achat",
-    "excerpt": "Quand une entreprise décide, après discussion interne, d’allonger le temps de travail, les heures au-dessus de 35 h seront exonérées de cotisations sociales et d’impôt sur le revenu.",
+    "excerpt": "Quand une entreprise décide, après discussion interne, d’allonger le temps de travail, les heures au-delà de 35 heures seront exonérées d’impôt et de cotisations salariales, et l’entreprise ne paiera plus de cotisations patronales au-delà de la 37e heure.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/travail",
     "sourceLabel": "Avec Édouard 2027 — Travail et salaires",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
@@ -4762,10 +4754,10 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "protection-sociale-retraites",
-    "excerpt": "Porter progressivement l’âge de départ à 65 ans et la durée de cotisation à 45 ans en moins de dix ans, pour ceux qui le peuvent.",
+    "excerpt": "Porter progressivement l’âge de départ à 65 ans et la durée de cotisation à 45 ans, en moins de dix ans.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/retraites",
     "sourceLabel": "Avec Édouard 2027 — Retraites",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
@@ -4850,10 +4842,10 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "numerique",
-    "excerpt": "Des « zones d’accélération IA » : raccordements facilités, permis accélérés, normes supprimées.",
+    "excerpt": "Faire de la France le leader européen de la puissance de calcul et des data centers, avec des « zones d’accélération de l’IA ».",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/intelligence-artificielle",
     "sourceLabel": "Avec Édouard 2027 — Intelligence artificielle",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
@@ -4874,10 +4866,10 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "justice-securite",
-    "excerpt": "Une loi d’accélération de la construction de prisons.",
+    "excerpt": "Construire 30 000 places de prison pour les peines courtes, avec une loi d’accélération des prisons.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/justice",
     "sourceLabel": "Avec Édouard 2027 — Justice",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
@@ -4898,10 +4890,10 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "education-culture",
-    "excerpt": "Laisser chaque établissement libre d’adapter ses méthodes, ses horaires, l’organisation de ses classes et d’avancer la rentrée d’une à deux semaines pour les élèves qui en ont besoin.",
+    "excerpt": "Créer un nouveau statut d’école publique autonome : chaque établissement volontaire sera libre d’adapter ses méthodes, ses horaires, l’organisation de ses classes et d’avancer la rentrée d’une à deux semaines pour les élèves qui en ont besoin.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/ecole",
     "sourceLabel": "Avec Édouard 2027 — École",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
@@ -4922,26 +4914,26 @@
   {
     "candidateId": "edouard-philippe",
     "familyCode": "international-defense",
-    "excerpt": "Un service militaire volontaire de 50 000 jeunes par an et un objectif de 250 000 réservistes.",
+    "excerpt": "Le rétablissement d’un service national obligatoire, avec le choix entre une option militaire et plusieurs options civiles, et 250 000 réservistes.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/defense",
     "sourceLabel": "Avec Édouard 2027 — Défense",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
     "familyCode": "international-defense",
-    "excerpt": "Des armements « made in Europe » : au moins 1 % de la richesse nationale des pays européens de l’OTAN consacrée à des équipements fabriqués en Europe.",
+    "excerpt": "Des armements « made in Europe » : au moins 1 % de la richesse nationale des pays de l’Union européenne consacré à des équipements fabriqués en Europe, grâce à une vraie préférence européenne en matière d’armements.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/defense",
     "sourceLabel": "Avec Édouard 2027 — Défense",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",
     "familyCode": "institutions-vie-politique",
-    "excerpt": "Ne pas remplacer 1 fonctionnaire sur 3, soit 250 000 postes en moins sur le quinquennat.",
+    "excerpt": "Réduire de 250 000 le nombre de postes de fonctionnaires sur le quinquennat, en ne remplaçant pas un fonctionnaire sur trois partant à la retraite dans les fonctions de bureau, grâce aux gains de productivité de l’IA.",
     "sourceUrl": "https://www.edouardphilippe.fr/programme/comptes-publics",
     "sourceLabel": "Avec Édouard 2027 — Finances publiques",
-    "sourcePublishedOn": null
+    "sourcePublishedOn": "2026-11-18"
   },
   {
     "candidateId": "edouard-philippe",

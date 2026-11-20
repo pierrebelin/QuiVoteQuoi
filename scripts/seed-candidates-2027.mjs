@@ -356,7 +356,7 @@ const candidates = [
     proposals: [
       {
         familyCode: 'institutions-vie-politique',
-        excerpt: 'Le plan est simple : pendant que le premier ministre gouverne, j\'organiserai une assemblée citoyenne pour réécrire la Constitution, loin des partis et des politiciens.',
+        excerpt: 'Confier à 500 citoyens tirés au sort la rédaction de la nouvelle Constitution.',
         sourceUrl: 'https://benoitmathieu2027.fr/programme',
         sourceLabel: 'Cap 500 signatures — Programme 2027',
       },
