@@ -1,0 +1,93 @@
+name: Reels
+
+# Reel du jour (todo/reels/REELS-PLAN-F4.md) : lit le Reel sur l'API du site,
+# rend la vidéo, l'héberge dans une Release `reel-<date>` et dépose deux
+# brouillons Buffer (Instagram, TikTok) pour 18 h ; une alerte `reels` sinon.
+# Deux passages programmés (16 h 30 ou 17 h 30 à Paris selon l'heure d'été) ;
+# le script ne continue qu'après 16 h à Paris et si les brouillons du jour
+# manquent. Les passages programmés ne tournent que si la variable de dépôt
+# REELS_ACTIF vaut `true`.
+
+on:
+  schedule:
+    - cron: '30 14 * * *'
+    - cron: '30 15 * * *'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Jour de préparation (AAAA-MM-JJ), aujourd'hui à Paris par défaut"
+        required: false
+        type: string
+      dry_run:
+        description: 'Exécution à blanc : vidéo en artefact, ni Release, ni retrait, ni brouillon'
+        required: false
+        type: boolean
+        default: true
+
+concurrency:
+  group: reels
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  reel:
+    name: Reel du jour
+    if: github.event_name == 'workflow_dispatch' || vars.REELS_ACTIF == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: reels
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: reels/package-lock.json
+
+      - name: Installer les dépendances
+        run: npm ci
+
+      - name: Navigateur de Remotion en cache
+        uses: actions/cache@v4
+        with:
+          path: reels/node_modules/.remotion
+          key: remotion-browser-${{ runner.os }}-${{ hashFiles('reels/package-lock.json') }}
+
+      - name: Navigateur de la capture en cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('reels/package-lock.json') }}
+
+      - name: Préparer le navigateur de rendu
+        run: npx remotion browser ensure
+
+      - name: Préparer le Reel
+        env:
+          PUBLIC_BASE_URL: ${{ secrets.PUBLIC_BASE_URL }}
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+          BUFFER_INSTAGRAM_CHANNEL_ID: ${{ secrets.BUFFER_INSTAGRAM_CHANNEL_ID }}
+          BUFFER_TIKTOK_CHANNEL_ID: ${{ secrets.BUFFER_TIKTOK_CHANNEL_ID }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REEL_DATE: ${{ inputs.date }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+          MANUAL: ${{ github.event_name == 'workflow_dispatch' }}
+        run: node scripts/prepare.mjs
+
+      - name: Vidéo et légende en artefact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-${{ inputs.date || github.run_id }}
+          path: |
+            reels/out/*.mp4
+            reels/out/caption-*.txt
+          if-no-files-found: ignore
+          retention-days: 14
