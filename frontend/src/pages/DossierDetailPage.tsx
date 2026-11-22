@@ -7,6 +7,9 @@ import DossierBrief from '../components/DossierBrief'
 import DossierGroupActions from '../components/DossierGroupActions'
 import DossierFinalScrutin from '../components/DossierFinalScrutin'
 import { InfoTip } from '../components/InfoTip'
+import LawAnswer from '../components/LawAnswer'
+import LawMilestones from '../components/LawMilestones'
+import LawStateBadge from '../components/LawStateBadge'
 import DossierParcours, {
   DocumentsSource,
   type ParcoursActDto,
@@ -295,15 +298,22 @@ export default function DossierDetailPage() {
   }
   const families = data.families ?? []
   const kind = textKind(data.procedure)
+  const lawState = data.law_state
 
   return (
     <div>
       <BackLink to="/scrutins?vue=texte" className="mb-4">Retour aux textes</BackLink>
 
+      {/* Les trois états (SPEC-navette) remplacent le bandeau d'issue ; un
+          dossier sans état garde le bandeau (RM-04). */}
+      {lawState && (
+        <LawStateBadge kind={lawState.kind} variant="line" uid={data.uid} className="mt-2 mb-2" />
+      )}
+
       <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
           <Card className="mb-4 overflow-hidden">
-            <OutcomeBand dossier={data} />
+            {!lawState && <OutcomeBand dossier={data} />}
             <div className="px-4 py-4 sm:px-6 sm:py-5">
               <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
                 <Pill tone="info">{data.procedure.replace(/ ordinaire$/, '')}</Pill>
@@ -329,6 +339,18 @@ export default function DossierDetailPage() {
               <h2 className="mt-3 max-w-4xl heading-2">
                 {data.title}
               </h2>
+              {lawState && (
+                <>
+                  <LawMilestones
+                    milestones={data.milestones}
+                    stateKind={lawState.kind}
+                    className="mt-[18px]"
+                  />
+                  {data.answer && (
+                    <LawAnswer answer={data.answer} lawState={lawState} className="mt-4 sm:mt-[18px]" />
+                  )}
+                </>
+              )}
               <a
                 href={data.url ?? `https://www.assemblee-nationale.fr/dyn/17/dossiers/${data.uid}`}
                 target="_blank"
