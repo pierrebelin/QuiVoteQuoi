@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
 import VotesTabs from '../components/VotesTabs'
 import VoteCard from '../components/VoteCard'
+import AdvancedTexts, { ADVANCED_ANCHOR } from '../components/week/AdvancedTexts'
 import DayPills from '../components/week/DayPills'
 import WeekFigures from '../components/week/WeekFigures'
 import WeekTextCard from '../components/week/WeekTextCard'
@@ -65,7 +66,8 @@ function FooterLink({ to, caption, children }: { to: string; caption: string; ch
  * l'Assemblée (RM-05), les jours (RM-06), les votes sur l'ensemble d'un texte
  * avec la position de chaque groupe (RM-07), puis tous les votes texte par
  * texte (RM-08 à RM-10). Le filtre de jour ne touche ni les nombres ni les
- * pastilles (RM-11).
+ * pastilles (RM-11). Les textes qui ont avancé (navette RM-08) viennent
+ * avant les jours : la semaine entière, sans filtre de jour.
  */
 export default function WeekPage() {
   const { date } = useParams()
@@ -156,8 +158,25 @@ export default function WeekPage() {
             {data.last_published &&
               ` · dernier vote publié le ${new Date(data.last_published + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
           </p>
+          {data.advanced_count > 0 && (
+            <p className="flex items-baseline gap-2 border-t border-line pt-2.5 text-sm md:pt-3">
+              <span className="figure text-[26px] leading-[30px] tracking-normal">
+                {data.advanced_count.toLocaleString('fr-FR')}
+              </span>
+              {data.advanced_count > 1 ? 'textes ont avancé' : 'texte a avancé'}
+              <a
+                href={`#${ADVANCED_ANCHOR}`}
+                aria-label="Voir les textes qui ont avancé"
+                className="ml-auto text-[13px] font-semibold link"
+              >
+                Voir ↓
+              </a>
+            </p>
+          )}
         </div>
       </div>
+
+      {data.advanced.length > 0 && <AdvancedTexts advanced={data.advanced} />}
 
       <DayPills days={data.days} selected={day} onSelect={setDay} />
 
