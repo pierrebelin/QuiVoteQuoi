@@ -68,7 +68,7 @@ impl ReelSlot {
     }
 }
 
-fn weekday_name(day: NaiveDate) -> &'static str {
+pub fn weekday_name(day: NaiveDate) -> &'static str {
     match day.weekday() {
         Weekday::Mon => "lundi",
         Weekday::Tue => "mardi",

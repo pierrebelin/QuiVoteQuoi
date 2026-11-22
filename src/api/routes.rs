@@ -68,6 +68,7 @@ fn read_routes() -> Router<AppState> {
         .route("/api/semaine", get(week_handlers::get_current_week))
         .route("/api/semaine/{date}", get(week_handlers::get_week))
         // Reel de votes prepare un jour donne (CU-01, CU-02).
+        .route("/api/reels/methode", get(reel_handlers::get_method))
         .route("/api/reels/{date}", get(reel_handlers::get_reel))
         .route("/api/scrutins", get(scrutin_handlers::list_scrutins))
         // Votes sur l'ensemble d'un texte, groupe par groupe (CU-07).

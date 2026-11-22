@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import VotesTabs from '../components/VotesTabs'
 import VoteCard from '../components/VoteCard'
 import DayPills from '../components/week/DayPills'
@@ -67,7 +67,17 @@ function FooterLink({ to, caption, children }: { to: string; caption: string; ch
  */
 export default function WeekPage() {
   const { date } = useParams()
-  const [day, setDay] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const day = searchParams.get('jour')
+  const setDay = (next: string | null) =>
+    setSearchParams(
+      (params) => {
+        if (next) params.set('jour', next)
+        else params.delete('jour')
+        return params
+      },
+      { replace: true },
+    )
   const { data, error, isPending } = useQuery({
     queryKey: ['week', date ?? 'current'],
     queryFn: () => fetchJson<WeekResponse>(date ? `/api/semaine/${date}` : '/api/semaine'),

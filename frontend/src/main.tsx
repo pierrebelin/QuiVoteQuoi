@@ -14,6 +14,7 @@ import GroupVotesPage from './pages/GroupVotesPage.tsx'
 import FinalVotesMethodPage from './pages/FinalVotesMethodPage.tsx'
 import ScrutinListPage from './pages/ScrutinListPage.tsx'
 import ScrutinDetailPage from './pages/ScrutinDetailPage.tsx'
+import ReelsMethodPage from './pages/ReelsMethodPage.tsx'
 import ThemeMethodPage from './pages/ThemeMethodPage.tsx'
 import ThemeArbitrationPage from './pages/ThemeArbitrationPage.tsx'
 import UnassignedTextsPage from './pages/UnassignedTextsPage.tsx'
@@ -46,7 +47,8 @@ createRoot(document.getElementById('root')!).render(
             <Route path="scrutins" element={<ScrutinListPage />} />
             <Route path="scrutins/:uid" element={<ScrutinDetailPage />} />
             <Route path="themes" element={<Navigate to={ENTRY_PATH} replace />} />
-            <Route path="themes/methode" element={<ThemeMethodPage />} />
+            <Route path="reels/methode" element={<ReelsMethodPage />} />
+            <Route path="themes/methode"element={<ThemeMethodPage />} />
             <Route path="themes/non-rattaches" element={<UnassignedTextsPage />} />
             <Route path="themes/arbitrage" element={<ThemeArbitrationPage />} />
             <Route path="themes/:code" element={<ThemeRedirect />} />

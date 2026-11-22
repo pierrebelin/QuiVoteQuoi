@@ -9,7 +9,7 @@ use crate::application::ports::scrutin_repository::ScrutinSummary;
 use crate::application::use_cases::prepare_reel::{
     PreparedReel, PresentedSubjects, ProgrammesReel, ReelPlan, SkipReason, VotesReel,
 };
-use crate::domain::reel::{ReelSlot, VoteCompleteness};
+use crate::domain::reel::{weekday_name, ReelSlot, VoteCompleteness};
 use crate::domain::site_news::SiteNewsId;
 use crate::domain::theme::FamilyCode;
 
@@ -106,6 +106,54 @@ pub struct ReelPeriodDto {
 pub struct ReelDayDto {
     pub date: NaiveDate,
     pub votes: usize,
+}
+
+pub const MOST_FOLLOWED_RULE: &str = CRITERION_NOTE;
+pub const COMPLETENESS_RULE: &str = "Un Reel de votes n'est publiable que si les données sont \
+     complètes : synchronisation de l'Assemblée nationale postérieure à la fin de la période et \
+     aucun numéro de scrutin manquant (RM-09).";
+pub const MONDAY_PRIORITY: &str = "programmes, nouveauté, thème";
+const DUE_TIME: &str = "18:00";
+
+#[derive(Debug, Serialize)]
+pub struct ReelMethodDayDto {
+    pub weekday: &'static str,
+    pub kind: &'static str,
+    pub period_label: String,
+}
+
+impl From<ReelSlot> for ReelMethodDayDto {
+    fn from(slot: ReelSlot) -> Self {
+        let prepared_on = slot.to().checked_add_days(Days::new(1)).unwrap_or(slot.to());
+        Self {
+            weekday: weekday_name(prepared_on),
+            kind: slot.kind().as_str(),
+            period_label: slot.period_label(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReelsMethodResponse {
+    pub days: Vec<ReelMethodDayDto>,
+    pub theme_rotation: Vec<FamilyCode>,
+    pub due_time: String,
+    pub most_followed_rule: &'static str,
+    pub completeness_rule: &'static str,
+    pub monday_priority: &'static str,
+}
+
+impl From<[ReelSlot; 7]> for ReelsMethodResponse {
+    fn from(slots: [ReelSlot; 7]) -> Self {
+        Self {
+            days: slots.into_iter().map(ReelMethodDayDto::from).collect(),
+            theme_rotation: FamilyCode::ALL.to_vec(),
+            due_time: DUE_TIME.to_owned(),
+            most_followed_rule: MOST_FOLLOWED_RULE,
+            completeness_rule: COMPLETENESS_RULE,
+            monday_priority: MONDAY_PRIORITY,
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -749,5 +797,47 @@ mod tests {
         let empty = PresentedSubjects::try_from(ReelQuery::default()).unwrap();
         assert_eq!(empty.last_theme, None);
         assert!(empty.news.is_empty());
+    }
+
+    fn method_json() -> Value {
+        let slots: [ReelSlot; 7] =
+            std::array::from_fn(|i| ReelSlot::for_day(d(11, 16 + i as u32)));
+        serde_json::to_value(ReelsMethodResponse::from(slots)).unwrap()
+    }
+
+    #[test]
+    fn describes_the_reel_kind_and_period_of_each_day_of_the_week() {
+        let json = method_json();
+
+        let days = json["days"].as_array().unwrap();
+        assert_eq!(days.len(), 7);
+        assert_eq!(days[0]["kind"], "lundi");
+        assert_eq!(
+            days[1]["period_label"],
+            ReelSlot::for_day(d(11, 17)).period_label()
+        );
+        assert_eq!(days[2]["kind"], "veille");
+    }
+
+    #[test]
+    fn lists_the_theme_rotation_in_referential_order() {
+        let json = method_json();
+
+        assert_eq!(
+            json["theme_rotation"],
+            serde_json::to_value(FamilyCode::ALL).unwrap()
+        );
+    }
+
+    #[test]
+    fn states_the_due_time_the_most_followed_criterion_the_completeness_rule_and_the_monday_priority(
+    ) {
+        let json = method_json();
+
+        assert_eq!(json["due_time"], "18:00");
+        assert_eq!(json["most_followed_rule"], MOST_FOLLOWED_RULE);
+        assert_eq!(json["completeness_rule"], COMPLETENESS_RULE);
+        assert_eq!(json["monday_priority"], MONDAY_PRIORITY);
+        assert!(json.as_object().unwrap().keys().all(|k| !k.contains("prepar")));
     }
 }

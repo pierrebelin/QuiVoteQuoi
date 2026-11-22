@@ -3,7 +3,8 @@ use axum::Json;
 use chrono::NaiveDate;
 
 use crate::api::error::ApiError;
-use crate::api::reel_dto::{ReelQuery, ReelResponse};
+use crate::api::reel_dto::{ReelQuery, ReelResponse, ReelsMethodResponse};
+use crate::domain::reel::ReelSlot;
 use crate::api::week_dto::requested_date;
 use crate::application::use_cases::prepare_reel::{PrepareReel, PresentedSubjects};
 use crate::AppState;
@@ -16,6 +17,19 @@ pub fn requested_day(raw: &str) -> Result<NaiveDate, ApiError> {
 /// Sujets deja presentes de l'adresse; un code ou une liste hors borne est une mauvaise requete.
 pub fn presented_subjects(query: ReelQuery) -> Result<PresentedSubjects, ApiError> {
     PresentedSubjects::try_from(query).map_err(ApiError::bad_request)
+}
+
+/// Lundi de la semaine de reference dont les sept jours decrivent le planning (RM-15).
+const REFERENCE_MONDAY: (i32, u32, u32) = (2026, 1, 5);
+
+/// Methode des Reels : planning, criteres et rotation appliques par l'API (RM-15, RM-16).
+pub async fn get_method() -> Json<ReelsMethodResponse> {
+    let (year, month, day) = REFERENCE_MONDAY;
+    let monday = NaiveDate::from_ymd_opt(year, month, day).expect("lundi de reference valide");
+    let slots: [ReelSlot; 7] = std::array::from_fn(|offset| {
+        ReelSlot::for_day(monday + chrono::Days::new(offset as u64))
+    });
+    Json(slots.into())
 }
 
 /// Reel prepare le jour de l'adresse (CU-01, CU-02).
