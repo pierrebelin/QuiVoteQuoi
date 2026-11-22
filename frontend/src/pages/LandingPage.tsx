@@ -117,6 +117,35 @@ const PIECES = [
 const NEVER_SHOWN =
   'Jamais affiché : une motivation reconstituée, un commentaire de presse, une synthèse rédigée par un modèle de langage.'
 
+/**
+ * À partir de 1280 px, troisième carte à côté des règles et des refus : les
+ * sources et les pièces d'un vote, qui ont chacune leur section sous 1280 px.
+ */
+const VERIFIABLE: { titre: string; texte: string; label: string; to: string; external?: boolean }[] = [
+  {
+    titre: 'Données',
+    texte:
+      'Open data de l’Assemblée nationale, sous Licence Ouverte. Rien n’est saisi à la main ni corrigé en silence. Le Sénat est hors périmètre.',
+    label: 'data.assemblee-nationale.fr ↗',
+    to: 'https://data.assemblee-nationale.fr',
+    external: true,
+  },
+  {
+    titre: 'Code source',
+    texte: 'Le dépôt public permet de tout vérifier, de signaler une erreur ou de proposer une correction.',
+    label: 'Le dépôt sur GitHub ↗',
+    to: GITHUB_REPOSITORY_URL,
+    external: true,
+  },
+  {
+    titre: 'Derrière chaque vote',
+    texte:
+      'Ce qui a été mis aux voix, le texte, chaque député, les mises au point : jamais une motivation reconstituée.',
+    label: 'Comprendre un vote',
+    to: '/comprendre',
+  },
+]
+
 const shortDate = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
 const frenchNumber = (value: number) => value.toLocaleString('fr-FR')
 
@@ -205,7 +234,10 @@ function Landmarks({ groupCount }: { groupCount: number | null }) {
 
   if (chips.length === 0) return null
   return (
-    <ul aria-label="Repères" className="mt-4 flex flex-wrap justify-center gap-1.5 md:justify-start">
+    <ul
+      aria-label="Repères"
+      className="mt-4 flex flex-wrap justify-center gap-1.5 md:justify-start xl:col-start-2 xl:row-start-3 xl:mt-2.5 xl:justify-end xl:self-start"
+    >
       {chips.map((chip, index) => (
         <li
           key={index}
@@ -260,13 +292,13 @@ function SectionHead({
 
 /** Crédits des logos et des portraits : Wikimedia Commons, dus par leur licence,
  * ou photos de campagne reprises de leur source. */
-function Credits() {
+function Credits({ className = 'mt-4 border-t border-line pt-3' }: { className?: string }) {
   const credits = [
     ...ALL_LOGOS.map((logo) => logo.credit),
     ...Object.values(PORTRAITS).map((portrait) => portrait.credit),
   ]
   return (
-    <details className="mt-4 border-t border-line pt-3 text-sm text-ink-soft">
+    <details className={`text-sm text-ink-soft ${className}`}>
       <summary className="cursor-pointer font-medium text-ink">
         Crédits des logos et des portraits
       </summary>
@@ -300,8 +332,8 @@ const DESKTOP_CARD = 'md:rounded md:border md:border-line md:bg-surface md:p-5 m
  * La semaine en cours, résumée : ses nombres et ses jours, sans sélection. Une
  * semaine en cours encore vide laisse la place à la dernière semaine votée,
  * comme sur la page La semaine ; le titre le dit. À partir de 1280 px, la carte
- * monte à droite de l'accroche, à côté du bouton qui mène déjà à la semaine :
- * son propre lien y disparaît.
+ * tient dans une colonne de 380 px, à côté de ce qui devient loi ; le bouton
+ * daté de l'accroche menant déjà à la semaine, son propre lien y disparaît.
  */
 function WeekSummary({ week }: { week: WeekResponse }) {
   const texts = week.texts_count
@@ -371,104 +403,107 @@ export default function LandingPage() {
 
   return (
     <div className="space-y-8 md:space-y-12">
-      <div className="grid items-start gap-8 md:gap-14 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <div className="grid min-w-0 gap-8 md:gap-14">
-          <section aria-labelledby="promesse" className="rise-in md:pt-6">
-            <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
-              Assemblée nationale
-            </p>
-            <h2
-              id="promesse"
-              className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px]"
+      {/* À partir de 1280 px : l'accroche en bande (boutons à droite), le dernier
+          vote en pleine largeur, puis la semaine et ce qui devient loi côte à côte
+          (variante C du 22/11/2026). */}
+      <div className="grid gap-8 md:gap-14 xl:gap-10">
+        <section
+          aria-labelledby="promesse"
+          className="rise-in md:pt-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-x-10 xl:pt-2"
+        >
+          <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
+            Assemblée nationale
+          </p>
+          <h2
+            id="promesse"
+            className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px] xl:mt-1.5 xl:text-[50px] xl:leading-[54px]"
+          >
+            Les votes de l’Assemblée, sur pièces.
+          </h2>
+          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-soft sm:text-base">
+            Ce que chaque groupe a voté, texte par texte. Des chiffres bruts et la source
+            officielle, sans sélection ni commentaire.
+          </p>
+          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0 xl:self-end xl:justify-end">
+            <Link
+              to="/semaine"
+              className={`group inline-flex min-h-[64px] items-center justify-between gap-3 rounded bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center ${FOCUS_RING}`}
             >
-              Les votes de l’Assemblée, sur pièces.
-            </h2>
-            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-soft sm:text-base">
-              Ce que chaque groupe a voté, texte par texte. Des chiffres bruts et la source
-              officielle, sans sélection ni commentaire.
-            </p>
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-              <Link
-                to="/semaine"
-                className={`group inline-flex min-h-[64px] items-center justify-between gap-3 rounded bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center ${FOCUS_RING}`}
-              >
-                <span className="flex flex-col text-left">
-                  <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
-                  {week.data && (
-                    <span className="text-[13px] leading-[18px] font-medium text-surface/80">
-                      {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
-                    </span>
-                  )}
-                </span>
-                <Arrow />
-              </Link>
-              <Link
-                to="/candidats-2027"
-                className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
-              >
-                Comparer les programmes de 2027
-                <Arrow />
-              </Link>
-            </div>
-            <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
-          </section>
-
-          <section aria-labelledby="dernier-vote" className="space-y-2.5">
-            <h3 id="dernier-vote" className="heading-4">
-              Dernier vote sur l’ensemble d’un texte
-            </h3>
-            {vote ? (
-              <VoteCard
-                size="full"
-                wide
-                {...finalVoteCard(vote, groups)}
-                figure={
-                  <LatestVoteHemicycle
-                    scrutinUid={vote.scrutin_uid}
-                    tally={vote.synthesis}
-                    labelledBy="dernier-vote"
-                  />
-                }
-              />
-            ) : (
-              <Card className="px-4 py-6">
-                {latest.isError ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-semibold text-ink">
-                      Le dernier vote n’est pas disponible pour le moment.
-                    </p>
-                    <p className="text-sm leading-relaxed text-ink-soft">
-                      Aucun résultat n’est remplacé par une estimation.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => void latest.refetch()}
-                      className="text-sm font-medium link"
-                    >
-                      Réessayer
-                    </button>
-                  </div>
-                ) : latest.data ? (
-                  <p className="text-sm text-ink-soft">Aucun vote sur l’ensemble n’est encore publié.</p>
-                ) : (
-                  <Loading>Chargement du dernier vote…</Loading>
+              <span className="flex flex-col text-left">
+                <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
+                {week.data && (
+                  <span className="text-[13px] leading-[18px] font-medium text-surface/80">
+                    {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
+                  </span>
                 )}
-              </Card>
-            )}
-          </section>
+              </span>
+              <Arrow />
+            </Link>
+            <Link
+              to="/candidats-2027"
+              className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
+            >
+              Comparer les programmes de 2027
+              <Arrow />
+            </Link>
+          </div>
+          <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
+        </section>
 
-        </div>
+        <section aria-labelledby="dernier-vote" className="space-y-2.5">
+          <h3 id="dernier-vote" className="heading-4">
+            Dernier vote sur l’ensemble d’un texte
+          </h3>
+          {vote ? (
+            <VoteCard
+              size="full"
+              wide
+              {...finalVoteCard(vote, groups)}
+              figure={
+                <LatestVoteHemicycle
+                  scrutinUid={vote.scrutin_uid}
+                  tally={vote.synthesis}
+                  labelledBy="dernier-vote"
+                />
+              }
+            />
+          ) : (
+            <Card className="px-4 py-6">
+              {latest.isError ? (
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-ink">
+                    Le dernier vote n’est pas disponible pour le moment.
+                  </p>
+                  <p className="text-sm leading-relaxed text-ink-soft">
+                    Aucun résultat n’est remplacé par une estimation.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => void latest.refetch()}
+                    className="text-sm font-medium link"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : latest.data ? (
+                <p className="text-sm text-ink-soft">Aucun vote sur l’ensemble n’est encore publié.</p>
+              ) : (
+                <Loading>Chargement du dernier vote…</Loading>
+              )}
+            </Card>
+          )}
+        </section>
 
-        {/* Colonne de droite à partir de 1280 px : la semaine, puis ce qui devient
-            loi (SPEC-navette, Q1). Plus bas, après le dernier vote. */}
-        <div className="grid gap-8 empty:hidden md:gap-14 xl:gap-6">
+        <div className="grid gap-8 empty:hidden md:gap-14 xl:grid-cols-[380px_minmax(0,1fr)] xl:items-start xl:gap-6">
           {week.data && <WeekSummary week={week.data} />}
           <BecomingLawCard />
         </div>
       </div>
 
       {/* Sous 768 px : liste, puis une carte pour les règles et les refus. Au-delà :
-          tuiles, puis deux cartes de même hauteur. */}
+          tuiles, puis deux cartes de même hauteur. À partir de 1280 px, une
+          troisième carte reprend les sources et les pièces, dont les sections
+          suivantes disparaissent. */}
       <div className="grid items-start gap-8 md:gap-4 md:border-t md:border-line md:pt-12">
         <section ref={usagesRef} aria-labelledby="usages">
           <h3 id="usages" className="heading-4 md:heading-2">
@@ -496,10 +531,11 @@ export default function LandingPage() {
           </ul>
         </section>
 
+        <h3 className="hidden heading-2 xl:mt-6 xl:block">Sur pièces, et rien d’autre</h3>
         <section
           ref={reglesRef}
           aria-labelledby="regles"
-          className="rounded border border-line bg-surface p-4 shadow-card sm:p-5 md:grid md:grid-cols-2 md:gap-3 md:border-0 md:bg-transparent md:p-0 md:shadow-none"
+          className="rounded border border-line bg-surface p-4 shadow-card sm:p-5 md:grid md:grid-cols-2 md:gap-3 md:border-0 md:bg-transparent md:p-0 md:shadow-none xl:grid-cols-3"
         >
           <div className={`${DESKTOP_CARD} reveal-item`} style={revealRank(0)}>
             <h3 id="regles" className="text-[15px] font-semibold md:text-base">
@@ -537,10 +573,33 @@ export default function LandingPage() {
               ))}
             </ul>
           </div>
+          <div className={`${DESKTOP_CARD} reveal-item hidden xl:block`} style={revealRank(2)}>
+            <h4 className="text-base font-semibold text-ink">Tout se vérifie</h4>
+            <ul className="mt-2">
+              {VERIFIABLE.map((item) => (
+                <li key={item.titre} className="border-t border-line py-2.5 first:border-t-0 first:pt-1">
+                  <p className="text-sm font-semibold text-ink">{item.titre}</p>
+                  <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{item.texte}</p>
+                  {item.external ? (
+                    <a href={item.to} target="_blank" rel="noreferrer" className={`mt-1 inline-block ${EXTERNAL_LINK}`}>
+                      {item.label}
+                    </a>
+                  ) : (
+                    <Link to={item.to} className={`mt-1 inline-block ${EXTERNAL_LINK}`}>
+                      {item.label}
+                    </Link>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
+        <div className={`${DESKTOP_CARD} hidden xl:block xl:py-3.5`}>
+          <Credits className="" />
+        </div>
       </div>
 
-      <section ref={piecesRef} aria-labelledby="pieces" className="border-t border-line pt-8">
+      <section ref={piecesRef} aria-labelledby="pieces" className="border-t border-line pt-8 xl:hidden">
         <SectionHead
           id="pieces"
           surtitre="Derrière chaque vote"
@@ -568,7 +627,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section ref={sourcesRef} aria-labelledby="sources" className="border-t border-line pt-8">
+      <section ref={sourcesRef} aria-labelledby="sources" className="border-t border-line pt-8 xl:hidden">
         <SectionHead id="sources" surtitre="Sources" titre="Tout vient de l’Assemblée, et se vérifie" />
         <Card className="mt-5 px-4 py-4 sm:px-5">
           <div className="grid gap-5 md:grid-cols-3">
