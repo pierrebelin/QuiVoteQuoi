@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 
 use crate::domain::dataset::DatasetShape;
+use crate::domain::reel::NumberingSpan;
 use crate::domain::scrutin::{Scrutin, ScrutinUid, VoteTally};
 use crate::domain::sitting_record::ScrutinSittingKey;
 
@@ -98,4 +99,6 @@ pub trait ScrutinRepository: Send + Sync {
 
     /// Date du dernier scrutin publie; `None` sur une base vide.
     async fn latest_scrutin_date(&self) -> Result<Option<NaiveDate>, RepositoryError>;
+
+    async fn numbering_span(&self, legislature: u16) -> Result<NumberingSpan, RepositoryError>;
 }

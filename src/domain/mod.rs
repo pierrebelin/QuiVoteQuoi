@@ -17,6 +17,7 @@ pub mod ingestion;
 pub mod law_progress;
 pub mod law_text;
 pub mod legislature;
+pub mod reel;
 pub mod scoring;
 pub mod scrutin;
 pub mod sitting_record;

@@ -460,6 +460,13 @@ mod tests {
         async fn latest_scrutin_date(&self) -> Result<Option<NaiveDate>, ScrutinRepositoryError> {
             unreachable!()
         }
+
+        async fn numbering_span(
+            &self,
+            _legislature: u16,
+        ) -> Result<crate::domain::reel::NumberingSpan, ScrutinRepositoryError> {
+            unreachable!()
+        }
     }
 
     /// Source d'amendements muette: le rafraichissement des amendements n'est pas

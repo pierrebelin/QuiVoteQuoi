@@ -283,7 +283,7 @@ fn group_rank(kind: LawStateKind) -> u8 {
 }
 
 /// Sorts publies de la semaine: adopte, rejete, et chaque autre sous son libelle (RM-04).
-fn totals_of(rows: &[&ScrutinSummary]) -> OutcomeCount {
+pub(crate) fn totals_of(rows: &[&ScrutinSummary]) -> OutcomeCount {
     let mut totals = OutcomeCount {
         votes: rows.len(),
         adopted: 0,

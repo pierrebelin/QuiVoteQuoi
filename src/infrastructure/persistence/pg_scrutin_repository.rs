@@ -513,6 +513,26 @@ impl ScrutinRepository for PgScrutinRepository {
             .map_err(db)
     }
 
+    async fn numbering_span(
+        &self,
+        legislature: u16,
+    ) -> Result<crate::domain::reel::NumberingSpan, RepositoryError> {
+        let (count, highest): (i64, Option<i64>) = sqlx::query_as(
+            "SELECT count(*), max(number::bigint)
+             FROM scrutins
+             WHERE legislature = $1 AND number ~ '^[0-9]+$'",
+        )
+        .bind(i16::try_from(legislature).map_err(|e| RepositoryError::Database(e.to_string()))?)
+        .persistent(false)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(db)?;
+        Ok(crate::domain::reel::NumberingSpan {
+            count,
+            highest: highest.unwrap_or(0),
+        })
+    }
+
     async fn sitting_keys(
         &self,
     ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {

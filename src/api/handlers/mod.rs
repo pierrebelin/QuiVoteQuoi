@@ -6,6 +6,7 @@ pub mod final_vote_handlers;
 pub mod group_handlers;
 pub mod guide_handlers;
 pub mod health_handlers;
+pub mod reel_handlers;
 pub mod scrutin_handlers;
 pub mod theme_handlers;
 pub mod week_handlers;

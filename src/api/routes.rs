@@ -8,7 +8,7 @@ use crate::AppState;
 
 use super::handlers::{
     amendment_handlers, budget_handlers, candidate_handlers, dossier_handlers, final_vote_handlers, group_handlers,
-    guide_handlers, health_handlers, scrutin_handlers, theme_handlers,
+    guide_handlers, health_handlers, reel_handlers, scrutin_handlers, theme_handlers,
     week_handlers,
 };
 
@@ -67,6 +67,8 @@ fn read_routes() -> Router<AppState> {
         // Semaine de votes: par defaut, puis celle d'une date (RM-03, RM-07).
         .route("/api/semaine", get(week_handlers::get_current_week))
         .route("/api/semaine/{date}", get(week_handlers::get_week))
+        // Reel de votes prepare un jour donne (CU-01, CU-02).
+        .route("/api/reels/{date}", get(reel_handlers::get_reel))
         .route("/api/scrutins", get(scrutin_handlers::list_scrutins))
         // Votes sur l'ensemble d'un texte, groupe par groupe (CU-07).
         .route(

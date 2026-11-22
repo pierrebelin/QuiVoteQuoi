@@ -104,6 +104,21 @@ impl ScrutinRepository for FakeScrutins {
     async fn latest_scrutin_date(&self) -> Result<Option<chrono::NaiveDate>, RepositoryError> {
         Ok(self.rows.iter().map(|row| row.date).max())
     }
+    async fn numbering_span(
+        &self,
+        legislature: u16,
+    ) -> Result<crate::domain::reel::NumberingSpan, RepositoryError> {
+        let numbers: Vec<i64> = self
+            .rows
+            .iter()
+            .filter(|row| row.legislature == legislature)
+            .filter_map(|row| row.number.parse().ok())
+            .collect();
+        Ok(crate::domain::reel::NumberingSpan {
+            count: numbers.len() as i64,
+            highest: numbers.into_iter().max().unwrap_or(0),
+        })
+    }
 }
 
 /// Ligne d'amendement d'un auteur `PA1` du groupe `PO_A`, sort adopte, exposé publié.

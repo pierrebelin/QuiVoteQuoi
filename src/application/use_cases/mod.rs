@@ -23,7 +23,10 @@ pub mod import_budget_exercise;
 pub mod journaling;
 pub mod list_scrutins;
 pub mod link_scrutins_to_amendments;
+pub mod prepare_reel;
 pub mod propose_theme_families;
+#[cfg(test)]
+pub mod final_vote_fakes;
 pub mod refresh_actor_registry;
 pub mod refresh_all;
 pub mod refresh_amendments;

@@ -114,4 +114,10 @@ impl ScrutinRepository for FakeSittingScrutins {
     async fn latest_scrutin_date(&self) -> Result<Option<chrono::NaiveDate>, RepositoryError> {
         unreachable!()
     }
+    async fn numbering_span(
+        &self,
+        _legislature: u16,
+    ) -> Result<crate::domain::reel::NumberingSpan, RepositoryError> {
+        unreachable!()
+    }
 }
