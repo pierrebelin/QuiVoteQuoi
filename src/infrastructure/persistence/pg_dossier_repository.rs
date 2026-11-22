@@ -5,6 +5,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::{PgPool, Postgres, QueryBuilder, Row};
 
 use super::{db, invalid_row};
+use crate::application::ports::decision_vote_repository::{DecisionVote, DecisionVoteRepository};
 use crate::application::ports::dossier_repository::{
     DossierCriteria, DossierListing, DossierOrder, DossierPage, DossierRepository,
     DossierScrutinTally, RepositoryError,
@@ -16,7 +17,7 @@ use crate::domain::dossier::{
     LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
     NewLegislativeDossier, Score, StoredDossierState,
 };
-use crate::domain::scrutin::{Outcome, ScrutinUid};
+use crate::domain::scrutin::{DossierReference, Outcome, ScrutinUid};
 use crate::domain::theme::FamilyCode;
 
 pub struct PgDossierRepository {
@@ -462,6 +463,32 @@ fn escape_like(input: &str) -> String {
         .replace('\\', "\\\\")
         .replace('%', "\\%")
         .replace('_', "\\_")
+}
+
+#[async_trait]
+impl DecisionVoteRepository for PgDossierRepository {
+    async fn decision_votes(&self) -> Result<Vec<DecisionVote>, RepositoryError> {
+        let rows = sqlx::query(
+            "SELECT DISTINCT a.decision_scrutin_uid, d.uid, d.title
+               FROM legislative_acts a
+               JOIN legislative_dossiers d ON d.uid = a.dossier_uid
+              WHERE a.decision_scrutin_uid IS NOT NULL",
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+        rows.into_iter()
+            .map(|row| {
+                Ok(DecisionVote {
+                    scrutin_uid: row.get("decision_scrutin_uid"),
+                    dossier: DossierReference {
+                        uid: DossierUid::new(row.get("uid")).map_err(invalid_row)?,
+                        label: row.get("title"),
+                    },
+                })
+            })
+            .collect()
+    }
 }
 
 #[async_trait]

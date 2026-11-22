@@ -78,6 +78,7 @@ fn state() -> AppState {
         assembly_source: Arc::new(NationalAssemblyClient::new()),
         candidate_repository: Arc::new(PgCandidateRepository::new(db.clone())),
         dossier_repository: Arc::new(PgDossierRepository::new(db.clone())),
+        decision_vote_repository: Arc::new(PgDossierRepository::new(db.clone())),
         dossier_group_actions_repository: Arc::new(
             quivotequoi::infrastructure::persistence::pg_dossier_group_actions_repository::PgDossierGroupActionsRepository::new(db.clone()),
         ),

@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::application::ports::actor_repository::ActorRepository;
+use crate::application::ports::decision_vote_repository::DecisionVoteRepository;
 use crate::application::ports::scrutin_repository::ScrutinRepository;
 use crate::application::ports::scrutin_source::ScrutinSource;
 use crate::application::use_cases::journaling::Journaling;
@@ -30,6 +31,9 @@ pub struct ScrutinsSummary {
     pub unresolved_votes: usize,
     /// Renseigne quand le referentiel ne permet pas la reconstruction.
     pub registry_anomaly: Option<String>,
+    /// Scrutins dont le fichier nommait un autre dossier que celui dont
+    /// l'acte de decision les cite, rattaches a ce dernier.
+    pub reattached_to_decision_dossier: usize,
 }
 
 /// CU-01 — Ingerer les scrutins.
@@ -37,6 +41,7 @@ pub struct RefreshScrutins<'a> {
     source: &'a dyn ScrutinSource,
     repository: &'a dyn ScrutinRepository,
     actor_repository: &'a dyn ActorRepository,
+    decision_votes: &'a dyn DecisionVoteRepository,
     journaling: Journaling<'a>,
 }
 
@@ -45,12 +50,14 @@ impl<'a> RefreshScrutins<'a> {
         source: &'a dyn ScrutinSource,
         repository: &'a dyn ScrutinRepository,
         actor_repository: &'a dyn ActorRepository,
+        decision_votes: &'a dyn DecisionVoteRepository,
         journaling: Journaling<'a>,
     ) -> Self {
         Self {
             source,
             repository,
             actor_repository,
+            decision_votes,
             journaling,
         }
     }
@@ -69,6 +76,8 @@ impl<'a> RefreshScrutins<'a> {
         let mut scrutins = self.source.fetch_scrutins(CURRENT_LEGISLATURE).await?;
 
         let mut summary = self.reconstruct_missing_groups(&mut scrutins).await?;
+        summary.reattached_to_decision_dossier =
+            self.defer_to_decision_dossiers(&mut scrutins).await?;
 
         summary.scrutins = self.repository.save_scrutins(&scrutins).await?;
         summary.without_dossier = scrutins.iter().filter(|s| s.dossier().is_none()).count();
@@ -79,6 +88,12 @@ impl<'a> RefreshScrutins<'a> {
             summary.without_dossier,
             summary.reconstructed_scrutins
         );
+        if summary.reattached_to_decision_dossier > 0 {
+            tracing::warn!(
+                "{} scrutins named another dossier than the one whose decision cites them: reattached",
+                summary.reattached_to_decision_dossier
+            );
+        }
         if summary.unresolved_votes > 0 {
             tracing::warn!(
                 "{} nominal votes could not be attached to a group: reconstructed breakdowns are incomplete",
@@ -87,6 +102,31 @@ impl<'a> RefreshScrutins<'a> {
         }
 
         Ok(summary)
+    }
+
+    /// Le jeu des dossiers fait foi sur le dossier d'un scrutin de decision :
+    /// le fichier du scrutin nomme parfois le texte vote juste avant dans la
+    /// seance (`VTANR5L17V10080`).
+    async fn defer_to_decision_dossiers(
+        &self,
+        scrutins: &mut [Scrutin],
+    ) -> Result<usize, RefreshScrutinsError> {
+        let decided_in: HashMap<String, _> = self
+            .decision_votes
+            .decision_votes()
+            .await?
+            .into_iter()
+            .map(|vote| (vote.scrutin_uid, vote.dossier))
+            .collect();
+        let mut reattached = 0;
+        for scrutin in scrutins.iter_mut() {
+            if let Some(dossier) = decided_in.get(scrutin.uid().as_str()) {
+                if scrutin.defer_to_decision_dossier(dossier) {
+                    reattached += 1;
+                }
+            }
+        }
+        Ok(reattached)
     }
 
     /// RM-03: les scrutins ou la source ne nomme pas les groupes sont
@@ -148,6 +188,7 @@ mod tests {
     use chrono::{DateTime, NaiveDate, TimeZone, Utc};
     use std::sync::Mutex;
 
+    use crate::application::use_cases::decision_vote_fakes::InMemoryDecisionVotes;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::domain::ingestion::{CheckOutcome, IngestionSource};
 
@@ -161,9 +202,10 @@ mod tests {
         MembershipPeriod, MembershipQuality, ParliamentaryGroup,
     };
     use crate::domain::dataset::DatasetShape;
+    use crate::domain::dossier::DossierUid;
     use crate::domain::scrutin::{
-        BallotType, GroupTally, NewScrutin, NominalVote, Outcome, ScrutinUid, TallyOrigin,
-        VotePosition, VoteSynthesis, VoteTally, MISSING_GROUP_SENTINEL,
+        BallotType, DossierReference, GroupTally, NewScrutin, NominalVote, Outcome, ScrutinUid,
+        TallyOrigin, VotePosition, VoteSynthesis, VoteTally, MISSING_GROUP_SENTINEL,
     };
 
     fn date() -> NaiveDate {
@@ -171,7 +213,11 @@ mod tests {
     }
 
     fn scrutin(uid: &str, tallies: Vec<GroupTally>, votes: Vec<NominalVote>) -> Scrutin {
-        Scrutin::new(NewScrutin {
+        Scrutin::new(new_scrutin(uid, tallies, votes)).unwrap()
+    }
+
+    fn new_scrutin(uid: &str, tallies: Vec<GroupTally>, votes: Vec<NominalVote>) -> NewScrutin {
+        NewScrutin {
             uid: ScrutinUid::new(uid.into()).unwrap(),
             number: "489".into(),
             legislature: 17,
@@ -194,8 +240,7 @@ mod tests {
             nominal_votes: votes,
             corrections: vec![],
             dossier: None,
-        })
-        .unwrap()
+        }
     }
 
     fn sentinel_line() -> GroupTally {
@@ -261,7 +306,8 @@ mod tests {
 
         async fn sitting_keys(
             &self,
-        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {
+        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError>
+        {
             unreachable!()
         }
 
@@ -273,8 +319,10 @@ mod tests {
             &self,
             _from: NaiveDate,
             _to: NaiveDate,
-        ) -> Result<Vec<crate::application::ports::scrutin_repository::ScrutinSummary>, RepositoryError>
-        {
+        ) -> Result<
+            Vec<crate::application::ports::scrutin_repository::ScrutinSummary>,
+            RepositoryError,
+        > {
             unreachable!()
         }
 
@@ -372,6 +420,14 @@ mod tests {
         scrutins: Vec<Scrutin>,
         registry_empty: bool,
     ) -> (ScrutinsSummary, Vec<Scrutin>, Vec<ActorUid>) {
+        run_with(scrutins, registry_empty, &InMemoryDecisionVotes::none()).await
+    }
+
+    async fn run_with(
+        scrutins: Vec<Scrutin>,
+        registry_empty: bool,
+        decision_votes: &InMemoryDecisionVotes,
+    ) -> (ScrutinsSummary, Vec<Scrutin>, Vec<ActorUid>) {
         let source = FakeScrutinSource {
             scrutins: Mutex::new(Some(scrutins)),
         };
@@ -383,10 +439,16 @@ mod tests {
             requested: Mutex::new(vec![]),
         };
 
-        let summary = RefreshScrutins::new(&source, &repository, &actors, Journaling::off())
-            .execute()
-            .await
-            .unwrap();
+        let summary = RefreshScrutins::new(
+            &source,
+            &repository,
+            &actors,
+            decision_votes,
+            Journaling::off(),
+        )
+        .execute()
+        .await
+        .unwrap();
 
         let stored = repository.stored.lock().unwrap().clone();
         let requested = actors.requested.lock().unwrap().clone();
@@ -489,12 +551,104 @@ mod tests {
             requested: Mutex::new(vec![]),
         };
 
-        let result = RefreshScrutins::new(&source, &repository, &actors, Journaling::off())
-            .execute()
-            .await;
+        let result = RefreshScrutins::new(
+            &source,
+            &repository,
+            &actors,
+            &InMemoryDecisionVotes::none(),
+            Journaling::off(),
+        )
+        .execute()
+        .await;
 
         assert!(matches!(result, Err(RefreshScrutinsError::Source(_))));
         assert!(repository.stored.lock().unwrap().is_empty());
+    }
+
+    const TZC: &str = "DLR5L17N51962";
+    const TZC_TITLE: &str = "Territoires zéro chômeur longue durée";
+    const VIE_CHERE: &str = "DLR5L17N51095";
+    const VIE_CHERE_TITLE: &str = "Vie chère outre-mer";
+
+    fn scrutin_naming(uid: &str, dossier: Option<(&str, &str)>) -> Scrutin {
+        Scrutin::new(NewScrutin {
+            dossier: dossier.map(|(dossier_uid, title)| DossierReference {
+                uid: DossierUid::new(dossier_uid.into()).unwrap(),
+                label: title.into(),
+            }),
+            ..new_scrutin(uid, vec![], vec![])
+        })
+        .unwrap()
+    }
+
+    fn stored_dossier(stored: &[Scrutin], uid: &str) -> Option<(String, String)> {
+        stored
+            .iter()
+            .find(|s| s.uid().as_str() == uid)
+            .and_then(|s| s.dossier())
+            .map(|d| (d.uid.as_str().to_string(), d.label.clone()))
+    }
+
+    // VTANR5L17V10080, 19/11/2026 : l'ensemble du texte vie chère outre-mer.
+    // Son fichier nomme le dossier Territoires zéro chômeur, voté juste avant ;
+    // l'acte AN1-DEBATS-DEC du dossier vie chère le cite comme sa décision.
+    #[tokio::test]
+    async fn attaches_a_scrutin_to_the_dossier_whose_decision_cites_it_over_its_file() {
+        let decisions = InMemoryDecisionVotes::none()
+            .citing("V10080", VIE_CHERE, VIE_CHERE_TITLE)
+            .citing("V10033", TZC, TZC_TITLE);
+
+        let (summary, stored, _) = run_with(
+            vec![
+                scrutin_naming("V10033", Some((TZC, TZC_TITLE))),
+                scrutin_naming("V10080", Some((TZC, TZC_TITLE))),
+            ],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V10080"),
+            Some((VIE_CHERE.to_string(), VIE_CHERE_TITLE.to_string()))
+        );
+        assert_eq!(
+            stored_dossier(&stored, "V10033"),
+            Some((TZC.to_string(), TZC_TITLE.to_string()))
+        );
+        assert_eq!(summary.reattached_to_decision_dossier, 1);
+    }
+
+    #[tokio::test]
+    async fn keeps_the_dossier_named_by_the_scrutin_when_no_decision_cites_it() {
+        let decisions = InMemoryDecisionVotes::none().citing("V2", VIE_CHERE, VIE_CHERE_TITLE);
+
+        let (summary, stored, _) = run_with(
+            vec![scrutin_naming("V1", Some((TZC, TZC_TITLE)))],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V1"),
+            Some((TZC.to_string(), TZC_TITLE.to_string()))
+        );
+        assert_eq!(summary.reattached_to_decision_dossier, 0);
+    }
+
+    // Choix de perimetre : seule la contradiction est corrigee. Un scrutin
+    // dont le fichier ne nomme aucun dossier reste sans dossier (RM-10).
+    #[tokio::test]
+    async fn leaves_a_scrutin_without_dossier_unattached_even_when_a_decision_cites_it() {
+        let decisions = InMemoryDecisionVotes::none().citing("V1", VIE_CHERE, VIE_CHERE_TITLE);
+
+        let (summary, stored, _) =
+            run_with(vec![scrutin_naming("V1", None)], false, &decisions).await;
+
+        assert_eq!(stored_dossier(&stored, "V1"), None);
+        assert_eq!(summary.without_dossier, 1);
+        assert_eq!(summary.reattached_to_decision_dossier, 0);
     }
 
     fn attempted_at() -> DateTime<Utc> {
@@ -530,6 +684,7 @@ mod tests {
             &source,
             &repository,
             &actors,
+            &InMemoryDecisionVotes::none(),
             Journaling::to(&journal, attempted_at()),
         )
         .execute()
@@ -559,6 +714,7 @@ mod tests {
             &source,
             &repository,
             &actors,
+            &InMemoryDecisionVotes::none(),
             Journaling::to(&journal, attempted_at()),
         )
         .execute()
@@ -590,6 +746,7 @@ mod tests {
             &source,
             &repository,
             &actors,
+            &InMemoryDecisionVotes::none(),
             Journaling::to(&journal, attempted_at()),
         )
         .execute()

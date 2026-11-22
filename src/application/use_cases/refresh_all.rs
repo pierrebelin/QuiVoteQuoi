@@ -6,6 +6,7 @@ use crate::application::ports::amendment_citation_repository::AmendmentCitationR
 use crate::application::ports::amendment_repository::AmendmentRepository;
 use crate::application::ports::amendment_source::AmendmentSource;
 use crate::application::ports::assembly_source::AssemblySource;
+use crate::application::ports::decision_vote_repository::DecisionVoteRepository;
 use crate::application::ports::dossier_repository::DossierRepository;
 use crate::application::ports::scrutin_repository::ScrutinRepository;
 use crate::application::ports::scrutin_source::ScrutinSource;
@@ -73,6 +74,7 @@ pub struct RefreshAll<'a> {
     actor_repository: &'a dyn ActorRepository,
     assembly_source: &'a dyn AssemblySource,
     dossier_repository: &'a dyn DossierRepository,
+    decision_votes: &'a dyn DecisionVoteRepository,
     scrutin_source: &'a dyn ScrutinSource,
     scrutin_repository: &'a dyn ScrutinRepository,
     amendment_source: &'a dyn AmendmentSource,
@@ -97,6 +99,7 @@ impl<'a> RefreshAll<'a> {
         actor_repository: &'a dyn ActorRepository,
         assembly_source: &'a dyn AssemblySource,
         dossier_repository: &'a dyn DossierRepository,
+        decision_votes: &'a dyn DecisionVoteRepository,
         scrutin_source: &'a dyn ScrutinSource,
         scrutin_repository: &'a dyn ScrutinRepository,
         amendment_source: &'a dyn AmendmentSource,
@@ -115,6 +118,7 @@ impl<'a> RefreshAll<'a> {
             actor_repository,
             assembly_source,
             dossier_repository,
+            decision_votes,
             scrutin_source,
             scrutin_repository,
             amendment_source,
@@ -172,6 +176,7 @@ impl<'a> RefreshAll<'a> {
             self.scrutin_source,
             self.scrutin_repository,
             self.actor_repository,
+            self.decision_votes,
             self.journaling,
         )
         .execute()
@@ -315,6 +320,7 @@ mod tests {
     use crate::application::ports::theme_repository::ScrutinSubject;
     use crate::application::ports::amendment_citation_repository::CitingScrutin;
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
+    use crate::application::use_cases::decision_vote_fakes::InMemoryDecisionVotes;
     use crate::application::use_cases::explanation_fakes::InMemoryVoteExplanations;
     use crate::application::use_cases::sitting_record_fakes::FakeSittingRecords;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
@@ -600,6 +606,7 @@ mod tests {
                 $actor_repository,
                 $assembly_source,
                 $dossier_repository,
+                &InMemoryDecisionVotes::none(),
                 $scrutin_source,
                 $scrutin_repository,
                 $amendment_source,
@@ -1031,6 +1038,7 @@ mod tests {
             &actor_repository,
             assembly_source,
             &dossier_repository,
+            &InMemoryDecisionVotes::none(),
             &scrutin_source,
             &scrutin_repository,
             amendment_source,

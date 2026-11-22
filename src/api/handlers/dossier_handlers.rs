@@ -193,6 +193,7 @@ pub async fn refresh_dossiers(
         state.actor_repository.as_ref(),
         state.assembly_source.as_ref(),
         state.dossier_repository.as_ref(),
+        state.decision_vote_repository.as_ref(),
         state.scrutin_source.as_ref(),
         state.scrutin_repository.as_ref(),
         state.amendment_source.as_ref(),

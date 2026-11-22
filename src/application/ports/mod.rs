@@ -8,6 +8,7 @@ pub mod brief_generator;
 pub mod brief_line_repository;
 pub mod budget_repository;
 pub mod candidate_repository;
+pub mod decision_vote_repository;
 pub mod dossier_group_actions_repository;
 pub mod dossier_repository;
 pub mod dossier_summary_generator;

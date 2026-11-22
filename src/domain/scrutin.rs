@@ -544,6 +544,21 @@ impl Scrutin {
         self.dossier.as_ref()
     }
 
+    /// Rattache le scrutin au dossier dont l'acte de decision le cite, quand
+    /// son propre fichier en nomme un autre. Vrai si le rattachement change.
+    ///
+    /// Un scrutin dont le fichier ne nomme aucun dossier reste sans dossier
+    /// (RM-10) : seule la contradiction entre les deux jeux est tranchee.
+    pub fn defer_to_decision_dossier(&mut self, decided_in: &DossierReference) -> bool {
+        match &self.dossier {
+            Some(named) if named.uid != decided_in.uid => {
+                self.dossier = Some(decided_in.clone());
+                true
+            }
+            _ => false,
+        }
+    }
+
     /// Page officielle du scrutin (RM-07).
     pub fn official_url(&self) -> String {
         scrutin_official_url(self.legislature, &self.number)

@@ -14,6 +14,7 @@ use quivotequoi::application::ports::candidate_repository::CandidateRepository;
 use quivotequoi::application::ports::dossier_group_actions_repository::{
     DossierGroupActionsRepository, DossierSummaryRepository,
 };
+use quivotequoi::application::ports::decision_vote_repository::DecisionVoteRepository;
 use quivotequoi::application::ports::dossier_repository::DossierRepository;
 use quivotequoi::application::ports::dossier_summary_generator::DossierSummaryGenerator;
 use quivotequoi::application::ports::final_vote_repository::FinalVoteRepository;
@@ -82,6 +83,8 @@ async fn main() {
     let candidate_repository: Arc<dyn CandidateRepository> =
         Arc::new(PgCandidateRepository::new(db.clone()));
     let dossier_repository: Arc<dyn DossierRepository> =
+        Arc::new(PgDossierRepository::new(db.clone()));
+    let decision_vote_repository: Arc<dyn DecisionVoteRepository> =
         Arc::new(PgDossierRepository::new(db.clone()));
     let dossier_group_actions_repository: Arc<dyn DossierGroupActionsRepository> =
         Arc::new(PgDossierGroupActionsRepository::new(db.clone()));
@@ -273,6 +276,7 @@ async fn main() {
         assembly_source,
         candidate_repository,
         dossier_repository,
+        decision_vote_repository,
         dossier_group_actions_repository,
         dossier_summary_repository,
         dossier_summary_generator,
