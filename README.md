@@ -47,7 +47,12 @@ Conséquences directes :
 - Le scoring **ordonne** l'affichage (pertinence, ampleur), il ne **filtre** jamais.
 - Tout critère de classement est **public et consultable** sur le site.
 - Toute lacune connue (source indisponible, vote à main levée) est **affichée comme telle**, jamais silencieuse.
-- Les publications sur les réseaux (Instagram seul pour l'instant) sont des vitrines de l'outil, pas un second canal éditorial. Le post quotidien retient le scrutin de la veille qui a réuni **le plus de votants** (égalité départagée par le numéro de scrutin) ; ce critère est publié sur le site. Un carrousel hebdomadaire reprend **tous** les votes de la semaine, dans l'ordre chronologique, ce qui rétablit l'exhaustivité que le quotidien ne couvre pas. Les règles de forme du §6 s'y appliquent, chaque post est relu à la main avant publication, et aucune publication n'est automatique.
+- Les publications sur les réseaux sont des vitrines de l'outil, pas un second canal éditorial. Un Reel par jour paraît à 18 h, à l'identique sur Instagram et TikTok :
+  - **du mardi au samedi**, le Reel de la veille reprend ses nombres de votes et **tous** ses votes sur l'ensemble d'un texte, puis le scrutin qui a réuni **le plus de votants** (égalité départagée par le numéro de scrutin) ; un jour sans scrutin public ne produit aucun Reel, et le Reel du mardi couvre aussi le dimanche quand il a eu des votes ;
+  - **le dimanche**, le Reel de la semaine reprend les nombres du lundi au samedi, les votes de chaque jour et **tous** les votes sur l'ensemble, avec un lien vers la page Semaine qui porte la liste exhaustive ;
+  - **le lundi**, un seul sujet, dans cet ordre : les changements de programme publiés la semaine passée, sinon une nouveauté du site, sinon le thème suivant d'une rotation fixe.
+
+  Un Reel de votes n'est préparé que sur des votes complets ; sinon, aucun Reel et une alerte. Chaque chiffre vient de l'API du site, aucun n'est produit par un modèle de langage (§8), et les règles de forme du §6 s'y appliquent. La chaîne ne dépose que des **brouillons** : chacun est relu à la main avant publication, et aucune publication n'est automatique. Le planning, les critères et la rotation sont publiés sur le site, page `/reels/methode`.
 
 ## 3. Modèle politique — les trois pièges
 

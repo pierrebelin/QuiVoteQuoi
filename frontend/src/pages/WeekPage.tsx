@@ -15,6 +15,8 @@ import { votesWord, weekSpan } from '../lib/week'
 import type { WeekResponse } from '../types/week'
 
 const METHOD_PATH = '/votes-par-groupe/methode'
+/** Méthode publique des Reels de votes (REELS RM-15). */
+const REELS_METHOD_PATH = '/reels/methode'
 
 function Chevron({ direction }: { direction: 'left' | 'right' }) {
   return (
@@ -227,7 +229,7 @@ export default function WeekPage() {
         </>
       )}
 
-      <div className="grid gap-2.5 md:grid-cols-2 md:gap-4">
+      <div className="grid gap-2.5 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
         {data.previous && previousLabel && (
           <FooterLink to={`/semaine/${data.previous.monday}`} caption="Semaine précédente">
             {previousLabel} · {votesWord(data.previous.votes)}
@@ -236,6 +238,9 @@ export default function WeekPage() {
         <FooterLink to="/scrutins" caption="Sans découpage par semaine">
           Tous les votes de la législature
           {legislature.data && ` · ${votesWord(legislature.data.total)}`}
+        </FooterLink>
+        <FooterLink to={REELS_METHOD_PATH} caption="En vidéo sur Instagram et TikTok">
+          Méthode des Reels · chaque jour à 18 h
         </FooterLink>
       </div>
       <CoverageNote note={data.coverage_note} />
