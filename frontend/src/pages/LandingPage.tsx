@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, Navigate, useLocation } from 'react-router'
+import BecomingLawCard from '../components/BecomingLawCard'
 import CountUp from '../components/CountUp'
 import { useFreshness } from '../components/Freshness'
 import LatestVoteHemicycle from '../components/LatestVoteHemicycle'
@@ -305,7 +306,7 @@ const DESKTOP_CARD = 'md:rounded md:border md:border-line md:bg-surface md:p-5 m
 function WeekSummary({ week }: { week: WeekResponse }) {
   const texts = week.texts_count
   return (
-    <section aria-labelledby="semaine" className="space-y-2.5 xl:col-start-2 xl:row-start-1 xl:self-center">
+    <section aria-labelledby="semaine" className="space-y-2.5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 id="semaine" className="heading-4">
           {week.is_current ? 'Cette semaine' : 'Dernière semaine de votes'}
@@ -371,91 +372,99 @@ export default function LandingPage() {
   return (
     <div className="space-y-8 md:space-y-12">
       <div className="grid items-start gap-8 md:gap-14 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section aria-labelledby="promesse" className="rise-in md:pt-6 xl:col-start-1 xl:row-start-1">
-          <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
-            Assemblée nationale
-          </p>
-          <h2
-            id="promesse"
-            className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px]"
-          >
-            Les votes de l’Assemblée, sur pièces.
-          </h2>
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-soft sm:text-base">
-            Ce que chaque groupe a voté, texte par texte. Des chiffres bruts et la source
-            officielle, sans sélection ni commentaire.
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            <Link
-              to="/semaine"
-              className={`group inline-flex min-h-[64px] items-center justify-between gap-3 rounded bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center ${FOCUS_RING}`}
+        <div className="grid min-w-0 gap-8 md:gap-14">
+          <section aria-labelledby="promesse" className="rise-in md:pt-6">
+            <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
+              Assemblée nationale
+            </p>
+            <h2
+              id="promesse"
+              className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px]"
             >
-              <span className="flex flex-col text-left">
-                <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
-                {week.data && (
-                  <span className="text-[13px] leading-[18px] font-medium text-surface/80">
-                    {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
-                  </span>
+              Les votes de l’Assemblée, sur pièces.
+            </h2>
+            <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-soft sm:text-base">
+              Ce que chaque groupe a voté, texte par texte. Des chiffres bruts et la source
+              officielle, sans sélection ni commentaire.
+            </p>
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Link
+                to="/semaine"
+                className={`group inline-flex min-h-[64px] items-center justify-between gap-3 rounded bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center ${FOCUS_RING}`}
+              >
+                <span className="flex flex-col text-left">
+                  <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
+                  {week.data && (
+                    <span className="text-[13px] leading-[18px] font-medium text-surface/80">
+                      {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
+                    </span>
+                  )}
+                </span>
+                <Arrow />
+              </Link>
+              <Link
+                to="/candidats-2027"
+                className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
+              >
+                Comparer les programmes de 2027
+                <Arrow />
+              </Link>
+            </div>
+            <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
+          </section>
+
+          <section aria-labelledby="dernier-vote" className="space-y-2.5">
+            <h3 id="dernier-vote" className="heading-4">
+              Dernier vote sur l’ensemble d’un texte
+            </h3>
+            {vote ? (
+              <VoteCard
+                size="full"
+                wide
+                {...finalVoteCard(vote, groups)}
+                figure={
+                  <LatestVoteHemicycle
+                    scrutinUid={vote.scrutin_uid}
+                    tally={vote.synthesis}
+                    labelledBy="dernier-vote"
+                  />
+                }
+              />
+            ) : (
+              <Card className="px-4 py-6">
+                {latest.isError ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-semibold text-ink">
+                      Le dernier vote n’est pas disponible pour le moment.
+                    </p>
+                    <p className="text-sm leading-relaxed text-ink-soft">
+                      Aucun résultat n’est remplacé par une estimation.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void latest.refetch()}
+                      className="text-sm font-medium link"
+                    >
+                      Réessayer
+                    </button>
+                  </div>
+                ) : latest.data ? (
+                  <p className="text-sm text-ink-soft">Aucun vote sur l’ensemble n’est encore publié.</p>
+                ) : (
+                  <Loading>Chargement du dernier vote…</Loading>
                 )}
-              </span>
-              <Arrow />
-            </Link>
-            <Link
-              to="/candidats-2027"
-              className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
-            >
-              Comparer les programmes de 2027
-              <Arrow />
-            </Link>
-          </div>
-          <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
-        </section>
+              </Card>
+            )}
+          </section>
 
-        <section aria-labelledby="dernier-vote" className="space-y-2.5 xl:col-span-2">
-          <h3 id="dernier-vote" className="heading-4">
-            Dernier vote sur l’ensemble d’un texte
-          </h3>
-          {vote ? (
-            <VoteCard
-              size="full"
-              wide
-              {...finalVoteCard(vote, groups)}
-              figure={
-                <LatestVoteHemicycle
-                  scrutinUid={vote.scrutin_uid}
-                  tally={vote.synthesis}
-                  labelledBy="dernier-vote"
-                />
-              }
-            />
-          ) : (
-            <Card className="px-4 py-6">
-              {latest.isError ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-ink">
-                    Le dernier vote n’est pas disponible pour le moment.
-                  </p>
-                  <p className="text-sm leading-relaxed text-ink-soft">
-                    Aucun résultat n’est remplacé par une estimation.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void latest.refetch()}
-                    className="text-sm font-medium link"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              ) : latest.data ? (
-                <p className="text-sm text-ink-soft">Aucun vote sur l’ensemble n’est encore publié.</p>
-              ) : (
-                <Loading>Chargement du dernier vote…</Loading>
-              )}
-            </Card>
-          )}
-        </section>
+        </div>
 
-        {week.data && <WeekSummary week={week.data} />}
+        {/* Colonne de droite à partir de 1280 px : la semaine, puis ce qui devient
+            loi (SPEC-navette, Q1). Plus bas, après le dernier vote. */}
+        <div className="grid gap-8 empty:hidden md:gap-14 xl:gap-6">
+          {week.data && <WeekSummary week={week.data} />}
+          <BecomingLawCard />
+        </div>
       </div>
 
       {/* Sous 768 px : liste, puis une carte pour les règles et les refus. Au-delà :
