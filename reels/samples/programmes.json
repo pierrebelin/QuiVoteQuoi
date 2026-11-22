@@ -1,0 +1,71 @@
+{
+ "reel": {
+  "status": "ready",
+  "last_success_at": "2026-11-22T14:12:00Z",
+  "reason": null,
+  "empty_week_note": null,
+  "reconstructed_note": null,
+  "totals": null,
+  "days": [],
+  "final_votes": [],
+  "most_followed": null,
+  "programmes": [
+   {
+    "candidate_id": "exemple-a",
+    "name": "Candidature d’exemple A",
+    "added": 3,
+    "removed": 1,
+    "themes": [
+     "logement",
+     "pouvoir-achat"
+    ]
+   },
+   {
+    "candidate_id": "exemple-b",
+    "name": "Candidature d’exemple B",
+    "added": 12,
+    "removed": 0,
+    "themes": [
+     "economie-finances-publiques"
+    ]
+   }
+  ],
+  "site_news": null,
+  "theme": null,
+  "tags": [
+   "#QuiVoteQuoi",
+   "#AssembléeNationale"
+  ],
+  "kind": "lundi",
+  "period": {
+   "from": "2026-11-16",
+   "to": "2026-11-22",
+   "label": "du lundi 16 au dimanche 22 novembre"
+  },
+  "due_at": "2026-11-23T18:00:00+01:00",
+  "caption": "Exemple\n[lien]",
+  "link_path": "/candidats-2027"
+ },
+ "details": {},
+ "themeLabels": {
+  "pouvoir-achat": "Pouvoir d'achat",
+  "economie-finances-publiques": "Économie / finances publiques",
+  "logement": "Logement / urbanisme / foncier",
+  "travail-emploi": "Travail / emploi",
+  "protection-sociale-retraites": "Protection sociale / retraites",
+  "sante": "Santé",
+  "environnement-energie": "Environnement / énergie",
+  "agriculture-alimentation": "Agriculture / alimentation",
+  "numerique": "Numérique",
+  "justice-securite": "Justice / sécurité",
+  "immigration": "Immigration",
+  "education-culture": "Éducation / culture",
+  "societe-libertes": "Société / libertés",
+  "international-defense": "International / défense",
+  "institutions-vie-politique": "Institutions / vie politique",
+  "collectivites-outre-mer": "Collectivités / outre-mer"
+ },
+ "site": "exemple.fr",
+ "capture": null,
+ "audio": false
+}

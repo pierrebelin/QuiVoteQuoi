@@ -32,3 +32,8 @@ todo/
 
 # Texte des PDF déjà lus par scripts/check-candidate-sources.mjs
 /.cache/
+
+# Paquet des Reels : dépendances, rendus, capture du jour
+/reels/node_modules/
+/reels/out/
+/reels/public/capture.png
