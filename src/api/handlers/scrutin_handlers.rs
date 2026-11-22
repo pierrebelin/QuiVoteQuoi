@@ -138,6 +138,7 @@ pub async fn refresh_scrutins(
         state.scrutin_source.as_ref(),
         state.scrutin_repository.as_ref(),
         state.actor_repository.as_ref(),
+        state.decision_vote_repository.as_ref(),
         Journaling::to(state.ingestion_journal.as_ref(), chrono::Utc::now()),
     )
     .execute()

@@ -48,4 +48,6 @@ pub mod explanation_fakes;
 pub mod sitting_record_fakes;
 #[cfg(test)]
 pub mod budget_fakes;
+#[cfg(test)]
+pub mod decision_vote_fakes;
 pub mod refresh_vote_explanations;

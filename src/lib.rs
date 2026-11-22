@@ -38,6 +38,8 @@ pub struct AppState {
     pub assembly_source: Arc<dyn AssemblySource>,
     pub candidate_repository: Arc<dyn CandidateRepository>,
     pub dossier_repository: Arc<dyn DossierRepository>,
+    pub decision_vote_repository:
+        Arc<dyn application::ports::decision_vote_repository::DecisionVoteRepository>,
     pub dossier_group_actions_repository: Arc<dyn DossierGroupActionsRepository>,
     pub dossier_summary_repository: Arc<dyn DossierSummaryRepository>,
     pub dossier_summary_generator: Arc<dyn DossierSummaryGenerator>,
