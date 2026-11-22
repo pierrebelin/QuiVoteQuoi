@@ -5,6 +5,7 @@ use chrono::NaiveDate;
 
 use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::dossier::{DossierUid, Initiative, LegislativeDossier, StoredDossierState};
+use crate::domain::law_progress::LawStateKind;
 use crate::domain::theme::FamilyCode;
 
 pub use super::RepositoryError;
@@ -26,6 +27,9 @@ pub struct DossierCriteria {
     /// Vrai : seuls les dossiers auxquels la source rattache au moins un
     /// scrutin public restent.
     pub with_scrutins: bool,
+    /// États « où en est la loi » retenus (SPEC-navette §4) : le résumé stocké
+    /// doit porter l'un d'eux. Vide, aucun état n'est écarté.
+    pub law_states: Vec<LawStateKind>,
 }
 
 impl DossierCriteria {
@@ -35,6 +39,16 @@ impl DossierCriteria {
             && self.initiative.is_none()
             && self.family.is_none()
             && !self.with_scrutins
+            && self.law_states.is_empty()
+    }
+
+    /// Les mêmes critères sans le filtre d'état : le périmètre sur lequel les
+    /// compteurs d'état se calculent (SPEC-navette Q2).
+    pub fn without_law_states(&self) -> Self {
+        Self {
+            law_states: Vec::new(),
+            ..self.clone()
+        }
     }
 }
 
@@ -48,6 +62,9 @@ pub enum DossierOrder {
     /// Dernier scrutin public d'abord ; un dossier sans scrutin vient après
     /// tous les autres.
     LastScrutin,
+    /// Date de l'état « où en est la loi » d'abord (SPEC-navette §4, accueil :
+    /// les derniers devenus loi) ; un dossier sans état vient après.
+    StateDate,
 }
 
 impl DossierOrder {
@@ -57,6 +74,7 @@ impl DossierOrder {
         match value {
             "last_activity" => Some(Self::LastActivity),
             "last_scrutin" => Some(Self::LastScrutin),
+            "state_date" => Some(Self::StateDate),
             _ => None,
         }
     }
@@ -84,6 +102,27 @@ pub struct DossierScrutinTally {
 pub struct DossierPage {
     pub items: Vec<DossierListing>,
     pub total: i64,
+    /// Décompte par état, sur les critères sans le filtre d'état.
+    pub state_counts: LawStateCounts,
+}
+
+/// Nombre de dossiers dans chacun des trois états (SPEC-navette §4, Q2). Un
+/// dossier sans état n'est compté nulle part.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct LawStateCounts {
+    pub in_shuttle: i64,
+    pub definitively_adopted: i64,
+    pub became_law: i64,
+}
+
+impl LawStateCounts {
+    pub fn add(&mut self, kind: LawStateKind, count: i64) {
+        match kind {
+            LawStateKind::InShuttle => self.in_shuttle += count,
+            LawStateKind::DefinitivelyAdopted => self.definitively_adopted += count,
+            LawStateKind::BecameLaw => self.became_law += count,
+        }
+    }
 }
 
 /// Ligne de la liste : le dossier avec ses initiateurs, mais sans actes ni
@@ -126,5 +165,14 @@ pub trait DossierRepository: Send + Sync {
     async fn find_by_uids(
         &self,
         uids: &[DossierUid],
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError>;
+    /// Les dossiers dont un acte de décision (`*-DEC`) ou de promulgation est
+    /// daté entre `from` et `to` inclus, avec tous leurs actes mais sans
+    /// initiateurs ni documents (SPEC-navette RM-08). Le domaine décide
+    /// ensuite s'ils ont avancé.
+    async fn find_with_decisions_between(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
     ) -> Result<Vec<LegislativeDossier>, RepositoryError>;
 }

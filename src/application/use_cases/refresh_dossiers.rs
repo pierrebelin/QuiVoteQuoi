@@ -359,6 +359,9 @@ pub(crate) mod tests {
         /// Uid de chaque dossier reellement passe a `save_all`, dans l'ordre.
         /// C'est ce que le rafraichissement incremental doit reduire.
         pub(crate) written: Mutex<Vec<String>>,
+        /// Uid des dossiers stockes avant le calcul de l'etat « ou en est la
+        /// loi » : leur etat n'a jamais ete ecrit. Une ecriture les en retire.
+        pub(crate) without_law_progress: Mutex<std::collections::HashSet<String>>,
     }
 
     impl InMemoryDossierRepository {
@@ -366,6 +369,7 @@ pub(crate) mod tests {
             Self {
                 dossiers: Mutex::new(HashMap::new()),
                 written: Mutex::new(vec![]),
+                without_law_progress: Mutex::new(Default::default()),
             }
         }
 
@@ -386,6 +390,10 @@ pub(crate) mod tests {
                     .lock()
                     .unwrap()
                     .push(d.uid().as_str().to_string());
+                self.without_law_progress
+                    .lock()
+                    .unwrap()
+                    .remove(d.uid().as_str());
                 store.insert(d.uid().as_str().to_string(), d.clone());
             }
             Ok(dossiers.len())
@@ -394,6 +402,7 @@ pub(crate) mod tests {
         async fn load_states(
             &self,
         ) -> Result<HashMap<String, StoredDossierState>, RepositoryError> {
+            let without_law_progress = self.without_law_progress.lock().unwrap();
             Ok(self
                 .dossiers
                 .lock()
@@ -406,6 +415,8 @@ pub(crate) mod tests {
                             last_activity_date: d.last_activity_date(),
                             act_count: d.acts().len(),
                             outcome_is_final: d.outcome().is_final(),
+                            law_progress_computed: !without_law_progress.contains(uid),
+                            decision_fingerprint: d.decision_fingerprint(),
                         },
                     )
                 })
@@ -449,6 +460,13 @@ pub(crate) mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
+        async fn find_with_decisions_between(
+            &self,
+            _from: chrono::NaiveDate,
+            _to: chrono::NaiveDate,
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+            unreachable!()
+        }
     }
 
     /// Elements d'un dossier de la source, avant construction: un test qui veut
@@ -473,6 +491,8 @@ pub(crate) mod tests {
                 label: "D\u{00e9}p\u{00f4}t".into(),
                 code: Some("AN1-DEPOT".into()),
                 decision_vote: None,
+                conclusion_label: None,
+                conclusion_code: None,
             }],
             documents: vec![],
             score: Score::new(2, 4, 2, 23).unwrap(),
@@ -803,6 +823,8 @@ mod incremental_tests {
             label: "R\u{00e9}union de commission".into(),
             code: Some("AN1-COM-FOND-REUNION".into()),
             decision_vote: None,
+            conclusion_label: None,
+            conclusion_code: None,
         });
         dossier.last_activity_date = act_date;
         dossier.last_activity_label = "R\u{00e9}union de commission".into();
@@ -851,6 +873,8 @@ mod incremental_tests {
             label: "Nomination de rapporteur".into(),
             code: Some("AN1-COM-FOND-NOMIN".into()),
             decision_vote: None,
+            conclusion_label: None,
+            conclusion_code: None,
         });
 
         let source = FakeSource {
@@ -897,6 +921,40 @@ mod incremental_tests {
         assert_eq!(summary.written, 0);
         assert_eq!(summary.skipped_final, 1);
         assert!(repo.written.lock().unwrap().is_empty());
+    }
+
+    /// Rattrapage SPEC-navette lot 1 : une loi promulguee stockee avant le
+    /// calcul de l'etat est reecrite une fois, puis sautee comme avant.
+    #[tokio::test]
+    async fn a_final_outcome_stored_before_the_law_progress_is_rewritten_once() {
+        let mut promulgated = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 4, 21));
+        promulgated.outcome = DossierOutcome::Promulgated {
+            date: date(2026, 4, 21),
+            publication: crate::domain::dossier::LawPublication {
+                law_code: Some("2026-300".into()),
+                jo_date: None,
+                legifrance_url: None,
+            },
+        };
+        let promulgated = LegislativeDossier::new(promulgated);
+        let repo = seeded_repository(vec![promulgated.clone()]);
+        repo.without_law_progress
+            .lock()
+            .unwrap()
+            .insert("D1".to_string());
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let source = FakeSource {
+            dossiers: vec![promulgated],
+        };
+        let refresh = RefreshDossiers::new(&source, &repo, &actors, Journaling::off());
+
+        let first = refresh.execute().await.unwrap();
+        let second = refresh.execute().await.unwrap();
+
+        assert_eq!(first.written, 1);
+        assert_eq!(second.written, 0);
+        assert_eq!(second.skipped_final, 1);
+        assert_eq!(*repo.written.lock().unwrap(), vec!["D1".to_string()]);
     }
 
     /// Un rejet n'est pas definitif: la navette peut reprendre, le dossier doit
@@ -1007,5 +1065,136 @@ mod incremental_tests {
         assert_eq!(summary.written, 2);
         assert_eq!(summary.skipped_final, 0);
         assert_eq!(summary.skipped_unchanged, 0);
+    }
+
+    /// Decision de seance du jour de la derniere activite: la completer ne
+    /// bouge ni la derniere activite ni le nombre d'actes.
+    fn with_decision_act(
+        mut dossier: NewLegislativeDossier,
+        decision_vote: Option<&str>,
+        conclusion_label: Option<&str>,
+    ) -> NewLegislativeDossier {
+        dossier.acts.push(LegislativeAct {
+            date: dossier.last_activity_date,
+            label: "D\u{00e9}cision".into(),
+            code: Some("AN1-DEBATS-DEC".into()),
+            decision_vote: decision_vote
+                .map(|uid| crate::domain::scrutin::ScrutinUid::new(uid.into()).unwrap()),
+            conclusion_label: conclusion_label.map(Into::into),
+            conclusion_code: conclusion_label.map(|_| "TSORTF05".into()),
+        });
+        dossier
+    }
+
+    fn promulgated_parts(uid: &str) -> NewLegislativeDossier {
+        let mut promulgated = dossier_parts(uid, Some(date(2025, 5, 13)), date(2026, 4, 21));
+        promulgated.outcome = DossierOutcome::Promulgated {
+            date: date(2026, 4, 21),
+            publication: crate::domain::dossier::LawPublication {
+                law_code: Some("2026-300".into()),
+                jo_date: None,
+                legifrance_url: None,
+            },
+        };
+        promulgated
+    }
+
+    /// Constat du 22/11/2026 (DLR5L17N51095): l'AN ajoute `voteRefs` a une
+    /// decision deja publiee. Sans reecriture, `decision_scrutin_uid` reste
+    /// vide et le scrutin reste rattache au mauvais dossier (README §2).
+    #[tokio::test]
+    async fn a_decision_vote_added_to_an_existing_act_triggers_a_write() {
+        let base = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19));
+        let stored = with_decision_act(base.clone(), None, Some("adopt\u{00e9}e"));
+        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let source = FakeSource {
+            dossiers: vec![LegislativeDossier::new(with_decision_act(
+                base,
+                Some("VTANR5L17V10080"),
+                Some("adopt\u{00e9}e"),
+            ))],
+        };
+
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
+            .execute()
+            .await
+            .unwrap();
+
+        assert_eq!(summary.written, 1);
+        assert_eq!(summary.skipped_unchanged, 0);
+    }
+
+    /// Le sens d'une decision (« ou en est la loi ») se lit dans le
+    /// `statutConclusion`: il peut arriver apres l'acte.
+    #[tokio::test]
+    async fn a_conclusion_added_to_an_existing_act_triggers_a_write() {
+        let base = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19));
+        let stored = with_decision_act(base.clone(), None, None);
+        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let source = FakeSource {
+            dossiers: vec![LegislativeDossier::new(with_decision_act(
+                base,
+                None,
+                Some("modifi\u{00e9}e"),
+            ))],
+        };
+
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
+            .execute()
+            .await
+            .unwrap();
+
+        assert_eq!(summary.written, 1);
+        assert_eq!(summary.skipped_unchanged, 0);
+    }
+
+    /// Le sort ne peut plus changer, mais la source peut encore completer une
+    /// decision qui l'a precede: le scrutin qui a tranche doit etre recueilli.
+    #[tokio::test]
+    async fn a_decision_vote_added_after_promulgation_is_still_written() {
+        let base = promulgated_parts("D1");
+        let stored = with_decision_act(base.clone(), None, Some("adopt\u{00e9}e"));
+        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let source = FakeSource {
+            dossiers: vec![LegislativeDossier::new(with_decision_act(
+                base,
+                Some("VTANR5L17V9097"),
+                Some("adopt\u{00e9}e"),
+            ))],
+        };
+
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
+            .execute()
+            .await
+            .unwrap();
+
+        assert_eq!(summary.written, 1);
+        assert_eq!(summary.skipped_final, 0);
+    }
+
+    /// Une decision deja complete ne justifie aucune reecriture.
+    #[tokio::test]
+    async fn an_already_recorded_decision_vote_keeps_the_dossier_skipped() {
+        let decided = LegislativeDossier::new(with_decision_act(
+            dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19)),
+            Some("VTANR5L17V10080"),
+            Some("adopt\u{00e9}e"),
+        ));
+        let repo = seeded_repository(vec![decided.clone()]);
+        let actors = InMemoryActorRepository::with_deputy_changing_group();
+        let source = FakeSource {
+            dossiers: vec![decided],
+        };
+
+        let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
+            .execute()
+            .await
+            .unwrap();
+
+        assert_eq!(summary.written, 0);
+        assert_eq!(summary.skipped_unchanged, 1);
     }
 }

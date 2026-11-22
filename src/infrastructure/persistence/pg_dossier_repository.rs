@@ -8,15 +8,16 @@ use super::{db, invalid_row};
 use crate::application::ports::decision_vote_repository::{DecisionVote, DecisionVoteRepository};
 use crate::application::ports::dossier_repository::{
     DossierCriteria, DossierListing, DossierOrder, DossierPage, DossierRepository,
-    DossierScrutinTally, RepositoryError,
+    DossierScrutinTally, LawStateCounts, RepositoryError,
 };
 use crate::application::ports::theme_repository::AssignedFamily;
 use crate::domain::actor::{ActorRole, ActorUid, GroupUid, MembershipQuality};
 use crate::domain::dossier::{
-    Committee, DossierOutcome, DossierUid, Initiator, InitiatorGroup, LawPublication,
-    LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
+    Committee, DecisionFingerprint, DossierOutcome, DossierUid, Initiator, InitiatorGroup,
+    LawPublication, LegislativeAct, LegislativeDocument, LegislativeDossier, LegislativeStage,
     NewLegislativeDossier, Score, StoredDossierState,
 };
+use crate::domain::law_progress::{LawStateKind, LawStateSummary, NO_LAW_STATE};
 use crate::domain::scrutin::{DossierReference, Outcome, ScrutinUid};
 use crate::domain::theme::FamilyCode;
 
@@ -31,29 +32,63 @@ impl PgDossierRepository {
 
     async fn fetch_acts(&self, dossier_uid: &str) -> Result<Vec<LegislativeAct>, RepositoryError> {
         let rows = sqlx::query_as::<_, ActRow>(
-            "SELECT act_date, label, act_code, decision_scrutin_uid FROM legislative_acts WHERE dossier_uid = $1 ORDER BY act_date, id",
+            "SELECT act_date, label, act_code, decision_scrutin_uid, conclusion_label, conclusion_code FROM legislative_acts WHERE dossier_uid = $1 ORDER BY act_date, id",
         )
         .bind(dossier_uid)
         .fetch_all(&self.pool)
         .await
         .map_err(db)?;
 
-        Ok(rows
-            .into_iter()
-            .map(|r| {
-                let decision_vote = r
-                    .decision_scrutin_uid
-                    .map(ScrutinUid::new)
-                    .transpose()
-                    .map_err(invalid_row)?;
-                Ok(LegislativeAct {
-                    date: r.act_date,
-                    label: r.label,
-                    code: r.act_code,
-                    decision_vote,
-                })
-            })
-            .collect::<Result<_, RepositoryError>>()?)
+        rows.into_iter().map(ActRow::into_act).collect()
+    }
+
+    /// Actes de plusieurs dossiers en une lecture, par uid.
+    async fn acts_of(
+        &self,
+        uids: &[String],
+    ) -> Result<HashMap<String, Vec<LegislativeAct>>, RepositoryError> {
+        let rows = sqlx::query_as::<_, PageActRow>(
+            "SELECT dossier_uid, act_date, label, act_code, decision_scrutin_uid, conclusion_label, conclusion_code
+               FROM legislative_acts WHERE dossier_uid = ANY($1)
+              ORDER BY dossier_uid, act_date, id",
+        )
+        .bind(uids)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let mut acts: HashMap<String, Vec<LegislativeAct>> = HashMap::new();
+        for row in rows {
+            let act = row.act.into_act()?;
+            acts.entry(row.dossier_uid).or_default().push(act);
+        }
+        Ok(acts)
+    }
+
+    /// Décompte par état sur les critères donnés (SPEC-navette Q2).
+    async fn state_counts(
+        &self,
+        criteria: &DossierCriteria,
+    ) -> Result<LawStateCounts, RepositoryError> {
+        let mut query: QueryBuilder<Postgres> =
+            QueryBuilder::new("SELECT law_state_kind, COUNT(*) FROM legislative_dossiers");
+        push_criteria(&mut query, criteria);
+        query.push(" GROUP BY law_state_kind");
+        let rows: Vec<(Option<String>, i64)> = query
+            .build_query_as()
+            .persistent(false)
+            .fetch_all(&self.pool)
+            .await
+            .map_err(db)?;
+
+        let mut counts = LawStateCounts::default();
+        for (kind, count) in rows {
+            if let Some(kind) = kind.as_deref().and_then(LawStateKind::parse) {
+                counts.add(kind, count);
+            }
+        }
+        Ok(counts)
     }
 
     async fn fetch_documents(
@@ -113,11 +148,20 @@ impl PgDossierRepository {
                 DossierOutcome::Rejected { label, .. } => Some(label.clone()),
                 _ => None,
             };
+            // Resume de l'etat « ou en est la loi » (SPEC-navette lot 1), pour
+            // le filtre et les compteurs. Les jalons se recalculent a la lecture.
+            let law_state = dossier.law_state();
+            let last_decision = law_state.and_then(LawStateSummary::last_decision);
 
             sqlx::query(
-                "INSERT INTO legislative_dossiers (uid, title, procedure_label, last_activity_date, last_activity_label, score_progress, score_magnitude, score_momentum, score_total, current_stage_code, committee, legislature, url, summary, deposit_date, outcome_kind, outcome_date, outcome_label, law_code, law_jo_date, law_legifrance_url, merged_into_uid, merge_cause)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
+                "INSERT INTO legislative_dossiers (uid, title, procedure_label, last_activity_date, last_activity_label, score_progress, score_magnitude, score_momentum, score_total, current_stage_code, committee, legislature, url, summary, deposit_date, outcome_kind, outcome_date, outcome_label, law_code, law_jo_date, law_legifrance_url, merged_into_uid, merge_cause, law_state_kind, law_state_date, last_decision_chamber, last_decision_sense, last_decision_date)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
                  ON CONFLICT (uid) DO UPDATE SET
+                    law_state_kind = EXCLUDED.law_state_kind,
+                    law_state_date = EXCLUDED.law_state_date,
+                    last_decision_chamber = EXCLUDED.last_decision_chamber,
+                    last_decision_sense = EXCLUDED.last_decision_sense,
+                    last_decision_date = EXCLUDED.last_decision_date,
                     outcome_kind = EXCLUDED.outcome_kind,
                     outcome_date = EXCLUDED.outcome_date,
                     outcome_label = EXCLUDED.outcome_label,
@@ -165,6 +209,11 @@ impl PgDossierRepository {
             .bind(&law_url)
             .bind(&merged_into_uid)
             .bind(&merge_cause)
+            .bind(law_state.map_or(NO_LAW_STATE, |state| state.kind().as_str()))
+            .bind(law_state.map(LawStateSummary::date))
+            .bind(last_decision.map(|d| d.chamber.as_str()))
+            .bind(last_decision.map(|d| d.sense.as_str()))
+            .bind(last_decision.map(|d| d.date))
             .execute(&mut *tx)
             .await
             .map_err(db)?;
@@ -177,13 +226,15 @@ impl PgDossierRepository {
 
             for act in dossier.acts() {
                 sqlx::query(
-                    "INSERT INTO legislative_acts (dossier_uid, act_date, label, act_code, decision_scrutin_uid) VALUES ($1, $2, $3, $4, $5)",
+                    "INSERT INTO legislative_acts (dossier_uid, act_date, label, act_code, decision_scrutin_uid, conclusion_label, conclusion_code) VALUES ($1, $2, $3, $4, $5, $6, $7)",
                 )
                 .bind(dossier.uid().as_str())
                 .bind(act.date)
                 .bind(&act.label)
                 .bind(&act.code)
                 .bind(act.decision_vote.as_ref().map(|uid| uid.as_str()))
+                .bind(&act.conclusion_label)
+                .bind(&act.conclusion_code)
                 .execute(&mut *tx)
                 .await
                 .map_err(db)?;
@@ -389,7 +440,9 @@ const PAGE_SELECT: &str =
             legislature, url, summary, deposit_date,
             outcome_kind, outcome_date, outcome_label,
             law_code, law_jo_date, law_legifrance_url,
-            merged_into_uid, merge_cause
+            merged_into_uid, merge_cause,
+            law_state_kind, law_state_date,
+            last_decision_chamber, last_decision_sense, last_decision_date
      FROM legislative_dossiers";
 
 /// Date du dernier scrutin de chaque dossier, jointe seulement quand la liste
@@ -447,6 +500,18 @@ fn push_criteria(query: &mut QueryBuilder<'_, Postgres>, criteria: &DossierCrite
         );
         query.push_bind(family.as_str());
         query.push("))");
+    }
+    if !criteria.law_states.is_empty() {
+        open(query, &mut separated);
+        query.push("law_state_kind = ANY(");
+        query.push_bind(
+            criteria
+                .law_states
+                .iter()
+                .map(|kind| kind.as_str().to_string())
+                .collect::<Vec<_>>(),
+        );
+        query.push(")");
     }
     if criteria.with_scrutins {
         open(query, &mut separated);
@@ -507,10 +572,20 @@ impl DossierRepository for PgDossierRepository {
     /// que 3 035 dossiers reecrits.
     async fn load_states(&self) -> Result<HashMap<String, StoredDossierState>, RepositoryError> {
         let rows = sqlx::query_as::<_, StateRow>(
-            "SELECT d.uid, d.last_activity_date, d.outcome_kind, COUNT(a.id) AS act_count
+            "SELECT d.uid, d.last_activity_date, d.outcome_kind,
+                    d.law_state_kind IS NOT NULL AS law_progress_computed,
+                    COUNT(a.id) AS act_count,
+                    COALESCE(
+                        ARRAY_AGG(DISTINCT a.decision_scrutin_uid)
+                            FILTER (WHERE a.decision_scrutin_uid IS NOT NULL),
+                        '{}'
+                    ) AS decision_votes,
+                    COUNT(a.id) FILTER (
+                        WHERE a.conclusion_label IS NOT NULL OR a.conclusion_code IS NOT NULL
+                    ) AS concluded_act_count
              FROM legislative_dossiers d
              LEFT JOIN legislative_acts a ON a.dossier_uid = d.uid
-             GROUP BY d.uid, d.last_activity_date, d.outcome_kind",
+             GROUP BY d.uid, d.last_activity_date, d.outcome_kind, d.law_state_kind",
         )
         .fetch_all(&self.pool)
         .await
@@ -526,6 +601,15 @@ impl DossierRepository for PgDossierRepository {
                         last_activity_date: r.last_activity_date,
                         act_count: r.act_count.max(0) as usize,
                         outcome_is_final,
+                        law_progress_computed: r.law_progress_computed,
+                        decision_fingerprint: DecisionFingerprint {
+                            decision_votes: r
+                                .decision_votes
+                                .into_iter()
+                                .filter_map(|uid| ScrutinUid::new(uid).ok())
+                                .collect(),
+                            concluded_act_count: r.concluded_act_count.max(0) as usize,
+                        },
                     },
                 )
             })
@@ -543,7 +627,9 @@ impl DossierRepository for PgDossierRepository {
                     legislature, url, summary, deposit_date,
                     outcome_kind, outcome_date, outcome_label,
                     law_code, law_jo_date, law_legifrance_url,
-                    merged_into_uid, merge_cause
+                    merged_into_uid, merge_cause,
+                    law_state_kind, law_state_date,
+                    last_decision_chamber, last_decision_sense, last_decision_date
              FROM legislative_dossiers
              WHERE last_activity_date >= $1
              ORDER BY last_activity_date DESC",
@@ -587,6 +673,7 @@ impl DossierRepository for PgDossierRepository {
             DossierOrder::LastScrutin => {
                 " ORDER BY last_vote.last_scrutin_date DESC NULLS LAST, uid DESC LIMIT "
             }
+            DossierOrder::StateDate => " ORDER BY law_state_date DESC NULLS LAST, uid DESC LIMIT ",
         });
         query.push_bind(limit);
         query.push(" OFFSET ");
@@ -622,7 +709,13 @@ impl DossierRepository for PgDossierRepository {
             })
             .collect::<Result<_, RepositoryError>>()?;
 
-        Ok(DossierPage { items, total })
+        let state_counts = self.state_counts(&criteria.without_law_states()).await?;
+
+        Ok(DossierPage {
+            items,
+            total,
+            state_counts,
+        })
     }
 
     async fn find_by_uid(
@@ -636,7 +729,9 @@ impl DossierRepository for PgDossierRepository {
                     legislature, url, summary, deposit_date,
                     outcome_kind, outcome_date, outcome_label,
                     law_code, law_jo_date, law_legifrance_url,
-                    merged_into_uid, merge_cause
+                    merged_into_uid, merge_cause,
+                    law_state_kind, law_state_date,
+                    last_decision_chamber, last_decision_sense, last_decision_date
              FROM legislative_dossiers
              WHERE uid = $1",
         )
@@ -676,6 +771,36 @@ impl DossierRepository for PgDossierRepository {
             .map(|r| r.into_dossier(vec![], vec![], vec![]))
             .collect()
     }
+
+    async fn find_with_decisions_between(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        let rows = sqlx::query_as::<_, DossierRow>(&format!(
+            "{PAGE_SELECT} WHERE EXISTS (
+                 SELECT 1 FROM legislative_acts a
+                  WHERE a.dossier_uid = legislative_dossiers.uid
+                    AND a.act_date BETWEEN $1 AND $2
+                    AND (a.act_code LIKE '%-DEC' OR a.act_code = 'PROM-PUB'))
+             ORDER BY uid"
+        ))
+        .bind(from)
+        .bind(to)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        let uids: Vec<String> = rows.iter().map(|r| r.uid.clone()).collect();
+        let mut acts = self.acts_of(&uids).await?;
+        rows.into_iter()
+            .map(|r| {
+                let acts = acts.remove(&r.uid).unwrap_or_default();
+                r.into_dossier(acts, vec![], vec![])
+            })
+            .collect()
+    }
 }
 
 #[derive(sqlx::FromRow)]
@@ -683,7 +808,10 @@ struct StateRow {
     uid: String,
     last_activity_date: NaiveDate,
     outcome_kind: String,
+    law_progress_computed: bool,
     act_count: i64,
+    decision_votes: Vec<String>,
+    concluded_act_count: i64,
 }
 
 #[derive(sqlx::FromRow)]
@@ -711,9 +839,27 @@ struct DossierRow {
     law_legifrance_url: Option<String>,
     merged_into_uid: Option<String>,
     merge_cause: Option<String>,
+    law_state_kind: Option<String>,
+    law_state_date: Option<NaiveDate>,
+    last_decision_chamber: Option<String>,
+    last_decision_sense: Option<String>,
+    last_decision_date: Option<NaiveDate>,
 }
 
 impl DossierRow {
+    /// Résumé « où en est la loi » stocké. `None` dans la colonne d'état : la
+    /// ligne date d'avant ce calcul, il n'y a rien à reprendre.
+    fn law_state(&self) -> Option<Option<LawStateSummary>> {
+        let kind = self.law_state_kind.as_deref()?;
+        Some(LawStateSummary::from_stored(
+            Some(kind),
+            self.law_state_date,
+            self.last_decision_chamber.as_deref(),
+            self.last_decision_sense.as_deref(),
+            self.last_decision_date,
+        ))
+    }
+
     /// Un sort date sans date, ou une fusion sans dossier absorbant, est une
     /// ligne incoherente: on retombe sur l'absence de conclusion plutot que
     /// d'inventer la partie manquante.
@@ -758,7 +904,8 @@ impl DossierRow {
         documents: Vec<LegislativeDocument>,
     ) -> Result<LegislativeDossier, RepositoryError> {
         let outcome = self.outcome();
-        Ok(LegislativeDossier::new(NewLegislativeDossier {
+        let law_state = self.law_state();
+        let mut dossier = LegislativeDossier::new(NewLegislativeDossier {
             uid: DossierUid::new(self.uid).map_err(invalid_row)?,
             title: self.title,
             procedure: self.procedure_label,
@@ -788,7 +935,11 @@ impl DossierRow {
                 .transpose()
                 .map_err(invalid_row)?,
             outcome,
-        }))
+        });
+        if let Some(summary) = law_state {
+            dossier.restore_law_state(summary);
+        }
+        Ok(dossier)
     }
 }
 
@@ -798,6 +949,33 @@ struct ActRow {
     label: String,
     act_code: Option<String>,
     decision_scrutin_uid: Option<String>,
+    conclusion_label: Option<String>,
+    conclusion_code: Option<String>,
+}
+
+impl ActRow {
+    fn into_act(self) -> Result<LegislativeAct, RepositoryError> {
+        let decision_vote = self
+            .decision_scrutin_uid
+            .map(ScrutinUid::new)
+            .transpose()
+            .map_err(invalid_row)?;
+        Ok(LegislativeAct {
+            date: self.act_date,
+            label: self.label,
+            code: self.act_code,
+            decision_vote,
+            conclusion_label: self.conclusion_label,
+            conclusion_code: self.conclusion_code,
+        })
+    }
+}
+
+#[derive(sqlx::FromRow)]
+struct PageActRow {
+    dossier_uid: String,
+    #[sqlx(flatten)]
+    act: ActRow,
 }
 
 #[derive(sqlx::FromRow)]

@@ -10,6 +10,7 @@ pub mod freshness_dto;
 pub mod group_dto;
 pub mod guide_dto;
 pub mod handlers;
+pub mod law_progress_dto;
 pub mod routes;
 pub mod scrutin_dto;
 pub mod security;

@@ -3,10 +3,11 @@ use chrono::NaiveDate;
 use serde::Serialize;
 
 use crate::api::final_vote_dto::{FinalVoteDto, GroupDto};
+use crate::api::law_progress_dto::{chamber_code, LawStateDto};
 use crate::api::scrutin_dto::{DossierStatusDto, ScrutinSummaryDto, SHOW_OF_HANDS_NOTE};
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::use_cases::get_week_of_votes::{
-    CardTally, OutcomeCount, TextCard, WeekDay, WeekOfVotes,
+    AdvancedText, CardTally, OutcomeCount, TextCard, WeekDay, WeekOfVotes,
 };
 use crate::domain::week::DayState;
 
@@ -60,6 +61,60 @@ pub struct WeekResponse {
     pub previous: Option<PreviousWeekDto>,
     pub next: Option<NaiveDate>,
     pub coverage_note: &'static str,
+    /// Textes qui ont avancé, avec ou sans scrutin public (SPEC-navette RM-08).
+    pub advanced: Vec<AdvancedTextDto>,
+    /// « N textes ont avancé » (SPEC-navette §4).
+    pub advanced_count: usize,
+}
+
+/// Événement de la semaine d'un texte qui a avancé (RM-08).
+#[derive(Debug, Serialize)]
+pub struct WeekEventDto {
+    pub date: NaiveDate,
+    /// `an`, `sn` ou `cmp` ; absent pour une promulgation.
+    pub chamber: Option<&'static str>,
+    /// Code de lecture tel que la source l'écrit (`AN1`, `SN2`, `CMP`…),
+    /// `PROM` pour une promulgation.
+    pub reading: String,
+    pub sense: Option<&'static str>,
+    /// La source cite le scrutin public qui a tranché.
+    pub has_public_vote: bool,
+    /// Événement de CMP : date de l'accord en commission mixte paritaire.
+    pub joint_committee_agreement_date: Option<NaiveDate>,
+}
+
+/// Texte qui a avancé dans la semaine, rangé dans le groupe de son état au
+/// soir du dimanche (RM-08, Q4).
+#[derive(Debug, Serialize)]
+pub struct AdvancedTextDto {
+    pub dossier_uid: String,
+    pub title: String,
+    /// `became_law`, `definitively_adopted` ou `in_shuttle`.
+    pub group: &'static str,
+    /// État au soir du dimanche de la semaine.
+    pub law_state: LawStateDto,
+    pub event: WeekEventDto,
+}
+
+impl From<AdvancedText> for AdvancedTextDto {
+    fn from(text: AdvancedText) -> Self {
+        let state = &text.advance.state;
+        let event = text.advance.event;
+        Self {
+            dossier_uid: text.dossier.uid().as_str().to_string(),
+            title: text.dossier.title().to_string(),
+            group: state.kind().as_str(),
+            law_state: LawStateDto::from((state, text.dossier.outcome())),
+            event: WeekEventDto {
+                date: event.date,
+                chamber: event.chamber.and_then(chamber_code),
+                reading: event.reading,
+                sense: event.sense.map(|sense| sense.as_str()),
+                has_public_vote: event.has_public_vote,
+                joint_committee_agreement_date: event.joint_committee_agreement,
+            },
+        }
+    }
 }
 
 /// Dernier vote sur l'ensemble d'une carte ou d'un jour (RM-10).
@@ -119,7 +174,11 @@ impl From<TextCard> for WeekTextDto {
             dossier_uid: card.dossier_uid,
             dossier_label: card.dossier_label,
             dossier_status: card.dossier.as_ref().map(DossierStatusDto::from),
-            families: card.families.into_iter().map(AssignedFamilyDto::from).collect(),
+            families: card
+                .families
+                .into_iter()
+                .map(AssignedFamilyDto::from)
+                .collect(),
             totals: card.totals.into(),
             days: card
                 .days
@@ -129,7 +188,11 @@ impl From<TextCard> for WeekTextDto {
                     tally: day.tally.into(),
                 })
                 .collect(),
-            scrutins: card.items.into_iter().map(ScrutinSummaryDto::from).collect(),
+            scrutins: card
+                .items
+                .into_iter()
+                .map(ScrutinSummaryDto::from)
+                .collect(),
         }
     }
 }
@@ -171,6 +234,12 @@ impl From<WeekOfVotes> for WeekResponse {
             }),
             next: view.next.map(|week| week.monday),
             coverage_note: COVERAGE_NOTE,
+            advanced_count: view.advanced.len(),
+            advanced: view
+                .advanced
+                .into_iter()
+                .map(AdvancedTextDto::from)
+                .collect(),
         }
     }
 }
@@ -213,20 +282,20 @@ mod tests {
 
     use super::*;
     use crate::application::ports::final_vote_repository::GroupOption;
-    use crate::application::use_cases::browse_final_votes::FinalVoteEntry;
     use crate::application::ports::theme_repository::AssignedFamily;
+    use crate::application::use_cases::browse_final_votes::FinalVoteEntry;
+    use crate::application::use_cases::get_week_of_votes::WeekNeighbour;
     use crate::application::use_cases::get_week_of_votes::{
         CardDay, CardTally, FinalOutcome, OtherOutcome, OutcomeCount, TextCard, WeekDay,
     };
-    use crate::application::use_cases::get_week_of_votes::WeekNeighbour;
     use crate::application::use_cases::list_scrutins::ScrutinListItem;
     use crate::application::use_cases::read_fakes::{listed_dossier, scrutin_row};
-    use crate::domain::dossier::{DossierOutcome, LegislativeStage};
-    use crate::domain::scrutin::ShortLabel;
-    use crate::domain::theme::FamilyCode;
     use crate::domain::actor::GroupUid;
+    use crate::domain::dossier::{DossierOutcome, LegislativeStage};
     use crate::domain::final_vote::{FinalVote, GroupIdentity, GroupStance, NewFinalVote};
+    use crate::domain::scrutin::ShortLabel;
     use crate::domain::scrutin::{Outcome, ScrutinUid, VotePosition, VoteTally};
+    use crate::domain::theme::FamilyCode;
     use crate::domain::theme::TextKey;
     use crate::domain::week::{DayState, Week};
 
@@ -259,6 +328,7 @@ mod tests {
             texts: vec![],
             previous: None,
             next: None,
+            advanced: vec![],
         }
     }
 
@@ -367,10 +437,22 @@ mod tests {
     fn maps_each_day_with_its_vote_count_and_state_code() {
         let json = json_of(WeekOfVotes {
             days: vec![
-                WeekDay { date: d(2), state: DayState::Voted(3) },
-                WeekDay { date: d(3), state: DayState::NoPublicVote },
-                WeekDay { date: d(4), state: DayState::NotYetPublished },
-                WeekDay { date: d(5), state: DayState::Upcoming },
+                WeekDay {
+                    date: d(2),
+                    state: DayState::Voted(3),
+                },
+                WeekDay {
+                    date: d(3),
+                    state: DayState::NoPublicVote,
+                },
+                WeekDay {
+                    date: d(4),
+                    state: DayState::NotYetPublished,
+                },
+                WeekDay {
+                    date: d(5),
+                    state: DayState::Upcoming,
+                },
             ],
             ..view()
         });
@@ -424,7 +506,12 @@ mod tests {
     }
 
     fn counts(votes: usize, adopted: usize, rejected: usize) -> OutcomeCount {
-        OutcomeCount { votes, adopted, rejected, others: vec![] }
+        OutcomeCount {
+            votes,
+            adopted,
+            rejected,
+            others: vec![],
+        }
     }
 
     fn listed(uid: &str) -> ScrutinListItem {
@@ -443,7 +530,10 @@ mod tests {
             dossier_label: dossier_uid.map(|_| "Projet de loi de finances".to_string()),
             dossier: None,
             families: vec![],
-            totals: CardTally { outcomes: counts(items.len(), 0, 0), latest_final: None },
+            totals: CardTally {
+                outcomes: counts(items.len(), 0, 0),
+                latest_final: None,
+            },
             days: vec![],
             items,
         }
@@ -454,7 +544,10 @@ mod tests {
         let mut text = card(Some("DLR5L17N54629"), vec![listed("S1"), listed("S2")]);
         text.dossier = Some(listed_dossier(
             "DLR5L17N54629",
-            DossierOutcome::Rejected { date: d(4), label: "rejet\u{e9}".into() },
+            DossierOutcome::Rejected {
+                date: d(4),
+                label: "rejet\u{e9}".into(),
+            },
             Some(LegislativeStage::FirstReadingAN),
         ));
         text.families = vec![AssignedFamily {
@@ -462,15 +555,24 @@ mod tests {
             opened_on: d(3),
             motive: None,
         }];
-        text.totals = CardTally { outcomes: counts(2, 1, 1), latest_final: None };
+        text.totals = CardTally {
+            outcomes: counts(2, 1, 1),
+            latest_final: None,
+        };
 
-        let json = json_of(WeekOfVotes { texts: vec![text], ..view() });
+        let json = json_of(WeekOfVotes {
+            texts: vec![text],
+            ..view()
+        });
 
         let card = &json["texts"][0];
         assert_eq!(card["dossier_uid"], "DLR5L17N54629");
         assert_eq!(card["dossier_status"]["outcome"]["kind"], "rejected");
         assert_eq!(card["families"].as_array().unwrap().len(), 1);
-        assert_eq!(card["families"][0]["code"], FamilyCode::PouvoirAchat.as_str());
+        assert_eq!(
+            card["families"][0]["code"],
+            FamilyCode::PouvoirAchat.as_str()
+        );
         assert_eq!(card["totals"]["votes"], 2);
         assert_eq!(card["totals"]["adopted"], 1);
         assert_eq!(card["scrutins"].as_array().unwrap().len(), 2);
@@ -501,7 +603,10 @@ mod tests {
         text.days = vec![
             CardDay {
                 date: d(3),
-                tally: CardTally { outcomes: counts(2, 1, 1), latest_final: None },
+                tally: CardTally {
+                    outcomes: counts(2, 1, 1),
+                    latest_final: None,
+                },
             },
             CardDay {
                 date: d(4),
@@ -518,7 +623,10 @@ mod tests {
             },
         ];
 
-        let json = json_of(WeekOfVotes { texts: vec![text], ..view() });
+        let json = json_of(WeekOfVotes {
+            texts: vec![text],
+            ..view()
+        });
 
         let days = &json["texts"][0]["days"];
         assert_eq!(days.as_array().unwrap().len(), 2);
@@ -527,18 +635,30 @@ mod tests {
         assert!(days[0]["tally"]["latest_final"].is_null());
         assert_eq!(days[1]["tally"]["adopted"], 1);
         assert_eq!(days[1]["tally"]["latest_final"]["scrutin_uid"], "S1");
-        assert_eq!(days[1]["tally"]["latest_final"]["outcome_label"], "adopt\u{e9}");
+        assert_eq!(
+            days[1]["tally"]["latest_final"]["outcome_label"],
+            "adopt\u{e9}"
+        );
     }
 
     #[test]
     fn maps_the_previous_week_with_its_vote_count_and_the_next_week() {
         let json = json_of(WeekOfVotes {
-            previous: Some(WeekNeighbour { monday: d(2), votes_count: 7 }),
-            next: Some(WeekNeighbour { monday: d(9), votes_count: 4 }),
+            previous: Some(WeekNeighbour {
+                monday: d(2),
+                votes_count: 7,
+            }),
+            next: Some(WeekNeighbour {
+                monday: d(9),
+                votes_count: 4,
+            }),
             ..view()
         });
 
-        assert_eq!(json["previous"], json!({"monday": "2026-11-02", "votes": 7}));
+        assert_eq!(
+            json["previous"],
+            json!({"monday": "2026-11-02", "votes": 7})
+        );
         assert_eq!(json["next"], "2026-11-09");
     }
 
@@ -557,5 +677,89 @@ mod tests {
         let note = json["coverage_note"].as_str().unwrap();
         assert_eq!(note, COVERAGE_NOTE);
         assert!(note.contains("main lev\u{00e9}e"), "{note:?}");
+    }
+
+    #[test]
+    fn serves_the_texts_that_advanced_with_their_group_state_and_event() {
+        use crate::application::use_cases::get_week_of_votes::AdvancedText;
+        use crate::domain::dossier::{LegislativeAct, NewLegislativeDossier};
+        use crate::domain::law_progress::LawAdvance;
+
+        let decision = |code: &str, on: NaiveDate, label: &str| LegislativeAct {
+            date: on,
+            label: code.into(),
+            code: Some(code.into()),
+            decision_vote: None,
+            conclusion_label: Some(label.into()),
+            conclusion_code: None,
+        };
+        let acts = vec![
+            decision(
+                "AN1-DEBATS-DEC",
+                NaiveDate::from_ymd_opt(2026, 7, 7).unwrap(),
+                "adopt\u{e9}e",
+            ),
+            decision("SN1-DEBATS-DEC", d(20), "modifi\u{e9}e"),
+        ];
+        let base = listed_dossier("DLR5L17N51037", DossierOutcome::NoRecordedConclusion, None);
+        let dossier = crate::domain::dossier::LegislativeDossier::new(NewLegislativeDossier {
+            uid: base.uid().clone(),
+            title: "Proposition de loi relative \u{e0} la l\u{e9}gitime d\u{e9}fense".into(),
+            procedure: base.procedure().into(),
+            legislature: 17,
+            url: None,
+            summary: None,
+            deposit_date: None,
+            last_activity_date: d(20),
+            last_activity_label: "D\u{e9}cision".into(),
+            acts: acts.clone(),
+            documents: vec![],
+            score: base.score().clone(),
+            current_stage: None,
+            initiators: vec![],
+            committee: None,
+            outcome: DossierOutcome::NoRecordedConclusion,
+        });
+        let advance =
+            LawAdvance::between(&acts, &DossierOutcome::NoRecordedConclusion, d(16), d(22))
+                .unwrap();
+        let mut view = view();
+        view.advanced = vec![AdvancedText { dossier, advance }];
+
+        let json = json_of(view);
+
+        assert_eq!(json["advanced_count"], 1);
+        assert_eq!(
+            json["advanced"][0],
+            json!({
+                "dossier_uid": "DLR5L17N51037",
+                "title": "Proposition de loi relative \u{e0} la l\u{e9}gitime d\u{e9}fense",
+                "group": "in_shuttle",
+                "law_state": {
+                    "kind": "in_shuttle",
+                    "date": "2026-11-20",
+                    "last_decision": { "chamber": "sn", "sense": "modified", "date": "2026-11-20" },
+                    "law_code": null,
+                    "jo_date": null,
+                    "legifrance_url": null,
+                },
+                "event": {
+                    "date": "2026-11-20",
+                    "chamber": "sn",
+                    "reading": "SN1",
+                    "sense": "modified",
+                    "has_public_vote": false,
+                    "joint_committee_agreement_date": null,
+                },
+            })
+        );
+    }
+
+    #[test]
+    fn serves_an_empty_list_of_advanced_texts_with_a_zero_count() {
+        let json = json_of(view());
+
+        assert_eq!(json["advanced"], json!([]));
+        assert_eq!(json["advanced_count"], 0);
     }
 }

@@ -2,19 +2,20 @@ use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
 use crate::api::dto::{OutcomeDto, StageDto};
+use crate::api::law_progress_dto::{LawProgressDto, LawStateDto};
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::scrutin_repository::ScrutinFilter;
 use crate::application::use_cases::browse_dossier_amendments::CitedAmendmentView;
 use crate::application::use_cases::get_scrutin_detail::{
     CitedNumberView, ExplanationView, ExplanationsView, ScrutinDetail,
 };
-use crate::domain::vote_explanation::ExplanationsState;
 use crate::application::use_cases::list_scrutins::{ScrutinListItem, ScrutinListPage};
 use crate::application::use_cases::refresh_scrutins::ScrutinsSummary;
 use crate::domain::amendment::SummaryPreview;
 use crate::domain::dossier::LegislativeDossier;
 use crate::domain::final_vote::{is_final_vote_subject, reading_of};
 use crate::domain::scrutin::{scrutin_official_url, VoteTally};
+use crate::domain::vote_explanation::ExplanationsState;
 
 /// RM-06: la lacune est servie avec les listes, pas enfouie ailleurs.
 pub const SHOW_OF_HANDS_NOTE: &str = "Les votes \u{00e0} main lev\u{00e9}e ne figurent pas dans les donn\u{00e9}es publi\u{00e9}es par l'Assembl\u{00e9}e nationale : le site n'en rend pas compte.";
@@ -147,12 +148,15 @@ pub struct DossierStatusDto {
     pub current_stage: Option<StageDto>,
     pub last_activity_label: String,
     pub last_activity_date: NaiveDate,
+    /// Ou en est la loi (SPEC-navette RM-01 a RM-04) ; `null` : sans etat.
+    pub law_state: Option<LawStateDto>,
 }
 
 impl From<&LegislativeDossier> for DossierStatusDto {
     fn from(d: &LegislativeDossier) -> Self {
         Self {
             outcome: OutcomeDto::from(d.outcome()),
+            law_state: Option::<LawStateDto>::from(d),
             current_stage: d.current_stage().map(StageDto::from),
             last_activity_label: d.last_activity_label().to_string(),
             last_activity_date: d.last_activity_date(),
@@ -351,6 +355,10 @@ pub struct ScrutinDetailDto {
     pub reading: Option<String>,
     /// RM-09: `None` hors vote sur l'ensemble.
     pub explanations: Option<ExplanationsDto>,
+    /// Ou en est la loi du dossier du scrutin : etat, jalons (« · ce vote »)
+    /// et reponse (SPEC-navette RM-05, RM-06, Q6). Absent sans dossier, ou
+    /// quand le dossier n'est pas en base.
+    pub law_progress: Option<LawProgressDto>,
 }
 
 #[derive(Serialize)]
@@ -448,6 +456,10 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
     fn from(detail: ScrutinDetail) -> Self {
         let s = detail.scrutin;
         Self {
+            law_progress: detail
+                .dossier
+                .as_ref()
+                .map(|dossier| LawProgressDto::from((dossier, Some(s.uid())))),
             uid: s.uid().as_str().to_string(),
             number: s.number().to_string(),
             legislature: s.legislature(),
@@ -552,13 +564,13 @@ mod tests {
     use crate::application::use_cases::browse_dossier_amendments::{
         AuthorView, CitedAmendmentView,
     };
+    use crate::application::use_cases::get_scrutin_detail::GroupWithoutSpeakerView;
     use crate::application::use_cases::list_scrutins::ScrutinListItem;
     use crate::application::use_cases::read_fakes::scrutin_row;
     use crate::domain::actor::TextTone;
     use crate::domain::amendment::SummaryPreview;
     use crate::domain::amendment_citation::LinkMethod;
     use crate::domain::scrutin::{ShortLabel, VotePosition};
-    use crate::application::use_cases::get_scrutin_detail::GroupWithoutSpeakerView;
 
     fn item(uid: &str, subject: &str) -> ScrutinListItem {
         ScrutinListItem {
@@ -597,6 +609,40 @@ mod tests {
         );
         assert_eq!(status["last_activity_label"], "R\u{e9}union de commission");
         assert_eq!(status["last_activity_date"], "2026-11-04");
+        assert!(status["law_state"].is_null());
+    }
+
+    #[test]
+    fn should_serve_the_stored_law_state_in_the_dossier_status() {
+        use crate::application::use_cases::read_fakes::listed_dossier;
+        use crate::domain::dossier::DossierOutcome;
+        use crate::domain::law_progress::LawStateSummary;
+
+        let mut dossier =
+            listed_dossier("DLR5L17N51037", DossierOutcome::NoRecordedConclusion, None);
+        dossier.restore_law_state(LawStateSummary::from_stored(
+            Some("in_shuttle"),
+            NaiveDate::from_ymd_opt(2026, 11, 20),
+            Some("senat"),
+            Some("modified"),
+            NaiveDate::from_ymd_opt(2026, 11, 20),
+        ));
+        let mut listed = item("S1", "l'ensemble de la proposition de loi");
+        listed.dossier = Some(dossier);
+
+        let json = serde_json::to_value(ScrutinSummaryDto::from(listed)).unwrap();
+
+        assert_eq!(
+            json["dossier_status"]["law_state"],
+            serde_json::json!({
+                "kind": "in_shuttle",
+                "date": "2026-11-20",
+                "last_decision": { "chamber": "sn", "sense": "modified", "date": "2026-11-20" },
+                "law_code": null,
+                "jo_date": null,
+                "legifrance_url": null,
+            })
+        );
     }
 
     #[test]
@@ -774,6 +820,7 @@ mod tests {
             cited: Vec::new(),
             unnumbered_identical_amendments: false,
             explanations: Some(explanations),
+            dossier: None,
         }
     }
 
@@ -833,7 +880,10 @@ mod tests {
             item["official_url"],
             "https://www.assemblee-nationale.fr/dyn/17/comptes-rendus/seance/CRSANR5L17S2025IDS1#point_3"
         );
-        assert_eq!(explanations["groups_without_speaker"][0]["group_uid"], "PO_B");
+        assert_eq!(
+            explanations["groups_without_speaker"][0]["group_uid"],
+            "PO_B"
+        );
         assert_eq!(explanations["groups_without_speaker"][0]["abbrev"], "LFI");
     }
 
@@ -861,7 +911,10 @@ mod tests {
         assert!(item["speaker_position"].is_null());
         assert!(item["preview"].is_null());
         assert_eq!(item["preview_truncated"], false);
-        assert_eq!(json["explanations"]["groups_without_speaker"], serde_json::json!([]));
+        assert_eq!(
+            json["explanations"]["groups_without_speaker"],
+            serde_json::json!([])
+        );
         assert!(json["explanations"]["report_version"].is_null());
     }
 }

@@ -1,6 +1,9 @@
+use std::collections::BTreeSet;
+
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 
+use super::law_progress::{LawProgress, LawStateSummary};
 use super::scrutin::ScrutinUid;
 
 use super::actor::{
@@ -74,6 +77,11 @@ pub struct LegislativeAct {
     /// qui a tranche, cite tel quel (`voteRefs`), jamais deduit de son objet.
     /// Absent sur les autres actes et sur les decisions sans scrutin public.
     pub decision_vote: Option<ScrutinUid>,
+    /// Libelle du `statutConclusion` de l'acte, tel quel (« modifiée »,
+    /// « Accord »...). Le sens d'une decision s'en deduit (SPEC-navette §2).
+    pub conclusion_label: Option<String>,
+    /// Famille du `statutConclusion` (`fam_code`, `TSORTF05`...), telle quelle.
+    pub conclusion_code: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -147,6 +155,28 @@ pub enum Chamber {
     Senat,
     Joint,
     None,
+}
+
+impl Chamber {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::AssembleeNationale => "assemblee_nationale",
+            Self::Senat => "senat",
+            Self::Joint => "joint",
+            Self::None => "none",
+        }
+    }
+
+    /// Relit le code que `as_str` ecrit (resume d'etat stocke, SPEC-navette).
+    pub fn parse(value: &str) -> Option<Self> {
+        match value {
+            "assemblee_nationale" => Some(Self::AssembleeNationale),
+            "senat" => Some(Self::Senat),
+            "joint" => Some(Self::Joint),
+            "none" => Some(Self::None),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -507,6 +537,10 @@ pub struct LegislativeDossier {
     initiators: Vec<Initiator>,
     committee: Option<Committee>,
     outcome: DossierOutcome,
+    /// Resume de l'etat « ou en est la loi » (SPEC-navette) : calcule depuis
+    /// les actes a l'assemblage, ou relu en base quand le dossier est lu sans
+    /// ses actes (liste, fiche de vote, semaine).
+    law_state: Option<LawStateSummary>,
 }
 
 /// Elements d'un dossier legislatif, tels que lus dans la source ou en base.
@@ -561,6 +595,41 @@ pub struct StoredDossierState {
     pub act_count: usize,
     /// Sort qui ne peut plus changer (promulgation, retrait, fusion).
     pub outcome_is_final: bool,
+    /// L'etat « ou en est la loi » a deja ete calcule et stocke
+    /// (SPEC-navette lot 1). Faux pour tout dossier ecrit avant ce calcul.
+    pub law_progress_computed: bool,
+    /// Decisions de seance telles que stockees.
+    pub decision_fingerprint: DecisionFingerprint,
+}
+
+/// Empreinte des decisions de seance d'un dossier: les scrutins que la source
+/// cite comme ayant tranche (`voteRefs`) et le nombre d'actes portant un
+/// `statutConclusion`.
+///
+/// L'AN complete parfois un acte deja publie (`voteRefs` ou `statutConclusion`
+/// ajoutes apres coup) sans toucher a la derniere activite ni au nombre
+/// d'actes: seule cette empreinte le voit. Constat du 22/11/2026 : 214 des 224
+/// dossiers dont la source cite un scrutin de decision n'en avaient aucun en
+/// base, faute d'avoir ete relus.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct DecisionFingerprint {
+    pub decision_votes: BTreeSet<ScrutinUid>,
+    pub concluded_act_count: usize,
+}
+
+impl DecisionFingerprint {
+    pub fn from_acts(acts: &[LegislativeAct]) -> Self {
+        Self {
+            decision_votes: acts
+                .iter()
+                .filter_map(|act| act.decision_vote.clone())
+                .collect(),
+            concluded_act_count: acts
+                .iter()
+                .filter(|act| act.conclusion_label.is_some() || act.conclusion_code.is_some())
+                .count(),
+        }
+    }
 }
 
 /// Ce qu'un rafraichissement fait d'un dossier lu dans la source.
@@ -622,7 +691,10 @@ impl LegislativeDossier {
     /// Assemble le dossier a partir de ses elements. Infaillible: chaque champ
     /// est deja type, aucun invariant ne se cumule entre eux.
     pub fn new(parts: NewLegislativeDossier) -> Self {
+        let law_state =
+            LawStateSummary::from_progress(&LawProgress::from_acts(&parts.acts, &parts.outcome));
         Self {
+            law_state,
             uid: parts.uid,
             title: parts.title,
             procedure: parts.procedure,
@@ -691,7 +763,37 @@ impl LegislativeDossier {
         &self.outcome
     }
 
+    /// Ou en est la loi : etat et jalons, calcules a partir des actes et du
+    /// sort (SPEC-navette RM-01 a RM-05).
+    pub fn law_progress(&self) -> LawProgress {
+        LawProgress::from_acts(&self.acts, &self.outcome)
+    }
+
+    /// Resume de l'etat (SPEC-navette RM-01 a RM-04) ; `None` : sans etat.
+    pub fn law_state(&self) -> Option<&LawStateSummary> {
+        self.law_state.as_ref()
+    }
+
+    /// Reprend le resume stocke, seul disponible quand le dossier est lu sans
+    /// ses actes. Il a ete calcule par `LawProgress` a l'ecriture.
+    pub fn restore_law_state(&mut self, summary: Option<LawStateSummary>) {
+        self.law_state = summary;
+    }
+
+    pub fn decision_fingerprint(&self) -> DecisionFingerprint {
+        DecisionFingerprint::from_acts(&self.acts)
+    }
+
     /// Un dossier n'est reecrit que si la source a bouge.
+    ///
+    /// Exception prealable : un dossier stocke avant le calcul de l'etat « ou
+    /// en est la loi » est reecrit une fois, meme definitif ou inchange, pour
+    /// recevoir les conclusions de ses actes et son etat (SPEC-navette lot 1).
+    ///
+    /// Seconde exception : une decision de seance completee apres coup
+    /// (`voteRefs`, `statutConclusion`) fait reecrire le dossier, meme
+    /// definitif — le sort ne bouge plus, mais le scrutin qui l'a tranche doit
+    /// etre recueilli (`DecisionFingerprint`).
     ///
     /// Deux raisons de sauter, dans cet ordre:
     ///
@@ -712,6 +814,14 @@ impl LegislativeDossier {
         let Some(stored) = stored else {
             return WriteDecision::Write;
         };
+
+        if !stored.law_progress_computed {
+            return WriteDecision::Write;
+        }
+
+        if stored.decision_fingerprint != self.decision_fingerprint() {
+            return WriteDecision::Write;
+        }
 
         if stored.outcome_is_final {
             return WriteDecision::SkipFinal;
@@ -1404,6 +1514,8 @@ mod tests {
             label: "Acte".into(),
             code: None,
             decision_vote: None,
+            conclusion_label: None,
+            conclusion_code: None,
         }
     }
 
@@ -1423,7 +1535,52 @@ mod tests {
             last_activity_date,
             act_count,
             outcome_is_final,
+            law_progress_computed: true,
+            decision_fingerprint: DecisionFingerprint::default(),
         }
+    }
+
+    #[test]
+    fn decision_fingerprint_collects_cited_votes_and_counts_concluded_acts() {
+        let vote = |uid: &str| ScrutinUid::new(uid.into()).unwrap();
+        let acts = vec![
+            act_on(date(2025, 4, 1)),
+            LegislativeAct {
+                decision_vote: Some(vote("VTANR5L17V10080")),
+                conclusion_label: Some("adopt\u{00e9}e".into()),
+                ..act_on(date(2025, 5, 13))
+            },
+            LegislativeAct {
+                conclusion_code: Some("TSORTF05".into()),
+                ..act_on(date(2025, 5, 13))
+            },
+        ];
+
+        let fingerprint = DecisionFingerprint::from_acts(&acts);
+
+        assert_eq!(
+            fingerprint.decision_votes,
+            BTreeSet::from([vote("VTANR5L17V10080")])
+        );
+        assert_eq!(fingerprint.concluded_act_count, 2);
+    }
+
+    #[test]
+    fn final_dossier_whose_decision_gained_a_vote_is_written() {
+        let mut dossier = source_dossier_with_two_acts();
+        dossier.acts[1].decision_vote = Some(ScrutinUid::new("VTANR5L17V9097".into()).unwrap());
+        let stored = stored_state(date(2025, 5, 13), 2, true);
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn unchanged_dossier_whose_decision_gained_a_conclusion_is_written() {
+        let mut dossier = source_dossier_with_two_acts();
+        dossier.acts[1].conclusion_label = Some("modifi\u{00e9}e".into());
+        let stored = stored_state(date(2025, 5, 13), 2, false);
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
     }
 
     #[test]
@@ -1431,6 +1588,28 @@ mod tests {
         let dossier = source_dossier_with_two_acts();
 
         assert_eq!(dossier.write_decision(None), WriteDecision::Write);
+    }
+
+    #[test]
+    fn final_dossier_stored_before_the_law_progress_existed_is_written_once() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = StoredDossierState {
+            law_progress_computed: false,
+            ..stored_state(date(2025, 5, 13), 2, true)
+        };
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
+    }
+
+    #[test]
+    fn unchanged_dossier_stored_before_the_law_progress_existed_is_written_once() {
+        let dossier = source_dossier_with_two_acts();
+        let stored = StoredDossierState {
+            law_progress_computed: false,
+            ..stored_state(date(2025, 5, 13), 2, false)
+        };
+
+        assert_eq!(dossier.write_decision(Some(&stored)), WriteDecision::Write);
     }
 
     #[test]

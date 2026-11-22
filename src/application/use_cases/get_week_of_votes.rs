@@ -11,12 +11,12 @@ use crate::application::ports::scrutin_repository::{
 };
 use crate::application::ports::theme_repository::{AssignedFamily, ThemeRepository};
 use crate::application::use_cases::browse_final_votes::{
-    BrowseFinalVotes, BrowseFinalVotesCommand, BrowseFinalVotesError, FinalVoteEntry,
-    MAX_PAGE_SIZE,
+    BrowseFinalVotes, BrowseFinalVotesCommand, BrowseFinalVotesError, FinalVoteEntry, MAX_PAGE_SIZE,
 };
 use crate::application::use_cases::list_scrutins::{ListScrutins, ScrutinListItem};
 use crate::domain::dossier::LegislativeDossier;
 use crate::domain::final_vote::is_final_vote_subject;
+use crate::domain::law_progress::{LawAdvance, LawStateKind};
 use crate::domain::scrutin::Outcome;
 use crate::domain::week::{DayState, Week, WeekError};
 
@@ -84,6 +84,14 @@ pub struct WeekNeighbour {
     pub votes_count: i64,
 }
 
+/// Texte qui a avancé dans la semaine, avec ou sans scrutin public
+/// (SPEC-navette RM-08).
+#[derive(Debug, Clone)]
+pub struct AdvancedText {
+    pub dossier: LegislativeDossier,
+    pub advance: LawAdvance,
+}
+
 #[derive(Debug, Clone)]
 pub struct WeekOfVotes {
     pub week: Week,
@@ -99,6 +107,9 @@ pub struct WeekOfVotes {
     pub texts: Vec<TextCard>,
     pub previous: Option<WeekNeighbour>,
     pub next: Option<WeekNeighbour>,
+    /// Devenus loi, adoptés définitivement, puis en navette ; dans chaque
+    /// groupe, l'événement le plus récent d'abord (RM-08).
+    pub advanced: Vec<AdvancedText>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -155,14 +166,10 @@ impl<'a> GetWeekOfVotes<'a> {
             _ => current,
         };
 
-        let mut items = ListScrutins::new(
-            self.repository,
-            self.citations,
-            self.actors,
-            self.dossiers,
-        )
-        .execute_between(week.monday(), week.sunday())
-        .await?;
+        let mut items =
+            ListScrutins::new(self.repository, self.citations, self.actors, self.dossiers)
+                .execute_between(week.monday(), week.sunday())
+                .await?;
         items.sort_by_key(|item| vote_order(&item.summary));
         let rows: Vec<&ScrutinSummary> = items.iter().map(|item| &item.summary).collect();
 
@@ -201,6 +208,7 @@ impl<'a> GetWeekOfVotes<'a> {
 
         let previous = self.neighbour(week.previous()).await?;
         let next = self.neighbour(week.next(today)).await?;
+        let advanced = self.advanced(week).await?;
 
         Ok(WeekOfVotes {
             week,
@@ -216,7 +224,35 @@ impl<'a> GetWeekOfVotes<'a> {
             families,
             previous,
             next,
+            advanced,
         })
+    }
+
+    /// Dossiers dont une décision des chambres ou la promulgation tombe dans
+    /// la semaine, groupés par leur état au soir du dimanche (RM-08).
+    async fn advanced(&self, week: Week) -> Result<Vec<AdvancedText>, RepositoryError> {
+        let mut advanced: Vec<AdvancedText> = self
+            .dossiers
+            .find_with_decisions_between(week.monday(), week.sunday())
+            .await?
+            .into_iter()
+            .filter_map(|dossier| {
+                LawAdvance::between(
+                    dossier.acts(),
+                    dossier.outcome(),
+                    week.monday(),
+                    week.sunday(),
+                )
+                .map(|advance| AdvancedText { dossier, advance })
+            })
+            .collect();
+        advanced.sort_by(|a, b| {
+            group_rank(a.advance.state.kind())
+                .cmp(&group_rank(b.advance.state.kind()))
+                .then_with(|| b.advance.event.date.cmp(&a.advance.event.date))
+                .then_with(|| a.dossier.uid().as_str().cmp(b.dossier.uid().as_str()))
+        });
+        Ok(advanced)
     }
 
     async fn neighbour(
@@ -234,6 +270,15 @@ impl<'a> GetWeekOfVotes<'a> {
             monday: week.monday(),
             votes_count,
         }))
+    }
+}
+
+/// Ordre des groupes des avancées (RM-08).
+fn group_rank(kind: LawStateKind) -> u8 {
+    match kind {
+        LawStateKind::BecameLaw => 0,
+        LawStateKind::DefinitivelyAdopted => 1,
+        LawStateKind::InShuttle => 2,
     }
 }
 
@@ -316,7 +361,10 @@ fn card_of(
         .filter_map(|item| families.get(&item.summary.uid))
         .flatten()
     {
-        if !card_families.iter().any(|kept| kept.family == family.family) {
+        if !card_families
+            .iter()
+            .any(|kept| kept.family == family.family)
+        {
             card_families.push(family.clone());
         }
     }
@@ -380,10 +428,13 @@ mod tests {
     use crate::application::ports::scrutin_repository::ScrutinSummary;
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
     use crate::application::use_cases::read_fakes::{
-        scrutin_row, FakeActors, FakeDossiers, FakeScrutins,
+        listed_dossier, scrutin_row, FakeActors, FakeDossiers, FakeScrutins,
     };
     use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
     use crate::domain::dataset::DatasetShape;
+    use crate::domain::dossier::{
+        DossierOutcome, LawPublication, LegislativeAct, NewLegislativeDossier,
+    };
     use crate::domain::scrutin::{VotePosition, VoteTally};
     use crate::domain::theme::FamilyCode;
 
@@ -541,7 +592,12 @@ mod tests {
         }
     }
 
-    fn record(uid: &str, day: u32, number: &str, tallies: Vec<GroupTallyRecord>) -> FinalVoteRecord {
+    fn record(
+        uid: &str,
+        day: u32,
+        number: &str,
+        tallies: Vec<GroupTallyRecord>,
+    ) -> FinalVoteRecord {
         FinalVoteRecord {
             scrutin_uid: uid.into(),
             number: number.into(),
@@ -937,7 +993,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn gives_each_vote_its_families_and_a_card_the_families_of_its_votes_without_duplicates() {
+    async fn gives_each_vote_its_families_and_a_card_the_families_of_its_votes_without_duplicates()
+    {
         let mut stored = HashMap::new();
         stored.insert("S1".to_string(), vec![family(FamilyCode::Logement)]);
         stored.insert(
@@ -980,5 +1037,124 @@ mod tests {
             codes(&view.final_votes[0].families),
             vec![FamilyCode::Logement]
         );
+    }
+
+    fn act(code: &str, on: NaiveDate, label: Option<&str>) -> LegislativeAct {
+        LegislativeAct {
+            date: on,
+            label: code.into(),
+            code: Some(code.into()),
+            decision_vote: None,
+            conclusion_label: label.map(String::from),
+            conclusion_code: None,
+        }
+    }
+
+    fn stored(uid: &str, acts: Vec<LegislativeAct>, outcome: DossierOutcome) -> LegislativeDossier {
+        let base = listed_dossier(uid, outcome, None);
+        LegislativeDossier::new(NewLegislativeDossier {
+            uid: base.uid().clone(),
+            title: format!("Texte {uid}"),
+            procedure: base.procedure().into(),
+            legislature: 17,
+            url: None,
+            summary: None,
+            deposit_date: None,
+            last_activity_date: base.last_activity_date(),
+            last_activity_label: base.last_activity_label().into(),
+            acts,
+            documents: vec![],
+            score: base.score().clone(),
+            current_stage: None,
+            initiators: vec![],
+            committee: None,
+            outcome: base.outcome().clone(),
+        })
+    }
+
+    #[tokio::test]
+    async fn lists_the_texts_that_advanced_by_state_at_the_end_of_the_week_then_latest_first() {
+        let decided = |on| act("AN1-DEBATS-DEC", on, Some("adopt\u{e9}e"));
+        let dossiers = FakeDossiers {
+            dossiers: vec![
+                // En navette, décidé mardi.
+                stored(
+                    "S1",
+                    vec![decided(d(10))],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+                // En navette, décidé jeudi.
+                stored(
+                    "S2",
+                    vec![decided(d(12))],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+                // Adopté définitivement mercredi, promulgué la semaine suivante.
+                stored(
+                    "D",
+                    vec![
+                        act("SN1-DEBATS-DEC", d(2), Some("adopt\u{e9}e")),
+                        act(
+                            "AN1-DEBATS-DEC",
+                            d(11),
+                            Some("adopt\u{e9}e sans modification"),
+                        ),
+                        act("PROM-PUB", d(18), None),
+                    ],
+                    DossierOutcome::Promulgated {
+                        date: d(18),
+                        publication: LawPublication {
+                            law_code: Some("2026-1".into()),
+                            jo_date: Some(d(19)),
+                            legifrance_url: None,
+                        },
+                    },
+                ),
+                // Rejeté seul : sans état, absent.
+                stored(
+                    "R",
+                    vec![act("AN1-DEBATS-DEC", d(10), Some("rejet\u{e9}e"))],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+                // Décision la semaine précédente : absent.
+                stored(
+                    "P",
+                    vec![decided(d(3))],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+            ],
+            ..Default::default()
+        };
+        let final_votes = FakeFinalVotes {
+            records: vec![],
+            groups: vec![],
+        };
+
+        let week = GetWeekOfVotes::new(
+            &repository(vec![adopted("V1", 10)]),
+            &InMemoryCitationRepository::default(),
+            &FakeActors { group_color: None },
+            &dossiers,
+            &final_votes,
+            &InMemoryThemeRepository::default(),
+        )
+        .execute(None, today())
+        .await
+        .unwrap();
+
+        let advanced: Vec<(&str, LawStateKind)> = week
+            .advanced
+            .iter()
+            .map(|text| (text.dossier.uid().as_str(), text.advance.state.kind()))
+            .collect();
+        assert_eq!(
+            advanced,
+            vec![
+                ("D", LawStateKind::DefinitivelyAdopted),
+                ("S2", LawStateKind::InShuttle),
+                ("S1", LawStateKind::InShuttle),
+            ]
+        );
+        assert_eq!(week.advanced[0].advance.event.date, d(11));
     }
 }

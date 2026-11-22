@@ -132,6 +132,13 @@ mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
+        async fn find_with_decisions_between(
+            &self,
+            _from: chrono::NaiveDate,
+            _to: chrono::NaiveDate,
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+            unreachable!()
+        }
     }
 
     struct FakeSource {
@@ -188,12 +195,16 @@ mod tests {
                     label: "Dépôt".into(),
                     code: Some("AN1-DEPOT".into()),
                     decision_vote: None,
+                    conclusion_label: None,
+                    conclusion_code: None,
                 },
                 LegislativeAct {
                     date: NaiveDate::from_ymd_opt(2026, 6, 25).unwrap(),
                     label: "Vote solennel".into(),
                     code: None,
                     decision_vote: None,
+                    conclusion_label: None,
+                    conclusion_code: None,
                 },
             ],
             documents: vec![],
