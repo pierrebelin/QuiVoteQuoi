@@ -1,4 +1,4 @@
-import type { OutcomeDto } from './dossiers'
+import type { DossierStatusDto, LawProgress } from './dossiers'
 import type { AssignedFamilyDto } from './themes'
 
 /**
@@ -35,14 +35,6 @@ export function leadingPosition(tally: TallyDto): LeadingPosition | null {
   const top = Math.max(votes_for, votes_against, abstentions)
   const leaders = counts.filter(([, n]) => n === top)
   return top > 0 && leaders.length === 1 ? leaders[0][0] : null
-}
-
-/** État d'un dossier tel que la liste des scrutins le reçoit. */
-export interface DossierStatusDto {
-  outcome: OutcomeDto
-  current_stage: { label: string; chamber: string } | null
-  last_activity_label: string
-  last_activity_date: string
 }
 
 export interface ScrutinSummaryDto {
@@ -188,6 +180,8 @@ export interface ScrutinDetailDto {
   reading: string | null
   /** Explications de vote ; `null` hors vote sur l'ensemble. */
   explanations: Explanations | null
+  /** Où en est la loi du dossier du scrutin ; `null` sans dossier en base. */
+  law_progress: LawProgress | null
 }
 
 export type ExplanationsState =

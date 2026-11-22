@@ -94,6 +94,13 @@ mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
+        async fn find_with_decisions_between(
+            &self,
+            _from: chrono::NaiveDate,
+            _to: chrono::NaiveDate,
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+            unreachable!()
+        }
     }
 
     fn make_dossier(

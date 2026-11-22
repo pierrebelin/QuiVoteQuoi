@@ -8,6 +8,8 @@ import GuideLink from '../components/GuideLink'
 import Hemicycle from '../components/Hemicycle'
 import { PoliticalLogo } from '../components/PoliticalLogo'
 import { InfoBox, InitiatorBox, InitiatorsBox } from '../components/InitiatorBox'
+import LawAnswer from '../components/LawAnswer'
+import LawMilestones from '../components/LawMilestones'
 import VoteImageExport from '../components/VoteImageExport'
 import { VoteCardHeader } from '../components/VoteCard'
 import { FOCUS_RING } from '../components/entry/styles'
@@ -657,8 +659,11 @@ export default function ScrutinDetailPage() {
     data.unknown_actors > 0 &&
     `${data.unknown_actors} votant${data.unknown_actors > 1 ? 's' : ''} ne figure${data.unknown_actors > 1 ? 'nt' : ''} pas au référentiel des acteurs : leur identifiant est affiché tel quel, aucun nom n'est deviné.`
   const hasCited = data.cited.length > 0 || data.unnumbered_identical_amendments
+  const lawProgress = data.law_progress
   const hasDossierContext = Boolean(
-    dossier && (dossier.initiators.length > 0 || dossier.outcome.kind !== 'no_recorded_conclusion'),
+    (data.dossier_uid && lawProgress?.law_state) ||
+      (dossier &&
+        (dossier.initiators.length > 0 || dossier.outcome.kind !== 'no_recorded_conclusion')),
   )
 
   return (
@@ -741,7 +746,42 @@ export default function ScrutinDetailPage() {
             ) : (
               <p className="text-[15px] leading-relaxed text-ink">{capitalized(data.subject)}</p>
             ))}
-          {hasDossierContext && dossier && (
+          {/* Où en est la loi (SPEC-navette, Q6) : jalons et encadré avant le
+              résultat ; un dossier sans état garde l'ancien bloc (RM-04). */}
+          {data.dossier_uid && lawProgress?.law_state && (
+            <div className="mt-4 border-t border-line pt-3">
+              <p className="text-xs font-semibold text-ink-faint">Où en est le texte</p>
+              <LawMilestones
+                milestones={lawProgress.milestones}
+                stateKind={lawProgress.law_state.kind}
+                className="mt-2.5"
+              />
+              {lawProgress.answer && (
+                <LawAnswer
+                  answer={lawProgress.answer}
+                  lawState={lawProgress.law_state}
+                  compact
+                  className="mt-4"
+                />
+              )}
+              <Link
+                to={`/dossiers/${data.dossier_uid}`}
+                className="mt-3 inline-block text-sm font-medium link"
+              >
+                Voir le texte et son parcours →
+              </Link>
+              {dossier && dossier.initiators.length > 0 && (
+                <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
+                  {dossier.initiators.length === 1 ? (
+                    <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
+                  ) : (
+                    <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {!lawProgress?.law_state && hasDossierContext && dossier && (
             <div className="mt-4 border-t border-line pt-3">
               <p className="mb-2 text-xs font-semibold text-ink-faint">Le texte</p>
               <div className="grid gap-2.5 sm:grid-cols-2">

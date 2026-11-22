@@ -2,20 +2,22 @@ use std::collections::HashMap;
 
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::amendment_citation_repository::AmendmentCitationRepository;
+use crate::application::ports::dossier_repository::DossierRepository;
+use crate::application::ports::scrutin_repository::{RepositoryError, ScrutinRepository};
+use crate::application::ports::vote_explanation_repository::VoteExplanationRepository;
 use crate::application::use_cases::browse_dossier_amendments::{
     author_uids, cited_view_of, CitedAmendmentView,
 };
-use crate::domain::amendment_citation::UnlinkedCause;
-use crate::application::ports::scrutin_repository::{RepositoryError, ScrutinRepository};
 use crate::domain::actor::{ActorDirectory, ActorUid};
-use crate::application::ports::vote_explanation_repository::VoteExplanationRepository;
 use crate::domain::amendment::SummaryPreview;
+use crate::domain::amendment_citation::UnlinkedCause;
+use crate::domain::dossier::LegislativeDossier;
 use crate::domain::final_vote::is_final_vote_subject;
-use crate::domain::sitting_record::SittingRef;
-use crate::domain::vote_explanation::ExplanationsState;
 use crate::domain::scrutin::{
     GroupTally, NonVotingCause, Scrutin, ScrutinUid, SubjectMentions, TallyOrigin, VotePosition,
 };
+use crate::domain::sitting_record::SittingRef;
+use crate::domain::vote_explanation::ExplanationsState;
 
 /// Position nominale prete a l'affichage.
 #[derive(Debug, Clone)]
@@ -110,6 +112,9 @@ pub struct ScrutinDetail {
     pub unnumbered_identical_amendments: bool,
     /// `None`: le scrutin n'est pas un vote sur l'ensemble.
     pub explanations: Option<ExplanationsView>,
+    /// Dossier du scrutin, avec ses actes (SPEC-navette Q6 : jalons et
+    /// reponse sur la fiche de vote). `None` sans dossier ou hors base.
+    pub dossier: Option<LegislativeDossier>,
 }
 
 /// CU-03 — Consulter un scrutin.
@@ -118,6 +123,7 @@ pub struct GetScrutinDetail<'a> {
     citations: &'a dyn AmendmentCitationRepository,
     actor_repository: &'a dyn ActorRepository,
     explanations: &'a dyn VoteExplanationRepository,
+    dossiers: &'a dyn DossierRepository,
 }
 
 impl<'a> GetScrutinDetail<'a> {
@@ -126,12 +132,14 @@ impl<'a> GetScrutinDetail<'a> {
         citations: &'a dyn AmendmentCitationRepository,
         actor_repository: &'a dyn ActorRepository,
         explanations: &'a dyn VoteExplanationRepository,
+        dossiers: &'a dyn DossierRepository,
     ) -> Self {
         Self {
             repository,
             citations,
             actor_repository,
             explanations,
+            dossiers,
         }
     }
 
@@ -266,7 +274,13 @@ impl<'a> GetScrutinDetail<'a> {
 
         let explanations = self.explanations_view(&scrutin, &directory).await?;
 
+        let dossier = match scrutin.dossier() {
+            Some(reference) => self.dossiers.find_by_uid(&reference.uid).await?,
+            None => None,
+        };
+
         Ok(Some(ScrutinDetail {
+            dossier,
             scrutin,
             groups,
             corrections,
@@ -425,25 +439,28 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
-    use crate::application::ports::amendment_citation_repository::{CitationRow, CitedAmendmentRow};
+    use crate::application::ports::amendment_citation_repository::{
+        CitationRow, CitedAmendmentRow,
+    };
+    use crate::application::ports::scrutin_repository::{
+        ScrutinFilter, ScrutinPage, ScrutinSummary,
+    };
     use crate::application::ports::vote_explanation_repository::StoredSitting;
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
     use crate::application::use_cases::explanation_fakes::InMemoryVoteExplanations;
+    use crate::application::use_cases::read_fakes::{amendment_row, listed_dossier, FakeDossiers};
+    use crate::domain::actor::{Actor, ActorRegistry, ActorRole, GroupUid, ParliamentaryGroup};
+    use crate::domain::amendment_citation::LinkMethod;
+    use crate::domain::dataset::DatasetShape;
+    use crate::domain::dossier::DossierUid;
+    use crate::domain::scrutin::{
+        BallotType, DossierReference, NewScrutin, NominalVote, Outcome, VoteCorrection,
+        VoteSynthesis, VoteTally,
+    };
     use crate::domain::sitting_record::{
         SittingKeysFingerprint, SittingRecordUid, SittingRef, SpeechAnchor,
     };
     use crate::domain::vote_explanation::{NewVoteExplanation, SpeakerGroup, VoteExplanation};
-    use crate::application::use_cases::read_fakes::amendment_row;
-    use crate::domain::amendment_citation::LinkMethod;
-    use crate::domain::dossier::DossierUid;
-    use crate::application::ports::scrutin_repository::{
-        ScrutinFilter, ScrutinPage, ScrutinSummary,
-    };
-    use crate::domain::actor::{Actor, ActorRegistry, ActorRole, GroupUid, ParliamentaryGroup};
-    use crate::domain::dataset::DatasetShape;
-    use crate::domain::scrutin::{
-        BallotType, NewScrutin, NominalVote, Outcome, VoteCorrection, VoteSynthesis, VoteTally,
-    };
 
     fn scrutin_about(subject: &str, sitting_ref: Option<&str>) -> Scrutin {
         Scrutin::new(NewScrutin {
@@ -512,10 +529,15 @@ mod tests {
                 claimed_position: VotePosition::Against,
                 malfunction: false,
             }],
-            dossier: None,
+            dossier: Some(DossierReference {
+                uid: DossierUid::new(DOSSIER_UID.into()).unwrap(),
+                label: "Projet de loi".into(),
+            }),
         })
         .unwrap()
     }
+
+    const DOSSIER_UID: &str = "DLR5L17N51037";
 
     struct StubScrutinRepository {
         subject: &'static str,
@@ -539,7 +561,8 @@ mod tests {
 
         async fn sitting_keys(
             &self,
-        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError> {
+        ) -> Result<Vec<crate::domain::sitting_record::ScrutinSittingKey>, RepositoryError>
+        {
             unreachable!()
         }
 
@@ -637,11 +660,17 @@ mod tests {
             requested: Mutex::new(vec![]),
         };
         let explanations = InMemoryVoteExplanations::default();
-        GetScrutinDetail::new(&repository, &citations, &actors, &explanations)
-            .execute(&ScrutinUid::new("V1".into()).unwrap())
-            .await
-            .unwrap()
-            .unwrap()
+        GetScrutinDetail::new(
+            &repository,
+            &citations,
+            &actors,
+            &explanations,
+            &FakeDossiers::default(),
+        )
+        .execute(&ScrutinUid::new("V1".into()).unwrap())
+        .await
+        .unwrap()
+        .unwrap()
     }
 
     const FINAL_SUBJECT: &str = "l'ensemble du projet de loi";
@@ -662,11 +691,17 @@ mod tests {
         let actors = StubActorRepository {
             requested: Mutex::new(vec![]),
         };
-        GetScrutinDetail::new(&repository, &citations, &actors, explanations)
-            .execute(&ScrutinUid::new("V1".into()).unwrap())
-            .await
-            .unwrap()
-            .unwrap()
+        GetScrutinDetail::new(
+            &repository,
+            &citations,
+            &actors,
+            explanations,
+            &FakeDossiers::default(),
+        )
+        .execute(&ScrutinUid::new("V1".into()).unwrap())
+        .await
+        .unwrap()
+        .unwrap()
     }
 
     fn explanation(rank: u16, speaker: &str, group: SpeakerGroup, text: &str) -> VoteExplanation {
@@ -784,7 +819,12 @@ mod tests {
     async fn marks_a_speaker_absent_from_the_nominal_votes_as_position_not_published() {
         let view = explained(
             "avant_JO",
-            vec![explanation(0, "PA_GHOST", SpeakerGroup::Undetermined, "Texte.")],
+            vec![explanation(
+                0,
+                "PA_GHOST",
+                SpeakerGroup::Undetermined,
+                "Texte.",
+            )],
         )
         .await;
 
@@ -977,7 +1017,10 @@ mod tests {
         assert_eq!(amendment.author.name.as_deref(), Some("Jean Dupont"));
         assert_eq!(
             amendment.method.unwrap().labels(),
-            vec!["Num\u{00e9}ro d'amendement cit\u{00e9}", "Article cit\u{00e9}"]
+            vec![
+                "Num\u{00e9}ro d'amendement cit\u{00e9}",
+                "Article cit\u{00e9}"
+            ]
         );
     }
 
@@ -1042,11 +1085,57 @@ mod tests {
             requested: Mutex::new(vec![]),
         };
         let explanations = InMemoryVoteExplanations::default();
-        let result = GetScrutinDetail::new(&repository, &citations, &actors, &explanations)
-            .execute(&ScrutinUid::new("V999".into()).unwrap())
-            .await
-            .unwrap();
+        let result = GetScrutinDetail::new(
+            &repository,
+            &citations,
+            &actors,
+            &explanations,
+            &FakeDossiers::default(),
+        )
+        .execute(&ScrutinUid::new("V999".into()).unwrap())
+        .await
+        .unwrap();
         assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn carries_the_dossier_of_the_scrutin_when_it_is_stored() {
+        let repository = StubScrutinRepository {
+            subject: "objet",
+            sitting_ref: None,
+        };
+        let dossiers = FakeDossiers {
+            dossiers: vec![listed_dossier(
+                DOSSIER_UID,
+                crate::domain::dossier::DossierOutcome::NoRecordedConclusion,
+                None,
+            )],
+            ..Default::default()
+        };
+
+        let detail = GetScrutinDetail::new(
+            &repository,
+            &InMemoryCitationRepository::default(),
+            &StubActorRepository {
+                requested: Mutex::new(vec![]),
+            },
+            &InMemoryVoteExplanations::default(),
+            &dossiers,
+        )
+        .execute(&ScrutinUid::new("V1".into()).unwrap())
+        .await
+        .unwrap()
+        .unwrap();
+
+        assert_eq!(
+            detail.dossier.map(|d| d.uid().as_str().to_string()),
+            Some(DOSSIER_UID.to_string())
+        );
+    }
+
+    #[tokio::test]
+    async fn carries_no_dossier_when_the_dossier_of_the_scrutin_is_not_stored() {
+        assert!(detail().await.dossier.is_none());
     }
 
     #[tokio::test]

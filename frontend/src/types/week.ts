@@ -1,5 +1,6 @@
 import type { FinalVoteDto, GroupDto } from './finalVotes'
-import type { DossierStatusDto, ScrutinSummaryDto } from './scrutins'
+import type { DossierStatusDto, DecisionSense, LawChamber, LawState, LawStateKind } from './dossiers'
+import type { ScrutinSummaryDto } from './scrutins'
 import type { AssignedFamilyDto } from './themes'
 
 export type WeekDayState = 'voted' | 'no_public_vote' | 'not_yet_published' | 'upcoming'
@@ -45,6 +46,27 @@ export interface WeekText {
   scrutins: ScrutinSummaryDto[]
 }
 
+/** Événement de la semaine d'un texte qui a avancé (RM-08). */
+export interface WeekEvent {
+  date: string
+  /** Absent pour une promulgation. */
+  chamber: LawChamber | null
+  /** Code de lecture de la source (`AN1`, `SN2`, `CMP`…), `PROM` pour une promulgation. */
+  reading: string
+  sense: DecisionSense | null
+  has_public_vote: boolean
+  joint_committee_agreement_date: string | null
+}
+
+/** Texte qui a avancé, rangé selon son état au soir du dimanche (RM-08, Q4). */
+export interface AdvancedText {
+  dossier_uid: string
+  title: string
+  group: LawStateKind
+  law_state: LawState
+  event: WeekEvent
+}
+
 export interface WeekResponse {
   monday: string
   sunday: string
@@ -61,4 +83,7 @@ export interface WeekResponse {
   previous: { monday: string; votes: number } | null
   next: string | null
   coverage_note: string
+  /** Devenus loi, adoptés définitivement, en navette ; le plus récent d'abord. */
+  advanced: AdvancedText[]
+  advanced_count: number
 }

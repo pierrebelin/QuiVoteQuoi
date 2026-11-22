@@ -71,6 +71,7 @@ pub async fn get_scrutin_detail(
         state.amendment_citation_repository.as_ref(),
         state.actor_repository.as_ref(),
         state.vote_explanation_repository.as_ref(),
+        state.dossier_repository.as_ref(),
     )
     .execute(&uid)
     .await

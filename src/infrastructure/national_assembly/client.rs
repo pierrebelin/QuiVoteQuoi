@@ -85,6 +85,8 @@ impl NationalAssemblyClient {
                         label: a.label,
                         code: a.code,
                         decision_vote: a.decision_vote.and_then(|uid| ScrutinUid::new(uid).ok()),
+                        conclusion_label: a.conclusion_label,
+                        conclusion_code: a.conclusion_code,
                     })
             })
             .collect();

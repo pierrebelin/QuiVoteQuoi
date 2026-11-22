@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
+use crate::api::law_progress_dto::{LawProgressDto, LawStateCountsDto, LawStateDto};
 use crate::api::theme_dto::AssignedFamilyDto;
 use crate::application::ports::dossier_repository::{DossierCriteria, DossierOrder};
 use crate::application::use_cases::browse_dossiers::{
@@ -8,6 +9,7 @@ use crate::application::use_cases::browse_dossiers::{
 };
 use crate::application::use_cases::check_health::HealthReport;
 use crate::domain::dossier::{DossierOutcome, Initiative, LegislativeDossier};
+use crate::domain::law_progress::LawStateKind;
 use crate::domain::theme::FamilyCode;
 
 #[derive(Deserialize)]
@@ -34,6 +36,8 @@ pub struct DossierDto {
     pub current_stage: Option<StageDto>,
     pub committee: Option<String>,
     pub outcome: OutcomeDto,
+    /// Où en est la loi (SPEC-navette RM-01 à RM-04) ; `null` : sans état.
+    pub law_state: Option<LawStateDto>,
 }
 
 /// Sort du dossier tel qu'il s'affiche.
@@ -100,6 +104,7 @@ impl From<LegislativeDossier> for DossierDto {
     fn from(d: LegislativeDossier) -> Self {
         Self {
             outcome: OutcomeDto::from(d.outcome()),
+            law_state: Option::<LawStateDto>::from(&d),
             uid: d.uid().as_str().to_string(),
             title: d.title().to_string(),
             procedure: d.procedure().to_string(),
@@ -139,8 +144,13 @@ pub struct DossierPageQuery {
     /// `true` : seuls les dossiers ayant au moins un scrutin public.
     #[serde(default)]
     pub with_scrutins: bool,
+    /// État « où en est la loi » (SPEC-navette §4) : `in_shuttle`,
+    /// `definitively_adopted`, `became_law`, éventuellement séparés par des
+    /// virgules.
+    pub state: Option<String>,
     /// Ordre de la liste — à ne pas confondre avec le sort du dossier, qui est
-    /// `outcome` : `last_activity` (défaut) ou `last_scrutin`.
+    /// `outcome` : `last_activity` (défaut), `last_scrutin` ou `state_date`
+    /// (date de l'état d'abord).
     pub sort: Option<String>,
 }
 
@@ -186,6 +196,13 @@ impl From<&DossierPageQuery> for DossierCriteria {
                 .map(str::trim)
                 .and_then(|code| FamilyCode::parse(code).ok()),
             with_scrutins: q.with_scrutins,
+            law_states: q
+                .state
+                .as_deref()
+                .unwrap_or_default()
+                .split(',')
+                .filter_map(|kind| LawStateKind::parse(kind.trim()))
+                .collect(),
         }
     }
 }
@@ -209,6 +226,9 @@ pub struct DossierPageResponse {
     pub total: i64,
     pub total_pages: i64,
     pub dossiers: Vec<DossierListItemDto>,
+    /// Nombre de dossiers par état sur le périmètre affiché, sans le filtre
+    /// d'état (SPEC-navette Q2).
+    pub state_counts: LawStateCountsDto,
 }
 
 /// Carte de la liste : le dossier, qui l'a déposé, ses thèmes et ses votes.
@@ -576,6 +596,9 @@ pub struct DossierDetailDto {
     pub outcome: OutcomeDto,
     /// Familles rattachees au dossier, posees par le handler.
     pub families: Vec<AssignedFamilyDto>,
+    /// Etat, jalons et reponse « devenu loi ? » (SPEC-navette RM-01 a RM-06).
+    #[serde(flatten)]
+    pub law_progress: LawProgressDto,
 }
 
 impl DossierDetailDto {
@@ -585,6 +608,7 @@ impl DossierDetailDto {
         let d = result.dossier;
         Self {
             families: Vec::new(),
+            law_progress: LawProgressDto::from((&d, None)),
             outcome: OutcomeDto::from(d.outcome()),
             uid: d.uid().as_str().to_string(),
             title: d.title().to_string(),
@@ -696,6 +720,7 @@ mod tests {
             initiative: None,
             family: None,
             with_scrutins,
+            state: None,
             sort: sort.map(str::to_string),
         }
     }
@@ -723,5 +748,29 @@ mod tests {
     fn with_scrutins_reaches_the_criteria() {
         assert!(DossierCriteria::from(&page_query(None, true)).with_scrutins);
         assert!(!DossierCriteria::from(&page_query(None, false)).with_scrutins);
+    }
+
+    #[test]
+    fn state_parameter_reaches_the_criteria_and_ignores_unknown_states() {
+        let query = DossierPageQuery {
+            state: Some(" became_law,definitively_adopted ,none".into()),
+            ..page_query(None, false)
+        };
+
+        assert_eq!(
+            DossierCriteria::from(&query).law_states,
+            vec![LawStateKind::BecameLaw, LawStateKind::DefinitivelyAdopted]
+        );
+        assert!(DossierCriteria::from(&page_query(None, false))
+            .law_states
+            .is_empty());
+    }
+
+    #[test]
+    fn sort_state_date_orders_by_the_date_of_the_state() {
+        assert_eq!(
+            DossierOrder::from(&page_query(Some("state_date"), false)),
+            DossierOrder::StateDate
+        );
     }
 }

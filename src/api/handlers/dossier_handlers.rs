@@ -1,9 +1,8 @@
-use axum::Json;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
+use axum::Json;
 use chrono::Utc;
 
-use crate::AppState;
 use crate::api::dossier_group_actions_dto::DossierGroupActionsResponse;
 use crate::api::dto::{
     DossierDetailDto, DossierDto, DossierListItemDto, DossierPageQuery, DossierPageResponse,
@@ -27,6 +26,7 @@ use crate::application::use_cases::refresh_text_briefs::RefreshTextBriefs;
 use crate::application::use_cases::save_dossier::SaveDossier;
 use crate::domain::dossier::DossierUid;
 use crate::infrastructure::config;
+use crate::AppState;
 
 pub async fn get_recent_dossiers(
     State(state): State<AppState>,
@@ -76,6 +76,7 @@ pub async fn browse_dossiers(
             .into_iter()
             .map(DossierListItemDto::from)
             .collect(),
+        state_counts: page.state_counts.into(),
     }))
 }
 

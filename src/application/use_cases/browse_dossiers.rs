@@ -1,6 +1,7 @@
 use crate::application::ports::actor_repository::ActorRepository;
 use crate::application::ports::dossier_repository::{
-    DossierCriteria, DossierListing, DossierOrder, DossierRepository, RepositoryError,
+    DossierCriteria, DossierListing, DossierOrder, DossierRepository, LawStateCounts,
+    RepositoryError,
 };
 use crate::domain::actor::{ActorDirectory, ActorRole, TextTone};
 use crate::domain::dossier::Initiator;
@@ -96,6 +97,8 @@ pub struct DossierCard {
 pub struct DossierCards {
     pub items: Vec<DossierCard>,
     pub total: i64,
+    /// Compteurs d'état sur le périmètre affiché, filtre d'état exclu (Q2).
+    pub state_counts: LawStateCounts,
 }
 
 impl<'a> BrowseDossiers<'a> {
@@ -138,6 +141,7 @@ impl<'a> BrowseDossiers<'a> {
                 })
                 .collect(),
             total: page.total,
+            state_counts: page.state_counts,
         })
     }
 }
@@ -166,13 +170,16 @@ mod tests {
 
     use std::collections::HashMap;
 
+    use crate::application::ports::dossier_repository::LawStateCounts;
     use crate::application::ports::dossier_repository::{DossierPage, DossierScrutinTally};
     use crate::application::use_cases::read_fakes::FakeActors;
     use crate::domain::actor::{ActorUid, GroupUid};
     use crate::domain::dossier::{
-        DossierOutcome, DossierUid, Initiative, LegislativeDossier, NewLegislativeDossier,
+        DossierOutcome, DossierUid, Initiative, LawPublication, LegislativeAct, LegislativeDossier,
+        NewLegislativeDossier,
     };
     use crate::domain::dossier::{Initiator, InitiatorGroup};
+    use crate::domain::law_progress::LawStateKind;
     use crate::domain::scoring::compute_score;
 
     struct InMemoryDossierRepository {
@@ -222,6 +229,17 @@ mod tests {
             offset: i64,
         ) -> Result<DossierPage, RepositoryError> {
             let store = self.dossiers.lock().unwrap();
+            let perimeter = criteria.without_law_states();
+            let mut state_counts = LawStateCounts::default();
+            for dossier in store
+                .iter()
+                .filter(|d| matches(d, &perimeter))
+                .filter(|d| !criteria.with_scrutins || self.tally_of(d).count > 0)
+            {
+                if let Some(state) = dossier.law_state() {
+                    state_counts.add(state.kind(), 1);
+                }
+            }
             let mut kept: Vec<_> = store
                 .iter()
                 .filter(|d| matches(d, criteria))
@@ -240,8 +258,15 @@ mod tests {
                         .cmp(&self.tally_of(a).last_date)
                         .then_with(|| b.uid().as_str().cmp(a.uid().as_str()))
                 }),
+                DossierOrder::StateDate => kept.sort_by(|a, b| {
+                    let date = |d: &LegislativeDossier| d.law_state().map(|s| s.date());
+                    date(b)
+                        .cmp(&date(a))
+                        .then_with(|| b.uid().as_str().cmp(a.uid().as_str()))
+                }),
             }
             Ok(DossierPage {
+                state_counts,
                 total: kept.len() as i64,
                 items: kept
                     .into_iter()
@@ -269,6 +294,13 @@ mod tests {
         ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
             unreachable!()
         }
+        async fn find_with_decisions_between(
+            &self,
+            _from: chrono::NaiveDate,
+            _to: chrono::NaiveDate,
+        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+            unreachable!()
+        }
     }
 
     /// Le fake reproduit les critères que le dépôt applique en SQL : sans cela
@@ -291,7 +323,12 @@ mod tests {
                 .starts_with(initiative.procedure_prefix())
         });
 
-        title_matches && outcome_matches && initiative_matches
+        let state_matches = criteria.law_states.is_empty()
+            || dossier
+                .law_state()
+                .is_some_and(|state| criteria.law_states.contains(&state.kind()));
+
+        title_matches && outcome_matches && initiative_matches && state_matches
     }
 
     fn dossier_parts(uid: &str, day: u32) -> NewLegislativeDossier {
@@ -508,6 +545,7 @@ mod tests {
                     initiative: Some(Initiative::Parliamentary),
                     family: None,
                     with_scrutins: false,
+                    law_states: vec![],
                 },
             ))
             .await
@@ -693,5 +731,153 @@ mod tests {
             Some(DossierOrder::LastActivity)
         );
         assert_eq!(DossierOrder::parse("score"), None);
+    }
+
+    fn decision(code: &str, month: u32, day: u32, label: &str) -> LegislativeAct {
+        LegislativeAct {
+            date: NaiveDate::from_ymd_opt(2026, month, day).unwrap(),
+            label: code.into(),
+            code: Some(code.into()),
+            decision_vote: None,
+            conclusion_label: Some(label.into()),
+            conclusion_code: None,
+        }
+    }
+
+    fn promulgated(month: u32, day: u32) -> DossierOutcome {
+        DossierOutcome::Promulgated {
+            date: NaiveDate::from_ymd_opt(2026, month, day).unwrap(),
+            publication: LawPublication {
+                law_code: Some("2026-1".into()),
+                jo_date: None,
+                legifrance_url: None,
+            },
+        }
+    }
+
+    /// S : en navette (20/11). D : adopté définitivement (19/11). L1, L2 :
+    /// devenus loi (26/10, 21/10). N : sans état. Seuls S, L1 et N ont un
+    /// scrutin public.
+    fn stated_repo() -> InMemoryDossierRepository {
+        let with = |uid: &str, acts: Vec<LegislativeAct>, outcome: DossierOutcome| {
+            LegislativeDossier::new(NewLegislativeDossier {
+                acts,
+                outcome,
+                ..dossier_parts(uid, 1)
+            })
+        };
+        let adopted = || decision("SN1-DEBATS-DEC", 6, 15, "adoptée");
+        InMemoryDossierRepository {
+            dossiers: Mutex::new(vec![
+                with(
+                    "S",
+                    vec![
+                        decision("AN1-DEBATS-DEC", 7, 7, "adoptée"),
+                        decision("SN1-DEBATS-DEC", 11, 20, "modifiée"),
+                    ],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+                with(
+                    "D",
+                    vec![
+                        adopted(),
+                        decision("AN1-DEBATS-DEC", 11, 19, "adoptée sans modification"),
+                    ],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+                with("L1", vec![adopted()], promulgated(10, 26)),
+                with("L2", vec![adopted()], promulgated(10, 21)),
+                with(
+                    "N",
+                    vec![decision("AN1-DEBATS-DEC", 3, 1, "rejetée")],
+                    DossierOutcome::NoRecordedConclusion,
+                ),
+            ]),
+            tallies: HashMap::from([
+                ("S".to_string(), tally(1, 1, 7, 7)),
+                ("L1".to_string(), tally(1, 1, 6, 15)),
+                ("N".to_string(), tally(1, 0, 3, 1)),
+            ]),
+        }
+    }
+
+    fn criteria(states: Vec<LawStateKind>, with_scrutins: bool) -> DossierCriteria {
+        DossierCriteria {
+            law_states: states,
+            with_scrutins,
+            ..Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn state_criterion_keeps_only_the_dossiers_in_that_state() {
+        let page = BrowseDossiers::new(&stated_repo(), &NO_COLOR)
+            .execute(DossierQuery::new(
+                1,
+                20,
+                criteria(vec![LawStateKind::BecameLaw], false),
+            ))
+            .await
+            .unwrap();
+
+        let mut kept = uids(&page);
+        kept.sort();
+        assert_eq!(kept, vec!["L1", "L2"]);
+        assert_eq!(page.total, 2);
+    }
+
+    #[tokio::test]
+    async fn state_counts_cover_the_displayed_scope_without_the_state_filter() {
+        let all = BrowseDossiers::new(&stated_repo(), &NO_COLOR)
+            .execute(DossierQuery::new(
+                1,
+                20,
+                criteria(vec![LawStateKind::InShuttle], false),
+            ))
+            .await
+            .unwrap();
+        let voted = BrowseDossiers::new(&stated_repo(), &NO_COLOR)
+            .execute(DossierQuery::new(
+                1,
+                20,
+                criteria(vec![LawStateKind::InShuttle], true),
+            ))
+            .await
+            .unwrap();
+
+        assert_eq!(
+            all.state_counts,
+            LawStateCounts {
+                in_shuttle: 1,
+                definitively_adopted: 1,
+                became_law: 2,
+            }
+        );
+        assert_eq!(
+            voted.state_counts,
+            LawStateCounts {
+                in_shuttle: 1,
+                definitively_adopted: 0,
+                became_law: 1,
+            }
+        );
+    }
+
+    #[tokio::test]
+    async fn state_date_order_lists_the_latest_state_first_and_stateless_last() {
+        let page = BrowseDossiers::new(&stated_repo(), &NO_COLOR)
+            .execute(query(1, 20).ordered_by(DossierOrder::StateDate))
+            .await
+            .unwrap();
+
+        assert_eq!(uids(&page), vec!["S", "D", "L1", "L2", "N"]);
+    }
+
+    #[test]
+    fn sort_parameter_reads_the_state_date_order() {
+        assert_eq!(
+            DossierOrder::parse("state_date"),
+            Some(DossierOrder::StateDate)
+        );
     }
 }

@@ -13,12 +13,12 @@ use crate::application::ports::amendment_repository::{
 use crate::application::ports::dossier_repository::{
     DossierCriteria, DossierPage, DossierRepository,
 };
+use crate::application::ports::scrutin_repository::{
+    ScrutinFilter, ScrutinPage, ScrutinRepository, ScrutinSummary,
+};
 use crate::application::ports::RepositoryError;
 use crate::domain::actor::{
     Actor, ActorDirectory, ActorRegistry, ActorRole, ActorUid, GroupUid, ParliamentaryGroup,
-};
-use crate::application::ports::scrutin_repository::{
-    ScrutinFilter, ScrutinPage, ScrutinRepository, ScrutinSummary,
 };
 use crate::domain::amendment::Amendment;
 use crate::domain::dataset::DatasetShape;
@@ -276,9 +276,9 @@ impl DossierRepository for FakeDossiers {
     }
     async fn find_by_uid(
         &self,
-        _u: &DossierUid,
+        uid: &DossierUid,
     ) -> Result<Option<LegislativeDossier>, RepositoryError> {
-        unreachable!()
+        Ok(self.dossiers.iter().find(|d| d.uid() == uid).cloned())
     }
     async fn find_by_uids(
         &self,
@@ -293,5 +293,25 @@ impl DossierRepository for FakeDossiers {
             .collect();
         self.lookups.lock().unwrap().push(asked);
         Ok(found)
+    }
+    /// Comme le depot : un acte en `-DEC` ou `PROM-PUB` date dans la periode.
+    async fn find_with_decisions_between(
+        &self,
+        from: chrono::NaiveDate,
+        to: chrono::NaiveDate,
+    ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
+        Ok(self
+            .dossiers
+            .iter()
+            .filter(|d| {
+                d.acts().iter().any(|act| {
+                    let code = act.code.as_deref().unwrap_or_default();
+                    act.date >= from
+                        && act.date <= to
+                        && (code.ends_with("-DEC") || code == "PROM-PUB")
+                })
+            })
+            .cloned()
+            .collect())
     }
 }
