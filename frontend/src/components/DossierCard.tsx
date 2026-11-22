@@ -82,7 +82,8 @@ function InitiatorTag({ initiator }: { initiator: DossierCardInitiatorDto }) {
 /**
  * Carte d'un dossier dans la liste. Le titre porte le lien, étiré sur toute
  * la carte ; les sujets restent des liens à part, vers le parcours par sujet.
- * Le bandeau dit où en est le dossier, la rangée du bas qui l'a déposé.
+ * Le bandeau dit où en est le dossier (l'étiquette d'état quand il en a
+ * une), la rangée du bas qui l'a déposé.
  * Avec la répartition, le nombre de scrutins passe dans sa portée ; sans
  * elle, il reste dans la rangée du bas, s'il y en a.
  */
@@ -151,6 +152,7 @@ export default function DossierCard({
       families={dossier.families}
       onFamily={onFamily}
       stretched
+      withLawState
       themesAside={split ? undefined : meta}
       split={
         split &&

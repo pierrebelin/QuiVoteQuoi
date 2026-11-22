@@ -88,6 +88,7 @@ export default function DossierCardShell({
   split,
   below,
   stretched = false,
+  withLawState = false,
   children,
 }: {
   uid: string
@@ -104,6 +105,8 @@ export default function DossierCardShell({
   below?: ReactNode
   /** Titre étiré sur toute la carte : seulement sans autre lien que les thèmes. */
   stretched?: boolean
+  /** Étiquette « où en est la loi » dans le bandeau (liste par texte). */
+  withLawState?: boolean
   children?: ReactNode
 }) {
   const themes = <FamilyChips families={families} onFamily={onFamily} />
@@ -112,7 +115,7 @@ export default function DossierCardShell({
     <article
       className={`group relative overflow-hidden rounded border border-line bg-surface shadow-card ${stretched ? 'transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
     >
-      {status && <DossierStatusBanner dossier={status} today={today} />}
+      {status && <DossierStatusBanner dossier={status} today={today} withLawState={withLawState} />}
 
       <header className="px-[18px] pt-3 pb-3.5">
         <h2

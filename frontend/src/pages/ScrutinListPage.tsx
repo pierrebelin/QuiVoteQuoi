@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router'
 import { BottomSheet } from '../components/BottomSheet'
 import { Icon, type IconName } from '../components/icons'
 import { InfoTip } from '../components/InfoTip'
+import { LawStateIcon } from '../components/LawStateBadge'
 import DossierCard, { type DossierPageResponse } from '../components/DossierCard'
 import FamilyFilter from '../components/FamilyFilter'
 import ScrutinFeed from '../components/ScrutinFeed'
@@ -11,6 +12,8 @@ import VotesTabs from '../components/VotesTabs'
 import { FOCUS, SheetButton, SheetSection } from '../components/SheetControls'
 import { Button, ErrorPanel, Loading, SegmentedControl } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
+import { LAW_STATE_FILTER_LABELS } from '../lib/lawState'
+import type { LawStateCounts, LawStateKind } from '../types/dossiers'
 import type { ScrutinListResponse } from '../types/scrutins'
 import type { FamiliesResponse } from '../types/themes'
 
@@ -55,12 +58,33 @@ const PARAM_SCOPE = 'textes'
 const SCOPE_ALL = 'tous'
 
 /*
-  Les cinq issues que le domaine distingue, cumulables, toutes retenues par
+  Où en est la loi (todo/navette/SPEC-navette.md, Q2) : un seul état à la
+  fois, au-dessus de la liste. Le mot de l'URL est français, comme `vue` et
+  `textes` : `?vue=texte&etat=loi` se partage.
+*/
+const PARAM_STATE = 'etat'
+const stateFilters: { param: string; kind: LawStateKind }[] = [
+  { param: 'loi', kind: 'became_law' },
+  { param: 'adopte', kind: 'definitively_adopted' },
+  { param: 'navette', kind: 'in_shuttle' },
+]
+
+/** Ordre de la liste filtrée sur un état : la date de l'état d'abord. */
+const STATE_ORDER_CAPTIONS: Record<LawStateKind, string> = {
+  became_law: 'Du plus récemment promulgué au plus ancien',
+  definitively_adopted: 'Du plus récemment adopté au plus ancien',
+  in_shuttle: 'De la décision la plus récente à la plus ancienne',
+}
+
+/*
+  Les issues que le domaine distingue, cumulables, toutes retenues par
   défaut : en masquer une laisserait croire qu'elle n'existe pas. Jamais
-  « en cours » : la source ne l'affirme pas (README.md §6).
+  « en cours » : la source ne l'affirme pas (README.md §6). La promulgation
+  n'y est plus : c'est le filtre « Devenus loi ». Une issue restreinte
+  garde donc les lois, que seul l'état filtre ; sinon décocher « Rejetés »
+  les ferait disparaître sans qu'aucune case ne le dise.
 */
 const textOutcomes = [
-  { value: 'promulgated', label: 'Promulgués' },
   { value: 'withdrawn', label: 'Retirés' },
   { value: 'merged_into', label: 'Absorbés' },
   { value: 'rejected', label: 'Rejetés' },
@@ -114,6 +138,58 @@ function ChipGroup({
         })}
       </div>
     </SheetSection>
+  )
+}
+
+/**
+ * Filtres d'état au-dessus de la liste : Tous, puis les trois états avec leur
+ * nombre sur le périmètre affiché (votés ou tous), sans le filtre d'état.
+ * Sur mobile, la rangée défile à l'horizontale.
+ */
+function StateFilter({
+  value,
+  counts,
+  onChange,
+}: {
+  value: LawStateKind | null
+  counts: LawStateCounts | undefined
+  onChange: (kind: LawStateKind | null) => void
+}) {
+  const options: { kind: LawStateKind | null; label: string }[] = [
+    { kind: null, label: 'Tous' },
+    ...stateFilters.map(({ kind }) => ({ kind, label: LAW_STATE_FILTER_LABELS[kind] })),
+  ]
+  return (
+    <div
+      role="group"
+      aria-label="Où en est le texte"
+      className="-mx-6 mb-3 flex gap-2 overflow-x-auto px-6 py-1 [scrollbar-width:none] md:mx-0 md:mt-4 md:flex-wrap md:overflow-visible md:px-0"
+    >
+      {options.map((option) => {
+        const on = option.kind === value
+        const count = option.kind && counts ? counts[option.kind] : undefined
+        return (
+          <button
+            key={option.kind ?? 'all'}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(option.kind)}
+            className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold whitespace-nowrap transition-colors md:h-9 ${FOCUS} ${
+              on ? 'bg-ink text-surface' : 'bg-surface text-ink ring-1 ring-line-strong ring-inset hover:bg-surface-soft'
+            }`}
+          >
+            {option.kind && <LawStateIcon kind={option.kind} />}
+            {option.label}
+            {count !== undefined && ' '}
+            {count !== undefined && (
+              <span className={`font-medium tabular-nums ${on ? 'text-surface/70' : 'text-ink-faint'}`}>
+                {count.toLocaleString('fr-FR')}
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
   )
 }
 
@@ -270,6 +346,7 @@ export default function ScrutinListPage() {
     ? (urlParams.get('initiative') ?? '')
     : ''
   const theme = urlParams.get('theme') ?? ''
+  const lawState = stateFilters.find((option) => option.param === urlParams.get(PARAM_STATE))?.kind ?? null
 
   const [outcome, setOutcome] = useState('')
   const [ballotType, setBallotType] = useState('')
@@ -335,17 +412,19 @@ export default function ScrutinListPage() {
   })
 
   // Vue par texte : du dernier vote au plus ancien ; avec « Tous », les textes
-  // sans vote viennent ensuite. Même taille de page que le fil.
+  // sans vote viennent ensuite. Filtrée sur un état, de la date de l'état la
+  // plus récente à la plus ancienne. Même taille de page que le fil.
   const textFilters = new URLSearchParams()
   if (search) textFilters.set('search', search)
-  if (outcomesNarrowed) textFilters.set('outcome', selectedOutcomes.join(','))
+  if (outcomesNarrowed) textFilters.set('outcome', [...selectedOutcomes, 'promulgated'].join(','))
   if (initiative) textFilters.set('initiative', initiative)
   if (theme) textFilters.set('family', theme)
+  if (lawState) textFilters.set('state', lawState)
 
   const dossierParams = new URLSearchParams(textFilters)
   dossierParams.set('page', String(offset / PAGE_SIZE + 1))
   dossierParams.set('per_page', String(PAGE_SIZE))
-  dossierParams.set('sort', 'last_scrutin')
+  dossierParams.set('sort', lawState ? 'state_date' : 'last_scrutin')
   if (!allTexts) dossierParams.set('with_scrutins', 'true')
 
   const dossiers = useQuery<DossierPageResponse>({
@@ -390,7 +469,7 @@ export default function ScrutinListPage() {
 
   // Filtres posés dans le tiroir (la recherche a son champ) : c'est le nombre
   // affiché sur « Filtres ».
-  const textFiltered = Boolean(outcomesNarrowed || initiative || theme)
+  const textFiltered = Boolean(outcomesNarrowed || initiative || theme || lawState)
   const activeCount =
     view === 'texte'
       ? (allTexts ? 1 : 0) + (outcomesNarrowed ? 1 : 0) + (initiative ? 1 : 0) + (theme ? 1 : 0)
@@ -432,6 +511,8 @@ export default function ScrutinListPage() {
   ]
   const setScope = (value: string) => applyParams({ [PARAM_SCOPE]: value })
   const setInitiative = (value: string) => applyParams({ initiative: value })
+  const setLawState = (kind: LawStateKind | null) =>
+    applyParams({ [PARAM_STATE]: stateFilters.find((option) => option.kind === kind)?.param ?? '' })
 
   const lede =
     view === 'texte'
@@ -575,10 +656,13 @@ export default function ScrutinListPage() {
 
       {view === 'texte' && (
         <>
-          <p className="-mt-2 mb-3 px-0.5 text-[12.5px] text-ink-faint md:mt-3">
-            {allTexts
-              ? 'Du plus récemment voté au plus ancien, puis les textes sans vote public'
-              : 'Du plus récemment voté au plus ancien'}
+          <StateFilter value={lawState} counts={dossiers.data?.state_counts} onChange={setLawState} />
+          <p className="mb-3 px-0.5 text-[12.5px] text-ink-faint">
+            {lawState
+              ? STATE_ORDER_CAPTIONS[lawState]
+              : allTexts
+                ? 'Du plus récemment voté au plus ancien, puis les textes sans vote public'
+                : 'Du plus récemment voté au plus ancien'}
           </p>
           {dossiers.isLoading && <Loading>Chargement des textes…</Loading>}
           {dossiers.isError && <ErrorPanel error={dossiers.error} />}
@@ -696,6 +780,9 @@ export default function ScrutinListPage() {
               isOn={(value) => selectedOutcomes.includes(value)}
               onToggle={toggleOutcome}
             />
+            <p className="mx-0.5 mt-1.5 text-[12.5px] leading-snug text-ink-soft">
+              Les textes devenus loi restent affichés : ils se filtrent au-dessus de la liste.
+            </p>
             {families.data && (
               <FamilyFilter
                 families={families.data.families}

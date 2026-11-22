@@ -46,19 +46,23 @@ export function LawStateIcon({
 
 /**
  * Étiquette d'état d'un dossier (En navette, Adopté définitivement, Devenu
- * loi). `pill` pour les cartes ; `line` pour la ligne d'état au-dessus de la
- * fiche dossier, suivie de l'identifiant du dossier. Un dossier sans état
+ * loi). `pill` pour les cartes, suivie du complément quand il y en a un
+ * (`lawStateDetail`) ; `line` pour la ligne d'état au-dessus de la fiche
+ * dossier, suivie de l'identifiant du dossier. Un dossier sans état
  * (RM-04) n'en reçoit aucune : l'appelant n'appelle pas ce composant.
  */
 export default function LawStateBadge({
   kind,
   variant = 'pill',
   uid,
+  detail,
   className = '',
 }: {
   kind: LawStateKind
   variant?: 'pill' | 'line'
   uid?: string
+  /** Pastille seulement : « modifié par le Sénat le 20 nov. », « promulgation attendue »… */
+  detail?: string | null
   className?: string
 }) {
   if (variant === 'line') {
@@ -78,6 +82,7 @@ export default function LawStateBadge({
     >
       <LawStateIcon kind={kind} />
       {LAW_STATE_LABELS[kind]}
+      {detail && ` · ${detail}`}
     </span>
   )
 }
