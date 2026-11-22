@@ -16,11 +16,10 @@ use crate::application::use_cases::browse_final_votes::MAX_PAGE_SIZE;
 use crate::application::use_cases::get_week_of_votes::{totals_of, OutcomeCount};
 use crate::domain::candidate::CandidateId;
 use crate::domain::ingestion::IngestionSource;
+use crate::domain::legislature::CURRENT_LEGISLATURE;
 use crate::domain::reel::{ReelKind, ReelSlot, VoteCompleteness};
 use crate::domain::site_news::{SiteNews, SiteNewsId};
 use crate::domain::theme::FamilyCode;
-
-const CURRENT_LEGISLATURE: u16 = 17;
 
 /// Votes d'un jour de la periode du Reel.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,7 +41,6 @@ pub struct VotesReel {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkipReason {
     NoVote,
-    NoSubject,
 }
 
 /// Sujets deja publies dans Buffer, transmis par la chaine (RM-07, RM-08).

@@ -48,7 +48,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="scrutins/:uid" element={<ScrutinDetailPage />} />
             <Route path="themes" element={<Navigate to={ENTRY_PATH} replace />} />
             <Route path="reels/methode" element={<ReelsMethodPage />} />
-            <Route path="themes/methode"element={<ThemeMethodPage />} />
+            <Route path="themes/methode" element={<ThemeMethodPage />} />
             <Route path="themes/non-rattaches" element={<UnassignedTextsPage />} />
             <Route path="themes/arbitrage" element={<ThemeArbitrationPage />} />
             <Route path="themes/:code" element={<ThemeRedirect />} />

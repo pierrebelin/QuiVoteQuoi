@@ -108,7 +108,6 @@ pub struct ReelDayDto {
     pub votes: usize,
 }
 
-pub const MOST_FOLLOWED_RULE: &str = CRITERION_NOTE;
 pub const COMPLETENESS_RULE: &str = "Un Reel de votes n'est publiable que si les données sont \
      complètes : synchronisation de l'Assemblée nationale postérieure à la fin de la période et \
      aucun numéro de scrutin manquant (RM-09).";
@@ -149,7 +148,7 @@ impl From<[ReelSlot; 7]> for ReelsMethodResponse {
             days: slots.into_iter().map(ReelMethodDayDto::from).collect(),
             theme_rotation: FamilyCode::ALL.to_vec(),
             due_time: DUE_TIME.to_owned(),
-            most_followed_rule: MOST_FOLLOWED_RULE,
+            most_followed_rule: CRITERION_NOTE,
             completeness_rule: COMPLETENESS_RULE,
             monday_priority: MONDAY_PRIORITY,
         }
@@ -318,7 +317,6 @@ fn reason_of(plan: &ReelPlan) -> Option<&'static str> {
         | ReelPlan::SiteNews(_)
         | ReelPlan::Theme(_) => None,
         ReelPlan::Skipped(SkipReason::NoVote) => Some("no_vote"),
-        ReelPlan::Skipped(SkipReason::NoSubject) => Some("no_subject"),
         ReelPlan::Incomplete(VoteCompleteness::MissingNumbers { .. }) => Some("missing_numbers"),
         ReelPlan::Incomplete(_) => Some("not_synchronised"),
     }
@@ -547,12 +545,6 @@ mod tests {
         let cases = [
             (d(11, 21), ReelPlan::Skipped(SkipReason::NoVote), "skipped", "no_vote"),
             (
-                d(11, 23),
-                ReelPlan::Skipped(SkipReason::NoSubject),
-                "skipped",
-                "no_subject",
-            ),
-            (
                 d(11, 21),
                 ReelPlan::Incomplete(VoteCompleteness::NotSynchronisedSince { last_success: None }),
                 "incomplete",
@@ -575,8 +567,6 @@ mod tests {
             assert_eq!(body["caption"], Value::Null);
             assert_eq!(body["link_path"], Value::Null);
         }
-        let monday = json_of(prepared(d(11, 23), ReelPlan::Skipped(SkipReason::NoSubject)));
-        assert_eq!(monday["kind"], "lundi");
     }
 
     #[test]
@@ -835,7 +825,7 @@ mod tests {
         let json = method_json();
 
         assert_eq!(json["due_time"], "18:00");
-        assert_eq!(json["most_followed_rule"], MOST_FOLLOWED_RULE);
+        assert_eq!(json["most_followed_rule"], CRITERION_NOTE);
         assert_eq!(json["completeness_rule"], COMPLETENESS_RULE);
         assert_eq!(json["monday_priority"], MONDAY_PRIORITY);
         assert!(json.as_object().unwrap().keys().all(|k| !k.contains("prepar")));
