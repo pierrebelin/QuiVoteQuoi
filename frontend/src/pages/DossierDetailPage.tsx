@@ -20,7 +20,12 @@ import { BackLink, Card, ErrorPanel, Loading, Pill } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
 import { REJECTION_NOT_FINAL, readingKey, readingLabel } from '../lib/dossierStatus'
 import { themeLink, typographic } from '../lib/entryFlow'
-import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
+import {
+  textKind,
+  type InitiatorDto,
+  type LawProgress,
+  type OutcomeDto,
+} from '../types/dossiers'
 
 interface StageDto {
   label: string
@@ -32,7 +37,8 @@ interface FamilyDto {
   label: string
 }
 
-interface DossierDetailDto {
+/** Réponse de `/api/dossiers/{uid}`, avec état, jalons et réponse (SPEC-navette). */
+interface DossierDetailDto extends LawProgress {
   uid: string
   title: string
   procedure: string

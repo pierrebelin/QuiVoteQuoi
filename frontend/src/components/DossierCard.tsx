@@ -1,7 +1,7 @@
 import DossierCardShell, { OutcomeSplit } from './DossierCardShell'
 import { Icon } from './icons'
 import { formatShortDate } from '../lib/dossierStatus'
-import type { OutcomeDto } from '../types/dossiers'
+import type { LawState, LawStateCounts, OutcomeDto } from '../types/dossiers'
 import type { AssignedFamilyDto } from '../types/themes'
 
 export interface DossierCardInitiatorDto {
@@ -23,6 +23,7 @@ export interface DossierCardDto {
   last_activity_label: string
   current_stage: { label: string; chamber: string } | null
   outcome: OutcomeDto
+  law_state: LawState | null
   initiators: DossierCardInitiatorDto[]
   families: AssignedFamilyDto[]
   scrutin_count: number
@@ -40,6 +41,8 @@ export interface DossierPageResponse {
   total: number
   total_pages: number
   dossiers: DossierCardDto[]
+  /** Nombre de dossiers par état, sur le périmètre affiché sans le filtre d'état. */
+  state_counts: LawStateCounts
 }
 
 /**

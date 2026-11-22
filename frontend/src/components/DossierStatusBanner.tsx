@@ -1,4 +1,5 @@
-import { dossierBanner, formatShortDate, type DossierStatusLike } from '../lib/dossierStatus'
+import { dossierBanner, formatShortDate } from '../lib/dossierStatus'
+import type { DossierStatusDto } from '../types/dossiers'
 
 /**
  * Bandeau du haut d'une carte de dossier : à gauche le sort ou l'étape, à
@@ -10,7 +11,7 @@ export default function DossierStatusBanner({
   dossier,
   today,
 }: {
-  dossier: DossierStatusLike
+  dossier: DossierStatusDto
   /** Date du jour (AAAA-MM-JJ). */
   today: string
 }) {

@@ -3,7 +3,7 @@ import { Link } from 'react-router'
 import DossierStatusBanner from './DossierStatusBanner'
 import { FamilyIllustration } from './FamilyIllustration'
 import { themeLink, typographic } from '../lib/entryFlow'
-import type { DossierStatusLike } from '../lib/dossierStatus'
+import type { DossierStatusDto } from '../types/dossiers'
 import type { AssignedFamilyDto } from '../types/themes'
 
 function plural(count: number, word: string) {
@@ -92,7 +92,7 @@ export default function DossierCardShell({
 }: {
   uid: string
   title: string
-  status: DossierStatusLike | null
+  status: DossierStatusDto | null
   /** Date du jour (AAAA-MM-JJ) : une étape datée après est annoncée à venir. */
   today: string
   families: AssignedFamilyDto[]

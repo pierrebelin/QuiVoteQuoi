@@ -1,12 +1,4 @@
-import type { OutcomeDto } from '../types/dossiers'
-
-/** Ce que le bandeau d'état lit d'un dossier, quelle que soit la liste qui le montre. */
-export interface DossierStatusLike {
-  outcome: OutcomeDto
-  current_stage: { label: string; chamber: string } | null
-  last_activity_label: string
-  last_activity_date: string
-}
+import type { DossierStatusDto } from '../types/dossiers'
 
 export function formatDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
@@ -66,7 +58,7 @@ export const REJECTION_NOT_FINAL = 'la navette peut reprendre'
  * atteste. Jamais « en cours » : sur la plupart des dossiers, ce serait une
  * affirmation que personne n'a écrite (README.md §6).
  */
-export function dossierBanner(dossier: DossierStatusLike): { tone: string; text: string } {
+export function dossierBanner(dossier: DossierStatusDto): { tone: string; text: string } {
   const { outcome, current_stage: stage } = dossier
   if (outcome.kind !== 'no_recorded_conclusion') {
     const tone =
