@@ -1,24 +1,99 @@
 //! DTO du Reel d'un jour (RM-10, RM-11, RM-12, RM-14, RM-16).
 use chrono::{DateTime, Datelike, Days, NaiveDate, NaiveTime, TimeZone, Utc};
 use chrono_tz::Europe::Paris;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::api::scrutin_dto::{RECONSTRUCTED_NOTE, SHOW_OF_HANDS_NOTE};
 use crate::api::week_dto::OutcomeCountDto;
 use crate::application::ports::scrutin_repository::ScrutinSummary;
 use crate::application::use_cases::prepare_reel::{
-    PreparedReel, ReelPlan, SkipReason, VotesReel,
+    PreparedReel, PresentedSubjects, ProgrammesReel, ReelPlan, SkipReason, VotesReel,
 };
 use crate::domain::reel::{ReelSlot, VoteCompleteness};
+use crate::domain::site_news::SiteNewsId;
+use crate::domain::theme::FamilyCode;
 
 pub const EMPTY_WEEK_NOTE: &str = "Aucun vote à l'Assemblée nationale cette semaine.";
 pub const CRITERION_NOTE: &str =
     "Critère : le scrutin qui compte le plus de votants (pour, contre, abstention).";
+pub const MAX_PRESENTED_NEWS: usize = 500;
+const PROGRAMMES_PATH: &str = "/candidats-2027";
+const THEME_METHOD_PATH: &str = "/themes/methode";
 pub const LINK_TOKEN: &str = "[lien]";
 pub const TAGS: [&str; 2] = ["#QuiVoteQuoi", "#AssembléeNationale"];
 
 /// Heure de publication du Reel, a Paris (RM-12).
 const DUE_HOUR: u32 = 18;
+
+/// Sujets deja presentes, lus dans l'adresse (RM-07, RM-08).
+#[derive(Debug, Default, Deserialize)]
+pub struct ReelQuery {
+    pub dernier_theme: Option<String>,
+    pub nouveautes_presentees: Option<String>,
+}
+
+#[derive(Debug, thiserror::Error, PartialEq, Eq)]
+pub enum ReelQueryError {
+    #[error("unknown theme code: {0}")]
+    UnknownTheme(String),
+    #[error("too many presented site news")]
+    TooManyNews,
+}
+
+impl TryFrom<ReelQuery> for PresentedSubjects {
+    type Error = ReelQueryError;
+
+    fn try_from(query: ReelQuery) -> Result<Self, Self::Error> {
+        let last_theme = query
+            .dernier_theme
+            .filter(|code| !code.trim().is_empty())
+            .map(|code| {
+                FamilyCode::parse(code.trim()).map_err(|_| ReelQueryError::UnknownTheme(code))
+            })
+            .transpose()?;
+        let tokens: Vec<&str> = query
+            .nouveautes_presentees
+            .as_deref()
+            .unwrap_or_default()
+            .split(',')
+            .map(str::trim)
+            .filter(|token| !token.is_empty())
+            .collect();
+        if tokens.len() > MAX_PRESENTED_NEWS {
+            return Err(ReelQueryError::TooManyNews);
+        }
+        let news = tokens
+            .into_iter()
+            .filter_map(|token| SiteNewsId::new(token.to_owned()).ok())
+            .collect();
+        Ok(Self { last_theme, news })
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReelProgrammeDto {
+    pub candidate_id: String,
+    pub name: String,
+    pub added: usize,
+    pub removed: usize,
+    pub themes: Vec<&'static str>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReelSiteNewsDto {
+    pub id: String,
+    pub title: String,
+    pub text: String,
+    pub path: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ReelThemeDto {
+    pub code: &'static str,
+    pub label: &'static str,
+    pub text_count: i64,
+    pub scrutin_count: i64,
+}
 
 #[derive(Debug, Serialize)]
 pub struct ReelPeriodDto {
@@ -74,9 +149,12 @@ pub struct ReelResponse {
     pub days: Vec<ReelDayDto>,
     pub final_votes: Vec<ReelFinalVoteDto>,
     pub most_followed: Option<MostFollowedDto>,
+    pub programmes: Vec<ReelProgrammeDto>,
+    pub site_news: Option<ReelSiteNewsDto>,
+    pub theme: Option<ReelThemeDto>,
     pub caption: Option<String>,
     pub link_path: Option<String>,
-    pub tags: Vec<&'static str>,
+    pub tags: Vec<String>,
 }
 
 impl From<ScrutinSummary> for MostFollowedDto {
@@ -159,9 +237,38 @@ fn caption(slot: &ReelSlot, reel: &VotesReel) -> Option<String> {
     Some(lines.join("\n"))
 }
 
+/// Legende d'un lundi sans vote: une phrase neutre, puis le lien.
+fn subject_caption(headline: String) -> String {
+    format!("{headline}\n{LINK_TOKEN}")
+}
+
+fn programmes_of(reel: ProgrammesReel, slot: &ReelSlot) -> (Vec<ReelProgrammeDto>, String) {
+    let caption = subject_caption(format!(
+        "Programmes 2027, {} : {}.",
+        slot.period_label(),
+        counted(reel.candidates.len(), "candidature a modifié", "candidatures ont modifié")
+            + " son programme"
+    ));
+    let programmes = reel
+        .candidates
+        .into_iter()
+        .map(|candidate| ReelProgrammeDto {
+            candidate_id: candidate.candidate_id.as_str().to_owned(),
+            name: candidate.name,
+            added: candidate.added,
+            removed: candidate.removed,
+            themes: candidate.themes.iter().map(FamilyCode::as_str).collect(),
+        })
+        .collect();
+    (programmes, caption)
+}
+
 fn reason_of(plan: &ReelPlan) -> Option<&'static str> {
     match plan {
-        ReelPlan::Votes(_) => None,
+        ReelPlan::Votes(_)
+        | ReelPlan::Programmes(_)
+        | ReelPlan::SiteNews(_)
+        | ReelPlan::Theme(_) => None,
         ReelPlan::Skipped(SkipReason::NoVote) => Some("no_vote"),
         ReelPlan::Skipped(SkipReason::NoSubject) => Some("no_subject"),
         ReelPlan::Incomplete(VoteCompleteness::MissingNumbers { .. }) => Some("missing_numbers"),
@@ -173,7 +280,10 @@ impl From<PreparedReel> for ReelResponse {
     fn from(prepared: PreparedReel) -> Self {
         let slot = prepared.slot;
         let status = match prepared.plan {
-            ReelPlan::Votes(_) => "ready",
+            ReelPlan::Votes(_)
+            | ReelPlan::Programmes(_)
+            | ReelPlan::SiteNews(_)
+            | ReelPlan::Theme(_) => "ready",
             ReelPlan::Skipped(_) => "skipped",
             ReelPlan::Incomplete(_) => "incomplete",
         };
@@ -194,40 +304,83 @@ impl From<PreparedReel> for ReelResponse {
             days: vec![],
             final_votes: vec![],
             most_followed: None,
+            programmes: vec![],
+            site_news: None,
+            theme: None,
             caption: None,
             link_path: None,
-            tags: TAGS.to_vec(),
+            tags: TAGS.iter().map(|tag| (*tag).to_owned()).collect(),
         };
-        if let ReelPlan::Votes(reel) = prepared.plan {
-            response.empty_week_note = (reel.totals.votes == 0).then_some(EMPTY_WEEK_NOTE);
-            response.reconstructed_note =
-                reel.has_reconstructed_tallies.then_some(RECONSTRUCTED_NOTE);
-            response.caption = caption(&slot, &reel);
-            response.days = reel
-                .days
-                .iter()
-                .map(|day| ReelDayDto {
-                    date: day.date,
-                    votes: day.votes,
-                })
-                .collect();
-            response.link_path = Some(link_path(&slot, &response.days));
-            response.totals = Some(reel.totals.into());
-            response.final_votes = reel
-                .final_votes
-                .into_iter()
-                .map(|vote| ReelFinalVoteDto {
-                    scrutin_uid: vote.scrutin_uid,
-                    number: vote.number,
-                    date: vote.date,
-                    text_label: vote.text_label,
-                    outcome_code: vote.outcome_code,
-                    outcome_label: vote.outcome_label,
-                })
-                .collect();
-            response.most_followed = reel.most_followed.map(MostFollowedDto::from);
+        match prepared.plan {
+            ReelPlan::Votes(reel) => response.fill_votes(&slot, reel),
+            ReelPlan::Programmes(reel) => {
+                let (programmes, caption) = programmes_of(reel, &slot);
+                response.programmes = programmes;
+                response.caption = Some(caption);
+                response.link_path = Some(PROGRAMMES_PATH.to_owned());
+            }
+            ReelPlan::SiteNews(reel) => {
+                let news = reel.news;
+                response.caption = Some(subject_caption(format!("{}\n{}", news.title, news.text)));
+                response.link_path = Some(news.path.clone());
+                response.tags.push(format!("reel-nouveaute-{}", news.id.as_str()));
+                response.site_news = Some(ReelSiteNewsDto {
+                    id: news.id.as_str().to_owned(),
+                    title: news.title,
+                    text: news.text,
+                    path: news.path,
+                });
+            }
+            ReelPlan::Theme(reel) => {
+                response.caption = Some(subject_caption(format!(
+                    "{} : {} textes, {} scrutins classés.",
+                    reel.theme.label(),
+                    reel.text_count,
+                    reel.scrutin_count
+                )));
+                response.link_path = Some(THEME_METHOD_PATH.to_owned());
+                response.tags.push(format!("reel-theme-{}", reel.theme.as_str()));
+                response.theme = Some(ReelThemeDto {
+                    code: reel.theme.as_str(),
+                    label: reel.theme.label(),
+                    text_count: reel.text_count,
+                    scrutin_count: reel.scrutin_count,
+                });
+            }
+            ReelPlan::Skipped(_) | ReelPlan::Incomplete(_) => {}
         }
         response
+    }
+}
+
+impl ReelResponse {
+    fn fill_votes(&mut self, slot: &ReelSlot, reel: VotesReel) {
+        self.empty_week_note = (reel.totals.votes == 0).then_some(EMPTY_WEEK_NOTE);
+        self.reconstructed_note = reel.has_reconstructed_tallies.then_some(RECONSTRUCTED_NOTE);
+        self.caption = caption(slot, &reel);
+        self.days = reel
+            .days
+            .iter()
+            .map(|day| ReelDayDto {
+                date: day.date,
+                votes: day.votes,
+            })
+            .collect();
+        self.link_path = Some(link_path(slot, &self.days));
+        self.totals = Some(reel.totals.into());
+        self.final_votes = reel
+            .final_votes
+            .into_iter()
+            .map(|vote| ReelFinalVoteDto {
+                scrutin_uid: vote.scrutin_uid,
+                number: vote.number,
+                date: vote.date,
+                text_label: vote.text_label,
+                outcome_code: vote.outcome_code,
+                outcome_label: vote.outcome_label,
+            })
+            .collect();
+        self.most_followed = reel.most_followed.map(MostFollowedDto::from);
     }
 }
 
@@ -241,8 +394,12 @@ mod tests {
     use crate::application::use_cases::final_vote_fakes::final_vote_record;
     use crate::application::use_cases::get_week_of_votes::{OtherOutcome, OutcomeCount};
     use crate::application::use_cases::prepare_reel::{
-        ReelDay, ReelPlan, SkipReason, VotesReel,
+        CandidateChanges, ProgrammesReel, ReelDay, ReelPlan, SiteNewsReel, SkipReason,
+        ThemeReel, VotesReel,
     };
+    use crate::domain::candidate::CandidateId;
+    use crate::domain::site_news::{SiteNews, SiteNewsId};
+    use crate::domain::theme::FamilyCode;
     use crate::application::use_cases::read_fakes::scrutin_row;
     use crate::domain::reel::{ReelSlot, VoteCompleteness};
     use crate::domain::scrutin::VoteTally;
@@ -481,5 +638,116 @@ mod tests {
 
         assert_eq!(with["reconstructed_note"], RECONSTRUCTED_NOTE);
         assert_eq!(without["reconstructed_note"], Value::Null);
+    }
+
+    fn monday() -> NaiveDate {
+        d(11, 23)
+    }
+
+    fn site_news() -> SiteNews {
+        SiteNews {
+            id: SiteNewsId::new("semaine".into()).unwrap(),
+            title: "La semaine à l'Assemblée".into(),
+            text: "Une nouvelle page résume chaque semaine les votes.".into(),
+            delivered_on: d(11, 13),
+            path: "/semaine".into(),
+        }
+    }
+
+    fn theme_reel() -> ReelPlan {
+        ReelPlan::Theme(ThemeReel {
+            slot: ReelSlot::for_day(monday()),
+            theme: FamilyCode::Logement,
+            text_count: 12,
+            scrutin_count: 34,
+        })
+    }
+
+    #[test]
+    fn maps_a_programmes_reel_with_each_candidate_counts_and_themes() {
+        let plan = ReelPlan::Programmes(ProgrammesReel {
+            slot: ReelSlot::for_day(monday()),
+            candidates: vec![CandidateChanges {
+                candidate_id: CandidateId::new("c1".into()).unwrap(),
+                name: "Jeanne Martin".into(),
+                added: 3,
+                removed: 1,
+                themes: vec![FamilyCode::Logement, FamilyCode::Sante],
+            }],
+        });
+
+        let body = json_of(prepared(monday(), plan));
+
+        assert_eq!(body["status"], "ready");
+        assert_eq!(body["kind"], "lundi");
+        assert_eq!(body["programmes"][0]["name"], "Jeanne Martin");
+        assert_eq!(body["programmes"][0]["added"], 3);
+        assert_eq!(body["programmes"][0]["removed"], 1);
+        assert_eq!(body["programmes"][0]["themes"], json!(["logement", "sante"]));
+    }
+
+    #[test]
+    fn maps_a_site_news_reel_with_its_text_and_page_link() {
+        let plan = ReelPlan::SiteNews(SiteNewsReel {
+            slot: ReelSlot::for_day(monday()),
+            news: site_news(),
+        });
+
+        let body = json_of(prepared(monday(), plan));
+
+        assert_eq!(body["status"], "ready");
+        assert_eq!(body["site_news"]["id"], "semaine");
+        assert_eq!(body["site_news"]["title"], "La semaine à l'Assemblée");
+        assert_eq!(
+            body["site_news"]["text"],
+            "Une nouvelle page résume chaque semaine les votes."
+        );
+        assert_eq!(body["site_news"]["path"], "/semaine");
+        assert_eq!(body["link_path"], "/semaine");
+    }
+
+    #[test]
+    fn maps_a_theme_reel_with_its_numbers_and_theme_method_page_link() {
+        let body = json_of(prepared(monday(), theme_reel()));
+
+        assert_eq!(body["status"], "ready");
+        assert_eq!(body["theme"]["code"], "logement");
+        assert_eq!(body["theme"]["label"], "Logement / urbanisme / foncier");
+        assert_eq!(body["theme"]["text_count"], 12);
+        assert_eq!(body["theme"]["scrutin_count"], 34);
+        assert_eq!(body["link_path"], "/themes/methode");
+    }
+
+    #[test]
+    fn tags_a_theme_or_site_news_reel_with_its_subject() {
+        let theme = json_of(prepared(monday(), theme_reel()));
+        let news = json_of(prepared(
+            monday(),
+            ReelPlan::SiteNews(SiteNewsReel {
+                slot: ReelSlot::for_day(monday()),
+                news: site_news(),
+            }),
+        ));
+
+        assert!(theme["tags"].as_array().unwrap().contains(&json!("reel-theme-logement")));
+        assert!(news["tags"].as_array().unwrap().contains(&json!("reel-nouveaute-semaine")));
+        assert!(theme["tags"].as_array().unwrap().contains(&json!("#QuiVoteQuoi")));
+    }
+
+    #[test]
+    fn reads_the_last_presented_theme_and_presented_site_news_from_the_query() {
+        let query = ReelQuery {
+            dernier_theme: Some("logement".into()),
+            nouveautes_presentees: Some("semaine,budget".into()),
+        };
+
+        let presented = PresentedSubjects::try_from(query).unwrap();
+
+        assert_eq!(presented.last_theme, Some(FamilyCode::Logement));
+        let ids: Vec<&str> = presented.news.iter().map(SiteNewsId::as_str).collect();
+        assert_eq!(ids, vec!["semaine", "budget"]);
+        let empty = PresentedSubjects::try_from(ReelQuery::default()).unwrap();
+        assert_eq!(empty.last_theme, None);
+        assert!(empty.news.is_empty());
     }
 }

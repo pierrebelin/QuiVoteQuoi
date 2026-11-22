@@ -1,0 +1,9 @@
+[
+  {
+    "id": "semaine",
+    "title": "La semaine à l'Assemblée",
+    "text": "Une nouvelle page résume chaque semaine les votes de l'Assemblée nationale, groupe par groupe.",
+    "delivered_on": "2026-11-13",
+    "path": "/semaine"
+  }
+]

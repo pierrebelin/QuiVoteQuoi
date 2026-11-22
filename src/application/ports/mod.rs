@@ -19,6 +19,7 @@ pub mod ingestion_journal;
 pub mod legal_text_source;
 pub mod scrutin_repository;
 pub mod scrutin_source;
+pub mod site_news_catalog;
 pub mod sitting_record_source;
 pub mod text_version_repository;
 pub mod text_version_source;

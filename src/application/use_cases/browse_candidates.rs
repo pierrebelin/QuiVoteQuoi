@@ -124,80 +124,12 @@ impl<'a> BrowseCandidates<'a> {
 
 #[cfg(test)]
 mod tests {
-    use async_trait::async_trait;
-    use chrono::NaiveDate;
-
     use super::*;
-    use crate::application::ports::candidate_repository::{
-        ChangedSourceRecord, PoliticalOrganizationRecord,
-    };
-
-    #[derive(Default)]
-    struct InMemoryCandidateRepository {
-        requested_proposals: std::sync::Mutex<Vec<(Vec<String>, Option<FamilyCode>)>>,
-    }
-
-    fn candidate(id: &str) -> CandidateRecord {
-        CandidateRecord {
-            id: CandidateId::new(id.into()).unwrap(),
-            display_name: format!("Candidate {id}"),
-            declared_on: NaiveDate::from_ymd_opt(2026, 1, 1).unwrap(),
-            declaration_source_url: "https://example.test/declaration".into(),
-            declaration_source_label: "Déclaration".into(),
-            official_site_url: None,
-            program_url: None,
-            has_program_excerpts: true,
-            organizations: vec![PoliticalOrganizationRecord {
-                label: "Organisation A".into(),
-                official_url: None,
-                source_url: "https://example.test/organisation".into(),
-                source_label: "Source".into(),
-            }],
-        }
-    }
-
-    const REGISTRY: [&str; 6] = [
-        "candidate-a",
-        "candidate-b",
-        "candidate-c",
-        "candidate-d",
-        "candidate-e",
-        "candidate-f",
-    ];
-
-    #[async_trait]
-    impl CandidateRepository for InMemoryCandidateRepository {
-        async fn changed_sources(
-            &self,
-            _: chrono::DateTime<chrono::Utc>,
-        ) -> Result<Vec<ChangedSourceRecord>, RepositoryError> {
-            Ok(Vec::new())
-        }
-        async fn list_candidates(&self) -> Result<Vec<CandidateRecord>, RepositoryError> {
-            Ok(REGISTRY.iter().map(|id| candidate(id)).collect())
-        }
-        async fn program_proposals(
-            &self,
-            candidate_ids: &[CandidateId],
-            family: Option<FamilyCode>,
-        ) -> Result<Vec<CandidateProgramProposalRecord>, RepositoryError> {
-            self.requested_proposals.lock().unwrap().push((
-                candidate_ids.iter().map(|id| id.as_str().to_string()).collect(),
-                family,
-            ));
-            Ok(Vec::new())
-        }
-        async fn parliamentary_groups(
-            &self,
-            _: &[CandidateId],
-        ) -> Result<Vec<CandidateParliamentaryGroupRecord>, RepositoryError> {
-            Ok(Vec::new())
-        }
-    }
+    use crate::application::use_cases::candidate_fakes::{InMemoryCandidates, REGISTRY};
 
     #[tokio::test]
     async fn deduplicates_requested_candidates_without_selecting_anyone_else() {
-        let view = BrowseCandidates::new(&InMemoryCandidateRepository::default())
+        let view = BrowseCandidates::new(&InMemoryCandidates::default())
             .execute(BrowseCandidatesCommand {
                 candidate_ids: vec!["candidate-a".into(), "candidate-a".into()],
                 family: None,
@@ -210,7 +142,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_a_candidate_not_in_the_declared_registry() {
-        let error = BrowseCandidates::new(&InMemoryCandidateRepository::default())
+        let error = BrowseCandidates::new(&InMemoryCandidates::default())
             .execute(BrowseCandidatesCommand {
                 candidate_ids: vec!["unknown".into()],
                 family: None,
@@ -222,7 +154,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_theme_without_selection_reads_the_excerpts_of_every_candidate() {
-        let repository = InMemoryCandidateRepository::default();
+        let repository = InMemoryCandidates::default();
         let view = BrowseCandidates::new(&repository)
             .execute(BrowseCandidatesCommand {
                 candidate_ids: Vec::new(),
@@ -242,7 +174,7 @@ mod tests {
 
     #[tokio::test]
     async fn no_theme_and_no_selection_reads_no_excerpt() {
-        let repository = InMemoryCandidateRepository::default();
+        let repository = InMemoryCandidates::default();
         BrowseCandidates::new(&repository)
             .execute(BrowseCandidatesCommand::default())
             .await
@@ -252,7 +184,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_face_to_face_stays_bounded() {
-        let error = BrowseCandidates::new(&InMemoryCandidateRepository::default())
+        let error = BrowseCandidates::new(&InMemoryCandidates::default())
             .execute(BrowseCandidatesCommand {
                 candidate_ids: REGISTRY[..MAX_COMPARED_CANDIDATES + 1]
                     .iter()

@@ -72,8 +72,30 @@ pub struct ChangeExcerpt {
     pub removed_total: u32,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProposalChangeKind {
+    Added,
+    Removed,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProposalChange {
+    pub candidate_id: CandidateId,
+    pub candidate_name: String,
+    pub family_code: FamilyCode,
+    pub change: ProposalChangeKind,
+    pub published_on: NaiveDate,
+}
+
 #[async_trait]
 pub trait CandidateRepository: Send + Sync {
+    /// Extraits ajoutés ou retirés par une publication entre `from` et `to` inclus.
+    async fn proposal_changes_between(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<Vec<ProposalChange>, RepositoryError>;
+
     /// Sources modifiées depuis `since`, à relire avant toute publication.
     async fn changed_sources(
         &self,

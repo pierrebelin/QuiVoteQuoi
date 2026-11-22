@@ -26,6 +26,8 @@ pub mod link_scrutins_to_amendments;
 pub mod prepare_reel;
 pub mod propose_theme_families;
 #[cfg(test)]
+pub mod candidate_fakes;
+#[cfg(test)]
 pub mod final_vote_fakes;
 pub mod refresh_actor_registry;
 pub mod refresh_all;

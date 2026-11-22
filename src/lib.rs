@@ -30,6 +30,7 @@ use application::ports::scrutin_source::ScrutinSource;
 use application::ports::text_version_repository::TextVersionRepository;
 use application::ports::text_version_source::TextVersionSource;
 use application::ports::theme_classifier::ThemeClassifier;
+use application::ports::site_news_catalog::SiteNewsCatalog;
 use application::ports::theme_repository::ThemeRepository;
 
 #[derive(Clone)]
@@ -54,6 +55,7 @@ pub struct AppState {
     pub final_vote_repository: Arc<dyn FinalVoteRepository>,
     pub group_repository: Arc<dyn GroupRepository>,
     pub theme_repository: Arc<dyn ThemeRepository>,
+    pub site_news_catalog: Arc<dyn SiteNewsCatalog>,
     pub theme_classifier: Arc<dyn ThemeClassifier>,
     pub text_version_source: Arc<dyn TextVersionSource>,
     pub text_version_repository: Arc<dyn TextVersionRepository>,

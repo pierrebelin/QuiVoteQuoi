@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait::async_trait;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use sqlx::postgres::PgRow;
 use sqlx::{PgPool, Row};
 
@@ -9,7 +9,7 @@ use super::db;
 use crate::application::ports::candidate_repository::{
     CandidateParliamentaryGroupRecord, CandidateProgramProposalRecord, CandidateRecord,
     CandidateRepository, ChangeExcerpt, ChangedSourceRecord, PoliticalOrganizationRecord,
-    RepositoryError,
+    ProposalChange, ProposalChangeKind, RepositoryError,
 };
 use crate::domain::candidate::CandidateId;
 use crate::domain::theme::FamilyCode;
@@ -65,6 +65,56 @@ fn candidate_id(raw: String) -> Result<CandidateId, RepositoryError> {
 
 #[async_trait]
 impl CandidateRepository for PgCandidateRepository {
+    async fn proposal_changes_between(
+        &self,
+        from: NaiveDate,
+        to: NaiveDate,
+    ) -> Result<Vec<ProposalChange>, RepositoryError> {
+        let rows = sqlx::query(
+            "SELECT change.candidate_id, candidate.display_name, change.family_code,
+                    change.change, change.published_on
+               FROM candidate_proposal_changes change
+               JOIN presidential_candidates candidate ON candidate.id = change.candidate_id
+              WHERE change.published_on BETWEEN $1 AND $2
+              ORDER BY change.published_on, candidate.display_name, change.family_code,
+                       change.change, change.id",
+        )
+        .bind(from)
+        .bind(to)
+        .persistent(false)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(db)?;
+
+        rows.into_iter()
+            .map(|row| {
+                let raw_family: String = row.get("family_code");
+                let family_code = FamilyCode::parse(&raw_family).map_err(|_| {
+                    RepositoryError::Database(format!(
+                        "unknown candidate proposal family in database: {raw_family}"
+                    ))
+                })?;
+                let raw_change: String = row.get("change");
+                let change = match raw_change.as_str() {
+                    "added" => ProposalChangeKind::Added,
+                    "removed" => ProposalChangeKind::Removed,
+                    other => {
+                        return Err(RepositoryError::Database(format!(
+                            "unknown proposal change in database: {other}"
+                        )))
+                    }
+                };
+                Ok(ProposalChange {
+                    candidate_id: candidate_id(row.get("candidate_id"))?,
+                    candidate_name: row.get("display_name"),
+                    family_code,
+                    change,
+                    published_on: row.get("published_on"),
+                })
+            })
+            .collect()
+    }
+
     async fn changed_sources(
         &self,
         since: DateTime<Utc>,

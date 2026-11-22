@@ -106,7 +106,12 @@ async fn main() {
         Arc::new(PgFinalVoteRepository::new(db.clone()));
     let group_repository: Arc<dyn GroupRepository> = Arc::new(PgGroupRepository::new(db.clone()));
     let theme_repository: Arc<dyn ThemeRepository> = Arc::new(PgThemeRepository::new(db.clone()));
-    let text_version_source: Arc<dyn TextVersionSource> = Arc::new(TextVersionClient::new());
+    let site_news_catalog: Arc<dyn quivotequoi::application::ports::site_news_catalog::SiteNewsCatalog> =
+        Arc::new(
+            quivotequoi::infrastructure::content::json_site_news_catalog::JsonSiteNewsCatalog::embedded()
+                .expect("content/nouveautes.json is valid"),
+        );
+    let text_version_source: Arc<dyn TextVersionSource> =Arc::new(TextVersionClient::new());
     let text_version_repository: Arc<dyn TextVersionRepository> =
         Arc::new(PgTextVersionRepository::new(db.clone()));
     let brief_line_repository: Arc<dyn BriefLineRepository> =
@@ -291,6 +296,7 @@ async fn main() {
         final_vote_repository,
         group_repository,
         theme_repository,
+        site_news_catalog,
         theme_classifier,
         text_version_source,
         text_version_repository,

@@ -20,6 +20,7 @@ pub mod legislature;
 pub mod reel;
 pub mod scoring;
 pub mod scrutin;
+pub mod site_news;
 pub mod sitting_record;
 pub mod text_brief;
 pub mod text_version;

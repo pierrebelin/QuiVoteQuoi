@@ -1,5 +1,6 @@
 pub mod config;
 pub mod budget;
+pub mod content;
 pub mod legifrance;
 pub mod llm;
 pub mod national_assembly;

@@ -1,5 +1,8 @@
 use chrono::{DateTime, NaiveDate, Utc};
 
+use crate::application::ports::candidate_repository::{
+    CandidateRepository, ProposalChange, ProposalChangeKind,
+};
 use crate::application::ports::final_vote_repository::{
     FinalVoteFilter, FinalVoteRecord, FinalVoteRepository,
 };
@@ -7,10 +10,15 @@ use crate::application::ports::ingestion_journal::IngestionJournal;
 use crate::application::ports::scrutin_repository::{
     RepositoryError, ScrutinRepository, ScrutinSummary,
 };
+use crate::application::ports::site_news_catalog::SiteNewsCatalog;
+use crate::application::ports::theme_repository::ThemeRepository;
 use crate::application::use_cases::browse_final_votes::MAX_PAGE_SIZE;
 use crate::application::use_cases::get_week_of_votes::{totals_of, OutcomeCount};
+use crate::domain::candidate::CandidateId;
 use crate::domain::ingestion::IngestionSource;
 use crate::domain::reel::{ReelKind, ReelSlot, VoteCompleteness};
+use crate::domain::site_news::{SiteNews, SiteNewsId};
+use crate::domain::theme::FamilyCode;
 
 const CURRENT_LEGISLATURE: u16 = 17;
 
@@ -37,9 +45,49 @@ pub enum SkipReason {
     NoSubject,
 }
 
+/// Sujets deja publies dans Buffer, transmis par la chaine (RM-07, RM-08).
+#[derive(Debug, Clone, Default)]
+pub struct PresentedSubjects {
+    pub last_theme: Option<FamilyCode>,
+    pub news: Vec<SiteNewsId>,
+}
+
+/// Changements de programme d'une candidature sur la periode (RM-05).
+#[derive(Debug, Clone)]
+pub struct CandidateChanges {
+    pub candidate_id: CandidateId,
+    pub name: String,
+    pub added: usize,
+    pub removed: usize,
+    pub themes: Vec<FamilyCode>,
+}
+
+#[derive(Debug, Clone)]
+pub struct ProgrammesReel {
+    pub slot: ReelSlot,
+    pub candidates: Vec<CandidateChanges>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SiteNewsReel {
+    pub slot: ReelSlot,
+    pub news: SiteNews,
+}
+
+#[derive(Debug, Clone)]
+pub struct ThemeReel {
+    pub slot: ReelSlot,
+    pub theme: FamilyCode,
+    pub text_count: i64,
+    pub scrutin_count: i64,
+}
+
 #[derive(Debug, Clone)]
 pub enum ReelPlan {
     Votes(VotesReel),
+    Programmes(ProgrammesReel),
+    SiteNews(SiteNewsReel),
+    Theme(ThemeReel),
     Skipped(SkipReason),
     Incomplete(VoteCompleteness),
 }
@@ -62,6 +110,9 @@ pub struct PrepareReel<'a> {
     scrutins: &'a dyn ScrutinRepository,
     final_votes: &'a dyn FinalVoteRepository,
     journal: &'a dyn IngestionJournal,
+    candidates: &'a dyn CandidateRepository,
+    themes: &'a dyn ThemeRepository,
+    news: &'a dyn SiteNewsCatalog,
 }
 
 impl<'a> PrepareReel<'a> {
@@ -69,15 +120,25 @@ impl<'a> PrepareReel<'a> {
         scrutins: &'a dyn ScrutinRepository,
         final_votes: &'a dyn FinalVoteRepository,
         journal: &'a dyn IngestionJournal,
+        candidates: &'a dyn CandidateRepository,
+        themes: &'a dyn ThemeRepository,
+        news: &'a dyn SiteNewsCatalog,
     ) -> Self {
         Self {
             scrutins,
             final_votes,
             journal,
+            candidates,
+            themes,
+            news,
         }
     }
 
-    pub async fn execute(&self, today: NaiveDate) -> Result<PreparedReel, PrepareReelError> {
+    pub async fn execute(
+        &self,
+        today: NaiveDate,
+        presented: &PresentedSubjects,
+    ) -> Result<PreparedReel, PrepareReelError> {
         let slot = ReelSlot::for_day(today);
         let last_success_at = self
             .journal
@@ -92,7 +153,7 @@ impl<'a> PrepareReel<'a> {
             plan,
         };
         if slot.kind() == ReelKind::Monday {
-            return Ok(prepared(ReelPlan::Skipped(SkipReason::NoSubject)));
+            return Ok(prepared(self.monday_subject(slot, presented).await?));
         }
 
         let rows = self.scrutins.between(slot.from(), slot.to()).await?;
@@ -129,6 +190,82 @@ impl<'a> PrepareReel<'a> {
     }
 }
 
+impl PrepareReel<'_> {
+    /// Sujet du lundi: programmes changes, sinon nouveaute la plus ancienne non
+    /// presentee, sinon theme suivant de la rotation (RM-05 a RM-08).
+    async fn monday_subject(
+        &self,
+        slot: ReelSlot,
+        presented: &PresentedSubjects,
+    ) -> Result<ReelPlan, PrepareReelError> {
+        let changes = self
+            .candidates
+            .proposal_changes_between(slot.from(), slot.to())
+            .await?;
+        if !changes.is_empty() {
+            return Ok(ReelPlan::Programmes(ProgrammesReel {
+                slot,
+                candidates: changes_by_candidate(changes),
+            }));
+        }
+
+        let oldest_unpresented = self
+            .news
+            .all()
+            .into_iter()
+            .filter(|news| news.delivered_on <= slot.to() && !presented.news.contains(&news.id))
+            .min_by(|a, b| (a.delivered_on, &a.id).cmp(&(b.delivered_on, &b.id)));
+        if let Some(news) = oldest_unpresented {
+            return Ok(ReelPlan::SiteNews(SiteNewsReel { slot, news }));
+        }
+
+        let theme = presented
+            .last_theme
+            .map_or(FamilyCode::ALL[0], FamilyCode::after);
+        let report = self.themes.method_report().await?;
+        let coverage = report.families.iter().find(|c| c.family == theme);
+        Ok(ReelPlan::Theme(ThemeReel {
+            slot,
+            theme,
+            text_count: coverage.map_or(0, |c| c.text_count),
+            scrutin_count: coverage.map_or(0, |c| c.scrutin_count),
+        }))
+    }
+}
+
+/// Changements regroupes par candidature, triees par nom (RM-05).
+fn changes_by_candidate(changes: Vec<ProposalChange>) -> Vec<CandidateChanges> {
+    let mut grouped: Vec<CandidateChanges> = Vec::new();
+    for change in changes {
+        let position = grouped
+            .iter()
+            .position(|c| c.candidate_id == change.candidate_id)
+            .unwrap_or_else(|| {
+                grouped.push(CandidateChanges {
+                    candidate_id: change.candidate_id.clone(),
+                    name: change.candidate_name.clone(),
+                    added: 0,
+                    removed: 0,
+                    themes: Vec::new(),
+                });
+                grouped.len() - 1
+            });
+        let entry = &mut grouped[position];
+        match change.change {
+            ProposalChangeKind::Added => entry.added += 1,
+            ProposalChangeKind::Removed => entry.removed += 1,
+        }
+        if !entry.themes.contains(&change.family_code) {
+            entry.themes.push(change.family_code);
+        }
+    }
+    for entry in &mut grouped {
+        entry.themes.sort();
+    }
+    grouped.sort_by(|a, b| (&a.name, &a.candidate_id).cmp(&(&b.name, &b.candidate_id)));
+    grouped
+}
+
 /// Jours de la periode avec leur nombre de votes; hors semaine, seuls les jours avec vote.
 fn days_of(slot: &ReelSlot, rows: &[ScrutinSummary]) -> Vec<ReelDay> {
     slot.from()
@@ -163,7 +300,11 @@ fn vote_key(date: NaiveDate, number: &str) -> (NaiveDate, u64) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::application::ports::candidate_repository::{ProposalChange, ProposalChangeKind};
+    use crate::application::ports::theme_repository::{FamilyCoverage, MethodReport};
+    use crate::application::use_cases::candidate_fakes::{proposal_change, InMemoryCandidates};
     use crate::application::use_cases::final_vote_fakes::{final_vote_record, FakeFinalVotes};
+    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
     use crate::application::use_cases::get_week_of_votes::OtherOutcome;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::application::use_cases::read_fakes::{scrutin_row, FakeScrutins};
@@ -221,12 +362,134 @@ mod tests {
         };
         let final_votes = FakeFinalVotes { records: finals };
         let journal = history(success);
-        let prepared = PrepareReel::new(&scrutins, &final_votes, &journal)
-            .execute(today)
-            .await
-            .unwrap();
+        let prepared = PrepareReel::new(
+            &scrutins,
+            &final_votes,
+            &journal,
+            &InMemoryCandidates::default(),
+            &InMemoryThemeRepository::default(),
+            &FakeSiteNews(vec![]),
+        )
+        .execute(today, &PresentedSubjects::default())
+        .await
+        .unwrap();
         assert_eq!(prepared.last_success_at, Some(success));
         prepared
+    }
+
+    // Local: catalogue fige, port synchrone sans etat a partager.
+    struct FakeSiteNews(Vec<SiteNews>);
+
+    impl SiteNewsCatalog for FakeSiteNews {
+        fn all(&self) -> Vec<SiteNews> {
+            self.0.clone()
+        }
+    }
+
+    fn news(id: &str, day: u32) -> SiteNews {
+        SiteNews {
+            id: SiteNewsId::new(id.into()).unwrap(),
+            title: format!("Titre {id}"),
+            text: format!("Texte {id}"),
+            delivered_on: d(day),
+            path: format!("/{id}"),
+        }
+    }
+
+    fn news_id(id: &str) -> SiteNewsId {
+        SiteNewsId::new(id.into()).unwrap()
+    }
+
+    fn change(
+        id: &str,
+        name: &str,
+        family: FamilyCode,
+        kind: ProposalChangeKind,
+        day: u32,
+    ) -> ProposalChange {
+        proposal_change(id, name, family, kind, d(day))
+    }
+
+    /// Une couverture par famille: textes = rang + 1, scrutins = 100 + rang.
+    fn method_report() -> MethodReport {
+        MethodReport {
+            families: FamilyCode::ALL
+                .iter()
+                .enumerate()
+                .map(|(rank, family)| FamilyCoverage {
+                    family: *family,
+                    text_count: rank as i64 + 1,
+                    scrutin_count: 100 + rank as i64,
+                })
+                .collect(),
+            texts_total: 0,
+            texts_assigned: 0,
+            texts_without_family: 0,
+            texts_attempt_failed: 0,
+            texts_never_attempted: 0,
+            scrutins_total: 0,
+            scrutins_with_text: 0,
+            scrutins_assigned: 0,
+            dossiers_total: 0,
+            dossiers_linked_to_text: 0,
+            dossiers_assigned: 0,
+            dossiers_without_text: 0,
+        }
+    }
+
+    /// Lundi 23 novembre: periode du 16 au 22.
+    async fn monday(
+        changes: Vec<ProposalChange>,
+        catalog: Vec<SiteNews>,
+        presented: PresentedSubjects,
+    ) -> ReelPlan {
+        let scrutins = FakeScrutins {
+            rows: vec![],
+            total: 0,
+            shape: DatasetShape::default(),
+        };
+        let final_votes = FakeFinalVotes { records: vec![] };
+        let journal = history(at(23, 6));
+        let candidates = InMemoryCandidates {
+            changes,
+            ..InMemoryCandidates::default()
+        };
+        let themes = InMemoryThemeRepository::default();
+        *themes.method_report.lock().unwrap() = Some(method_report());
+        let prepared = PrepareReel::new(
+            &scrutins,
+            &final_votes,
+            &journal,
+            &candidates,
+            &themes,
+            &FakeSiteNews(catalog),
+        )
+        .execute(d(23), &presented)
+        .await
+        .unwrap();
+        assert_eq!(prepared.slot.kind(), ReelKind::Monday);
+        prepared.plan
+    }
+
+    fn programmes(plan: ReelPlan) -> ProgrammesReel {
+        match plan {
+            ReelPlan::Programmes(reel) => reel,
+            other => panic!("expected a programmes reel, got {other:?}"),
+        }
+    }
+
+    fn theme(plan: ReelPlan) -> ThemeReel {
+        match plan {
+            ReelPlan::Theme(reel) => reel,
+            other => panic!("expected a theme reel, got {other:?}"),
+        }
+    }
+
+    fn site_news(plan: ReelPlan) -> SiteNewsReel {
+        match plan {
+            ReelPlan::SiteNews(reel) => reel,
+            other => panic!("expected a site news reel, got {other:?}"),
+        }
     }
 
     fn votes(prepared: PreparedReel) -> VotesReel {
@@ -388,15 +651,124 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn skips_monday_until_a_subject_is_chosen() {
-        let rows = vec![adopted(1, 16), adopted(2, 20)];
+    async fn presents_every_candidate_with_published_changes_last_week_by_name() {
+        let changes = vec![
+            change("bruno-zed", "Bruno Zed", FamilyCode::Sante, ProposalChangeKind::Added, 20),
+            change("alice-durand", "Alice Durand", FamilyCode::Sante, ProposalChangeKind::Added, 18),
+            change("alice-durand", "Alice Durand", FamilyCode::Logement, ProposalChangeKind::Removed, 19),
+            change("alice-durand", "Alice Durand", FamilyCode::Logement, ProposalChangeKind::Added, 19),
+            change("carl-hors", "Carl Hors", FamilyCode::Sante, ProposalChangeKind::Added, 10),
+        ];
+        let catalog = vec![news("semaine", 13)];
 
-        let prepared = prepare(d(23), rows, vec![], at(23, 6)).await;
+        let reel = programmes(monday(changes, catalog, PresentedSubjects::default()).await);
 
-        assert_eq!(prepared.slot.kind(), ReelKind::Monday);
-        assert!(matches!(
-            prepared.plan,
-            ReelPlan::Skipped(SkipReason::NoSubject)
-        ));
+        assert_eq!(reel.slot.from(), d(16));
+        assert_eq!(reel.slot.to(), d(22));
+        let summary: Vec<(&str, usize, usize, Vec<FamilyCode>)> = reel
+            .candidates
+            .iter()
+            .map(|c| (c.name.as_str(), c.added, c.removed, c.themes.clone()))
+            .collect();
+        assert_eq!(
+            summary,
+            vec![
+                ("Alice Durand", 2, 1, vec![FamilyCode::Logement, FamilyCode::Sante]),
+                ("Bruno Zed", 1, 0, vec![FamilyCode::Sante]),
+            ]
+        );
+        assert_eq!(reel.candidates[0].candidate_id.as_str(), "alice-durand");
+    }
+
+    #[tokio::test]
+    async fn counts_all_excerpts_of_a_new_candidacy_as_added() {
+        let changes = vec![
+            change("nova-nouvelle", "Nova Nouvelle", FamilyCode::Logement, ProposalChangeKind::Added, 17),
+            change("nova-nouvelle", "Nova Nouvelle", FamilyCode::Logement, ProposalChangeKind::Added, 17),
+            change("nova-nouvelle", "Nova Nouvelle", FamilyCode::Numerique, ProposalChangeKind::Added, 17),
+        ];
+
+        let reel = programmes(monday(changes, vec![], PresentedSubjects::default()).await);
+
+        assert_eq!(reel.candidates.len(), 1);
+        assert_eq!(reel.candidates[0].added, 3);
+        assert_eq!(reel.candidates[0].removed, 0);
+    }
+
+    #[tokio::test]
+    async fn presents_the_oldest_unpresented_site_news_when_no_programme_changed() {
+        let catalog = vec![
+            news("recente", 13),
+            news("ancienne", 10),
+            news("future", 24),
+        ];
+
+        let reel = site_news(monday(vec![], catalog, PresentedSubjects::default()).await);
+
+        assert_eq!(reel.news.id.as_str(), "ancienne");
+    }
+
+    #[tokio::test]
+    async fn never_presents_a_site_news_twice() {
+        let catalog = || vec![news("ancienne", 10), news("recente", 13)];
+
+        let after_first = site_news(
+            monday(
+                vec![],
+                catalog(),
+                PresentedSubjects {
+                    last_theme: None,
+                    news: vec![news_id("ancienne")],
+                },
+            )
+            .await,
+        );
+        assert_eq!(after_first.news.id.as_str(), "recente");
+
+        let after_both = monday(
+            vec![],
+            catalog(),
+            PresentedSubjects {
+                last_theme: None,
+                news: vec![news_id("ancienne"), news_id("recente")],
+            },
+        )
+        .await;
+        assert!(matches!(after_both, ReelPlan::Theme(_)));
+    }
+
+    #[tokio::test]
+    async fn presents_the_theme_following_the_last_presented_one_with_its_numbers() {
+        let presented = PresentedSubjects {
+            last_theme: Some(FamilyCode::Logement),
+            news: vec![],
+        };
+
+        let reel = theme(monday(vec![], vec![], presented).await);
+
+        assert_eq!(reel.theme, FamilyCode::TravailEmploi);
+        assert_eq!(reel.text_count, 4);
+        assert_eq!(reel.scrutin_count, 103);
+    }
+
+    #[tokio::test]
+    async fn returns_to_the_first_theme_after_the_last() {
+        let presented = PresentedSubjects {
+            last_theme: Some(FamilyCode::ALL[FamilyCode::ALL.len() - 1]),
+            news: vec![],
+        };
+
+        let reel = theme(monday(vec![], vec![], presented).await);
+
+        assert_eq!(reel.theme, FamilyCode::ALL[0]);
+    }
+
+    #[tokio::test]
+    async fn presents_the_first_theme_when_none_was_presented() {
+        let reel = theme(monday(vec![], vec![], PresentedSubjects::default()).await);
+
+        assert_eq!(reel.theme, FamilyCode::ALL[0]);
+        assert_eq!(reel.text_count, 1);
+        assert_eq!(reel.scrutin_count, 100);
     }
 }

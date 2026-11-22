@@ -93,6 +93,12 @@ impl FamilyCode {
         Self::CollectivitesOutreMer,
     ];
 
+    /// Famille suivante dans `ALL`, la première après la dernière (RM-07).
+    pub fn after(self) -> FamilyCode {
+        let rank = Self::ALL.iter().position(|family| *family == self).unwrap_or(0);
+        Self::ALL[(rank + 1) % Self::ALL.len()]
+    }
+
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::PouvoirAchat => "pouvoir-achat",

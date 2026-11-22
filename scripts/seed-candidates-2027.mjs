@@ -935,9 +935,13 @@ const sql = [
   'BEGIN;',
   ...candidates.map(insertCandidate),
   ...candidates.map(insertOrganization).filter(Boolean),
+  // Photographie des extraits avant remplacement : la différence nette, sans source_url,
+  // est enregistrée par record_candidate_proposal_changes() une fois les extraits réinsérés.
+  `CREATE TEMP TABLE candidate_proposals_before ON COMMIT DROP AS SELECT candidate_id, family_code, excerpt FROM candidate_program_proposals WHERE candidate_id IN (${values(candidates.map((candidate) => sqlText(candidate.id)))});`,
   // Le script fait référence : un extrait corrigé ou retiré ne doit pas survivre en base.
   `DELETE FROM candidate_program_proposals WHERE candidate_id IN (${values(candidates.map((candidate) => sqlText(candidate.id)))});`,
   ...candidates.flatMap((candidate) => candidate.proposals.map((proposal) => insertProposal(candidate, proposal))),
+  'SELECT record_candidate_proposal_changes();',
   'COMMIT;',
 ].join('\n\n')
 

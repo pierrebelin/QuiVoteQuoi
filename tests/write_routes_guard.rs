@@ -101,6 +101,10 @@ fn state() -> AppState {
         final_vote_repository: Arc::new(PgFinalVoteRepository::new(db.clone())),
         group_repository: Arc::new(PgGroupRepository::new(db.clone())),
         theme_repository: Arc::new(PgThemeRepository::new(db.clone())),
+        site_news_catalog: Arc::new(
+            quivotequoi::infrastructure::content::json_site_news_catalog::JsonSiteNewsCatalog::embedded()
+                .expect("content/nouveautes.json is valid"),
+        ),
         theme_classifier: Arc::new(UnavailableThemeClassifier),
         text_version_source: Arc::new(TextVersionClient::new()),
         text_version_repository: Arc::new(PgTextVersionRepository::new(db.clone())),
