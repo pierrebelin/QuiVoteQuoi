@@ -1,6 +1,5 @@
-import { Link } from 'react-router'
-import { LawStateIcon } from '../LawStateBadge'
-import { LAW_STATE_FILTER_LABELS, LAW_STATE_TONES } from '../../lib/lawState'
+import { LawStateGroupHeading, LawStateRow } from '../LawStateList'
+import { LAW_STATE_FILTER_LABELS } from '../../lib/lawState'
 import { advanceSentence } from '../../lib/week'
 import type { LawStateKind } from '../../types/dossiers'
 import type { AdvancedText } from '../../types/week'
@@ -22,24 +21,11 @@ function groupHeading(kind: LawStateKind, count: number): string {
 function AdvancedRow({ text }: { text: AdvancedText }) {
   const { lead, sense, tail } = advanceSentence(text)
   return (
-    <Link
-      to={`/dossiers/${text.dossier_uid}`}
-      className="group flex items-start gap-3 border-t border-line py-[11px] text-ink hover:text-ink"
-    >
-      <span
-        className={`flex size-7 shrink-0 items-center justify-center rounded-full ${LAW_STATE_TONES[text.group]}`}
-      >
-        <LawStateIcon kind={text.group} className="size-3.5" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[14.5px] leading-5 font-semibold group-hover:underline">{text.title}</span>
-        <span className="mt-0.5 block text-[13px] leading-[19px] text-ink-soft">
-          {lead}
-          <span className="font-semibold whitespace-nowrap text-ink">{sense}</span>
-          {tail}
-        </span>
-      </span>
-    </Link>
+    <LawStateRow kind={text.group} dossierUid={text.dossier_uid} title={text.title}>
+      {lead}
+      <span className="font-semibold whitespace-nowrap text-ink">{sense}</span>
+      {tail}
+    </LawStateRow>
   )
 }
 
@@ -73,14 +59,9 @@ export default function AdvancedTexts({ advanced }: { advanced: AdvancedText[] }
         const half = Math.ceil(items.length / 2)
         return (
           <div key={kind}>
-            <h3
-              className={`mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-[0.06em] uppercase ${
-                index > 0 ? 'mt-4' : ''
-              } ${kind === 'in_shuttle' ? 'text-ink-soft' : 'text-yes'}`}
-            >
-              <LawStateIcon kind={kind} />
+            <LawStateGroupHeading kind={kind} first={index === 0}>
               {groupHeading(kind, items.length)}
-            </h3>
+            </LawStateGroupHeading>
             <div className="md:grid md:grid-cols-2 md:gap-x-10">
               {[items.slice(0, half), items.slice(half)].map((column, columnIndex) => (
                 <div key={columnIndex}>
