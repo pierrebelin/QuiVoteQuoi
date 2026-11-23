@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router'
 import { BackLink, Card, Loading } from '../components/ui'
+import { Icon } from '../components/icons'
 import { FamilyBadges, UnassignedNote } from '../components/ThemeBadges'
 import VoteCard from '../components/VoteCard'
 import { isWholeTextVote, scrutinDetailCard, textScrutinCard } from '../components/voteCardData'
@@ -42,20 +43,23 @@ export default function TextDetailPage() {
   const motives = data.families.filter((family) => family.motive)
 
   return (
-    <div className="mx-auto max-w-3xl space-y-5">
-      <div className="space-y-2">
+    <div className="mx-auto max-w-3xl space-y-8 md:space-y-10">
+      <div className="space-y-3">
         <BackLink to="/scrutins">Votes</BackLink>
-        <p className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">Texte</p>
-        <h2 className="heading-2">{data.label}</h2>
+        <p className="text-[13px] font-semibold text-ink-faint">Texte</p>
+        <h2 className="heading-2 text-pretty max-md:text-[30px] max-md:leading-[33px] md:heading-1">{data.label}</h2>
         {data.families.length > 0 ? (
           <FamilyBadges families={data.families} />
         ) : (
           <UnassignedNote outcome={data.last_attempt_outcome} />
         )}
         {motives.length > 0 && (
-          <details className="text-xs text-ink-soft">
-            <summary className="cursor-pointer text-ink-faint">Pourquoi ces sujets</summary>
-            <ul className="mt-1.5 space-y-0.5">
+          <details className="group/why border-b border-line text-sm text-ink-soft">
+            <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-sm font-medium text-ink-soft [&::-webkit-details-marker]:hidden">
+              Pourquoi ces sujets
+              <Icon name="down" className="size-[18px] text-ink-faint transition-transform group-open/why:rotate-180" />
+            </summary>
+            <ul className="space-y-1.5 pb-3">
               {motives.map((family) => (
                 <li key={family.code}>
                   <span className="font-medium text-ink">{family.label}</span> — {family.motive}
@@ -68,7 +72,7 @@ export default function TextDetailPage() {
           <p>
             <Link
               to={`/dossiers/${data.dossier_uid}`}
-              className="inline-flex min-h-11 items-center text-sm font-medium link"
+              className="inline-flex min-h-11 items-center text-sm font-semibold link"
             >
               Le texte et tout son parcours →
             </Link>
@@ -76,8 +80,8 @@ export default function TextDetailPage() {
         )}
       </div>
 
-      <section className="space-y-3" aria-labelledby="votes-du-texte">
-        <h3 id="votes-du-texte" className="text-sm font-semibold text-ink-soft">
+      <section className="space-y-4" aria-labelledby="votes-du-texte">
+        <h3 id="votes-du-texte" className="heading-5 text-ink">
           {data.scrutin_count} vote{data.scrutin_count > 1 ? 's' : ''}
           {data.first_vote && data.last_vote && (
             <>
