@@ -1,5 +1,6 @@
 import type { Bloc, PositionSchema } from '../../content/comprendre'
 import PositionGlyph from '../entry/PositionGlyph'
+import { SWATCH_CLASS } from '../entry/styles'
 import { RichText } from './RichText'
 
 /*
@@ -8,10 +9,11 @@ import { RichText } from './RichText'
  * `content/comprendre.ts`, ces composants ne font que le dessiner.
  */
 
+/** Disque plein de la refonte A : le même que la pastille d'état du reste du site. */
 const PASTILLE: Record<Exclude<PositionSchema, 'non-votant'>, string> = {
-  for: 'bg-yes-soft text-yes',
-  against: 'bg-no-soft text-no',
-  abstention: 'bg-abstain-soft text-abstain',
+  for: SWATCH_CLASS.for,
+  against: SWATCH_CLASS.against,
+  abstention: SWATCH_CLASS.abstention,
 }
 
 const MOT: Record<PositionSchema, string> = {
@@ -28,12 +30,12 @@ const LIBELLE: Record<PositionSchema, string> = {
   'non-votant': 'text-ink',
 }
 
-function Pastille({ position, taille = 'size-[26px]' }: { position: PositionSchema; taille?: string }) {
+function Pastille({ position, taille = 'size-5' }: { position: PositionSchema; taille?: string }) {
   if (position === 'non-votant') {
     return (
       <span
         aria-hidden
-        className={`${taille} shrink-0 rounded-full border-2 border-dashed border-line-strong`}
+        className={`${taille} shrink-0 rounded-full border-[1.5px] border-dashed border-ink-faint`}
       />
     )
   }
@@ -42,16 +44,16 @@ function Pastille({ position, taille = 'size-[26px]' }: { position: PositionSche
       aria-hidden
       className={`${taille} inline-flex shrink-0 items-center justify-center rounded-full ${PASTILLE[position]}`}
     >
-      <PositionGlyph position={position} className="size-[55%]" />
+      <PositionGlyph position={position} className="size-[62%]" />
     </span>
   )
 }
 
-/** Cadre commun des schémas : posé sur le fond de page, pour se détacher de la réponse. */
+/** Cadre commun des schémas : une carte grise sans bordure, ses éléments en blanc dessus. */
 function Cadre({ titre, children }: { titre: string; children: React.ReactNode }) {
   return (
-    <figure className="rounded border border-line bg-canvas p-3.5">
-      <p className="mb-2.5 text-[13px] leading-[18px] font-semibold text-ink">{titre}</p>
+    <figure className="rounded-2xl bg-surface p-3.5">
+      <p className="mb-3 text-sm leading-[18px] font-semibold text-ink">{titre}</p>
       {children}
     </figure>
   )
@@ -61,9 +63,11 @@ function Positions({ bloc }: { bloc: Extract<Bloc, { kind: 'positions' }> }) {
   return (
     <ul>
       {bloc.items.map((item) => (
-        <li key={item.position} className="flex items-start gap-2.5 border-t border-line py-2 first:border-t-0">
-          <Pastille position={item.position} />
-          <p className="flex-1 text-sm leading-relaxed text-ink-soft">
+        <li key={item.position} className="flex items-start gap-2.5 border-t border-line py-2.5 first:border-t-0">
+          <span className="flex pt-px">
+            <Pastille position={item.position} />
+          </span>
+          <p className="flex-1 text-[15px] leading-[1.45] text-ink-soft">
             <strong className={`font-semibold ${LIBELLE[item.position]}`}>{item.libelle}</strong> — {item.texte}
           </p>
         </li>
@@ -79,23 +83,23 @@ function TexteEnVotes({ bloc }: { bloc: Extract<Bloc, { kind: 'texte-en-votes' }
         {bloc.cases.map((item, index) => (
           <li
             key={index}
-            className={`flex flex-col items-center gap-1.5 rounded-xl bg-surface px-1 py-2 text-center ${
-              item.ensemble ? 'border-2 border-accent' : 'border border-line'
+            className={`flex min-h-[72px] flex-col items-center justify-between gap-2 rounded-xl bg-canvas px-1 py-2 text-center ${
+              item.ensemble ? 'ring-2 ring-accent ring-inset' : ''
             }`}
           >
             <span
-              className={`text-[11px] leading-[14px] ${
+              className={`text-xs leading-[15px] ${
                 item.ensemble ? 'font-semibold text-ink' : 'font-medium text-ink-soft'
               }`}
             >
               {item.libelle}
             </span>
-            <Pastille position={item.position} taille="size-6" />
+            <Pastille position={item.position} taille="size-[18px]" />
             <span className="sr-only">{MOT[item.position]}</span>
           </li>
         ))}
       </ol>
-      <figcaption className="mt-2.5 text-[12.5px] leading-[18px] text-ink-soft">
+      <figcaption className="mt-3 text-[13px] leading-[18px] text-ink-soft">
         <RichText texte={bloc.legende} />
       </figcaption>
     </Cadre>
@@ -106,19 +110,19 @@ function Majorite({ bloc }: { bloc: Extract<Bloc, { kind: 'majorite' }> }) {
   return (
     <Cadre titre={bloc.titre}>
       <div aria-hidden className="flex items-stretch gap-1.5">
-        <div className="flex h-[26px] flex-[3] overflow-hidden rounded-lg">
+        <div className="flex h-6 flex-[3] gap-0.5 overflow-hidden rounded-md">
           <span className="flex-1 bg-yes-bar" />
           <span className="flex-1 bg-no-bar" />
         </div>
-        <div className="h-[26px] flex-1 rounded-lg border-2 border-dashed border-abstain-bar bg-abstain-soft" />
+        <div className="h-6 flex-1 rounded-md border-[1.5px] border-dashed border-abstain-bar bg-abstain-soft" />
       </div>
-      <div className="mt-1.5 flex gap-1.5 text-xs leading-4 text-ink-soft">
+      <div className="mt-2 flex gap-1.5 text-[13px] leading-[18px] text-ink-soft">
         <p className="flex-[3]">
           <RichText texte={bloc.exprimes} />
         </p>
         <p className="flex-1">{bloc.apart}</p>
       </div>
-      <figcaption className="mt-1.5 text-[11.5px] leading-4 text-ink-faint">{bloc.mention}</figcaption>
+      <figcaption className="mt-2 text-[13px] leading-4 text-ink-faint">{bloc.mention}</figcaption>
     </Cadre>
   )
 }
@@ -132,26 +136,26 @@ function Parcours({ bloc }: { bloc: Extract<Bloc, { kind: 'parcours' }> }) {
           return (
             <li key={etape.titre} className={`relative flex gap-3 ${derniere ? '' : 'pb-3.5'}`}>
               {!derniere && (
-                <span aria-hidden className="absolute top-5 -bottom-1.5 left-[7px] w-0.5 bg-line" />
+                <span aria-hidden className="absolute top-5 -bottom-1.5 left-[7px] w-0.5 bg-line-strong" />
               )}
               <span
                 aria-hidden
                 className={`relative mt-[3px] size-4 shrink-0 rounded-full border-2 ${
-                  etape.surCeSite ? 'border-accent bg-accent' : 'border-line-strong bg-surface'
+                  etape.surCeSite ? 'border-ink bg-ink' : 'border-line-strong bg-canvas'
                 }`}
               />
               <div className="flex-1">
                 <p
-                  className={`text-sm leading-5 font-semibold ${etape.surCeSite ? 'text-ink' : 'text-ink-soft'}`}
+                  className={`text-[15px] leading-5 font-semibold ${etape.surCeSite ? 'text-ink' : 'text-ink-soft'}`}
                 >
                   {etape.titre}
                   {etape.surCeSite && (
-                    <span className="ml-1.5 inline-block rounded-full bg-accent-soft px-[7px] align-middle text-[11px] leading-[18px] font-semibold text-accent">
+                    <span className="ml-1.5 inline-block rounded-full bg-accent-soft px-2 align-middle text-xs leading-[22px] font-semibold text-accent-ink">
                       votes sur ce site
                     </span>
                   )}
                 </p>
-                <p className="text-[12.5px] leading-[18px] text-ink-faint">{etape.precision}</p>
+                <p className="text-[13px] leading-[18px] text-ink-faint">{etape.precision}</p>
               </div>
             </li>
           )

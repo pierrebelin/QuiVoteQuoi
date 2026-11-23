@@ -5,6 +5,7 @@ import LireUnVote from '../components/comprendre/LireUnVote'
 import { RichText } from '../components/comprendre/RichText'
 import { SchemaView } from '../components/comprendre/Schemas'
 import { FreshnessSection } from '../components/Freshness'
+import { Icon } from '../components/icons'
 import { SECTIONS, type Bloc, type Question, type Section } from '../content/comprendre'
 
 /** Section qui porte chaque question : une ancre vers une question de détail
@@ -15,7 +16,7 @@ const QUESTION_DE = new Map(SECTIONS.flatMap((s) => s.questions.map((q) => [q.id
 function BlocView({ bloc }: { bloc: Bloc }) {
   if (bloc.kind === 'p') {
     return (
-      <p className="text-sm leading-relaxed text-ink-soft">
+      <p className="text-[15px] leading-[1.55] text-ink-soft">
         <RichText texte={bloc.texte} />
       </p>
     )
@@ -24,12 +25,12 @@ function BlocView({ bloc }: { bloc: Bloc }) {
   if (bloc.kind === 'ul') {
     return (
       <div>
-        {bloc.intro && <p className="text-sm text-ink-soft">{bloc.intro}</p>}
+        {bloc.intro && <p className="text-[15px] leading-[1.55] text-ink-soft">{bloc.intro}</p>}
         <ul className="mt-2 space-y-2">
           {bloc.items.map((item, index) => (
             <li
               key={index}
-              className="border-l-2 border-line pl-3 text-sm leading-relaxed text-ink-soft"
+              className="border-l-2 border-line pl-3 text-[15px] leading-[1.55] text-ink-soft"
             >
               <RichText texte={item} />
             </li>
@@ -41,7 +42,7 @@ function BlocView({ bloc }: { bloc: Bloc }) {
 
   if (bloc.kind === 'source') {
     return (
-      <p className="text-sm leading-relaxed text-ink-soft">
+      <p className="text-[15px] leading-[1.55] text-ink-soft">
         <a href={bloc.lien} target="_blank" rel="noreferrer" className="link">
           {bloc.libelle}
         </a>
@@ -69,13 +70,14 @@ function QuestionView({
       onToggle={(event) => onBascule(event.currentTarget.open)}
       className="scroll-mt-20 border-b border-line last:border-b-0"
     >
-      <summary className="flex cursor-pointer list-none py-2 text-sm marker:content-none hover:text-accent">
-        <span aria-hidden className="mr-2 inline-block w-3 shrink-0 text-ink-faint">
-          {ouverte ? '−' : '+'}
-        </span>
-        {question.question}
+      <summary className="flex min-h-12 cursor-pointer list-none items-start justify-between gap-3 py-3 text-[15px] leading-[1.35] font-semibold text-ink marker:content-none">
+        <span className="text-pretty">{question.question}</span>
+        <Icon
+          name="down"
+          className={`mt-px size-[18px] text-ink-faint transition-transform ${ouverte ? 'rotate-180' : ''}`}
+        />
       </summary>
-      <div className="space-y-2.5 pb-3.5 pl-5">
+      <div className="space-y-3.5 pb-4">
         {question.reponse.map((bloc, index) => (
           <BlocView key={index} bloc={bloc} />
         ))}
@@ -101,26 +103,15 @@ function PlusLoin({
     <details
       open={ouvert}
       onToggle={(event) => onBascule(event.currentTarget.open)}
-      className="mt-2 rounded bg-surface-soft"
+      className="mt-1"
     >
-      <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-[13px] text-ink-soft marker:content-none">
+      <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-[14px] bg-surface px-3.5 text-sm text-ink-faint marker:content-none">
         <span>
           <span className="font-semibold text-ink">Pour aller plus loin</span> · {nombre}
         </span>
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden
-          className={`size-4 transition-transform ${ouvert ? 'rotate-180' : ''}`}
-        >
-          <path d="M6 9l6 6 6-6" />
-        </svg>
+        <Icon name="down" className={`size-[18px] transition-transform ${ouvert ? 'rotate-180' : ''}`} />
       </summary>
-      <div className="border-t border-line px-3 pb-1">{children}</div>
+      <div className="px-3.5 pt-1">{children}</div>
     </details>
   )
 }
@@ -145,10 +136,8 @@ function SectionView({
     />
   )
   return (
-    <section id={section.id} className="mb-6 scroll-mt-20 break-inside-avoid">
-      <h3 className="mb-1 text-xs font-semibold tracking-wide text-ink-faint uppercase">
-        {section.titre}
-      </h3>
+    <section id={section.id} className="mb-8 scroll-mt-20 break-inside-avoid">
+      <h3 className="mb-1.5 text-[13px] font-semibold text-ink-faint">{section.titre}</h3>
       <div className="border-t border-line">
         {essentiel.map(vue)}
         {detail.length > 0 && (
@@ -234,10 +223,10 @@ export default function ComprendrePage() {
   }
 
   return (
-    <div className="space-y-6 lg:space-y-8">
+    <div className="space-y-10 lg:space-y-14">
       <div>
-        <h2 className="heading-2">Comprendre</h2>
-        <p className="mt-1 text-sm leading-relaxed text-ink-soft">
+        <h2 className="heading-2 md:heading-1">Comprendre</h2>
+        <p className="mt-2 text-base leading-normal text-ink-soft md:mt-3 md:max-w-2xl md:text-lg md:leading-relaxed">
           Ce que ce site affiche, ce que les mots recouvrent, et ce que les
           données ne permettent pas de dire.
         </p>
@@ -246,10 +235,10 @@ export default function ComprendrePage() {
       <LireUnVote />
 
       <section aria-labelledby="toutes-les-questions" className="lg:border-t lg:border-line lg:pt-7">
-        <h3 id="toutes-les-questions" className="heading-4">
+        <h3 id="toutes-les-questions" className="heading-4 md:heading-3">
           Toutes les questions
         </h3>
-        <p className="mt-1 mb-4 text-[13px] leading-[19px] text-ink-faint">
+        <p className="mt-1 mb-6 text-[13px] leading-[19px] text-ink-faint md:text-sm md:leading-5">
           L’essentiel d’abord ; le détail, replié en fin de section, suppose l’essentiel acquis.
         </p>
         <div className="lg:columns-2 lg:gap-14">
@@ -266,7 +255,7 @@ export default function ComprendrePage() {
 
       <FreshnessSection />
 
-      <p className="border-t border-line pt-3 text-sm text-ink-soft">
+      <p className="text-sm text-ink-soft">
         La méthode de rattachement aux sujets est publiée à part :{' '}
         <Link to="/themes/methode" className="link">
           méthode de thématisation
