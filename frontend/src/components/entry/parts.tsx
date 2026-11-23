@@ -146,10 +146,8 @@ export function ToggleChip({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${FOCUS_RING} ${
-        pressed
-          ? 'border-ink bg-ink text-surface'
-          : 'border-line-strong bg-surface text-ink hover:bg-surface-soft'
+      className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${FOCUS_RING} ${
+        pressed ? 'bg-ink text-surface' : 'bg-surface text-ink hover:bg-surface-soft'
       }`}
     >
       {pressed && <CheckIcon className="size-4 shrink-0" />}
