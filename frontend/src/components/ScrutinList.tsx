@@ -72,7 +72,7 @@ function CitedSubject({
 }) {
   return (
     <div>
-      <p className="text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
+      <p className="text-base font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
         Amendement n° {cited.number} · {cited.target_title}
       </p>
       <p className="mt-0.5">
@@ -114,7 +114,7 @@ export function ScrutinRow({
   return (
     <Link
       to={`/scrutins/${scrutin.uid}`}
-      className="group flex flex-col gap-3 px-4 py-3 transition-colors hover:bg-surface-soft sm:flex-row sm:items-center sm:gap-6"
+      className="group flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:gap-8"
     >
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -163,7 +163,7 @@ export function ScrutinRow({
             ))}
           </div>
         ) : (
-          <p className="text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
+          <p className="text-base font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
             {scrutin.short_label}
           </p>
         )}
@@ -172,7 +172,7 @@ export function ScrutinRow({
             quand aucune forme ne reconnaît l'objet : le libellé court est
             alors l'objet tel quel. */}
         {(scrutin.cited.length > 0 || scrutin.short_label !== scrutin.subject) && (
-          <p className="mt-1 text-[13px] leading-snug text-ink-soft">
+          <p className="mt-1 text-sm leading-snug text-ink-soft">
             {scrutin.subject}
           </p>
         )}

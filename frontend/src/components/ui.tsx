@@ -112,8 +112,9 @@ export function Card({
 }
 
 /**
- * Liste de lignes cliquables. Le trait de séparation vient du conteneur, pas
- * de chaque ligne : une ligne ne connaît pas sa position dans la liste.
+ * Liste de lignes cliquables, à plat (refonte A) : des filets, ni fond ni coins.
+ * Le trait de séparation vient du conteneur, pas de chaque ligne : une ligne ne
+ * connaît pas sa position dans la liste.
  */
 export function ListCard({
   children,
@@ -124,7 +125,7 @@ export function ListCard({
 }) {
   return (
     <div
-      className={`divide-y divide-line overflow-hidden rounded bg-surface transition-opacity ${
+      className={`divide-y divide-line border-y border-line transition-opacity ${
         muted ? 'opacity-50' : ''
       }`}
     >
@@ -376,11 +377,11 @@ export function TallyLine({
 /* -------------------------------------------------------------- contrôles */
 
 /**
- * Groupe de filtres. Le segment actif est plein plutôt que teinté : sur une
- * ligne de quatre groupes, une teinte pâle ne se distingue plus du survol. Il
- * porte aussi une coche et un trait, pour que l'état ne repose pas sur la seule
- * couleur, et reste net en sombre où le fond de la surface est proche de celui
- * de la piste.
+ * Groupe de filtres (refonte A) : une piste grise, le segment actif en blanc.
+ * Il porte aussi une coche, pour que le choix ne repose pas sur la seule
+ * couleur, et reste net en sombre. Sur téléphone, les segments se partagent la
+ * largeur (trois en ligne, quatre sur deux rangées) avec des cibles de 44 px ;
+ * au-delà, ils se suivent à leur largeur.
  */
 export function SegmentedControl({
   label,
@@ -393,14 +394,15 @@ export function SegmentedControl({
   value: string
   onChange: (value: string) => void
 }) {
+  const columns = options.length <= 3 ? 'grid-cols-3' : 'grid-cols-2'
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
       {label && (
-        <span className="shrink-0 text-xs font-medium text-ink-faint">
+        <span className="shrink-0 text-[13px] font-semibold text-ink-faint">
           {label}
         </span>
       )}
-      <div className="flex min-w-0 flex-wrap gap-0.5 rounded bg-surface-soft p-0.5">
+      <div className={`grid min-w-0 gap-0.5 rounded-xl bg-surface p-0.5 ${columns} sm:flex sm:flex-wrap`}>
         {options.map((option) => {
           const active = value === option.value
           return (
@@ -409,13 +411,13 @@ export function SegmentedControl({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(option.value)}
-              className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[10px] px-3.5 text-sm font-semibold transition-colors sm:min-h-9 ${
                 active
                   ? 'bg-canvas text-ink shadow-seg'
                   : 'text-ink-soft hover:text-ink'
               }`}
             >
-              {active && <Icon name="check" className="size-3" strokeWidth={3} />}
+              {active && <Icon name="check" className="size-3.5" strokeWidth={3} />}
               {option.label}
             </button>
           )
