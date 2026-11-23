@@ -4,6 +4,7 @@ import { GroupDot } from '../pages/GroupListPage'
 import { GROUP_LOGOS } from '../content/logos'
 import { InfoTip } from './InfoTip'
 import { PoliticalLogo } from './PoliticalLogo'
+import { Icon } from './icons'
 import { Card, ErrorPanel, Pill, TallyLine, VoteBar } from './ui'
 import { leadingPosition, positionLabels } from '../types/scrutins'
 import type {
@@ -34,7 +35,7 @@ function hasActions(group: GroupActionsDto) {
 
 function SourceLinks({ sources }: { sources: SummarySourceDto[] }) {
   return (
-    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+    <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
       <span className="text-ink-faint">Sources :</span>
       {sources.map((source) =>
         source.official_url ? (
@@ -58,21 +59,21 @@ function SourceLinks({ sources }: { sources: SummarySourceDto[] }) {
 }
 
 /**
- * Sort d'amendements, avec le libellé de la source. Le vert et le rouge disent
- * le sort, jamais le groupe : la couleur du groupe n'est pas posée ici.
+ * Sorts d'amendements d'un groupe, avec le libellé de la source, dans l'ordre
+ * où l'API les donne. Refonte A : le nombre en chiffres Bricolage, son libellé
+ * dessous ; ni vert ni rouge, et jamais la couleur du groupe. Dans le balisage
+ * le libellé précède le nombre, comme avant ; l'affichage les range à l'envers.
  */
-function FateChip({ fate }: { fate: FateCountDto }) {
-  const label = fate.label.toLowerCase()
-  const tone = label.startsWith('adopt')
-    ? 'bg-yes-soft text-yes'
-    : label.startsWith('rejet')
-      ? 'bg-no-soft text-no'
-      : 'bg-surface-soft text-ink-soft ring-1 ring-inset ring-line'
+function FateStats({ fates }: { fates: FateCountDto[] }) {
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-xs font-semibold ${tone}`}>
-      {fate.label || 'Sort non publié'}
-      <span className="tabular-nums">{fate.count.toLocaleString('fr-FR')}</span>
-    </span>
+    <ul className="grid grid-cols-3 gap-x-2.5 gap-y-3 lg:grid-cols-3">
+      {fates.map((fate) => (
+        <li key={fate.label} className="flex min-w-0 flex-col-reverse border-l-2 border-line pl-2.5">
+          <span className="text-[13px] leading-tight text-ink-soft">{fate.label || 'Sort non publié'}</span>
+          <span className="figure text-xl tabular-nums text-ink">{fate.count.toLocaleString('fr-FR')}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -87,59 +88,63 @@ function positionLabel(value: string) {
 }
 
 /**
- * Vote final du groupe : lecture et décompte, sans couleur. La position
- * majoritaire publiée peut contredire ce décompte : elle ne sert pas de résumé,
- * le détail du groupe l'affiche à part quand elle en diffère.
+ * Vote final du groupe, en ligne : lecture, décompte et barre (refonte A). La
+ * barre se normalise sur son propre scrutin : aucune échelle commune entre
+ * groupes (README.md §6). La position majoritaire publiée peut contredire ce
+ * décompte : elle ne sert pas de résumé, le détail du groupe l'affiche à part
+ * quand elle en diffère.
  */
-function FinalVoteChip({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
+function FinalVoteLine({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
   const { votes_for, votes_against, abstentions, not_voting } = vote.tally
   return (
-    <span
-      title={`Scrutin n° ${vote.number} du ${formatDate(vote.date)}`}
-      className="rounded bg-surface-soft px-2 py-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line"
-    >
-      Vote final, {vote.reading ?? formatDate(vote.date)} :{' '}
+    <li title={`Scrutin n° ${vote.number} du ${formatDate(vote.date)}`} className="flex flex-col gap-1.5">
+      <span className="text-[13px] text-ink-soft">Vote final, {vote.reading ?? formatDate(vote.date)} :</span>
       {/* En bloc : sur téléphone, le décompte passe à la ligne d'un seul tenant. */}
-      <span className="inline-block">
-        {votes_for} pour · {votes_against} contre · {abstentions} abst.
+      <span className="inline-block text-[13px] leading-snug text-ink-soft tabular-nums">
+        <b className="font-semibold text-yes">{votes_for}</b> pour ·{' '}
+        <b className="font-semibold text-no">{votes_against}</b> contre ·{' '}
+        <b className="font-semibold text-abstain">{abstentions}</b> abst.
         {not_voting > 0 && ` · ${not_voting} non-votant${not_voting > 1 ? 's' : ''}`}
       </span>
-    </span>
+      <span aria-hidden="true" className="block">
+        <VoteBar tally={vote.tally} />
+      </span>
+    </li>
   )
 }
 
 function FinalVote({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
   return (
-    <div className="rounded border border-line bg-surface px-3 py-2">
+    <div className="rounded-[14px] bg-canvas p-3.5">
       <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <Link to={`/scrutins/${vote.scrutin_uid}`} className="text-sm font-medium link">
+        <Link to={`/scrutins/${vote.scrutin_uid}`} className="text-sm font-semibold link">
           Scrutin n° {vote.number}
         </Link>
-        <span className="text-xs text-ink-faint">{formatDate(vote.date)}</span>
-        {vote.reading && <span className="text-xs text-ink-soft">· {vote.reading}</span>}
-        <Pill tone={vote.outcome_code === 'adopted' ? 'yes' : vote.outcome_code === 'rejected' ? 'no' : 'neutral'}>
+        <span className="text-[13px] text-ink-faint">{formatDate(vote.date)}</span>
+        {vote.reading && <span className="text-[13px] text-ink-soft">· {vote.reading}</span>}
+        <Pill tone={vote.outcome_code === 'adopté' ? 'yes' : vote.outcome_code === 'rejeté' ? 'no' : 'neutral'}>
           {vote.outcome_label}
         </Pill>
       </div>
-      <p className="mt-1 text-xs leading-relaxed text-ink-soft">{vote.text_label}</p>
-      <div className="mt-2">
+      <p className="mt-1.5 text-[13px] leading-relaxed text-ink-soft">{vote.text_label}</p>
+      <div className="mt-2.5">
         <VoteBar tally={vote.tally} />
       </div>
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
         <TallyLine tally={vote.tally} />
         {vote.majority_position && vote.majority_position !== leadingPosition(vote.tally) && (
-          <span className="text-xs text-ink-soft">
+          <span className="text-[13px] text-ink-soft">
             Position majoritaire publiée par l'Assemblée : {positionLabel(vote.majority_position).toLowerCase()}
           </span>
         )}
-        <a href={vote.official_url} target="_blank" rel="noreferrer" className="text-xs link">
+        <a href={vote.official_url} target="_blank" rel="noreferrer" className="text-[13px] font-semibold link">
           Source officielle ↗
         </a>
       </div>
       {vote.explanations.length > 0 && (
         <ul className="mt-1.5 space-y-0.5">
           {vote.explanations.map((mention) => (
-            <li key={`${mention.scrutin_uid}-${mention.rank}`} className="text-xs text-ink-soft">
+            <li key={`${mention.scrutin_uid}-${mention.rank}`} className="text-[13px] text-ink-soft">
               Explication de vote publiée —{' '}
               <Link to={`/scrutins/${mention.scrutin_uid}#explication-${mention.rank}`} className="link">
                 {mention.speaker_name ?? mention.speaker_uid}
@@ -157,32 +162,32 @@ function GroupDetails({ group }: { group: GroupActionsDto }) {
   return (
     <div className="space-y-3">
       {(group.start_date || group.end_date) && (
-        <p className="text-xs text-ink-faint">
+        <p className="text-[13px] text-ink-faint">
           Groupe concerné du {group.start_date ? formatDate(group.start_date) : 'début de période'} au{' '}
           {group.end_date ? formatDate(group.end_date) : '—'}
         </p>
       )}
       {group.summary ? (
-        <div className="rounded bg-surface-soft px-3 py-2">
+        <div className="rounded-[14px] bg-canvas p-3.5">
           <Pill tone="info">{group.summary.label}</Pill>
           <p className="mt-1.5 text-sm leading-relaxed text-ink-soft">{group.summary.text}</p>
           <SourceLinks sources={group.summary.sources} />
         </div>
       ) : group.state === 'summary_pending' ? (
-        <p className="text-xs text-ink-faint">
+        <p className="text-[13px] text-ink-faint">
           Synthèse automatique en attente de génération. Les actes restent consultables.
         </p>
       ) : group.state === 'summary_unavailable' ? (
-        <p className="text-xs text-ink-faint">
+        <p className="text-[13px] text-ink-faint">
           Synthèse automatique indisponible pour le moment. Les actes restent consultables.
         </p>
       ) : null}
       <div>
-        <p className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+        <p className="mb-2 text-[13px] font-semibold text-ink-faint">
           Votes finaux, par lecture
         </p>
         {group.final_votes.length === 0 ? (
-          <p className="text-xs text-ink-faint">Aucun vote final publié.</p>
+          <p className="text-[13px] text-ink-faint">Aucun vote final publié.</p>
         ) : (
           <div className="space-y-2">
             {group.final_votes.map((vote) => (
@@ -206,14 +211,14 @@ function CompareToggle({
 }) {
   return (
     <label
-      className={`inline-flex shrink-0 items-center gap-1.5 text-xs text-ink-soft ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer hover:text-ink'}`}
+      className={`inline-flex min-h-11 shrink-0 items-center gap-2.5 text-sm font-semibold text-ink ${disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
     >
       <input
         type="checkbox"
         checked={checked}
         disabled={disabled}
         onChange={onChange}
-        className="size-3.5 accent-ink"
+        className="size-5 rounded-md accent-ink"
       />
       Comparer
     </label>
@@ -238,9 +243,9 @@ function GroupRow({
 }) {
   const fates = group.amendment_fates ?? []
   return (
-    <details className="group/row border-t border-line first:border-t-0">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-4 gap-y-2 py-3 [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 flex-1 basis-56 items-center gap-3">
+    <details className="group/row border-b border-line">
+      <summary className="grid cursor-pointer list-none gap-x-10 gap-y-4 py-5 lg:grid-cols-2 [&::-webkit-details-marker]:hidden">
+        <span className="flex min-w-0 items-center gap-3 lg:col-start-1 lg:row-start-1">
           <PoliticalLogo
             logo={GROUP_LOGOS[group.abbrev]}
             fallback={group.abbrev}
@@ -248,38 +253,46 @@ function GroupRow({
             className="h-9 w-14"
           />
           <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold text-ink" title={group.label}>
+            <span className="block text-base leading-tight font-semibold text-ink" title={group.label}>
               {group.label}
             </span>
-            <span className="block text-xs text-ink-faint">{group.abbrev}</span>
+            <span className="block text-[13px] text-ink-faint">{group.abbrev}</span>
           </span>
         </span>
 
-        <span className="flex flex-1 basis-64 flex-wrap items-center gap-1.5">
-          {group.amendment_count > 0 && (
-            <span className="mr-1 text-sm text-ink">
-              <span className="font-semibold tabular-nums">{group.amendment_count.toLocaleString('fr-FR')}</span>{' '}
-              <span className="text-ink-soft">amendement{group.amendment_count > 1 ? 's' : ''}</span>
-            </span>
-          )}
-          {fates.map((fate) => (
-            <FateChip key={fate.label} fate={fate} />
-          ))}
-          {group.final_votes.map((vote) => (
-            <FinalVoteChip key={vote.scrutin_uid} vote={vote} />
-          ))}
-        </span>
+        {(group.amendment_count > 0 || fates.length > 0) && (
+          <span className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-2">
+            {group.amendment_count > 0 && (
+              <span className="text-[15px] text-ink">
+                <span className="figure text-xl tabular-nums">{group.amendment_count.toLocaleString('fr-FR')}</span>{' '}
+                <span className="text-ink-soft">amendement{group.amendment_count > 1 ? 's' : ''}</span>
+              </span>
+            )}
+            {fates.length > 0 && <FateStats fates={fates} />}
+          </span>
+        )}
 
-        <span className="flex items-center gap-4">
+        {group.final_votes.length > 0 && (
+          <ul className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-2">
+            {group.final_votes.map((vote) => (
+              <FinalVoteLine key={vote.scrutin_uid} vote={vote} />
+            ))}
+          </ul>
+        )}
+
+        <span className="flex items-center justify-between gap-4 lg:col-start-2 lg:row-start-1 lg:justify-end lg:gap-6">
           <CompareToggle checked={compared} disabled={compareDisabled} onChange={onCompare} />
-          <span className="text-xs font-medium text-accent group-open/row:hidden">Détails</span>
-          <span className="hidden text-xs font-medium text-accent group-open/row:inline">Replier</span>
+          <span className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-ink">
+            <span className="group-open/row:hidden">Détails</span>
+            <span className="hidden group-open/row:inline">Replier</span>
+            <Icon name="down" className="size-[18px] text-ink-faint transition-transform group-open/row:rotate-180" strokeWidth={2} />
+          </span>
         </span>
       </summary>
-      <div className="mb-3 rounded border border-line bg-surface-soft/50 px-4 py-3">
+      <div className="mb-5 rounded bg-surface p-4 md:p-5">
         <GroupDetails group={group} />
         {group.amendment_count > 0 && (
-          <Link to={amendmentsHref(group)} className="mt-3 inline-block text-sm font-medium link">
+          <Link to={amendmentsHref(group)} className="mt-3 inline-block text-sm font-semibold link">
             Voir ses {group.amendment_count.toLocaleString('fr-FR')} amendement
             {group.amendment_count > 1 ? 's' : ''} →
           </Link>
@@ -308,16 +321,16 @@ function ComparedGroup({ group, onRemove }: { group: GroupActionsDto; onRemove: 
           className="h-9 w-14"
         />
         <div className="min-w-0 flex-1">
-          <h4 className="truncate text-sm font-semibold text-ink" title={group.label}>
+          <h4 className="text-base leading-tight font-semibold text-ink" title={group.label}>
             {group.label}
           </h4>
-          <p className="text-xs text-ink-faint">{group.abbrev}</p>
+          <p className="text-[13px] text-ink-faint">{group.abbrev}</p>
         </div>
         <button
           type="button"
           onClick={onRemove}
           aria-label={`Retirer ${group.abbrev} de la comparaison`}
-          className="rounded px-1.5 text-lg leading-none text-ink-faint hover:bg-surface-soft hover:text-ink"
+          className="flex size-11 shrink-0 items-center justify-center rounded text-lg leading-none text-ink-faint hover:bg-surface-soft hover:text-ink"
         >
           ×
         </button>
@@ -325,16 +338,14 @@ function ComparedGroup({ group, onRemove }: { group: GroupActionsDto; onRemove: 
       {hasActions(group) ? (
         <>
           {(group.amendment_fates ?? []).length > 0 && (
-            <div className="mb-3 flex flex-wrap gap-1.5">
-              {(group.amendment_fates ?? []).map((fate) => (
-                <FateChip key={fate.label} fate={fate} />
-              ))}
+            <div className="mb-4">
+              <FateStats fates={group.amendment_fates ?? []} />
             </div>
           )}
           <GroupDetails group={group} />
         </>
       ) : (
-        <p className="text-xs leading-relaxed text-ink-faint">
+        <p className="text-[13px] leading-relaxed text-ink-faint">
           Aucun vote final ni amendement associé n'est disponible pour ce groupe. Cette absence ne vaut pas
           abstention.
         </p>
@@ -380,11 +391,11 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
   const quiet = data.groups.filter((group) => !hasActions(group))
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-8">
       {selected.length > 0 && (
         <section>
-          <div className="mb-2 flex items-baseline justify-between gap-3">
-            <h3 className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h3 className="heading-5">
               Groupes comparés {selected.length}/{MAX_COMPARED_GROUPS}
             </h3>
             <button
@@ -394,7 +405,7 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
                 updated.delete('avis_groupes')
                 setParams(updated, { replace: true, preventScrollReset: true })
               }}
-              className="text-xs font-medium link"
+              className="inline-flex min-h-11 items-center text-sm font-semibold link"
             >
               Tout retirer
             </button>
@@ -407,20 +418,20 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
         </section>
       )}
 
-      <Card className="px-4 py-4 sm:px-6 sm:py-5">
-        <h3 className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+      <section>
+        <h3 className="heading-4 md:heading-3">
           Ce que chaque groupe a fait sur ce texte
           <InfoTip label="Comment lire cette section" className="md:hidden">
             <p>Cochez jusqu'à quatre groupes pour mettre côte à côte leurs synthèses et leurs votes finaux.</p>
             <p>{data.notes.join(' ')}</p>
           </InfoTip>
         </h3>
-        <p className="mt-1 hidden text-xs text-ink-faint md:block">
+        <p className="mt-2 hidden max-w-[640px] text-sm leading-relaxed text-ink-soft md:block">
           Cochez jusqu'à quatre groupes pour mettre côte à côte leurs synthèses et leurs votes finaux.
         </p>
 
         {active.length > 0 ? (
-          <div className="mt-2">
+          <div className="mt-5 border-t border-line">
             {active.map((group) => (
               <GroupRow
                 key={group.uid}
@@ -432,13 +443,13 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
             ))}
           </div>
         ) : (
-          <p className="mt-3 text-sm text-ink-soft">
+          <p className="mt-4 text-sm text-ink-soft">
             Aucun groupe ne porte de vote final ni d'amendement publié sur ce texte.
           </p>
         )}
 
         {quiet.length > 0 && (
-          <div className="mt-3 flex flex-wrap items-center gap-1.5 border-t border-line pt-3 text-[13px]">
+          <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-[18px] text-[13px] max-md:gap-y-[18px] md:gap-y-2">
             <span className="mr-1 text-ink-faint">Aucun amendement ni vote final publié :</span>
             {quiet.map((group) => {
               const isSelected = selectedUids.includes(group.uid)
@@ -450,8 +461,8 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
                   aria-pressed={isSelected}
                   disabled={full && !isSelected}
                   title={`${group.label} — ajouter à la comparaison`}
-                  className={`inline-flex items-center gap-1.5 rounded-full py-0.5 pr-2.5 pl-1.5 text-xs font-semibold ring-1 ring-inset transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                    isSelected ? 'bg-ink text-surface ring-ink' : 'bg-surface text-ink-soft ring-line hover:ring-line-strong'
+                  className={`relative inline-flex h-[26px] items-center gap-1.5 rounded-full pr-2.5 pl-2 text-[13px] font-semibold transition-colors before:absolute before:inset-x-0 before:-inset-y-[9px] disabled:cursor-not-allowed disabled:opacity-40 md:before:hidden ${
+                    isSelected ? 'bg-ink text-canvas' : 'bg-surface text-ink-soft hover:bg-surface-soft hover:text-ink'
                   }`}
                 >
                   <GroupDot color={group.color} />
@@ -462,8 +473,8 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
           </div>
         )}
 
-        <p className="mt-4 hidden text-xs leading-relaxed text-ink-faint md:block">{data.notes.join(' ')}</p>
-      </Card>
+        <p className="mt-6 hidden max-w-[640px] text-[13px] leading-relaxed text-ink-faint md:block">{data.notes.join(' ')}</p>
+      </section>
     </div>
   )
 }
