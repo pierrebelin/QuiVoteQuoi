@@ -25,6 +25,8 @@ const HISTORY_SIZE = 200
 const LINK_TOKEN = '[lien]'
 const ALERT_LABEL = 'reels'
 const CAPTURE_FILE = 'capture.png'
+const CAPTURE_WIDTH = 390
+const CAPTURE_HEIGHT = 2400
 
 const env = process.env
 const dryRun = env.DRY_RUN === 'true'
@@ -149,7 +151,12 @@ async function scrutinDetails(reel) {
   return details
 }
 
-/** Capture de la page de la nouveauté en production, 1080 × 1920 (RM-08). */
+/**
+ * Capture de la page de la nouveauté en production (RM-08), sur la largeur d'un
+ * téléphone et sur toute sa hauteur jusqu'à `CAPTURE_HEIGHT` : le Reel la fait
+ * défiler. Les éléments fixes (barre de navigation) sont masqués, sinon ils
+ * resteraient au milieu de la page capturée.
+ */
 async function captureNews(path) {
   if (process.platform === 'linux') {
     execFileSync('npx', ['playwright', 'install', '--with-deps', 'chromium'], { cwd: REELS, stdio: 'inherit' })
@@ -157,10 +164,19 @@ async function captureNews(path) {
   const { chromium } = await import('playwright')
   const browser = await chromium.launch()
   try {
-    const page = await browser.newPage({ viewport: { width: 375, height: 667 }, deviceScaleFactor: 2.88 })
+    const page = await browser.newPage({ viewport: { width: CAPTURE_WIDTH, height: 844 }, deviceScaleFactor: 2 })
     await page.goto(`${base}${path}`, { waitUntil: 'networkidle' })
+    await page.evaluate(() => {
+      for (const element of document.querySelectorAll('*')) {
+        if (getComputedStyle(element).position === 'fixed') element.style.display = 'none'
+      }
+    })
     mkdirSync(join(REELS, 'public'), { recursive: true })
-    await page.screenshot({ path: join(REELS, 'public', CAPTURE_FILE) })
+    await page.screenshot({
+      path: join(REELS, 'public', CAPTURE_FILE),
+      fullPage: true,
+      clip: { x: 0, y: 0, width: CAPTURE_WIDTH, height: CAPTURE_HEIGHT },
+    })
   } finally {
     await browser.close()
   }

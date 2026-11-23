@@ -21,6 +21,10 @@ export const PERIOD = Math.round(3.5 * FPS)
 export const VOTES_OUTRO = Math.round(3.5 * FPS)
 export const PUSH = 14
 
+/** Reel « Nouveau sur le site » : accroche, page qui défile dans un téléphone, fin commune. */
+export const NEWS_HOOK = Math.round(3.5 * FPS)
+export const NEWS_PHONE = 7 * FPS
+
 /** Temps donné à l'ensemble des cartes (T7). */
 const CARDS_BUDGET_SECONDS = 90
 /** Une carte reste au plus 3 s, au moins 2 s ; en deçà, plusieurs éléments par carte. */
@@ -56,6 +60,10 @@ export type Scenes = {
 /** Scènes d'un Reel selon son sujet : votes, programmes, nouveauté ou thème. */
 export function scenesOf({ reel }: ReelProps): Scenes {
   if (isVotesReel(reel)) return votesScenesOf(reel)
+  if (reel.site_news) {
+    const siteNews = NEWS_HOOK + NEWS_PHONE
+    return { numbers: 0, cards: planCards(0), mostFollowed: 0, siteNews, total: siteNews + VOTES_OUTRO }
+  }
   const votes = reel.totals !== null
   const cards = planCards(votes ? reel.final_votes.length : reel.programmes.length)
   const numbers = votes || reel.theme !== null || reel.programmes.length > 0 ? NUMBERS : 0

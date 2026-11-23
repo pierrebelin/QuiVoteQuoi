@@ -232,3 +232,37 @@ export function Logo({ height }: { height: number }) {
     </svg>
   )
 }
+
+/** Taille de l'adresse du site pour qu'elle tienne sur une ligne (Inter 900 : environ 0,6 em par caractère). */
+function siteSize(site: string) {
+  return Math.min(112, Math.floor((1080 - REEL_SAFE.left - REEL_SAFE.right) / (site.length * 0.6)))
+}
+
+/** Carte finale commune aux Reels : logo, nom, adresse du site et chemin de la page. */
+export function BrandOutro({ site, linkPath, note }: { site: string; linkPath: string | null; note: string | null }) {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  const logo = spring({ frame, fps, config: { damping: 14 } })
+  const name = useEnter(6, 40)
+  const url = useEnter(16, 40)
+  return (
+    <Safe background={NAVY} color="#ffffff">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 90 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
+          <div style={{ transform: `scale(${logo})`, transformOrigin: 'left bottom' }}>
+            <Logo height={270} />
+          </div>
+          <div style={{ ...name, fontSize: 140, fontWeight: 900, letterSpacing: -4, lineHeight: 1 }}>
+            QuiVote<span style={{ color: '#60a5fa' }}>Quoi</span>
+          </div>
+        </div>
+        <div style={{ ...url, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <span style={{ fontSize: 46, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>Tous les chiffres, avec leurs sources</span>
+          <span style={{ fontSize: siteSize(site), fontWeight: 900, letterSpacing: -2, color: CREAM, lineHeight: 1, whiteSpace: 'nowrap' }}>{site}</span>
+          {linkPath && <span style={{ fontSize: 36, color: 'rgba(255,255,255,0.6)', wordBreak: 'break-all' }}>{linkPath}</span>}
+          {note && <span style={{ fontSize: 28, lineHeight: 1.3, color: 'rgba(255,255,255,0.7)' }}>{note}</span>}
+        </div>
+      </div>
+    </Safe>
+  )
+}
