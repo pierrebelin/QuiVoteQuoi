@@ -5,12 +5,12 @@ import BecomingLawCard from '../components/BecomingLawCard'
 import CountUp from '../components/CountUp'
 import { useFreshness } from '../components/Freshness'
 import LatestVoteHemicycle from '../components/LatestVoteHemicycle'
-import VoteCard from '../components/VoteCard'
+import VoteCard, { VoteIssue } from '../components/VoteCard'
 import { finalVoteCard } from '../components/voteCardData'
 import { FOCUS_RING } from '../components/entry/styles'
 import { InfoTip } from '../components/InfoTip'
 import { Card, Loading, Note } from '../components/ui'
-import DayPills from '../components/week/DayPills'
+import DayBars from '../components/week/DayBars'
 import WeekFigures from '../components/week/WeekFigures'
 import { ALL_LOGOS } from '../content/logos'
 import { PORTRAITS } from '../content/portraits'
@@ -169,22 +169,21 @@ function Arrow({ className = 'size-4' }: { className?: string }) {
   )
 }
 
-function CheckBullet() {
+/** Croix d'un refus : un trait de croix, dans le gris des mentions. */
+function XMark() {
   return (
-    <span className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-      <svg
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={3}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden
-        className="size-3"
-      >
-        <path d="M5 12.5l4.5 4.5L19 7.5" />
-      </svg>
-    </span>
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className="mt-0.5 size-4 shrink-0 text-ink-faint"
+    >
+      <path d="M6 6l12 12M18 6L6 18" />
+    </svg>
   )
 }
 
@@ -208,50 +207,53 @@ function Landmarks({ groupCount }: { groupCount: number | null }) {
       ? shortDate.format(new Date(freshness.data.last_scrutin_date))
       : null
 
-  const chips = [
+  const figures = [
     total.data !== undefined && (
       <>
-        <b className="font-semibold text-ink">
+        <b className="figure block text-[28px] leading-none tracking-normal text-ink">
           <CountUp value={total.data} format={frenchNumber} />
         </b>{' '}
-        votes
+        <span className="mt-1 block text-[13px] text-ink-faint">votes</span>
       </>
     ),
     groupCount !== null && groupCount > 0 && (
       <>
-        <b className="font-semibold text-ink">
+        <b className="figure block text-[28px] leading-none tracking-normal text-ink">
           <CountUp value={groupCount} />
         </b>{' '}
-        groupes
+        <span className="mt-1 block text-[13px] text-ink-faint">groupes</span>
       </>
-    ),
-    upToDate && (
-      <span key="a-jour" className="inline-flex items-center gap-1.5">
-        <span aria-hidden className="live-dot" />à jour au {upToDate}
-      </span>
     ),
   ].filter(Boolean)
 
-  if (chips.length === 0) return null
+  if (figures.length === 0 && !upToDate) return null
   return (
     <ul
       aria-label="Repères"
-      className="mt-4 flex flex-wrap justify-center gap-1.5 md:justify-start xl:col-start-2 xl:row-start-3 xl:mt-2.5 xl:justify-end xl:self-start"
+      className="mt-6 grid grid-cols-2 border-b border-line md:max-w-md xl:col-start-2 xl:row-start-3 xl:mt-5 xl:max-w-none"
     >
-      {chips.map((chip, index) => (
+      {figures.map((figure, index) => (
         <li
           key={index}
-          className="rounded-full bg-surface-soft px-2.5 py-1 text-[12.5px] font-medium text-ink-soft tabular-nums"
+          className={`border-t border-line py-3.5 ${index > 0 ? 'border-l pl-[18px] xl:pl-5' : ''}`}
         >
-          {chip}
+          {figure}
         </li>
       ))}
+      {upToDate && (
+        <li
+          key="a-jour"
+          className="col-span-2 flex items-center gap-2 border-t border-line py-2.5 text-[13px] font-medium text-ink-soft"
+        >
+          <span aria-hidden className="live-dot" />à jour au {upToDate}
+        </li>
+      )}
     </ul>
   )
 }
 
 /**
- * Titre de section de l'accueil : surtitre en accent, titre, et sur téléphone
+ * Titre de section de l'accueil : surtitre en gris, titre, et sur téléphone
  * le chapô replié dans une infobulle à côté du titre (sous 768 px, les textes
  * explicatifs passent en infobulle).
  */
@@ -271,8 +273,8 @@ function SectionHead({
 }) {
   return (
     <>
-      <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">{surtitre}</p>
-      <h3 id={id} className="mt-1.5 heading-3 sm:heading-2">
+      <p className="text-[13px] font-semibold text-ink-faint">{surtitre}</p>
+      <h3 id={id} className="mt-1.5 heading-4 sm:heading-2">
         {titre}
         {(chapo || info) && (
           <InfoTip label={`En savoir plus : ${surtitre}`} className="md:hidden">
@@ -325,36 +327,37 @@ function Credits({ className = 'mt-4 border-t border-line pt-3' }: { className?:
 
 const EXTERNAL_LINK = 'text-sm font-medium link'
 
-/** Carte qui n'existe qu'à partir de 768 px : en dessous, son bloc parent encadre déjà. */
-const DESKTOP_CARD = 'md:rounded md:border md:border-line md:bg-surface md:p-5 md:shadow-card'
 
 /**
  * La semaine en cours, résumée : ses nombres et ses jours, sans sélection. Une
  * semaine en cours encore vide laisse la place à la dernière semaine votée,
- * comme sur la page La semaine ; le titre le dit. À partir de 1280 px, la carte
- * tient dans une colonne de 380 px, à côté de ce qui devient loi ; le bouton
- * daté de l'accroche menant déjà à la semaine, son propre lien y disparaît.
+ * comme sur la page La semaine ; le titre le dit. Sous 1280 px, une bande grise
+ * bord à bord ; à partir de 1280 px, une colonne de 400 px dans la bande que
+ * partage ce qui devient loi. Le bouton daté de l'accroche menant déjà à la
+ * semaine, son propre lien disparaît à 1280 px.
  */
 function WeekSummary({ week }: { week: WeekResponse }) {
   const texts = week.texts_count
   return (
-    <section aria-labelledby="semaine" className="space-y-2.5">
-      <div className="flex items-baseline justify-between gap-3">
+    <section aria-labelledby="semaine" className="max-xl:band max-xl:py-8">
+      <div className="flex items-baseline justify-between gap-3 xl:block">
         <h3 id="semaine" className="heading-4">
           {week.is_current ? 'Cette semaine' : 'Dernière semaine de votes'}
         </h3>
-        <p className="text-[13px] text-ink-soft md:text-sm">{weekSpan(week.monday)}</p>
+        <p className="text-[13px] text-ink-faint md:text-sm xl:mt-1">{weekSpan(week.monday)}</p>
       </div>
-      <div className="flex flex-col gap-3 rounded border border-line bg-surface p-4 md:grid md:grid-cols-[minmax(0,420px)_minmax(0,1fr)] md:items-center md:gap-x-10 md:px-6 md:py-5 xl:flex xl:items-stretch xl:p-5">
-        <WeekFigures totals={week.totals} />
-        <DayPills days={week.days} compact />
-        <p className="border-t border-line pt-2.5 text-[12.5px] leading-[18px] text-ink-faint md:col-span-2 md:pt-3 md:text-[13px]">
-          Sur {texts} texte{texts > 1 ? 's' : ''}
-          {week.last_published &&
-            ` · dernier vote publié le ${new Date(week.last_published + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
-        </p>
+      <div className="mt-4 md:mt-5 md:grid md:grid-cols-[minmax(0,380px)_minmax(0,1fr)] md:items-end md:gap-x-10 xl:mt-4 xl:block">
+        <WeekFigures totals={week.totals} large />
+        <div className="mt-5 md:mt-0 xl:mt-6">
+          <DayBars days={week.days} />
+        </div>
       </div>
-      <Link to="/semaine" className="inline-block text-sm font-medium link xl:hidden">
+      <p className="mt-5 text-[13px] leading-[18px] text-ink-faint">
+        Sur {texts} texte{texts > 1 ? 's' : ''}
+        {week.last_published &&
+          ` · dernier vote publié le ${new Date(week.last_published + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
+      </p>
+      <Link to="/semaine" className="mt-1 inline-flex min-h-11 items-center text-sm font-medium link xl:hidden">
         Tous les votes de la semaine
       </Link>
     </section>
@@ -400,153 +403,163 @@ export default function LandingPage() {
 
   const vote = latest.data?.items[0]
   const groups = latest.data?.groups ?? []
+  const card = vote ? finalVoteCard(vote, groups) : null
 
   return (
-    <div className="space-y-8 md:space-y-12">
+    <div className="flex flex-col gap-11 md:gap-14">
       {/* À partir de 1280 px : l'accroche en bande (boutons à droite), le dernier
           vote en pleine largeur, puis la semaine et ce qui devient loi côte à côte
-          (variante C du 22/11/2026). */}
-      <div className="grid gap-8 md:gap-14 xl:gap-10">
-        <section
-          aria-labelledby="promesse"
-          className="rise-in md:pt-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-x-10 xl:pt-2"
+          (variante C du 22/11/2026). Sous 1280 px, la semaine est une bande grise ;
+          à partir de 1280 px, la bande les réunit. */}
+      <section
+        aria-labelledby="promesse"
+        className="rise-in md:pt-6 xl:grid xl:grid-cols-[minmax(0,1fr)_auto] xl:gap-x-10 xl:pt-2"
+      >
+        <p className="text-[13px] font-medium text-ink-soft">Assemblée nationale</p>
+        <h2
+          id="promesse"
+          className="mt-3 heading-1 max-sm:text-[38px] max-sm:leading-[40px] sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px] xl:mt-2 xl:text-[50px] xl:leading-[54px]"
         >
-          <p className="text-xs font-semibold tracking-[0.06em] text-accent uppercase">
-            Assemblée nationale
-          </p>
-          <h2
-            id="promesse"
-            className="mt-2 heading-1 sm:text-[58px] sm:leading-[58px] md:max-w-[780px] md:text-[64px] md:leading-[66px] xl:mt-1.5 xl:text-[50px] xl:leading-[54px]"
+          Les votes de l’Assemblée, sur pièces.
+        </h2>
+        <p className="mt-4 max-w-xl text-base leading-relaxed text-ink-soft xl:max-w-[640px] xl:text-lg">
+          Ce que chaque groupe a voté, texte par texte. Des chiffres bruts et la source
+          officielle, sans sélection ni commentaire.
+        </p>
+        <div className="mt-5 flex flex-col items-start gap-1 sm:flex-row sm:flex-wrap sm:items-stretch sm:gap-2 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0 xl:flex-nowrap xl:justify-end xl:self-end">
+          <Link
+            to="/semaine"
+            className={`group inline-flex min-h-[64px] items-center justify-between gap-3 self-stretch rounded-2xl bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center sm:self-auto ${FOCUS_RING}`}
           >
-            Les votes de l’Assemblée, sur pièces.
-          </h2>
-          <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-soft sm:text-base">
-            Ce que chaque groupe a voté, texte par texte. Des chiffres bruts et la source
-            officielle, sans sélection ni commentaire.
-          </p>
-          <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:mt-0 xl:self-end xl:justify-end">
-            <Link
-              to="/semaine"
-              className={`group inline-flex min-h-[64px] items-center justify-between gap-3 rounded bg-accent px-5 py-2 text-surface transition-colors hover:bg-accent-strong sm:justify-center ${FOCUS_RING}`}
-            >
-              <span className="flex flex-col text-left">
-                <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
-                {week.data && (
-                  <span className="text-[13px] leading-[18px] font-medium text-surface/80">
-                    {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
-                  </span>
-                )}
-              </span>
-              <Arrow />
-            </Link>
-            <Link
-              to="/candidats-2027"
-              className={`group inline-flex min-h-12 items-center justify-center gap-2 rounded bg-accent-soft px-5 text-[15px] font-semibold text-accent transition-colors hover:bg-accent-soft/70 sm:basis-full md:basis-auto ${FOCUS_RING}`}
-            >
-              Comparer les programmes de 2027
-              <Arrow />
-            </Link>
-          </div>
-          <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
-        </section>
-
-        <section aria-labelledby="dernier-vote" className="space-y-2.5">
-          <h3 id="dernier-vote" className="heading-4">
-            Dernier vote sur l’ensemble d’un texte
-          </h3>
-          {vote ? (
-            <VoteCard
-              size="full"
-              wide
-              {...finalVoteCard(vote, groups)}
-              figure={
-                <LatestVoteHemicycle
-                  scrutinUid={vote.scrutin_uid}
-                  tally={vote.synthesis}
-                  labelledBy="dernier-vote"
-                />
-              }
-            />
-          ) : (
-            <Card className="px-4 py-6">
-              {latest.isError ? (
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-ink">
-                    Le dernier vote n’est pas disponible pour le moment.
-                  </p>
-                  <p className="text-sm leading-relaxed text-ink-soft">
-                    Aucun résultat n’est remplacé par une estimation.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => void latest.refetch()}
-                    className="text-sm font-medium link"
-                  >
-                    Réessayer
-                  </button>
-                </div>
-              ) : latest.data ? (
-                <p className="text-sm text-ink-soft">Aucun vote sur l’ensemble n’est encore publié.</p>
-              ) : (
-                <Loading>Chargement du dernier vote…</Loading>
+            <span className="flex flex-col text-left">
+              <span className="text-[15px] leading-[21px] font-semibold">Votes de la semaine</span>
+              {week.data && (
+                <span className="text-[13px] leading-[18px] font-medium text-surface/80">
+                  {weekSpan(week.data.monday)} · {votesWord(week.data.totals.votes)}
+                </span>
               )}
-            </Card>
-          )}
-        </section>
-
-        <div className="grid gap-8 empty:hidden md:gap-14 xl:grid-cols-[380px_minmax(0,1fr)] xl:items-start xl:gap-6">
-          {week.data && <WeekSummary week={week.data} />}
-          <BecomingLawCard />
+            </span>
+            <Arrow />
+          </Link>
+          {/* Sous 768 px, un lien de texte ; au-delà, le bouton gris. */}
+          <Link
+            to="/candidats-2027"
+            className={`group inline-flex min-h-11 items-center gap-2 text-[15px] font-semibold link sm:basis-full md:min-h-[64px] md:basis-auto md:justify-center md:rounded-2xl md:bg-surface md:px-5 md:no-underline md:transition-colors md:hover:bg-surface-soft ${FOCUS_RING}`}
+          >
+            Comparer les programmes de 2027
+            <Arrow />
+          </Link>
         </div>
+        <Landmarks groupCount={latest.data ? latest.data.groups.length : null} />
+      </section>
+
+      <section aria-labelledby="dernier-vote" className="space-y-2.5">
+        <h3 id="dernier-vote" className="heading-4">
+          Dernier vote sur l’ensemble d’un texte
+        </h3>
+        {vote && card ? (
+          <VoteCard
+            size="full"
+            wide
+            outcomeInFigure
+            {...card}
+            figure={
+              <LatestVoteHemicycle
+                scrutinUid={vote.scrutin_uid}
+                tally={vote.synthesis}
+                labelledBy="dernier-vote"
+                centre={
+                  <VoteIssue
+                    adopted={card.adopted}
+                    outcome={card.outcome}
+                    outcomeTitle={card.outcomeTitle}
+                    reading={card.reading}
+                  />
+                }
+              />
+            }
+          />
+        ) : (
+          <Card className="px-4 py-6">
+            {latest.isError ? (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-ink">
+                  Le dernier vote n’est pas disponible pour le moment.
+                </p>
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  Aucun résultat n’est remplacé par une estimation.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void latest.refetch()}
+                  className="text-sm font-medium link"
+                >
+                  Réessayer
+                </button>
+              </div>
+            ) : latest.data ? (
+              <p className="text-sm text-ink-soft">Aucun vote sur l’ensemble n’est encore publié.</p>
+            ) : (
+              <Loading>Chargement du dernier vote…</Loading>
+            )}
+          </Card>
+        )}
+      </section>
+
+      <div className="grid gap-11 empty:hidden md:gap-14 xl:band xl:grid-cols-[400px_minmax(0,1fr)] xl:items-start xl:gap-x-6 xl:py-10">
+        {week.data && <WeekSummary week={week.data} />}
+        <BecomingLawCard />
       </div>
 
-      {/* Sous 768 px : liste, puis une carte pour les règles et les refus. Au-delà :
-          tuiles, puis deux cartes de même hauteur. À partir de 1280 px, une
-          troisième carte reprend les sources et les pièces, dont les sections
-          suivantes disparaissent. */}
-      <div className="grid items-start gap-8 md:gap-4 md:border-t md:border-line md:pt-12">
-        <section ref={usagesRef} aria-labelledby="usages">
-          <h3 id="usages" className="heading-4 md:heading-2">
-            À quoi ça sert
-          </h3>
-          <ul className="mt-2 md:mt-5 md:grid md:grid-cols-2 md:gap-3 lg:grid-cols-4">
-            {USAGES.map((usage, index) => (
-              <li key={usage.titre} className="reveal-item" style={revealRank(index)}>
-                <Link
-                  to={usage.to}
-                  className={`group flex items-center gap-3 border-t border-line py-3 md:h-full md:items-start md:rounded md:border md:bg-surface md:px-5 md:py-4 md:shadow-card md:transition-[border-color,transform] md:hover:border-line-strong motion-safe:md:hover:-translate-y-0.5 ${FOCUS_RING}`}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14.5px] font-semibold text-ink transition-colors group-hover:text-accent md:text-base">
-                      {usage.titre}
-                    </span>
-                    <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft md:mt-1.5 md:text-sm md:leading-normal">
-                      {usage.texte}
-                    </span>
+      <section ref={usagesRef} aria-labelledby="usages">
+        <h3 id="usages" className="heading-4 md:heading-2">
+          À quoi ça sert
+        </h3>
+        <ul className="mt-2 md:mt-5 md:grid md:grid-cols-2 md:gap-x-6 lg:grid-cols-4">
+          {USAGES.map((usage, index) => (
+            <li key={usage.titre} className="reveal-item" style={revealRank(index)}>
+              <Link
+                to={usage.to}
+                className={`group flex items-center gap-3 border-t border-line py-3.5 md:h-full md:items-start md:pt-[18px] md:pb-3 ${FOCUS_RING}`}
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] leading-snug font-semibold text-ink group-hover:underline md:text-base">
+                    {usage.titre}
                   </span>
-                  <Arrow className="size-4 shrink-0 text-ink-faint transition-colors group-hover:text-accent md:mt-1 md:text-accent" />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-ink-soft md:mt-1.5 md:text-sm md:leading-normal">
+                    {usage.texte}
+                  </span>
+                </span>
+                <Arrow className="size-[18px] shrink-0 text-accent md:mt-0.5" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-        <h3 className="hidden heading-2 xl:mt-6 xl:block">Sur pièces, et rien d’autre</h3>
+      {/* Sous 768 px : une bande pour les règles, puis les refus à plat. Au-delà :
+          une seule bande, règles et refus côte à côte. À partir de 1280 px, une
+          troisième colonne reprend les sources et les pièces, dont les sections
+          suivantes disparaissent. */}
+      <div className="md:band md:py-10 xl:py-11">
+        <h3 className="hidden heading-2 xl:mb-7 xl:block">Sur pièces, et rien d’autre</h3>
         <section
           ref={reglesRef}
           aria-labelledby="regles"
-          className="rounded border border-line bg-surface p-4 shadow-card sm:p-5 md:grid md:grid-cols-2 md:gap-3 md:border-0 md:bg-transparent md:p-0 md:shadow-none xl:grid-cols-3"
+          className="flex flex-col gap-11 md:grid md:grid-cols-2 md:gap-0 xl:grid-cols-3"
         >
-          <div className={`${DESKTOP_CARD} reveal-item`} style={revealRank(0)}>
-            <h3 id="regles" className="text-[15px] font-semibold md:text-base">
+          <div className="reveal-item max-md:band max-md:py-8 md:pr-8 xl:pr-10" style={revealRank(0)}>
+            <h3 id="regles" className="heading-4">
               Trois règles
             </h3>
-            <ul className="mt-3 space-y-2.5">
+            <ol className="mt-4 space-y-3.5 [counter-reset:rule]">
               {REGLES.map((regle) => (
-                <li key={regle.titre} className="flex items-start gap-2.5">
-                  <CheckBullet />
-                  <span className="text-[13.5px] leading-snug text-ink-soft">
-                    <b className="font-semibold text-ink">{regle.titre}</b> {regle.texte}
+                <li
+                  key={regle.titre}
+                  className="grid grid-cols-[28px_minmax(0,1fr)] gap-2.5 [counter-increment:rule] before:font-heading before:text-[22px] before:leading-none before:font-[560] before:text-accent before:content-[counter(rule)]"
+                >
+                  <span className="text-sm leading-normal text-ink-soft">
+                    <b className="block font-semibold text-ink">{regle.titre}</b> {regle.texte}
                     {regle.lien && (
                       <>
                         {' '}
@@ -558,28 +571,29 @@ export default function LandingPage() {
                   </span>
                 </li>
               ))}
-            </ul>
+            </ol>
           </div>
-          <div className={`${DESKTOP_CARD} reveal-item`} style={revealRank(1)}>
-            <h4 className="mt-4 border-t border-line pt-3.5 text-[13.5px] font-semibold text-ink md:mt-0 md:border-t-0 md:pt-0 md:text-base">
-              Ce que ce site ne fait pas
-            </h4>
-            <ul className="mt-2 space-y-1.5">
+          <div className="reveal-item md:border-l md:border-line md:pl-8 xl:px-8" style={revealRank(1)}>
+            <h4 className="heading-4">Ce que ce site ne fait pas</h4>
+            <ul className="mt-4 space-y-2.5">
               {REFUS.map((refus) => (
-                <li key={refus} className="flex items-start gap-2 text-[13px] leading-snug text-ink-soft">
-                  <span aria-hidden className="mt-[7px] h-px w-2.5 shrink-0 bg-ink-faint" />
+                <li key={refus} className="flex items-start gap-2.5 text-sm leading-[1.45] text-ink-soft">
+                  <XMark />
                   {refus}
                 </li>
               ))}
             </ul>
           </div>
-          <div className={`${DESKTOP_CARD} reveal-item hidden xl:block`} style={revealRank(2)}>
-            <h4 className="text-base font-semibold text-ink">Tout se vérifie</h4>
-            <ul className="mt-2">
+          <div
+            className="reveal-item hidden xl:block xl:border-l xl:border-line xl:pl-8"
+            style={revealRank(2)}
+          >
+            <h4 className="heading-4">Tout se vérifie</h4>
+            <ul className="mt-4">
               {VERIFIABLE.map((item) => (
-                <li key={item.titre} className="border-t border-line py-2.5 first:border-t-0 first:pt-1">
-                  <p className="text-sm font-semibold text-ink">{item.titre}</p>
-                  <p className="mt-0.5 text-[13px] leading-snug text-ink-soft">{item.texte}</p>
+                <li key={item.titre} className="border-t border-line py-3.5 first:border-t-0 first:pt-0">
+                  <p className="font-semibold text-ink">{item.titre}</p>
+                  <p className="mt-0.5 text-sm leading-normal text-ink-soft">{item.texte}</p>
                   {item.external ? (
                     <a href={item.to} target="_blank" rel="noreferrer" className={`mt-1 inline-block ${EXTERNAL_LINK}`}>
                       {item.label}
@@ -594,12 +608,12 @@ export default function LandingPage() {
             </ul>
           </div>
         </section>
-        <div className={`${DESKTOP_CARD} hidden xl:block xl:py-3.5`}>
-          <Credits className="" />
-        </div>
+      </div>
+      <div className="hidden xl:block">
+        <Credits className="border-t border-line pt-3.5" />
       </div>
 
-      <section ref={piecesRef} aria-labelledby="pieces" className="border-t border-line pt-8 xl:hidden">
+      <section ref={piecesRef} aria-labelledby="pieces" className="xl:hidden">
         <SectionHead
           id="pieces"
           surtitre="Derrière chaque vote"
@@ -607,18 +621,18 @@ export default function LandingPage() {
           chapo="Le site ne reconstitue pas les motivations d’un groupe et ne les résume pas à sa place : il rassemble ce qui est attribué, daté et public autour de chaque vote."
           info={NEVER_SHOWN}
         />
-        <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="mt-5 grid sm:grid-cols-2 sm:gap-x-6 lg:grid-cols-4">
           {PIECES.map((piece, index) => (
             <li key={piece.titre} className="reveal-item" style={revealRank(index)}>
-              <Card className="h-full px-4 py-3.5">
-                <h4 className="flex items-center gap-2 text-sm font-semibold">
-                  <span className="inline-flex size-6 shrink-0 items-center justify-center rounded bg-accent-soft text-[11px] font-semibold text-accent tabular-nums">
+              <div className="h-full border-t border-line py-3.5">
+                <h4 className="flex items-center gap-2.5 text-[15px] font-semibold">
+                  <span className="font-heading text-[22px] leading-none font-[560] text-accent tabular-nums">
                     {index + 1}
                   </span>
                   {piece.titre}
                 </h4>
                 <p className="mt-1 text-[13px] leading-snug text-ink-soft">{piece.texte}</p>
-              </Card>
+              </div>
             </li>
           ))}
         </ol>
@@ -627,54 +641,52 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section ref={sourcesRef} aria-labelledby="sources" className="border-t border-line pt-8 xl:hidden">
+      <section ref={sourcesRef} aria-labelledby="sources" className="xl:hidden">
         <SectionHead id="sources" surtitre="Sources" titre="Tout vient de l’Assemblée, et se vérifie" />
-        <Card className="mt-5 px-4 py-4 sm:px-5">
-          <div className="grid gap-5 md:grid-cols-3">
-            <div>
-              <h4 className="text-sm font-semibold">Données</h4>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
-                Open data de l’Assemblée nationale, sous Licence Ouverte : votes nominatifs,
-                députés et groupes avec leurs appartenances datées, textes. Rien n’est saisi à
-                la main ni corrigé en silence. Le Sénat est hors périmètre.
-              </p>
-              <a
-                href="https://data.assemblee-nationale.fr"
-                target="_blank"
-                rel="noreferrer"
-                className={`mt-1.5 inline-block ${EXTERNAL_LINK}`}
-              >
-                data.assemblee-nationale.fr ↗
-              </a>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold">Code source</h4>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
-                Ingestion, rattachement aux sujets, affichage : le dépôt public permet de tout
-                vérifier, de signaler une erreur ou de proposer une correction.
-              </p>
-              <a
-                href={GITHUB_REPOSITORY_URL}
-                target="_blank"
-                rel="noreferrer"
-                className={`mt-1.5 inline-block ${EXTERNAL_LINK}`}
-              >
-                Le dépôt sur GitHub ↗
-              </a>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold">Vocabulaire</h4>
-              <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
-                Non-votant, abstention, scrutin solennel, motion de censure : chaque mot de la
-                procédure est expliqué, en deux niveaux de lecture.
-              </p>
-              <Link to="/comprendre" className={`mt-1.5 inline-block ${EXTERNAL_LINK}`}>
-                Comprendre
-              </Link>
-            </div>
+        <div className="mt-5 grid md:grid-cols-3 md:gap-x-8">
+          <div className="border-t border-line py-4">
+            <h4 className="text-[15px] font-semibold">Données</h4>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
+              Open data de l’Assemblée nationale, sous Licence Ouverte : votes nominatifs,
+              députés et groupes avec leurs appartenances datées, textes. Rien n’est saisi à
+              la main ni corrigé en silence. Le Sénat est hors périmètre.
+            </p>
+            <a
+              href="https://data.assemblee-nationale.fr"
+              target="_blank"
+              rel="noreferrer"
+              className={`mt-1.5 inline-block ${EXTERNAL_LINK}`}
+            >
+              data.assemblee-nationale.fr ↗
+            </a>
           </div>
-          <Credits />
-        </Card>
+          <div className="border-t border-line py-4">
+            <h4 className="text-[15px] font-semibold">Code source</h4>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
+              Ingestion, rattachement aux sujets, affichage : le dépôt public permet de tout
+              vérifier, de signaler une erreur ou de proposer une correction.
+            </p>
+            <a
+              href={GITHUB_REPOSITORY_URL}
+              target="_blank"
+              rel="noreferrer"
+              className={`mt-1.5 inline-block ${EXTERNAL_LINK}`}
+            >
+              Le dépôt sur GitHub ↗
+            </a>
+          </div>
+          <div className="border-t border-line py-4">
+            <h4 className="text-[15px] font-semibold">Vocabulaire</h4>
+            <p className="mt-1 text-[13.5px] leading-relaxed text-ink-soft">
+              Non-votant, abstention, scrutin solennel, motion de censure : chaque mot de la
+              procédure est expliqué, en deux niveaux de lecture.
+            </p>
+            <Link to="/comprendre" className={`mt-1.5 inline-block ${EXTERNAL_LINK}`}>
+              Comprendre
+            </Link>
+          </div>
+        </div>
+        <Credits className="border-t border-line pt-3.5" />
       </section>
     </div>
   )

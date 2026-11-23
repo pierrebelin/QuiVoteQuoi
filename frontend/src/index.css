@@ -498,6 +498,18 @@ body {
 }
 
 /*
+ * Bande (refonte A) : fond gris de la page, bord à bord, pour rythmer une page
+ * longue. Le contenu reste dans les marges de la page ; seul le fond les
+ * dépasse (ombre étalée, rognée en hauteur), sans élargir la page ni créer de
+ * défilement horizontal.
+ */
+@utility band {
+  background: var(--color-surface);
+  box-shadow: 0 0 0 100vmax var(--color-surface);
+  clip-path: inset(0 -100vmax);
+}
+
+/*
  * Vignette d'une famille de thèmes (FamilyIllustration). La teinte propre à la
  * famille est mêlée à la surface plutôt que posée telle quelle : le fond reste
  * pâle en clair, sombre en sombre, sans second jeu de couleurs. Le trait

@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import CountUp from './CountUp'
-import Hemicycle from './Hemicycle'
+import Hemicycle, { CentreHemicycle } from './Hemicycle'
 import { PLAN_VUE } from './planHemicycle'
 import { siegesDesGroupes } from './sieges'
 import { fetchJson } from '../lib/fetchJson'
@@ -23,10 +24,13 @@ export default function LatestVoteHemicycle({
   scrutinUid,
   tally,
   labelledBy,
+  centre,
 }: {
   scrutinUid: string
   tally: TallyDto
   labelledBy?: string
+  /** Inscrit dans le creux de l'hémicycle : l'issue du vote (`VoteIssue`). */
+  centre?: ReactNode
 }) {
   const scrutin = useQuery({
     queryKey: ['scrutin', scrutinUid],
@@ -38,26 +42,31 @@ export default function LatestVoteHemicycle({
   return (
     <figure className="mx-auto w-full max-w-[440px]">
       {scrutin.data && seats.length > 0 ? (
-        <Hemicycle votes={seats} labelledBy={labelledBy} />
+        <Hemicycle votes={seats} labelledBy={labelledBy} centre={centre} />
       ) : scrutin.data || scrutin.isError ? (
-        <p className="rounded border border-line bg-surface-soft px-3 py-2 text-sm text-ink-soft">
-          {scrutin.isError
-            ? 'Les sièges de ce vote ne sont pas disponibles pour le moment.'
-            : 'La source ne publie aucune position nominale exploitable pour représenter l’hémicycle de ce vote.'}
-        </p>
+        // Sans dessin, l'issue ne perd pas sa place : elle passe au-dessus du message.
+        <>
+          {centre && <div className="mb-2 flex justify-center">{centre}</div>}
+          <p className="rounded border border-line bg-surface-soft px-3 py-2 text-sm text-ink-soft">
+            {scrutin.isError
+              ? 'Les sièges de ce vote ne sont pas disponibles pour le moment.'
+              : 'La source ne publie aucune position nominale exploitable pour représenter l’hémicycle de ce vote.'}
+          </p>
+        </>
       ) : (
         // Place réservée pendant le chargement : la carte ne saute pas.
         <div
-          aria-hidden
-          className="w-full"
+          className="relative w-full"
           style={{ aspectRatio: `${PLAN_VUE.largeur} / ${PLAN_VUE.hauteur}` }}
-        />
+        >
+          {centre && <CentreHemicycle>{centre}</CentreHemicycle>}
+        </div>
       )}
       <figcaption className="mt-3.5 grid grid-cols-3 gap-2">
         {COUNTS.map((count) => (
           <span key={count.key}>
             <span
-              className={`block font-heading text-[40px] leading-none font-[560] tracking-[-0.04em] ${count.className}`}
+              className={`block font-heading text-[34px] leading-none font-[560] xl:text-[44px] tracking-[-0.04em] ${count.className}`}
             >
               <CountUp value={tally[count.key]} />
             </span>

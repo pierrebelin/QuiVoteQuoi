@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
-import { LawStateGroupHeading, LawStateRow } from './LawStateList'
+import { LawStateRow } from './LawStateList'
 import type { DossierCardDto, DossierPageResponse } from './DossierCard'
 import { formatShortDate } from '../lib/dossierStatus'
 import { fetchJson } from '../lib/fetchJson'
@@ -33,6 +34,13 @@ const statePage = (state: LawStateKind, perPage: number) =>
 const listPath = (stateParam: string) => `/scrutins?vue=texte&textes=tous&etat=${stateParam}`
 
 const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+/** Intitulé d'un groupe de textes : le libellé de la bande, sans majuscules ni espacement. */
+function GroupLabel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return (
+    <h4 className={`mb-2 text-[13px] leading-[18px] font-semibold text-ink-faint ${className}`}>{children}</h4>
+  )
+}
 
 function AdoptedRow({
   dossier,
@@ -99,23 +107,21 @@ export default function BecomingLawCard() {
   const beyondWide = adoptedTotal - ADOPTED_WIDE
 
   return (
-    <section aria-labelledby="devient-loi" className="space-y-2.5">
-      <div className="flex items-baseline justify-between gap-3">
-        <h3 id="devient-loi" className="heading-4">
-          Ce qui devient loi
-        </h3>
-        <p className="hidden text-[13px] text-ink-soft xl:block">
-          Votés dans les mêmes termes par l’Assemblée et le Sénat
-        </p>
-      </div>
-      <div className="rounded border border-line bg-surface p-4 md:px-6 md:py-5 xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:items-start xl:gap-x-7 xl:px-[22px] xl:py-[18px]">
-        <p className="mb-3.5 text-[13px] leading-[19px] text-ink-soft xl:hidden">
-          Textes votés dans les mêmes termes par l’Assemblée et le Sénat.
-        </p>
+    <section aria-labelledby="devient-loi" className="xl:border-l xl:border-line xl:pl-10">
+      <h3 id="devient-loi" className="heading-4">
+        Ce qui devient loi
+      </h3>
+      <p className="mt-1 text-[13px] leading-[19px] text-ink-faint xl:hidden">
+        Textes votés dans les mêmes termes par l’Assemblée et le Sénat.
+      </p>
+      <p className="mt-1 hidden text-[13px] leading-[19px] text-ink-faint xl:block">
+        Votés dans les mêmes termes par l’Assemblée et le Sénat
+      </p>
+      <div className="mt-4 xl:mt-5 xl:grid xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] xl:items-start xl:gap-x-8">
         <div>
-          <LawStateGroupHeading kind="definitively_adopted" first>
+          <GroupLabel>
             {LAW_STATE_FILTER_LABELS.definitively_adopted} · promulgation attendue
-          </LawStateGroupHeading>
+          </GroupLabel>
           {adoptedItems.length > 0 ? (
             adoptedItems.map((dossier, index) => (
               <AdoptedRow key={dossier.uid} dossier={dossier} today={today} hiddenWide={index >= ADOPTED_WIDE} />
@@ -141,9 +147,7 @@ export default function BecomingLawCard() {
         </div>
         {lawItems.length > 0 && (
           <div>
-            <LawStateGroupHeading kind="became_law" className="xl:mt-0">
-              {LAW_STATE_FILTER_LABELS.became_law} récemment
-            </LawStateGroupHeading>
+            <GroupLabel className="mt-8 xl:mt-0">{LAW_STATE_FILTER_LABELS.became_law} récemment</GroupLabel>
             {lawItems.map((dossier) => (
               <LawRow key={dossier.uid} dossier={dossier} today={today} />
             ))}

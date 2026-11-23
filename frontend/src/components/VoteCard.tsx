@@ -70,6 +70,9 @@ export interface VoteCardProps {
    * l'intitulé, au-dessus des groupes ; à partir de 1024 px, l'intitulé prend
    * toute la largeur et la figure se place à gauche des groupes. */
   figure?: ReactNode
+  /** Carte à figure seulement : l'issue est inscrite dans la figure (`VoteIssue`),
+   * l'en-tête ne la répète pas ; il ne garde que ce qui est mis aux voix et la date. */
+  outcomeInFigure?: boolean
 }
 
 const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`
@@ -117,6 +120,35 @@ export function VoteCardHeader({
         {reading && <> · {readingShort(reading)}</>}
       </span>
       <time dateTime={date}>{formatDate(date)}</time>
+    </p>
+  )
+}
+
+/**
+ * L'issue du vote inscrite dans le creux de l'hémicycle : la pastille et le mot,
+ * puis la lecture en dessous. Le « · » du texte d'origine reste lu par les
+ * lecteurs d'écran.
+ */
+export function VoteIssue({
+  adopted,
+  outcome,
+  outcomeTitle,
+  reading,
+}: Pick<VoteCardProps, 'adopted' | 'outcome' | 'outcomeTitle' | 'reading'>) {
+  return (
+    <p title={outcomeTitle} className="flex flex-col items-center gap-0.5">
+      <span
+        className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${adopted ? 'text-yes' : 'text-no'}`}
+      >
+        <StateDot position={adopted ? 'for' : 'against'} />
+        {outcome}
+      </span>
+      {reading && (
+        <span className="text-xs leading-tight font-medium whitespace-nowrap text-ink-soft">
+          <span className="sr-only"> · </span>
+          {readingShort(reading)}
+        </span>
+      )}
     </p>
   )
 }
@@ -295,6 +327,7 @@ export default function VoteCard({
   bare = false,
   wide = false,
   figure,
+  outcomeInFigure = false,
 }: VoteCardProps) {
   const compact = size === 'compact'
   const withFigure = wide && figure != null
@@ -322,14 +355,27 @@ export default function VoteCard({
       }`}
     >
       <div className="space-y-1.5">
-        <VoteCardHeader
-          adopted={adopted}
-          outcome={outcome}
-          outcomeTitle={outcomeTitle}
-          reading={reading}
-          date={date}
-        />
-        {kicker && <p className="text-[12.5px] font-medium text-ink-soft">{kicker}</p>}
+        {withFigure && outcomeInFigure ? (
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[13px] text-ink-faint">
+            {/* La date reste avant la mention dans le texte, comme dans l'en-tête commun ;
+                `order` les remet dans le sens de lecture. */}
+            <time dateTime={date} className="order-2 whitespace-nowrap">
+              {formatDate(date)}
+            </time>
+            <span className="order-1 font-semibold whitespace-nowrap text-ink-soft">{kicker}</span>
+          </p>
+        ) : (
+          <>
+            <VoteCardHeader
+              adopted={adopted}
+              outcome={outcome}
+              outcomeTitle={outcomeTitle}
+              reading={reading}
+              date={date}
+            />
+            {kicker && <p className="text-[12.5px] font-medium text-ink-soft">{kicker}</p>}
+          </>
+        )}
         <h3
           className={`text-ink ${
             compact

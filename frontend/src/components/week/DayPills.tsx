@@ -1,18 +1,5 @@
-import { capitalized } from '../../lib/entryFlow'
-import type { WeekDay, WeekDayState } from '../../types/week'
-
-function weekday(iso: string, weekday: 'short' | 'long') {
-  const label = capitalized(new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', { weekday, day: 'numeric' }))
-  // « Lun 9 » → « Lun. 9 » : l'abréviation garde son point.
-  return weekday === 'short' ? label.replace(/^(\p{L}+)\.? /u, '$1. ') : label
-}
-
-/** Jour sans vote : un signe sur téléphone, sa légende à partir de 768 px (RM-06). */
-const EMPTY: Record<Exclude<WeekDayState, 'voted'>, { mark: string; caption: string }> = {
-  no_public_vote: { mark: '—', caption: 'aucun vote public' },
-  not_yet_published: { mark: '…', caption: 'pas encore publié' },
-  upcoming: { mark: '…', caption: 'à venir' },
-}
+import type { WeekDay } from '../../types/week'
+import { EMPTY, weekday } from './dayLabels'
 
 /**
  * Une pastille par jour de la semaine, avec son nombre de votes. Un jour sans
