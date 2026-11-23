@@ -21,7 +21,7 @@ export default function TextList({
   }
 
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+    <ul className="divide-y divide-line overflow-hidden rounded bg-surface">
       {texts.map((text) => (
         <li
           key={text.key}

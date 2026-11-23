@@ -44,7 +44,7 @@ function Repere({ n, children }: { n: number; children: ReactNode }) {
 function Morceau({ children }: { children: ReactNode }) {
   return (
     <div className="pl-3.5">
-      <div className="flex flex-col gap-2.5 rounded border border-line bg-surface p-4 shadow-card sm:px-5">
+      <div className="flex flex-col gap-2.5 rounded bg-surface p-4 sm:px-5">
         {children}
       </div>
     </div>

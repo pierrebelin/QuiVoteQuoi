@@ -104,7 +104,7 @@ export default function WeekTextCard({
 
   if (!text.dossier_uid) {
     return (
-      <article className="overflow-hidden rounded border border-line bg-surface shadow-card">
+      <article className="overflow-hidden rounded bg-surface">
         <header className="px-[18px] pt-3 pb-3.5">
           <h2 className="text-[16.5px] leading-snug font-semibold text-ink">Votes sans texte rattaché</h2>
           <p className="mt-1 text-[12.5px] text-ink-soft">La source ne publie pas de texte rattaché pour ces votes.</p>

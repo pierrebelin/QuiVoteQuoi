@@ -91,7 +91,7 @@ export function SectionTitle({
 
 /* ------------------------------------------------------------- conteneurs */
 
-/** Carte : fond, trait fin, ombre d'un pixel. Aucun dégradé, aucun relief. */
+/** Carte : le gris des cartes, sans bordure ni ombre. Aucun dégradé, aucun relief. */
 export function Card({
   children,
   className = '',
@@ -103,7 +103,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded border border-line bg-surface shadow-card ${className}`}
+      className={`rounded bg-surface ${className}`}
       style={style}
     >
       {children}
@@ -124,7 +124,7 @@ export function ListCard({
 }) {
   return (
     <div
-      className={`divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card transition-opacity ${
+      className={`divide-y divide-line overflow-hidden rounded bg-surface transition-opacity ${
         muted ? 'opacity-50' : ''
       }`}
     >
@@ -148,7 +148,7 @@ export function Note({
 }) {
   return (
     <div
-      className={`rounded border border-line bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft ${
+      className={`rounded bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft ${
         desktopOnly ? 'hidden md:block' : ''
       }`}
     >

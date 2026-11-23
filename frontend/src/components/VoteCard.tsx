@@ -61,7 +61,7 @@ export interface VoteCardProps {
   tally: TallyDto
   /** Carte complète seulement. */
   groups?: VoteCardGroups
-  /** Sans cadre : la carte est une ligne d'un bloc qui l'encadre déjà. */
+  /** Sans fond : la carte est une ligne d'un bloc qui la porte déjà. */
   bare?: boolean
   /** Carte seule en pleine largeur : à partir de 1024 px, l'intitulé à gauche,
    * les groupes et le décompte à droite. */
@@ -312,7 +312,7 @@ export default function VoteCard({
       className={`group relative flex flex-col gap-2.5 ${
         bare
           ? 'px-4 py-3.5 sm:px-[18px]'
-          : 'rounded border border-line bg-surface p-4 shadow-card sm:px-5'
+          : 'rounded bg-surface p-4 sm:px-5'
       } ${compact ? 'transition-colors hover:bg-surface-soft/50' : ''} ${
         withFigure ? 'lg:px-7 lg:py-6' : ''
       } ${

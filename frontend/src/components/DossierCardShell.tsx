@@ -125,7 +125,7 @@ export default function DossierCardShell({
 
   return (
     <article
-      className={`group relative overflow-hidden rounded border border-line bg-surface shadow-card ${stretched ? 'transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
+      className={`group relative overflow-hidden rounded bg-surface ${stretched ? 'transition duration-200 hover:scale-[1.01] motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
     >
       {status && <DossierStatusBanner dossier={status} today={today} withLawState={withLawState} />}
 
