@@ -30,10 +30,12 @@ const env = process.env
 const dryRun = env.DRY_RUN === 'true'
 const manual = env.MANUAL === 'true'
 const base = (env.PUBLIC_BASE_URL ?? '').replace(/\/$/, '')
-const channels = [
-  { service: 'instagram', label: 'Instagram', id: env.BUFFER_INSTAGRAM_CHANNEL_ID },
-  { service: 'tiktok', label: 'TikTok', id: env.BUFFER_TIKTOK_CHANNEL_ID },
+// TikTok reste facultatif tant que son canal n'est pas connecté dans Buffer.
+const configuredChannels = [
+  { service: 'instagram', label: 'Instagram', id: env.BUFFER_INSTAGRAM_CHANNEL_ID, required: true },
+  { service: 'tiktok', label: 'TikTok', id: env.BUFFER_TIKTOK_CHANNEL_ID, required: false },
 ]
+const channels = configuredChannels.filter((channel) => channel.id)
 
 const log = (message) => console.log(message)
 let step = 'démarrage'
@@ -213,7 +215,11 @@ async function run() {
   const date = env.REEL_DATE || parisDate(now)
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`Date invalide : ${date}`)
   if (!base) throw new Error('PUBLIC_BASE_URL absent')
-  for (const channel of channels) if (!channel.id) throw new Error(`Canal Buffer ${channel.label} absent`)
+  for (const channel of configuredChannels) {
+    if (channel.id) continue
+    if (channel.required) throw new Error(`Canal Buffer ${channel.label} absent`)
+    log(`Canal Buffer ${channel.label} absent : sauté.`)
+  }
   log(`Reel du ${date}${dryRun ? ' (exécution à blanc)' : ''}${manual ? ', lancé à la main' : ''}`)
 
   step = 'porte horaire'
@@ -240,7 +246,7 @@ async function run() {
     : []
   const missing = channels.filter((channel) => !todayDrafts.some((post) => post.channelId === channel.id))
   if (missing.length === 0) {
-    log('Les deux brouillons du jour sont déjà déposés.')
+    log('Les brouillons du jour sont déjà déposés.')
     closeAlert(date)
     return
   }
