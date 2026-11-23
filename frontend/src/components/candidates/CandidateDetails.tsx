@@ -133,24 +133,26 @@ export function CandidateDetails({
   programHref: string
 }) {
   return (
-    <details className="group bg-surface">
-      <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-3.5 py-2 transition-colors marker:hidden hover:bg-surface-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
-        <CandidatePortrait candidate={candidate} className="size-10" />
+    // À plat, un filet entre deux candidatures ; ouverte, elle devient une
+    // carte grise (un objet), comme les lignes ouvertes de l'onglet Par sujet.
+    <details className="group border-t border-line open:my-1.5 open:rounded-[20px] open:border-t-0 open:bg-surface open:px-4 open:pb-1">
+      <summary className="flex min-h-16 cursor-pointer list-none items-center gap-3 py-2.5 marker:hidden focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent [&::-webkit-details-marker]:hidden">
+        <CandidatePortrait candidate={candidate} className="size-11" />
         <span className="min-w-0 flex-1">
-          <span className="block text-[15px] leading-tight font-semibold text-ink">
+          <span className="block text-base leading-tight font-[620] text-ink">
             {candidate.display_name}
           </span>
-          <span className="hidden text-[12.5px] leading-tight text-ink-soft md:block">
+          <span className="hidden text-[13px] leading-tight text-ink-faint md:block">
             Déclaration, sources et groupes associés
           </span>
         </span>
         <CandidateLogo candidate={candidate} className="hidden h-8 w-12 p-0.5 sm:flex" />
         <Icon
           name="chevron"
-          className="size-[18px] text-ink-soft transition-transform group-open:rotate-90"
+          className="size-[18px] text-ink-faint transition-transform group-open:rotate-90"
         />
       </summary>
-      <div className="space-y-4 border-t border-line px-4 py-4">
+      <div className="space-y-4 pt-1 pb-4">
         <CandidateSources candidate={candidate} />
         <ProgramLink to={programHref} />
         <section>

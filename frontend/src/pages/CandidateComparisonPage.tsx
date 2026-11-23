@@ -7,7 +7,7 @@ import { CandidateSlots } from '../components/candidates/CandidateSlots'
 import { SubjectCandidates, type FaceToFace } from '../components/candidates/SubjectCandidates'
 import { FaceToFaceBox, SubjectButton, SubjectList } from '../components/candidates/SubjectPicker'
 import { ThemeExcerpts, ThemeRow } from '../components/candidates/ThemeExcerptRows'
-import { Card, ErrorPanel, Loading, Note, PageHeader, SectionTitle } from '../components/ui'
+import { Card, ErrorPanel, ListCard, Loading, Note, PageHeader, SectionTitle } from '../components/ui'
 import { parseCandidateIds, shuffleWithSeed, sortByFamilyName } from '../lib/candidates'
 import { fetchJson } from '../lib/fetchJson'
 import { useMediaQuery } from '../lib/useMediaQuery'
@@ -287,12 +287,12 @@ export default function CandidateComparisonPage() {
                   <section className="space-y-2">
                     <SectionTitle info={data.proposals_note}>Extraits par sujet</SectionTitle>
                     {data.proposals_note && (
-                      <Note desktopOnly>
+                      <Note desktopOnly flat>
                         {data.proposals_note}
                       </Note>
                     )}
                     {families.data && (
-                      <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+                      <ListCard>
                         {families.data.families.map((family) => (
                           <ThemeRow
                             key={family.code}
@@ -303,23 +303,23 @@ export default function CandidateComparisonPage() {
                             <ThemeExcerpts theme={family.code} candidates={visible} />
                           </ThemeRow>
                         ))}
-                      </div>
+                      </ListCard>
                     )}
                   </section>
 
                   <section className="space-y-2">
                     <SectionTitle info={data.groups_note}>Sur chaque candidature</SectionTitle>
                     {data.groups_note && (
-                      <Note desktopOnly>
+                      <Note desktopOnly flat>
                         {data.groups_note}
                       </Note>
                     )}
                     {visible.length === 0 ? (
-                      <p className="rounded border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-ink-soft shadow-card">
+                      <p className="border-y border-line py-4 text-sm leading-relaxed text-ink-soft">
                         Choisissez une candidature pour lire sa déclaration, ses sources et les groupes parlementaires qui lui sont associés.
                       </p>
                     ) : (
-                      <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+                      <div className="border-b border-line">
                         {visible.map((candidate) => (
                           <CandidateDetails
                             key={candidate.id}
