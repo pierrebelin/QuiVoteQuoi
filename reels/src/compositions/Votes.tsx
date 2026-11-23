@@ -1,11 +1,11 @@
-import { Sequence, spring, useCurrentFrame, useVideoConfig, interpolate } from 'remotion'
+import { Easing, Sequence, spring, useCurrentFrame, useVideoConfig, interpolate } from 'remotion'
 import { leadingPosition, type LeadingPosition } from '../../../frontend/src/types/scrutins'
 import { Soundtrack } from '../components'
 import {
   BigCount,
   capitalize,
   CREAM,
-  Fade,
+  arcLabels,
   Hemicycle,
   Logo,
   NAVY,
@@ -13,6 +13,7 @@ import {
   ON_NAVY,
   outcomeColor,
   PAPER,
+  Push,
   REEL_SAFE,
   SEAT_EMPTY,
   Safe,
@@ -20,7 +21,7 @@ import {
   useFonts,
 } from '../motion'
 import { COLORS } from '../theme'
-import { GROUPS, HEMICYCLE, HOOK, PERIOD, scenesOf, VOTES_OUTRO } from '../timeline'
+import { HOOK, PERIOD, PUSH, scenesOf, VOTES_OUTRO, WHO_VOTED } from '../timeline'
 import type { ReelFinalVoteDto, ReelProps, ReelResponse, ScrutinDetailDto } from '../types'
 
 const MOST_FOLLOWED_CRITERION = 'Critère : le scrutin qui compte le plus de votants (pour, contre, abstention).'
@@ -68,34 +69,27 @@ function Hook({ reel, detail }: { reel: ReelResponse; detail: ScrutinDetailDto }
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const mf = reel.most_followed!
-  const adopted = detail.outcome_code.startsWith('adopt')
-  const stamp = spring({ frame: frame - 6, fps, config: { damping: 12, stiffness: 160 } })
-  const date = useEnter(0, 30)
-  const dossier = useEnter(18)
-  const subject = useEnter(30)
-  const numbers = useEnter(42, 120)
-  const items = [
-    { value: mf.tally.votes_for, label: 'pour' },
-    { value: mf.tally.votes_against, label: 'contre' },
-  ]
-  if (!adopted) items.reverse()
+  const stamp = spring({ frame: frame - 4, fps, config: { damping: 12, stiffness: 160 } })
+  const kicker = useEnter(0, 30)
+  const dossier = useEnter(14)
+  const subject = useEnter(24)
+  const label = detail.dossier_label
   return (
     <Safe background={outcomeColor(detail.outcome_code)} color="#ffffff">
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 36 }}>
-        <div style={{ ...date, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 42, fontWeight: 600, opacity: 0.85 }}>Assemblée nationale · {reel.period.label}</span>
-          <span style={{ fontSize: 42, fontWeight: 800 }}>Le scrutin le plus suivi</span>
-        </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 56 }}>
+        <span style={{ ...kicker, fontSize: 44, fontWeight: 800 }}>
+          Le scrutin le plus suivi · <span style={{ opacity: 0.8 }}>{reel.period.label}</span>
+        </span>
         <div
           style={{
             alignSelf: 'flex-start',
             transform: `scale(${0.4 + 0.6 * stamp}) rotate(${(1 - stamp) * -8 - 3}deg)`,
             transformOrigin: 'left center',
             opacity: Math.min(1, stamp * 2),
-            border: '10px solid #ffffff',
-            borderRadius: 22,
-            padding: '4px 34px',
-            fontSize: 150,
+            border: '12px solid #ffffff',
+            borderRadius: 26,
+            padding: '6px 40px',
+            fontSize: 190,
             fontWeight: 900,
             letterSpacing: 4,
             textTransform: 'uppercase',
@@ -103,38 +97,25 @@ function Hook({ reel, detail }: { reel: ReelResponse; detail: ScrutinDetailDto }
         >
           {capitalize(detail.outcome_code)}
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          {detail.dossier_label && (
-            <div style={{ ...dossier, fontSize: detail.dossier_label.length > 60 ? 70 : 90, fontWeight: 800, lineHeight: 1.02, letterSpacing: -2 }}>{detail.dossier_label}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+          {label && (
+            <div style={{ ...dossier, fontSize: label.length > 60 ? 76 : 96, fontWeight: 900, lineHeight: 1.02, letterSpacing: -2 }}>{label}</div>
           )}
           <div
             style={{
               ...subject,
-              fontSize: detail.dossier_label ? 40 : 68,
-              fontWeight: detail.dossier_label ? 400 : 800,
+              fontSize: label ? 38 : 68,
+              fontWeight: label ? 500 : 800,
               lineHeight: 1.25,
-              opacity: subject.opacity * 0.92,
+              opacity: subject.opacity * 0.85,
               display: '-webkit-box',
-              WebkitLineClamp: detail.dossier_label ? 3 : 5,
+              WebkitLineClamp: label ? 2 : 5,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
             }}
           >
             {capitalize(mf.subject)}
           </div>
-        </div>
-        <div style={{ ...numbers, display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 50 }}>
-            {items.map((item, index) => (
-              <div key={item.label} style={{ display: 'flex', flexDirection: 'column', opacity: index === 0 ? 1 : 0.72 }}>
-                <span style={{ fontSize: fit(index === 0 ? 310 : 200, item.value), fontWeight: 900, lineHeight: 0.85, letterSpacing: -6, fontVariantNumeric: 'tabular-nums' }}>
-                  <BigCount value={item.value} start={44} />
-                </span>
-                <span style={{ fontSize: 62, fontWeight: 800, marginTop: 10 }}>{item.label}</span>
-              </div>
-            ))}
-          </div>
-          <span style={{ fontSize: 32, lineHeight: 1.3, opacity: 0.85 }}>{MOST_FOLLOWED_CRITERION}</span>
         </div>
       </div>
     </Safe>
@@ -143,72 +124,97 @@ function Hook({ reel, detail }: { reel: ReelResponse; detail: ScrutinDetailDto }
 
 /* ---------------------------------------------------------------- hémicycle */
 
-const FLIP = 95
+/**
+ * Allumage aux couleurs des groupes, chaque sigle posé au droit de ses sièges ;
+ * bascule vers les positions et barre du décompte ; repli de l'hémicycle sous
+ * lequel entrent les groupes, rangés par position.
+ */
+const FLIP = 80
+const FOLD = 160
+/** Descente de l'hémicycle et du décompte avant le repli, pour les centrer dans l'écran vide. */
+const CENTRE_SHIFT = 210
 
-function HemicycleScene({ detail, tally }: { detail: ScrutinDetailDto; tally: NonNullable<ReelResponse['most_followed']>['tally'] }) {
+function WhoVotedScene({ detail, tally }: { detail: ScrutinDetailDto; tally: NonNullable<ReelResponse['most_followed']>['tally'] }) {
   const frame = useCurrentFrame()
-  const title = useEnter(0, 40)
-  const chipsOut = interpolate(frame, [FLIP - 8, FLIP], [1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-  const counters = useEnter(FLIP + 4, 80)
+  const { fps } = useVideoConfig()
+  const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
+  const kicker = useEnter(0, 24)
+  const labelsOut = interpolate(frame, [FLIP - 6, FLIP + 4], [1, 0], clamp)
+  const flip = spring({ frame: frame - FLIP, fps, config: { damping: 200 }, durationInFrames: 30 })
+  const fold = spring({ frame: frame - FOLD, fps, config: { damping: 200 }, durationInFrames: 26 })
+  const groups = groupsByPosition(detail)
+  const largest = Math.max(...groups.map(({ group }) => tallySize(group.tally)))
+  const items = [
+    { label: 'pour', value: tally.votes_for, color: COLORS.adopted },
+    { label: 'contre', value: tally.votes_against, color: COLORS.rejected },
+    { label: plural(tally.abstentions, 'abstention', 'abstentions'), value: tally.abstentions, color: COLORS.other },
+  ]
+  const expressed = items.reduce((sum, item) => sum + item.value, 0) || 1
+  const countSize = interpolate(fold, [0, 1], [fit(170, ...items.map((item) => item.value)), 96])
   return (
     <Safe background={PAPER} color={NAVY}>
-      <div style={{ ...title, display: 'flex', flexDirection: 'column', gap: 14 }}>
-        <div style={{ fontSize: 92, fontWeight: 900, letterSpacing: -2, lineHeight: 1 }}>Qui a voté quoi ?</div>
-        <div style={{ fontSize: 42, lineHeight: 1.3, color: COLORS.inkSoft }}>
-          {frame < FLIP ? 'Chaque point : un député qui a pris part au vote, à sa place.' : 'Et voici comment chacun a voté.'}
-        </div>
+      <div style={{ ...kicker, display: 'flex', alignItems: 'center', gap: 24 }}>
+        <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase' }}>Qui a voté quoi</span>
+        <span style={{ flex: 1, height: 3, background: NAVY, opacity: 0.85 }} />
       </div>
-      <div style={{ marginTop: 90, marginLeft: -REEL_SAFE.left + 12, marginRight: -REEL_SAFE.right + 12 }}>
-        <Hemicycle detail={detail} light={16} flip={FLIP} />
+      <div
+        style={{
+          flexShrink: 0,
+          position: 'relative',
+          alignSelf: 'center',
+          marginTop: 44,
+          width: `${interpolate(fold, [0, 1], [70, 52])}%`,
+          transform: `translateY(${(1 - fold) * CENTRE_SHIFT + (1 - flip) * 130}px)`,
+        }}
+      >
+        <Hemicycle detail={detail} light={8} flip={FLIP} />
+        {arcLabels(detail).map((label, index) => {
+          const pop = spring({ frame: frame - 18 - index * 3, fps, config: { damping: 14, stiffness: 170 } })
+          return (
+            <div
+              key={label.uid}
+              style={{
+                position: 'absolute',
+                left: `${label.left}%`,
+                top: `${label.top}%`,
+                transform: `translate(${-50 + 50 * Math.cos(label.angle)}%, ${-50 - 45 * Math.sin(label.angle)}%) scale(${pop})`,
+                opacity: Math.min(pop, labelsOut),
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                fontSize: 30,
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ width: 18, height: 18, borderRadius: 9, background: label.color }} />
+              {label.abbrev}
+            </div>
+          )
+        })}
       </div>
-      <div style={{ flex: 1, position: 'relative', marginTop: 40 }}>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexWrap: 'wrap', alignContent: 'flex-start', gap: '22px 34px', opacity: chipsOut }}>
-          {detail.groups
-            .filter((g) => tallySize(g.tally) > 0)
-            .map((g, index) => {
-              const enter = interpolate(frame, [20 + index * 4, 32 + index * 4], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-              return (
-                <div key={g.group_uid} style={{ display: 'flex', alignItems: 'center', gap: 14, opacity: enter, fontSize: 50, fontWeight: 800 }}>
-                  <span style={{ width: 36, height: 36, borderRadius: 18, background: g.color ?? NOT_VOTING }} />
-                  {g.abbrev}
-                </div>
-              )
-            })}
+      <div style={{ flexShrink: 0, marginTop: interpolate(fold, [0, 1], [100, 48]), opacity: flip, transform: `translateY(${(1 - flip) * 40 + (1 - fold) * CENTRE_SHIFT}px)` }}>
+        <div style={{ display: 'flex', height: interpolate(fold, [0, 1], [26, 16]), borderRadius: 13, overflow: 'hidden', background: SEAT_EMPTY }}>
+          {items.map((item) => (
+            <div key={item.color} style={{ width: `${(item.value / expressed) * 100 * flip}%`, background: item.color }} />
+          ))}
         </div>
-        <div style={{ ...counters, position: 'absolute', inset: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-          {[
-            { label: 'pour', value: tally.votes_for, color: COLORS.adopted },
-            { label: 'contre', value: tally.votes_against, color: COLORS.rejected },
-            { label: plural(tally.abstentions, 'abstention', 'abstentions'), value: tally.abstentions, color: COLORS.other },
-          ].map((item) => (
-            <div key={item.color} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <span style={{ fontSize: fit(205, tally.votes_for, tally.votes_against, tally.abstentions), fontWeight: 900, lineHeight: 0.9, letterSpacing: -6, color: item.color, fontVariantNumeric: 'tabular-nums' }}>
-                <BigCount value={item.value} start={FLIP + 6} />
+        <div style={{ display: 'flex', gap: 72, marginTop: interpolate(fold, [0, 1], [36, 20]) }}>
+          {items.map((item) => (
+            <div key={item.color} style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontSize: countSize, fontWeight: 900, lineHeight: 0.9, letterSpacing: -4, color: item.color, fontVariantNumeric: 'tabular-nums' }}>
+                <BigCount value={item.value} start={FLIP + 4} />
               </span>
-              <span style={{ fontSize: 56, fontWeight: 800, color: item.color }}>{item.label}</span>
+              <span style={{ fontSize: interpolate(fold, [0, 1], [44, 32]), fontWeight: 800, color: item.color }}>{item.label}</span>
             </div>
           ))}
         </div>
       </div>
-    </Safe>
-  )
-}
-
-/* ---------------------------------------------------------------- groupes */
-
-function GroupsScene({ detail }: { detail: ScrutinDetailDto }) {
-  const frame = useCurrentFrame()
-  const title = useEnter(0, 40)
-  const groups = groupsByPosition(detail)
-  const largest = Math.max(...groups.map(({ group }) => tallySize(group.tally)))
-  return (
-    <Safe background={PAPER} color={NAVY}>
-      <div style={{ ...title, fontSize: 92, fontWeight: 900, letterSpacing: -2, lineHeight: 1 }}>Groupe par groupe</div>
-      <div style={{ flex: 1, marginTop: 40, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 60, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: fold }}>
         {groups.map(({ group: g, position }, index) => {
-          const start = 8 + index * 6
-          const enter = interpolate(frame, [start, start + 14], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-          const grow = interpolate(frame, [start + 6, start + 30], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+          const start = FOLD + 10 + index * 4
+          const enter = interpolate(frame, [start, start + 12], [0, 1], clamp)
+          const grow = interpolate(frame, [start + 4, start + 26], [0, 1], { ...clamp, easing: Easing.out(Easing.cubic) })
           const parts = [
             { value: g.tally.votes_for, color: COLORS.adopted },
             { value: g.tally.votes_against, color: COLORS.rejected },
@@ -217,23 +223,22 @@ function GroupsScene({ detail }: { detail: ScrutinDetailDto }) {
           ]
           const count = position === null ? null : { for: g.tally.votes_for, against: g.tally.votes_against, abstention: g.tally.abstentions }[position]
           return (
-            <div key={g.group_uid} style={{ display: 'flex', flexDirection: 'column', gap: 10, opacity: enter, transform: `translateX(${(1 - enter) * -80}px)` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-                <span style={{ width: 36, height: 36, borderRadius: 18, background: g.color ?? NOT_VOTING, flexShrink: 0 }} />
-                <span style={{ flex: 1, fontSize: 58, fontWeight: 900 }}>{g.abbrev}</span>
-                <span style={{ fontSize: 58, fontWeight: 900, color: position ? POSITION_COLORS[position] : COLORS.inkSoft }}>
-                  {position ? `${count} ${POSITION_LABELS[position]}` : 'sans majorité'}
-                </span>
-              </div>
-              <div style={{ height: 30, display: 'flex', borderRadius: 15, overflow: 'hidden', background: SEAT_EMPTY }}>
+            <div key={g.group_uid} style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: enter, transform: `translateX(${(1 - enter) * -60}px)` }}>
+              <span style={{ width: 26, height: 26, borderRadius: 13, background: g.color ?? NOT_VOTING, flexShrink: 0 }} />
+              <span style={{ width: 180, fontSize: 38, fontWeight: 800, flexShrink: 0 }}>{g.abbrev}</span>
+              <div style={{ flex: 1, height: 18, display: 'flex', borderRadius: 9, overflow: 'hidden', background: SEAT_EMPTY }}>
                 {parts.map((p) => (
                   <div key={p.color} style={{ width: `${((p.value / largest) * 100 * grow).toFixed(2)}%`, background: p.color }} />
                 ))}
               </div>
+              <span style={{ minWidth: 200, textAlign: 'right', fontSize: 38, fontWeight: 800, color: position ? POSITION_COLORS[position] : COLORS.inkSoft, flexShrink: 0 }}>
+                {position ? `${count} ${POSITION_LABELS[position]}` : 'sans majorité'}
+              </span>
             </div>
           )
         })}
       </div>
+      <div style={{ ...kicker, flexShrink: 0, marginTop: 40, fontSize: 26, lineHeight: 1.35, color: COLORS.inkFaint }}>{MOST_FOLLOWED_CRITERION}</div>
     </Safe>
   )
 }
@@ -403,7 +408,7 @@ function FinalVoteCard({ vote, detail, index, count }: { vote: ReelFinalVoteDto;
               lineHeight: 1.1,
               letterSpacing: -1,
               display: '-webkit-box',
-              WebkitLineClamp: 6,
+              WebkitLineClamp: 4,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
             }}
@@ -450,16 +455,20 @@ function FinalVotesList({ votes, details }: { votes: { vote: ReelFinalVoteDto; i
 
 /* ------------------------------------------------------------------- fin */
 
+/** Taille de l'adresse du site pour qu'elle tienne sur une ligne (Inter 900 : environ 0,6 em par caractère). */
+function siteSize(site: string) {
+  return Math.min(112, Math.floor((1080 - REEL_SAFE.left - REEL_SAFE.right) / (site.length * 0.6)))
+}
+
 function Outro({ site, linkPath, note }: { site: string; linkPath: string | null; note: string | null }) {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
   const logo = spring({ frame, fps, config: { damping: 14 } })
-  const name = useEnter(8, 40)
-  const tagline = useEnter(18, 40)
-  const url = useEnter(30, 40)
+  const name = useEnter(6, 40)
+  const url = useEnter(16, 40)
   return (
     <Safe background={NAVY} color="#ffffff">
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 90 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
           <div style={{ transform: `scale(${logo})`, transformOrigin: 'left bottom' }}>
             <Logo height={270} />
@@ -468,13 +477,10 @@ function Outro({ site, linkPath, note }: { site: string; linkPath: string | null
             QuiVote<span style={{ color: '#60a5fa' }}>Quoi</span>
           </div>
         </div>
-        <div style={{ ...tagline, fontSize: 84, fontWeight: 800, lineHeight: 1.08, letterSpacing: -1 }}>
-          Tous les votes de l'Assemblée, groupe par groupe.
-        </div>
-        <div style={{ ...url, display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <span style={{ fontSize: 46, fontWeight: 600, color: 'rgba(255,255,255,0.7)' }}>Tous les chiffres et leurs sources</span>
-          <span style={{ fontSize: 112, fontWeight: 900, letterSpacing: -3, color: CREAM, lineHeight: 1 }}>{site}</span>
-          {linkPath && <span style={{ fontSize: 38, color: 'rgba(255,255,255,0.7)', wordBreak: 'break-all' }}>{linkPath}</span>}
+        <div style={{ ...url, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <span style={{ fontSize: 46, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>Tous les chiffres, avec leurs sources</span>
+          <span style={{ fontSize: siteSize(site), fontWeight: 900, letterSpacing: -2, color: CREAM, lineHeight: 1, whiteSpace: 'nowrap' }}>{site}</span>
+          {linkPath && <span style={{ fontSize: 36, color: 'rgba(255,255,255,0.6)', wordBreak: 'break-all' }}>{linkPath}</span>}
           {note && <span style={{ fontSize: 28, lineHeight: 1.3, color: 'rgba(255,255,255,0.7)' }}>{note}</span>}
         </div>
       </div>
@@ -505,31 +511,26 @@ export function Votes(props: ReelProps) {
       <Soundtrack audio={props.audio} />
       {reel.most_followed && mostFollowed && (
         <>
-          <Sequence durationInFrames={HOOK}>
-            <Fade length={HOOK}>
+          <Sequence durationInFrames={HOOK + PUSH}>
+            <Push length={HOOK} overlap={PUSH} first>
               <Hook reel={reel} detail={mostFollowed} />
-            </Fade>
+            </Push>
           </Sequence>
-          <Sequence from={HOOK} durationInFrames={HEMICYCLE}>
-            <Fade length={HEMICYCLE}>
-              <HemicycleScene detail={mostFollowed} tally={reel.most_followed.tally} />
-            </Fade>
-          </Sequence>
-          <Sequence from={HOOK + HEMICYCLE} durationInFrames={GROUPS}>
-            <Fade length={GROUPS}>
-              <GroupsScene detail={mostFollowed} />
-            </Fade>
+          <Sequence from={HOOK} durationInFrames={WHO_VOTED + PUSH}>
+            <Push length={WHO_VOTED} overlap={PUSH}>
+              <WhoVotedScene detail={mostFollowed} tally={reel.most_followed.tally} />
+            </Push>
           </Sequence>
         </>
       )}
-      <Sequence from={periodFrom} durationInFrames={PERIOD}>
-        <Fade length={PERIOD}>
+      <Sequence from={periodFrom} durationInFrames={PERIOD + PUSH}>
+        <Push length={PERIOD} overlap={PUSH} first={periodFrom === 0}>
           <PeriodScene reel={reel} />
-        </Fade>
+        </Push>
       </Sequence>
       {scenes.cards.groups.map((indexes, card) => (
-        <Sequence key={indexes.join('-')} from={cardsFrom + card * scenes.cards.each} durationInFrames={scenes.cards.each}>
-          <Fade length={scenes.cards.each}>
+        <Sequence key={indexes.join('-')} from={cardsFrom + card * scenes.cards.each} durationInFrames={scenes.cards.each + PUSH}>
+          <Push length={scenes.cards.each} overlap={PUSH} axis={card === 0 ? 'y' : 'x'}>
             {indexes.length === 1 ? (
               <FinalVoteCard
                 vote={reel.final_votes[indexes[0]]}
@@ -540,13 +541,13 @@ export function Votes(props: ReelProps) {
             ) : (
               <FinalVotesList votes={indexes.map((i) => ({ vote: reel.final_votes[i], index: i }))} details={details} />
             )}
-          </Fade>
+          </Push>
         </Sequence>
       ))}
       <Sequence from={outroFrom} durationInFrames={VOTES_OUTRO}>
-        <Fade length={VOTES_OUTRO + 8}>
+        <Push length={VOTES_OUTRO} overlap={PUSH} last>
           <Outro site={site} linkPath={reel.link_path} note={reel.reconstructed_note} />
-        </Fade>
+        </Push>
       </Sequence>
     </>
   )

@@ -10,12 +10,16 @@ export const NUMBERS = 3 * FPS
 export const SITE_NEWS = 7 * FPS
 export const OUTRO = 4 * FPS
 
-/** Reel de votes : accroche, hémicycle et groupes du scrutin le plus suivi, période, fin. */
-export const HOOK = Math.round(3.5 * FPS)
-export const HEMICYCLE = Math.round(7.3 * FPS)
-export const GROUPS = Math.round(5.5 * FPS)
+/**
+ * Reel de votes : accroche, puis une seule scène pour l'hémicycle et les groupes
+ * du scrutin le plus suivi, période, fin. Chaque scène déborde de `PUSH` images
+ * sur la suivante, qui la pousse hors de l'écran.
+ */
+export const HOOK = 3 * FPS
+export const WHO_VOTED = 11 * FPS
 export const PERIOD = Math.round(3.5 * FPS)
 export const VOTES_OUTRO = Math.round(3.5 * FPS)
+export const PUSH = 14
 
 /** Temps donné à l'ensemble des cartes (T7). */
 const CARDS_BUDGET_SECONDS = 90
@@ -78,7 +82,7 @@ export function isVotesReel(reel: ReelProps['reel']) {
  */
 function votesScenesOf(reel: ReelProps['reel']): Scenes {
   const cards = planCards(reel.final_votes.length)
-  const mostFollowed = reel.most_followed ? HOOK + HEMICYCLE + GROUPS : 0
+  const mostFollowed = reel.most_followed ? HOOK + WHO_VOTED : 0
   return {
     numbers: PERIOD,
     cards,

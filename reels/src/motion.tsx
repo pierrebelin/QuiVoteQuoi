@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import {
   AbsoluteFill,
   continueRender,
+  Easing,
   delayRender,
   interpolate,
   interpolateColors,
@@ -98,14 +99,45 @@ export function Safe({ children, background, color }: { children: ReactNode; bac
   )
 }
 
-/** Fondu d'entrée et de sortie d'une scène de `length` images. */
-export function Fade({ length, enter = false, children }: { length: number; enter?: boolean; children: ReactNode }) {
+/**
+ * Scène qui entre en poussant la précédente : elle glisse depuis le bas (ou la
+ * droite, `axis="x"`) pendant `overlap` images, puis, passé `length`, recule et
+ * s'assombrit sous la suivante. Un léger zoom continu évite l'image figée.
+ * La `Sequence` qui la porte dure `length + overlap` images, sauf la dernière.
+ */
+export function Push({
+  length,
+  overlap,
+  axis = 'y',
+  first = false,
+  last = false,
+  children,
+}: {
+  length: number
+  overlap: number
+  axis?: 'x' | 'y'
+  first?: boolean
+  last?: boolean
+  children: ReactNode
+}) {
   const frame = useCurrentFrame()
-  const opacity = interpolate(frame, [0, 6, length - 8, length], [enter ? 0 : 1, 1, 1, 0], {
-    extrapolateLeft: 'clamp',
-    extrapolateRight: 'clamp',
-  })
-  return <AbsoluteFill style={{ opacity }}>{children}</AbsoluteFill>
+  const { fps } = useVideoConfig()
+  const enter = first ? 1 : spring({ frame, fps, config: { damping: 200 }, durationInFrames: overlap })
+  const exit = last
+    ? 0
+    : interpolate(frame, [length, length + overlap], [0, 1], {
+        extrapolateLeft: 'clamp',
+        extrapolateRight: 'clamp',
+        easing: Easing.inOut(Easing.cubic),
+      })
+  const offset = (1 - enter) * 100 - exit * 35
+  const drift = 1 + 0.025 * Math.min(1, frame / (length + overlap))
+  return (
+    <AbsoluteFill style={{ transform: axis === 'y' ? `translateY(${offset}%)` : `translateX(${offset}%)`, overflow: 'hidden' }}>
+      <AbsoluteFill style={{ transform: `scale(${drift})` }}>{children}</AbsoluteFill>
+      {exit > 0 && <AbsoluteFill style={{ backgroundColor: '#000000', opacity: exit * 0.45 }} />}
+    </AbsoluteFill>
+  )
 }
 
 type Seat = { n: number; x: number; y: number; delay: number; vote?: { group: string; position: string } }
@@ -124,6 +156,40 @@ function seatsOf(detail: ScrutinDetailDto): Seat[] {
     const angle = Math.atan2(cy - y, x - cx)
     return { n: Number(key), x, y, delay: ((Math.PI - angle) / Math.PI) * 45, vote: votes.get(Number(key)) }
   })
+}
+
+/** Centre et rayon extérieur du plan, en unités de `PLAN_VUE`. */
+const PLAN_CENTRE = { x: PLAN_VUE.largeur / 2, y: PLAN_VUE.hauteur }
+const PLAN_RAYON = Math.max(...Object.values(PLAN_SIEGES).map(([x, y]) => Math.hypot(x - PLAN_CENTRE.x, PLAN_CENTRE.y - y)))
+
+export type ArcLabel = { uid: string; abbrev: string; color: string; left: number; top: number; angle: number }
+
+/**
+ * Étiquette de chaque groupe votant, posée hors de l'arc au droit de ses sièges
+ * (angle moyen des sièges de ses votants), écartée de ses voisines si besoin.
+ * `left` et `top` en pourcentage de la boîte de l'hémicycle.
+ */
+export function arcLabels(detail: ScrutinDetailDto, gap = 0.2): ArcLabel[] {
+  const labels = detail.groups.flatMap((group) => {
+    const angles = group.votes
+      .map((vote) => (vote.seat != null ? PLAN_SIEGES[vote.seat] : undefined))
+      .filter((xy): xy is readonly [number, number] => xy !== undefined)
+      .map(([x, y]) => Math.atan2(PLAN_CENTRE.y - y, x - PLAN_CENTRE.x))
+    if (angles.length === 0 || !group.abbrev) return []
+    const angle = angles.reduce((sum, a) => sum + a, 0) / angles.length
+    return [{ uid: group.group_uid ?? group.abbrev, abbrev: group.abbrev, color: group.color ?? NOT_VOTING, angle }]
+  })
+  labels.sort((a, b) => a.angle - b.angle)
+  const min = 0.4
+  const max = Math.PI - 0.4
+  for (let i = 0; i < labels.length; i++) labels[i].angle = Math.max(labels[i].angle, i === 0 ? min : labels[i - 1].angle + gap)
+  for (let i = labels.length - 1; i >= 0; i--) labels[i].angle = Math.min(labels[i].angle, i === labels.length - 1 ? max : labels[i + 1].angle - gap)
+  const radius = PLAN_RAYON + 13
+  return labels.map((label) => ({
+    ...label,
+    left: ((PLAN_CENTRE.x + radius * Math.cos(label.angle)) / PLAN_VUE.largeur) * 100,
+    top: ((PLAN_CENTRE.y - radius * Math.sin(label.angle)) / PLAN_VUE.hauteur) * 100,
+  }))
 }
 
 /**
