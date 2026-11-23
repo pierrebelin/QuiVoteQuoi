@@ -29,13 +29,11 @@ function PanelButton({
       aria-expanded={open}
       aria-controls={panelId}
       onClick={onClick}
-      className={`inline-flex min-h-11 w-full min-w-0 items-center gap-2 rounded border px-3 text-left text-sm font-semibold transition-colors md:w-auto ${FOCUS_RING} ${
-        open
-          ? 'border-accent bg-accent-soft text-ink'
-          : 'border-line-strong bg-surface text-ink hover:bg-surface-soft'
+      className={`inline-flex min-h-12 w-full min-w-0 items-center gap-2 rounded-[14px] px-3.5 text-left text-sm font-[620] text-ink transition-colors md:w-auto md:gap-2.5 md:pr-3.5 md:pl-4 md:text-[15px] ${FOCUS_RING} ${
+        open ? 'bg-accent-soft' : 'bg-surface hover:bg-surface-soft'
       }`}
     >
-      <span className="font-medium text-ink-soft">{name}&nbsp;:</span>
+      <span className="font-semibold text-ink-faint">{name}&nbsp;:</span>
       <span className="min-w-0 flex-1 truncate md:flex-none">{summary}</span>
       <svg
         viewBox="0 0 24 24"
@@ -121,7 +119,7 @@ export default function VotesToolbar({
     <>
       <div
         onKeyDown={onKeyDown}
-        className="sticky z-10 -mx-6 -mt-8 border-b border-line bg-surface/95 px-6 py-2.5 shadow-card backdrop-blur"
+        className="sticky z-10 -mx-5 -mt-8 border-b border-line bg-canvas/95 px-5 py-2.5 backdrop-blur md:-mx-6 md:px-6"
         style={{ top: headerHeight }}
       >
         <div className="grid grid-cols-2 items-center gap-2 md:flex md:flex-wrap">

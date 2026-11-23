@@ -66,13 +66,11 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
   const lawDate = formatLawDate(exercise.law.date)
 
   return (
-    <div className="flex flex-col gap-6 xl:gap-7">
+    <div className="flex flex-col gap-10 xl:gap-12">
       <header className="flex max-w-[760px] flex-col gap-2.5">
-        <p className="text-[13px] leading-[18px] text-ink-faint">Finances publiques</p>
-        <h1 className="heading-3 text-ink xl:text-[40px] xl:leading-[44px]">
-          Budget de l’État {year}
-        </h1>
-        <p className="text-[15px] leading-[22px] text-ink-soft">
+        <p className="text-[13px] leading-[18px] text-ink-faint md:text-sm">Finances publiques</p>
+        <h1 className="heading-3 text-ink md:heading-1">Budget de l’État {year}</h1>
+        <p className="text-base leading-normal text-ink-soft md:max-w-2xl md:text-lg md:leading-relaxed">
           Crédits votés en loi de finances initiale {year}
           {exercise.law.adoption_procedure === 'article_49_3'
             ? ', adoptée après recours au 49.3.'
@@ -80,24 +78,25 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
         </p>
         <div
           role="note"
-          className="mt-1 flex items-start gap-2.5 rounded-[14px] bg-surface-soft px-3.5 py-3 text-ink-soft"
+          className="mt-1 flex items-start gap-2.5 rounded-[14px] bg-surface px-3.5 py-3 text-ink-soft md:max-w-2xl md:items-center md:px-4"
         >
-          <Icon name="info" className="mt-px size-[18px] shrink-0" />
-          <p className="text-[13.5px] leading-5">
+          <Icon name="info" className="mt-px size-[18px] shrink-0 text-ink-faint md:mt-0" />
+          <p className="text-[13.5px] leading-5 md:text-sm md:leading-[1.45]">
             {spendingNote(year, new Date().getFullYear())}
           </p>
         </div>
         {exercise.available_years.length > 1 && (
-          <nav aria-label="Exercice" className="mt-1 flex flex-wrap gap-2 text-sm">
+          <nav
+            aria-label="Exercice"
+            className="mt-1 grid w-[180px] grid-flow-col auto-cols-fr gap-1 rounded-xl bg-surface p-[3px] md:mt-3"
+          >
             {exercise.available_years.map((other) => (
               <Link
                 key={other}
                 to={`/budget/${other}`}
                 aria-current={other === year ? 'page' : undefined}
-                className={`rounded-full border px-3 py-1 ${
-                  other === year
-                    ? 'border-ink bg-ink text-canvas'
-                    : 'border-line bg-surface text-ink-soft hover:border-line-strong'
+                className={`inline-flex min-h-11 items-center justify-center rounded-[10px] px-2 text-sm font-semibold transition-colors ${
+                  other === year ? 'bg-canvas text-ink shadow-seg' : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 {other}
@@ -107,36 +106,36 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
         )}
       </header>
 
-      <div className="flex flex-col gap-6 xl:grid xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[auto_auto_auto_1fr] xl:items-start">
+      <div className="flex flex-col gap-10 xl:grid xl:grid-cols-[minmax(0,1fr)_400px] xl:grid-rows-[auto_auto_auto_1fr] xl:items-start xl:gap-x-6 xl:gap-y-8">
         {/* Répartition : avant la liste, sur toute la largeur à 1280 px pour laisser
             le panneau de détail en haut de la colonne de droite. */}
-        <div className="xl:col-span-2 xl:row-start-1">
+        <div className="xl:col-span-2 xl:row-start-1 xl:pb-4">
           <BudgetBreakdown exercise={exercise} onSelectMission={select} />
         </div>
 
         <section
           aria-labelledby="budget-missions"
-          className="flex flex-col gap-3 xl:col-start-1 xl:row-span-3 xl:row-start-2 xl:gap-3.5 xl:rounded xl:border xl:border-line xl:bg-surface xl:px-3.5 xl:pt-5 xl:pb-3.5"
+          className="flex flex-col gap-3 xl:col-start-1 xl:row-span-3 xl:row-start-2 xl:gap-4"
         >
-          <div className="flex flex-col gap-0.5 xl:px-1.5">
-            <h2 id="budget-missions" className="heading-4 text-ink">
+          <div className="flex flex-col gap-1">
+            <h2 id="budget-missions" className="heading-4 text-ink md:heading-3">
               Par mission
             </h2>
-            <p className="text-[13px] leading-[18px] text-ink-soft">
+            <p className="text-[13px] leading-[18px] text-ink-faint md:text-sm md:leading-5">
               Triées par montant. {wide ? 'Cliquer' : 'Toucher'} une mission pour voir ses
               programmes.
             </p>
           </div>
           <div
             aria-hidden="true"
-            className="hidden gap-4 px-[15px] text-xs text-ink-faint xl:grid xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_88px_56px]"
+            className="hidden gap-4 px-3 text-[13px] font-semibold text-ink-faint xl:grid xl:grid-cols-[minmax(0,300px)_minmax(0,1fr)_88px_56px]"
           >
             <span>Mission</span>
             <span />
             <span className="text-right">Montant</span>
             <span className="text-right">Part</span>
           </div>
-          <ul className="flex flex-col gap-2 xl:gap-0.5">
+          <ul className="flex flex-col">
             {missions.map((mission) => (
               <MissionRow
                 key={mission.name}
@@ -154,49 +153,51 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
         {offBudget.length > 0 && (
           <section
             aria-labelledby="budget-hors-budget"
-            className="flex flex-col gap-3 xl:col-start-2 xl:row-start-2"
+            className="flex flex-col gap-3 max-xl:band max-xl:py-8 xl:col-start-2 xl:row-start-2"
           >
-            <div className="flex flex-col gap-0.5">
-              <h2 id="budget-hors-budget" className="heading-4 text-ink">
+            <div className="flex flex-col gap-1">
+              <h2 id="budget-hors-budget" className="heading-4 text-ink xl:text-[22px] xl:leading-[26px]">
                 Hors budget général
               </h2>
-              <p className="text-[13px] leading-[18px] text-ink-soft">
+              <p className="text-[13px] leading-[18px] text-ink-faint md:text-sm md:leading-5">
                 {offBudget.length > 1 ? 'Comptes spéciaux' : 'Compte spécial'}, non compris dans
                 le total ci-dessus.
               </p>
             </div>
-            {offBudget.map((mission) => (
-              <OffBudgetRow
-                key={mission.name}
-                mission={mission}
-                wide={wide}
-                selected={isSelected(mission)}
-                onSelect={() => select(mission)}
-              />
-            ))}
+            <div className="flex flex-col xl:border-b xl:border-line">
+              {offBudget.map((mission) => (
+                <OffBudgetRow
+                  key={mission.name}
+                  mission={mission}
+                  wide={wide}
+                  selected={isSelected(mission)}
+                  onSelect={() => select(mission)}
+                />
+              ))}
+            </div>
           </section>
         )}
 
         {wide && panelMission && (
           <section
             aria-labelledby="budget-detail"
-            className="sticky top-20 col-start-2 row-start-3 flex flex-col gap-3.5 rounded border border-accent bg-surface p-[18px]"
+            className="sticky top-20 col-start-2 row-start-3 flex flex-col gap-5 rounded bg-surface p-6"
           >
-            <div>
-              <p className="text-[12.5px] leading-[17px] text-ink-faint">Détail</p>
-              <h2 id="budget-detail" className="heading-4 text-ink">
+            <div className="flex flex-col gap-1">
+              <p className="text-[13px] leading-[17px] font-semibold text-ink-faint">Détail</p>
+              <h2 id="budget-detail" className="heading-3 text-ink">
                 {panelMission.name}
               </h2>
-              <p className="text-[13px] leading-[19px] text-ink-soft">
+              <p className="text-sm leading-5 text-ink-faint">
                 {missionSubtitle(panelMission, general.cp_euros, year)}
               </p>
             </div>
-            <MissionDetail mission={panelMission} year={year} />
+            <MissionDetail mission={panelMission} year={year} onCard />
           </section>
         )}
       </div>
 
-      <p className="text-[12.5px] leading-[18px] text-ink-faint">
+      <p className="text-[13px] leading-[1.6] text-ink-soft xl:max-w-[900px] xl:border-t xl:border-line xl:pt-5 xl:text-sm">
         Source :{' '}
         <a href={exercise.law.legifrance_url} target="_blank" rel="noreferrer" className="link">
           loi n° {exercise.law.number} du {lawDate} de finances pour {year}
@@ -216,7 +217,7 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
         >
           {chosen && (
             <div className="min-h-0 overflow-y-auto px-5 pb-6">
-              <p className="mb-3.5 text-[13px] leading-[19px] text-ink-soft">
+              <p className="mb-4 text-sm leading-[21px] text-ink-soft">
                 {missionSubtitle(chosen, general.cp_euros, year)}
               </p>
               <MissionDetail mission={chosen} year={year} />

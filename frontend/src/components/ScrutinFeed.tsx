@@ -87,50 +87,53 @@ function DossierRun({
   const shown = hidden > 0 ? scrutins.slice(0, VISIBLE_ROWS) : scrutins
 
   return (
-    <DossierCardShell
-      uid={dossierUid}
-      title={scrutins[0].dossier_label ?? dossierUid}
-      status={scrutins[0].dossier_status}
-      today={today}
-      families={familiesOf(scrutins)}
-      split={
-        scrutins.length > 1 && (
-          <OutcomeSplit
-            adopted={adopted}
-            rejected={scrutins.length - adopted}
-            scope={`${scrutins.length} votes ce jour`}
-          />
-        )
-      }
-    >
+    <div>
+      <DossierCardShell
+        uid={dossierUid}
+        title={scrutins[0].dossier_label ?? dossierUid}
+        status={scrutins[0].dossier_status}
+        today={today}
+        families={familiesOf(scrutins)}
+        split={
+          scrutins.length > 1 && (
+            <OutcomeSplit
+              adopted={adopted}
+              rejected={scrutins.length - adopted}
+              scope={`${scrutins.length} votes ce jour`}
+            />
+          )
+        }
+      />
+      {/* Les votes du texte sous sa carte, à plat sur la page : des lignes à filets. */}
       <ul>
         {shown.map((scrutin) => (
-          <li key={scrutin.uid} className="border-t border-line">
+          <li key={scrutin.uid} className="border-t border-line first:border-t-0">
             <VoteCard size="compact" bare {...scrutinCard(scrutin)} />
           </li>
         ))}
       </ul>
       {(hidden > 0 || (expanded && scrutins.length > VISIBLE_ROWS)) && (
-        <button
-          type="button"
-          onClick={() => setExpanded(!expanded)}
-          aria-expanded={expanded}
-          className="w-full border-t border-line bg-surface-soft/50 px-[18px] py-2 text-left text-[13px] font-medium link hover:bg-surface-soft"
-        >
-          {expanded
-            ? 'Replier'
-            : `Voir les ${hidden} autre${hidden > 1 ? 's' : ''} vote${hidden > 1 ? 's' : ''} de ce texte`}
-        </button>
+        <div className="border-t border-line px-4 sm:px-[18px]">
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
+            className="flex min-h-11 items-center text-sm font-semibold link"
+          >
+            {expanded
+              ? 'Replier'
+              : `Voir les ${hidden} autre${hidden > 1 ? 's' : ''} vote${hidden > 1 ? 's' : ''} de ce texte`}
+          </button>
+        </div>
       )}
-    </DossierCardShell>
+    </div>
   )
 }
 
 function DayHeading({ date }: { date: string }) {
   return (
-    <h2 className="mb-2.5 flex items-center gap-3 text-[15px] font-semibold text-ink">
+    <h2 className="mb-3 heading-4 text-ink md:mb-4 md:heading-3">
       <time dateTime={date}>{dayLabel(date)}</time>
-      <span aria-hidden className="h-px flex-1 bg-line" />
     </h2>
   )
 }
@@ -145,9 +148,9 @@ export default function ScrutinFeed({ scrutins }: { scrutins: ScrutinSummaryDto[
   return (
     <div>
       {groupFeed(scrutins).map((day) => (
-        <section key={day.date} className="mt-6 first:mt-0">
+        <section key={day.date} className="mt-9 first:mt-0 md:mt-12">
           <DayHeading date={day.date} />
-          <div className="space-y-3">
+          <div className="space-y-4">
             {day.entries.map((entry) =>
               entry.kind === 'single' ? (
                 <VoteCard key={entry.scrutin.uid} size="compact" {...scrutinCard(entry.scrutin)} />

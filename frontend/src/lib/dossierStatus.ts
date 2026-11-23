@@ -61,12 +61,9 @@ export const REJECTION_NOT_FINAL = 'la navette peut reprendre'
 export function dossierBanner(dossier: DossierStatusDto): { tone: string; text: string } {
   const { outcome, current_stage: stage } = dossier
   if (outcome.kind !== 'no_recorded_conclusion') {
-    const tone =
-      outcome.kind === 'promulgated'
-        ? 'bg-yes-soft text-yes'
-        : outcome.kind === 'rejected'
-          ? 'bg-info-soft text-info'
-          : 'bg-surface-soft text-ink-soft'
+    // Refonte A : plus de bandeau teinté, le sort est un mot ; vert pour une
+    // promulgation seulement, un rejet reste à l'encre (il n'est pas définitif).
+    const tone = outcome.kind === 'promulgated' ? 'text-yes' : 'text-ink'
     const date = outcome.date ? ` le ${formatDate(outcome.date)}` : ''
     const law = outcome.law_code ? ` · loi n° ${outcome.law_code}` : ''
     const shuttle = outcome.kind === 'rejected' ? ` · ${REJECTION_NOT_FINAL}` : ''
@@ -74,9 +71,9 @@ export function dossierBanner(dossier: DossierStatusDto): { tone: string; text: 
   }
   if (stage) {
     return {
-      tone: 'bg-info-soft text-info',
+      tone: 'text-ink',
       text: `Étape : ${stage.label}${stage.chamber ? ` — ${stage.chamber}` : ''}`,
     }
   }
-  return { tone: 'bg-surface-soft text-ink-soft', text: 'Sans conclusion à ce jour' }
+  return { tone: 'text-ink-soft', text: 'Sans conclusion à ce jour' }
 }

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import DossierStatusBanner from './DossierStatusBanner'
+import { StateDot } from './entry/PositionGlyph'
 import { FamilyIllustration } from './FamilyIllustration'
 import { themeLink, typographic } from '../lib/entryFlow'
 import type { DossierStatusDto } from '../types/dossiers'
@@ -13,13 +14,24 @@ function plural(count: number, word: string) {
 /**
  * Répartition des scrutins adoptés et rejetés, en nombres (README.md §6). La
  * portée dit ce qui est compté : tout le dossier ou les scrutins du jour. Un
- * décompte nul n'a pas de pastille.
+ * décompte nul n'a pas de pastille ; chaque décompte porte la pastille ronde
+ * de son état, puis le nombre en mots à la même couleur.
  */
 export function OutcomeSplit({ adopted, rejected, scope }: { adopted: number; rejected: number; scope: string }) {
   return (
-    <p className="mt-2.5 flex flex-wrap items-center gap-1.5 text-[12.5px] font-semibold tabular-nums">
-      {adopted > 0 && <span className="rounded-full bg-yes-soft px-2.5 py-0.5 text-yes">{plural(adopted, 'adopté')}</span>}
-      {rejected > 0 && <span className="rounded-full bg-no-soft px-2.5 py-0.5 text-no">{plural(rejected, 'rejeté')}</span>}
+    <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[13px] font-semibold tabular-nums">
+      {adopted > 0 && (
+        <span className="inline-flex items-center gap-1.5 text-yes">
+          <StateDot position="for" />
+          {plural(adopted, 'adopté')}
+        </span>
+      )}
+      {rejected > 0 && (
+        <span className="inline-flex items-center gap-1.5 text-no">
+          <StateDot position="against" />
+          {plural(rejected, 'rejeté')}
+        </span>
+      )}
       <span className="font-medium text-ink-faint">sur {scope}</span>
     </p>
   )
@@ -42,13 +54,13 @@ export function FamilyChips({
     return <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
   }
   const chip =
-    'relative z-10 inline-flex items-center gap-1.5 rounded bg-surface-soft py-0.5 pr-2.5 pl-0.5 text-[13px] font-medium text-ink ring-1 ring-transparent transition before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:ring-line-strong'
+    'relative z-10 inline-flex h-[26px] items-center gap-1.5 rounded-full bg-canvas pr-2.5 pl-2 text-[13px] font-medium text-ink-soft transition-colors before:absolute before:inset-x-0 before:-inset-y-[9px] md:before:hidden hover:bg-surface-soft hover:text-ink'
   return (
     <div className="flex flex-wrap gap-1.5 max-md:gap-y-[18px]">
       {families.map((family) => {
         const content = (
           <>
-            <FamilyIllustration code={family.code} className="size-[22px] rounded" glyphClassName="size-3.5" />
+            <FamilyIllustration code={family.code} bare className="shrink-0" glyphClassName="size-[15px]" />
             {typographic(family.label)}
           </>
         )
@@ -113,13 +125,13 @@ export default function DossierCardShell({
 
   return (
     <article
-      className={`group relative overflow-hidden rounded border border-line bg-surface shadow-card ${stretched ? 'transition duration-200 hover:scale-[1.01] hover:border-line-strong hover:shadow-card-hover motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
+      className={`group relative overflow-hidden rounded bg-surface ${stretched ? 'transition duration-200 hover:scale-[1.01] motion-reduce:transform-none motion-reduce:transition-none' : ''}`}
     >
       {status && <DossierStatusBanner dossier={status} today={today} withLawState={withLawState} />}
 
       <header className="px-[18px] pt-3 pb-3.5">
         <h2
-          className={`text-[16.5px] leading-snug font-semibold text-ink transition-colors ${stretched ? 'group-hover:text-accent' : 'hover:text-accent'}`}
+          className={`heading-5 text-balance text-ink transition-colors md:text-[19px] md:leading-6 ${stretched ? 'group-hover:text-accent' : 'hover:text-accent'}`}
         >
           <Link
             to={`/dossiers/${uid}`}

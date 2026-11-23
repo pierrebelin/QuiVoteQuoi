@@ -26,13 +26,13 @@ export function CheckIcon({ className = 'size-3.5' }: { className?: string }) {
   )
 }
 
-/** Pastille ronde cochée / vide, à droite des grandes tuiles de choix. */
+/** Pastille ronde cochée / vide, à droite des grandes tuiles de choix : blanche, cerclée de gris, puis cyan. */
 export function CheckDot({ on }: { on: boolean }) {
   return (
     <span
       aria-hidden
       className={`flex size-[22px] shrink-0 items-center justify-center rounded-full ${
-        on ? 'bg-accent text-surface' : 'border-2 border-line-strong'
+        on ? 'bg-accent text-surface' : 'border-[1.5px] border-line-strong bg-canvas'
       }`}
     >
       {on && <CheckIcon />}
@@ -41,13 +41,14 @@ export function CheckDot({ on }: { on: boolean }) {
 }
 
 export function StepIntro({
-  eyebrow,
+  step,
   title,
   hint,
   lead,
 }: {
-  eyebrow: string
-  title: string
+  /** Numéro de l'écran, sur deux : « Étape 1 sur 2 » et deux segments dont les pleins sont les écrans atteints. */
+  step: 1 | 2
+  title: ReactNode
   /** Mode d'emploi : derrière une tape sur téléphone, écrit à partir de 768 px. */
   hint?: ReactNode
   /** Une phrase d'aide assez courte pour rester à l'écran sur téléphone. */
@@ -55,11 +56,17 @@ export function StepIntro({
 }) {
   return (
     <header className="max-w-3xl">
-      <p className="text-xs font-semibold uppercase tracking-[0.08em] text-accent">{eyebrow}</p>
+      <p className="flex items-center gap-2.5 text-[13px] font-semibold text-ink-faint md:text-sm">
+        <span aria-hidden className="flex gap-1">
+          <i className="block h-1 w-[22px] rounded-sm bg-ink" />
+          <i className={`block h-1 w-[22px] rounded-sm ${step === 2 ? 'bg-ink' : 'bg-line'}`} />
+        </span>
+        Étape {step} sur 2
+      </p>
       <h2
         id="entry-heading"
         tabIndex={-1}
-        className="mt-2 heading-1 outline-none"
+        className="mt-3 heading-2 text-balance outline-none md:heading-1"
       >
         {title}
         {hint && (
@@ -68,22 +75,28 @@ export function StepIntro({
           </InfoTip>
         )}
       </h2>
-      {lead && <p className="mt-2 text-sm leading-relaxed text-ink-soft sm:text-base">{lead}</p>}
+      {lead && <p className="mt-3 text-base leading-normal text-ink-soft md:text-lg md:leading-relaxed">{lead}</p>}
       {hint && (
-        <p className="mt-3 hidden text-base leading-relaxed text-ink-soft md:block sm:text-[17px]">{hint}</p>
+        <p className="mt-3 hidden text-lg leading-relaxed text-ink-soft md:block">{hint}</p>
       )}
     </header>
   )
 }
 
-/** Barre collée en bas de l'écran : le résumé du choix et l'action suivante. */
+/**
+ * Barre collée en bas de l'écran : le résumé du choix et l'action suivante.
+ * Sur téléphone, une carte flottante au-dessus de la barre de navigation, comme
+ * elle ; au-delà de 768 px, un bandeau à filet.
+ */
 export function ActionBar({ summary, children }: { summary: ReactNode; children: ReactNode }) {
   return (
-    <div className="sticky bottom-[var(--mobile-nav-h)] z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-canvas/95 px-6 py-3.5 backdrop-blur">
-      <p className="text-sm text-ink-soft" aria-live="polite">
-        {summary}
-      </p>
-      {children}
+    <div className="sticky bottom-[var(--mobile-nav-h)] z-10 -mx-5 px-3 pt-3 md:-mx-6 md:border-t md:border-line md:bg-canvas/95 md:px-6 md:py-3.5 md:backdrop-blur">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-line bg-canvas py-2 pr-2 pl-[18px] shadow-float md:rounded-none md:border-0 md:bg-transparent md:p-0 md:shadow-none">
+        <p className="text-sm font-semibold text-ink-soft" aria-live="polite">
+          {summary}
+        </p>
+        {children}
+      </div>
     </div>
   )
 }
@@ -102,7 +115,7 @@ export function PrimaryButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`inline-flex min-h-12 items-center justify-center rounded bg-accent px-6 text-base font-semibold text-surface transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-faint ${FOCUS_RING}`}
+      className={`inline-flex min-h-12 items-center justify-center rounded-[14px] bg-accent px-[18px] text-[15px] font-[620] text-surface transition-colors hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-surface-soft disabled:text-ink-faint md:min-h-[52px] md:px-[22px] md:text-base ${FOCUS_RING}`}
     >
       {children}
     </button>
@@ -133,10 +146,8 @@ export function ToggleChip({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`inline-flex min-h-11 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${FOCUS_RING} ${
-        pressed
-          ? 'border-ink bg-ink text-surface'
-          : 'border-line-strong bg-surface text-ink hover:bg-surface-soft'
+      className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed ${FOCUS_RING} ${
+        pressed ? 'bg-ink text-surface' : 'bg-surface text-ink hover:bg-surface-soft'
       }`}
     >
       {pressed && <CheckIcon className="size-4 shrink-0" />}

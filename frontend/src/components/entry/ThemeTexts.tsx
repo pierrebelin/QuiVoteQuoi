@@ -11,7 +11,7 @@ import { FOCUS_RING } from './styles'
 const PAGE_SIZE = 50
 
 const PAGER_CLASS =
-  'min-h-11 rounded border border-line bg-surface px-3 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40'
+  'min-h-11 rounded bg-surface px-3 text-sm font-medium text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40'
 
 /**
  * Tous les textes rattachés à un sujet, votés sur l'ensemble ou non.
@@ -46,21 +46,21 @@ export default function ThemeTexts({ family }: { family: FamilyDto }) {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className={`inline-flex min-h-11 items-center gap-1.5 rounded text-sm font-medium link ${FOCUS_RING}`}
+        className={`flex min-h-[52px] w-full items-center justify-between gap-3 border-y border-line text-left text-[15px] font-semibold md:min-h-[60px] md:text-base ${FOCUS_RING}`}
       >
+        {open ? 'Masquer les textes du sujet' : 'Tous les textes du sujet, votés ou non'}
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth={2.4}
+          strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
           aria-hidden
-          className={`size-4 transition-transform ${open ? 'rotate-90' : ''}`}
+          className={`size-[18px] shrink-0 text-ink-faint transition-transform md:size-5 ${open ? 'rotate-180' : ''}`}
         >
-          <path d="M9 6l6 6-6 6" />
+          <path d="M6 9l6 6 6-6" />
         </svg>
-        {open ? 'Masquer les textes du sujet' : 'Tous les textes du sujet, votés ou non'}
       </button>
 
       {open && (

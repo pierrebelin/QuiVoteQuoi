@@ -23,8 +23,8 @@ function Numero({ n, flottant = false }: { n: number; flottant?: boolean }) {
     <span
       aria-hidden
       className={`${
-        flottant ? 'absolute top-0 -left-[29px] z-[2]' : ''
-      } inline-flex size-[22px] shrink-0 items-center justify-center rounded-full bg-accent text-xs leading-[22px] font-bold text-surface ring-2 ring-surface`}
+        flottant ? 'absolute top-0 -left-[30px] z-[2]' : ''
+      } inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] leading-6 font-semibold text-surface ring-2 ring-surface`}
     >
       {n}
     </span>
@@ -44,7 +44,7 @@ function Repere({ n, children }: { n: number; children: ReactNode }) {
 function Morceau({ children }: { children: ReactNode }) {
   return (
     <div className="pl-3.5">
-      <div className="flex flex-col gap-2.5 rounded border border-line bg-surface p-4 shadow-card sm:px-5">
+      <div className="flex flex-col gap-2.5 rounded bg-surface p-4 sm:px-5">
         {children}
       </div>
     </div>
@@ -59,15 +59,18 @@ function Explications({ numeros }: { numeros: number[] }) {
       {numeros.map((n) => {
         const repere = REPERES[n - 1]
         return (
-          <li key={n} value={n} className="mt-2.5 flex gap-2.5 lg:mt-0 lg:gap-3 lg:py-3">
+          <li key={n} value={n} className="mt-3 flex gap-3 lg:mt-0 lg:py-3">
             <Numero n={n} />
             <div className="flex-1">
-              <p className="text-sm leading-5 font-semibold text-ink lg:text-[15px] lg:leading-[22px]">
+              <p className="text-[15px] leading-[22px] font-semibold text-ink">
                 {repere.libelle}
               </p>
-              <p className="mt-0.5 text-sm leading-[21px] text-ink-soft">{repere.texte}</p>
-              <p className="mt-1 text-[13px] leading-5">
-                <Link to={{ hash: repere.question }} className="link">
+              <p className="mt-0.5 text-[14.5px] leading-[21px] text-ink-soft">{repere.texte}</p>
+              <p className="mt-1 text-[14px] leading-5">
+                <Link
+                  to={{ hash: repere.question }}
+                  className="link relative inline-block font-medium max-md:after:absolute max-md:after:-inset-x-2 max-md:after:-inset-y-3 max-md:after:content-['']"
+                >
                   {QUESTION_PAR_ID.get(repere.question)}
                 </Link>
               </p>
@@ -99,17 +102,17 @@ export default function LireUnVote() {
 
   return (
     <section aria-labelledby="lire-un-vote" className="lg:mb-4">
-      <h3 id="lire-un-vote" className="heading-4">
+      <h3 id="lire-un-vote" className="heading-4 md:heading-3">
         Lire un vote
       </h3>
-      <p className="mt-1 mb-3.5 text-[13px] leading-[19px] text-ink-faint">
+      <p className="mt-1 mb-4 text-[13px] leading-[19px] text-ink-faint md:mb-5 md:text-sm md:leading-5">
         La carte du dernier vote sur l’ensemble d’un texte, découpée et expliquée morceau par morceau.
       </p>
 
       {vote ? (
         <Carte vote={vote} groups={latest.data?.groups ?? []} />
       ) : (
-        <p className="rounded border border-line bg-surface px-4 py-6 text-sm text-ink-soft">
+        <p className="rounded bg-surface px-4 py-6 text-sm text-ink-soft">
           {latest.isError
             ? 'Le dernier vote n’est pas disponible pour le moment.'
             : 'Chargement du dernier vote…'}
@@ -124,7 +127,7 @@ function Carte({ vote, groups }: { vote: FinalVoteDto; groups: GroupDto[] }) {
   return (
     <>
       <Etape numeros={[1, 2, 3]}>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Repere n={1}>
             <VoteCardHeader
               adopted={card.adopted}
@@ -135,7 +138,7 @@ function Carte({ vote, groups }: { vote: FinalVoteDto; groups: GroupDto[] }) {
             />
           </Repere>
           <Repere n={2}>
-            <p className="text-[12.5px] font-medium text-ink-soft">{card.kicker}</p>
+            <p className="text-[12.5px] leading-6 font-medium text-ink-soft">{card.kicker}</p>
           </Repere>
           <Repere n={3}>
             <h4 className="heading-5 text-ink">

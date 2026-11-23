@@ -54,11 +54,11 @@ export default function DossierScrutins({ uid }: { uid: string }) {
   }
 
   return (
-    <section className="mb-6">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
+    <section>
+      <h3 className="mb-4 heading-4 md:heading-3">
         Votes
         {data && data.total > 0 && (
-          <span className="ml-2 font-normal normal-case tracking-normal text-ink-faint">
+          <span className="ml-2.5 font-sans text-[15px] font-normal tracking-normal text-ink-faint">
             {data.total}
           </span>
         )}
@@ -69,22 +69,27 @@ export default function DossierScrutins({ uid }: { uid: string }) {
         )}
       </h3>
 
-      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-4">
         <form
           onSubmit={(event) => {
             event.preventDefault()
             setSearch(draft)
             setOffset(0)
           }}
-          className="flex w-full gap-1.5 sm:w-auto"
+          className="flex w-full gap-2 sm:w-auto"
         >
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             placeholder="Rechercher dans l'objet…"
-            className="min-w-0 flex-1 rounded border border-line bg-surface px-3 py-1.5 text-sm placeholder:text-ink-faint focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none sm:w-64 sm:flex-none"
+            className="h-12 min-w-0 flex-1 rounded-xl bg-surface px-3.5 text-[15px] text-ink placeholder:text-ink-faint focus:ring-2 focus:ring-accent/40 focus:outline-none sm:w-72 sm:flex-none"
           />
-          <Button type="submit">Rechercher</Button>
+          <button
+            type="submit"
+            className="inline-flex h-12 shrink-0 items-center rounded-xl bg-ink px-4 text-sm font-semibold text-canvas transition-opacity hover:opacity-85"
+          >
+            Rechercher
+          </button>
         </form>
         <SegmentedControl label="Sort" options={outcomes} value={outcome} onChange={reset(setOutcome)} />
         <SegmentedControl label="Type" options={ballotTypes} value={ballotType} onChange={reset(setBallotType)} />
@@ -96,7 +101,7 @@ export default function DossierScrutins({ uid }: { uid: string }) {
       {data && (
         <div className="space-y-2">
           {data.total === 0 ? (
-            <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+            <p className="rounded bg-surface px-4 py-3 text-sm text-ink-soft">
               {search || outcome || ballotType
                 ? 'Aucun vote ne correspond à ces filtres.'
                 : 'La source ne rattache aucun vote public à ce texte. Cela ne signifie pas qu’aucun vote n’a eu lieu.'}{' '}
@@ -107,8 +112,8 @@ export default function DossierScrutins({ uid }: { uid: string }) {
           ) : (
             <>
               <ScrutinList scrutins={data.scrutins} showDossier={false} />
-              <div className="flex items-center justify-between gap-3 pt-1">
-                <span className="text-xs text-ink-faint">
+              <div className="flex items-center justify-between gap-3 pt-4">
+                <span className="text-[13px] text-ink-soft tabular-nums">
                   {data.offset + 1}–{data.offset + data.count} sur {data.total}
                 </span>
                 <div className="flex gap-2">

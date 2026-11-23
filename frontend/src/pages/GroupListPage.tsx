@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router'
+import { Icon } from '../components/icons'
 import { formatDate } from '../types/scrutins'
 import {
   ErrorPanel,
@@ -29,31 +30,48 @@ export function GroupDot({
   )
 }
 
+/**
+ * Ligne de la liste (refonte A) : à plat, un filet entre deux groupes. Sur
+ * téléphone, l'effectif passe sous l'intitulé, le chiffre en Bricolage ; à
+ * partir de 768 px, il se range à droite, comme avant.
+ */
 function GroupRow({ group }: { group: GroupSummaryDto }) {
   return (
     <li>
       <Link
         to={`/groupes/${group.uid}`}
-        className="group flex flex-col gap-1 px-4 py-3 transition-colors hover:bg-surface-soft sm:flex-row sm:items-center sm:justify-between sm:gap-6"
+        className="group grid grid-cols-[12px_minmax(0,1fr)_16px] items-start gap-x-3 py-3.5 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent md:grid-cols-[12px_minmax(0,1fr)_auto_16px] md:items-center md:gap-x-6 md:py-4"
       >
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <GroupDot color={group.color} size="lg" />
-            <span className="text-[15px] font-semibold text-ink transition-colors group-hover:text-accent">
+        <span className="row-span-2 pt-[7px] md:row-span-1 md:pt-0">
+          <GroupDot color={group.color} size="lg" />
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5">
+            <span className="order-1 text-base font-bold tracking-[-0.01em] text-ink transition-colors group-hover:text-accent">
               {group.abbrev}
             </span>
-            <span className="text-sm text-ink-soft">{group.label}</span>
-            {group.dissolved && <Pill>dissous</Pill>}
+            <span className="order-3 basis-full text-[15px] leading-snug text-ink-soft md:order-2 md:basis-auto">
+              {group.label}
+            </span>
+            {group.dissolved && (
+              <span className="order-2 md:order-3">
+                <Pill>dissous</Pill>
+              </span>
+            )}
           </div>
           {group.former_abbrevs.length > 0 && (
-            <p className="mt-0.5 text-xs text-ink-faint">
+            <p className="mt-0.5 text-[13px] text-ink-faint">
               anciennement {group.former_abbrevs.join(', ')}
             </p>
           )}
         </div>
 
-        <p className="shrink-0 text-xs text-ink-faint sm:text-right">
-          <span className="font-semibold text-ink-soft">
+        <p
+          className={`col-start-2 row-start-2 mt-1.5 text-[13px] leading-[1.45] text-ink-faint md:col-start-3 md:row-start-1 md:mt-0 md:text-right ${
+            group.dissolved ? '[&>.figure]:text-ink-faint' : ''
+          }`}
+        >
+          <span className="figure mr-0.5 text-[22px] text-ink md:text-2xl">
             {formatCount(group.member_count)}
           </span>{' '}
           député{group.member_count > 1 ? 's' : ''} au{' '}
@@ -69,6 +87,11 @@ function GroupRow({ group }: { group: GroupSummaryDto }) {
             </span>
           )}
         </p>
+
+        <Icon
+          name="chevron"
+          className="col-start-3 row-span-2 row-start-1 size-4 self-center text-ink-faint md:col-start-4 md:row-span-1"
+        />
       </Link>
     </li>
   )
@@ -96,7 +119,7 @@ export default function GroupListPage() {
   if (isError) return <ErrorPanel error={error} />
 
   return (
-    <div className="space-y-4">
+    <div>
       <PageHeader
         info={
           <>
@@ -119,7 +142,7 @@ export default function GroupListPage() {
         }
       />
 
-      <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+      <ul className="divide-y divide-line border-y border-line">
         {data!.groups.map((group) => (
           <GroupRow key={group.uid} group={group} />
         ))}
@@ -127,9 +150,9 @@ export default function GroupListPage() {
 
       {/* Groupe ≠ parti, et les votes à main levée manquent : les deux lacunes
           sont dites, dans un seul encadré (README.md §3 et §2). */}
-      <Note desktopOnly>
+      <Note desktopOnly flat className="mt-6 max-w-2xl">
         <p>{data!.party_note}</p>
-        <p className="mt-1">
+        <p className="mt-3">
           {data!.hand_vote_note}{' '}
           <Link to="/scrutins" className="link">
             Voir tous les votes

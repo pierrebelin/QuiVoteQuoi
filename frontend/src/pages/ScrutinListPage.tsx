@@ -128,7 +128,7 @@ function ChipGroup({
               className={`inline-flex min-h-11 items-center gap-1 rounded-full px-3.5 text-[13.5px] whitespace-nowrap transition-colors ${FOCUS} ${
                 on
                   ? 'bg-ink font-semibold text-surface'
-                  : 'bg-surface font-medium text-ink-soft ring-1 ring-line-strong ring-inset hover:text-ink'
+                  : 'bg-surface font-medium text-ink-soft hover:bg-surface-soft hover:text-ink'
               }`}
             >
               {on && <Icon name="check" className="size-3.5" strokeWidth={3} />}
@@ -163,7 +163,7 @@ function StateFilter({
     <div
       role="group"
       aria-label="Où en est le texte"
-      className="-mx-6 mb-3 flex gap-2 overflow-x-auto px-6 py-1 [scrollbar-width:none] md:mx-0 md:mt-4 md:flex-wrap md:overflow-visible md:px-0"
+      className="-mx-5 mb-3 flex gap-2 overflow-x-auto px-5 py-1 [scrollbar-width:none] md:mx-0 md:mt-4 md:flex-wrap md:overflow-visible md:px-0"
     >
       {options.map((option) => {
         const on = option.kind === value
@@ -175,7 +175,7 @@ function StateFilter({
             aria-pressed={on}
             onClick={() => onChange(option.kind)}
             className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-semibold whitespace-nowrap transition-colors md:h-9 ${FOCUS} ${
-              on ? 'bg-ink text-surface' : 'bg-surface text-ink ring-1 ring-line-strong ring-inset hover:bg-surface-soft'
+              on ? 'bg-ink text-surface' : 'bg-surface text-ink hover:bg-surface-soft'
             }`}
           >
             {option.kind && <LawStateIcon kind={option.kind} />}
@@ -197,7 +197,7 @@ function StateFilter({
 function PageCount({ total, label }: { total: number; label: string }) {
   return (
     <div className="shrink-0 text-right">
-      <p className="figure text-[40px] tabular-nums">{total.toLocaleString('fr-FR')}</p>
+      <p className="figure text-[28px] tabular-nums md:text-[44px]">{total.toLocaleString('fr-FR')}</p>
       <p className="mt-1 text-xs text-ink-faint">{label}</p>
     </div>
   )
@@ -253,7 +253,7 @@ function ViewToggle({ view, onChange }: { view: ListView; onChange: (view: ListV
             aria-pressed={on}
             onClick={() => onChange(option.value)}
             className={`flex min-h-11 items-center justify-center gap-1.5 rounded px-2 text-sm whitespace-nowrap transition-colors ${FOCUS} ${
-              on ? 'bg-surface font-semibold text-ink shadow-card' : 'font-medium text-ink-soft hover:text-ink'
+              on ? 'bg-canvas font-semibold text-ink shadow-seg' : 'font-medium text-ink-soft hover:text-ink'
             }`}
           >
             <Icon name={option.icon} className="size-[18px]" />
@@ -313,7 +313,7 @@ function FiltersButton({ count, onClick, className = '' }: { count: number; onCl
       type="button"
       aria-haspopup="dialog"
       onClick={onClick}
-      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded bg-surface px-3.5 text-sm font-semibold text-ink ring-1 ring-line-strong ring-inset transition-colors hover:bg-surface-soft ${FOCUS} ${className}`}
+      className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded bg-surface px-3.5 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS} ${className}`}
     >
       <Icon name="tune" className="size-[18px]" />
       Filtres
@@ -525,7 +525,7 @@ export default function ScrutinListPage() {
       <div className="mt-[22px] mb-5">
         {/* Le compteur reste sur la ligne du titre dans les deux vues, quelle que soit la longueur de son libellé. */}
         <div className="flex items-end justify-between gap-4">
-          <h1 className="heading-2">
+          <h1 className="heading-2 md:heading-1">
             Votes
             <InfoTip label="À propos de cette page : Votes" className="md:hidden">
               <p>{lede}</p>
@@ -545,7 +545,7 @@ export default function ScrutinListPage() {
             />
           )}
         </div>
-        <p className="mt-1 hidden max-w-2xl text-ink-soft md:block">{lede}</p>
+        <p className="mt-2 hidden max-w-2xl text-ink-soft md:mt-3 md:block md:text-lg md:leading-relaxed">{lede}</p>
       </div>
 
       <div className="mb-4">
@@ -564,7 +564,7 @@ export default function ScrutinListPage() {
         }}
         className="mb-5 flex gap-2 md:hidden"
       >
-        <div className="flex h-11 min-w-0 flex-1 items-center rounded border border-line-strong bg-surface text-ink-soft focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+        <div className="flex h-11 min-w-0 flex-1 items-center rounded bg-surface text-ink-soft focus-within:ring-2 focus-within:ring-accent/40">
           <button
             type="submit"
             aria-label="Lancer la recherche"
@@ -587,7 +587,7 @@ export default function ScrutinListPage() {
       </form>
 
       {/* Recherche et filtres dans une seule carte, au-dessus de la liste. */}
-      <div className="hidden flex-wrap items-center gap-x-5 gap-y-2.5 rounded border border-line bg-surface px-3.5 py-3 shadow-card md:flex">
+      <div className="hidden flex-wrap items-center gap-x-5 gap-y-3 md:flex">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -595,7 +595,7 @@ export default function ScrutinListPage() {
           }}
           className="flex min-w-0 flex-[1_1_320px] gap-1.5"
         >
-          <label className="flex min-w-0 flex-1 items-center gap-2 rounded border border-line bg-surface px-2.5 py-1.5 focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/15">
+          <label className="flex min-h-11 min-w-0 flex-1 items-center gap-2 rounded bg-surface px-3.5 focus-within:ring-2 focus-within:ring-accent/40">
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -669,7 +669,7 @@ export default function ScrutinListPage() {
           {dossiers.data && (
             <>
               {dossiers.data.dossiers.length === 0 ? (
-                <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
+                <p className="rounded bg-surface px-4 py-3 text-sm text-ink-soft">
                   {allTexts ? 'Aucun texte ne correspond à ces filtres.' : 'Aucun texte voté ne correspond à ces filtres.'}
                 </p>
               ) : (
@@ -688,7 +688,7 @@ export default function ScrutinListPage() {
               {/* Par défaut, seuls les textes votés : ceux qui ne l'ont pas
                   été sont dits, et à un geste (README.md §2). */}
               {!allTexts && unvotedTotal !== undefined && unvotedTotal > 0 && (
-                <div className="mt-5 flex items-start gap-3 rounded border border-dashed border-line-strong bg-surface px-4 py-3.5">
+                <div className="mt-5 flex items-start gap-3 rounded bg-surface px-4 py-3.5">
                   <Icon name="info" className="mt-0.5 size-4 shrink-0 text-ink-faint" />
                   <div>
                     <p className="text-[13.5px] leading-snug text-ink-soft">
@@ -723,7 +723,7 @@ export default function ScrutinListPage() {
       {view === 'scrutin' && data && (
         <>
           {data.count === 0 ? (
-            <p className="rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft shadow-card">
+            <p className="rounded bg-surface px-4 py-3 text-sm text-ink-soft">
               Aucun vote ne correspond à ces filtres.
             </p>
           ) : (

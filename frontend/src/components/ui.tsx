@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { TallyDto } from '../types/scrutins'
+import { StateDot } from './entry/PositionGlyph'
 import { Icon } from './icons'
 import { InfoTip } from './InfoTip'
 
@@ -37,9 +38,9 @@ export function PageHeader({
   aside?: ReactNode
 }) {
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-2 md:mb-8">
       <div className="min-w-0">
-        <h2 className="heading-2 text-ink">
+        <h2 className="heading-2 text-ink md:heading-1">
           {title}
           {(lede || info) && (
             <InfoTip label={`À propos de cette page : ${title}`} className="md:hidden">
@@ -49,7 +50,7 @@ export function PageHeader({
           )}
         </h2>
         {lede && (
-          <p className="mt-1 hidden text-sm leading-relaxed text-ink-soft md:block">
+          <p className="mt-1 hidden max-w-2xl text-ink-soft md:mt-3 md:block md:text-lg md:leading-relaxed">
             {lede}
           </p>
         )}
@@ -59,7 +60,7 @@ export function PageHeader({
   )
 }
 
-/** Intitulé de section, au-dessus d'une liste ou d'une grille. */
+/** Intitulé de section, au-dessus d'une liste ou d'une grille (refonte A : 13 px, gris, sans capitales espacées). */
 export function SectionTitle({
   children,
   count,
@@ -72,7 +73,7 @@ export function SectionTitle({
 }) {
   return (
     <div className="mb-2 flex items-baseline gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
+      <h3 className="text-[13px] font-semibold text-ink-faint">
         {children}
       </h3>
       {count != null && <span className="text-xs text-ink-faint">{count}</span>}
@@ -90,7 +91,7 @@ export function SectionTitle({
 
 /* ------------------------------------------------------------- conteneurs */
 
-/** Carte : fond, trait fin, ombre d'un pixel. Aucun dégradé, aucun relief. */
+/** Carte : le gris des cartes, sans bordure ni ombre. Aucun dégradé, aucun relief. */
 export function Card({
   children,
   className = '',
@@ -102,7 +103,7 @@ export function Card({
 }) {
   return (
     <div
-      className={`rounded border border-line bg-surface shadow-card ${className}`}
+      className={`rounded bg-surface ${className}`}
       style={style}
     >
       {children}
@@ -111,8 +112,9 @@ export function Card({
 }
 
 /**
- * Liste de lignes cliquables. Le trait de séparation vient du conteneur, pas
- * de chaque ligne : une ligne ne connaît pas sa position dans la liste.
+ * Liste de lignes cliquables, à plat (refonte A) : des filets, ni fond ni coins.
+ * Le trait de séparation vient du conteneur, pas de chaque ligne : une ligne ne
+ * connaît pas sa position dans la liste.
  */
 export function ListCard({
   children,
@@ -123,7 +125,7 @@ export function ListCard({
 }) {
   return (
     <div
-      className={`divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card transition-opacity ${
+      className={`divide-y divide-line border-y border-line transition-opacity ${
         muted ? 'opacity-50' : ''
       }`}
     >
@@ -136,20 +138,25 @@ export function ListCard({
  * Encadré de méthode ou de lacune.
  *
  * Avec `desktopOnly`, il n'apparaît qu'à partir de 768 px : la page doit alors
- * porter le même texte dans l'infobulle du titre concerné.
+ * porter le même texte dans l'infobulle du titre concerné. Avec `flat`
+ * (refonte A, écrans Groupes), le texte se lit à plat, sans fond, en 15 px.
  */
 export function Note({
   children,
   desktopOnly = false,
+  flat = false,
+  className = '',
 }: {
   children: ReactNode
   desktopOnly?: boolean
+  flat?: boolean
+  className?: string
 }) {
   return (
     <div
-      className={`rounded border border-line bg-surface-soft px-3 py-2 text-xs leading-relaxed text-ink-soft ${
-        desktopOnly ? 'hidden md:block' : ''
-      }`}
+      className={`leading-relaxed text-ink-soft ${
+        flat ? 'text-sm' : 'rounded bg-surface-soft px-3 py-2 text-xs'
+      } ${desktopOnly ? 'hidden md:block' : ''} ${className}`}
     >
       {children}
     </div>
@@ -174,18 +181,23 @@ export function Loading({ children }: { children: ReactNode }) {
 
 export type PillTone = 'yes' | 'no' | 'neutral' | 'info' | 'abstain'
 
-const pillTones: Record<PillTone, string> = {
-  yes: 'bg-yes-soft text-yes ring-yes/15',
-  no: 'bg-no-soft text-no ring-no/15',
-  abstain: 'bg-abstain-soft text-abstain ring-abstain/15',
-  info: 'bg-info-soft text-info ring-info/15',
-  neutral: 'bg-surface-soft text-ink-soft ring-line',
-}
+/** États de vote : pastille ronde pleine, puis le mot à la même couleur. */
+const stateTones = {
+  yes: { position: 'for', text: 'text-yes' },
+  no: { position: 'against', text: 'text-no' },
+  abstain: { position: 'abstention', text: 'text-abstain' },
+} as const
+
+/** Étiquettes sans état : fond neutre, aucune couleur de position. */
+const labelTones = {
+  info: 'bg-surface-soft text-info',
+  neutral: 'bg-surface-soft text-ink-soft',
+} as const
 
 /**
- * Pastille d'état. Un anneau d'un pixel plutôt qu'une bordure : sur un fond
- * teinté, la bordure pleine épaissit la pastille et la fait ressembler à un
- * bouton cliquable.
+ * Pastille d'état. Un état de vote (pour, contre, abstention) s'écrit en pastille
+ * ronde pleine suivie du mot coloré ; une information neutre (étape, procédure,
+ * mention) reste une étiquette grise, sans bordure.
  */
 export function Pill({
   children,
@@ -196,10 +208,22 @@ export function Pill({
   tone?: PillTone
   title?: string
 }) {
+  if (tone === 'yes' || tone === 'no' || tone === 'abstain') {
+    const state = stateTones[tone]
+    return (
+      <span
+        title={title}
+        className={`inline-flex shrink-0 items-center gap-1.5 text-[13px] leading-[18px] font-semibold ${state.text}`}
+      >
+        <StateDot position={state.position} />
+        {children}
+      </span>
+    )
+  }
   return (
     <span
       title={title}
-      className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${pillTones[tone]}`}
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11.5px] font-medium leading-4 ${labelTones[tone]}`}
     >
       {children}
     </span>
@@ -269,9 +293,9 @@ export function VoteBar({
   const scale = outOf && outOf > 0 ? Math.min(1, total / outOf) : 1
 
   return (
-    <div className="w-full rounded-full bg-surface-soft">
+    <div className="w-full rounded-full bg-seat-empty">
       <div
-        className={`bar-grow flex overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-1.5'}`}
+        className={`bar-grow flex gap-0.5 overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-2'}`}
         style={{ width: `${scale * 100}%` }}
         role="img"
         title={label}
@@ -358,11 +382,11 @@ export function TallyLine({
 /* -------------------------------------------------------------- contrôles */
 
 /**
- * Groupe de filtres. Le segment actif est plein plutôt que teinté : sur une
- * ligne de quatre groupes, une teinte pâle ne se distingue plus du survol. Il
- * porte aussi une coche et un trait, pour que l'état ne repose pas sur la seule
- * couleur, et reste net en sombre où le fond de la surface est proche de celui
- * de la piste.
+ * Groupe de filtres (refonte A) : une piste grise, le segment actif en blanc.
+ * Il porte aussi une coche, pour que le choix ne repose pas sur la seule
+ * couleur, et reste net en sombre. Sur téléphone, les segments se partagent la
+ * largeur (trois en ligne, quatre sur deux rangées) avec des cibles de 44 px ;
+ * au-delà, ils se suivent à leur largeur.
  */
 export function SegmentedControl({
   label,
@@ -375,14 +399,15 @@ export function SegmentedControl({
   value: string
   onChange: (value: string) => void
 }) {
+  const columns = options.length <= 3 ? 'grid-cols-3' : 'grid-cols-2'
   return (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex min-w-0 flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-2">
       {label && (
-        <span className="shrink-0 text-xs font-medium text-ink-faint">
+        <span className="shrink-0 text-[13px] font-semibold text-ink-faint">
           {label}
         </span>
       )}
-      <div className="flex min-w-0 flex-wrap gap-0.5 rounded bg-surface-soft p-0.5">
+      <div className={`grid min-w-0 gap-0.5 rounded-xl bg-surface p-0.5 ${columns} sm:flex sm:flex-wrap`}>
         {options.map((option) => {
           const active = value === option.value
           return (
@@ -391,13 +416,13 @@ export function SegmentedControl({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(option.value)}
-              className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+              className={`inline-flex min-h-11 items-center justify-center gap-1.5 rounded-[10px] px-3.5 text-sm font-semibold transition-colors sm:min-h-9 ${
                 active
-                  ? 'bg-surface text-ink shadow-card ring-1 ring-line-strong ring-inset'
+                  ? 'bg-canvas text-ink shadow-seg'
                   : 'text-ink-soft hover:text-ink'
               }`}
             >
-              {active && <Icon name="check" className="size-3" strokeWidth={3} />}
+              {active && <Icon name="check" className="size-3.5" strokeWidth={3} />}
               {option.label}
             </button>
           )
@@ -423,7 +448,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface"
+      className="inline-flex min-h-11 items-center rounded bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:text-ink-faint disabled:opacity-60 disabled:hover:bg-surface"
     >
       {children}
     </button>

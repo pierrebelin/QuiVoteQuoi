@@ -18,7 +18,7 @@ export default function GuideLink({
   return (
     <Link
       to={`/comprendre#${ancre}`}
-      className="text-xs text-ink-soft underline decoration-line-strong underline-offset-2 hover:text-accent hover:decoration-accent"
+      className="link"
     >
       {children}
     </Link>

@@ -1,9 +1,9 @@
 import type { Logo } from '../content/logos'
 
 /**
- * Logo officiel d'un groupe ou d'un parti, posé sur une plaque blanche : les
- * fichiers sont dessinés pour un fond clair, et la plaque le leur garde en mode
- * sombre. Sans logo référencé, le sigle tient lieu de marque, à la couleur
+ * Logo officiel d'un groupe ou d'un parti, posé sur une vignette blanche
+ * (rayon 8 px, filet) : les fichiers sont dessinés pour un fond clair, et la
+ * vignette le leur garde en mode sombre. Sans logo référencé, le sigle tient lieu de marque, à la couleur
  * fournie — même emplacement, même taille, aucun groupe sans identité visuelle.
  */
 export function PoliticalLogo({
@@ -20,7 +20,7 @@ export function PoliticalLogo({
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center overflow-hidden rounded bg-white p-1 ring-1 ring-inset ring-black/10 ${className}`}
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white p-1 ring-1 ring-inset ring-line ${className}`}
     >
       {logo ? (
         <img src={logo.src} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />

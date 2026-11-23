@@ -71,12 +71,12 @@ export default function DossierFinalScrutin({ uid, acts }: { uid: string; acts: 
   })
 
   if (groupActions.isLoading || (shown && scrutin.isLoading)) {
-    return <p className="mb-6 animate-pulse text-sm text-ink-faint">Chargement du vote final…</p>
+    return <p className="mt-9 animate-pulse text-sm text-ink-faint md:mt-12">Chargement du vote final…</p>
   }
 
   if (groupActions.isError || scrutin.isError) {
     return (
-      <div className="mb-6">
+      <div className="mt-9 md:mt-12">
         <ErrorPanel error={groupActions.error ?? scrutin.error} />
       </div>
     )
@@ -84,7 +84,7 @@ export default function DossierFinalScrutin({ uid, acts }: { uid: string; acts: 
 
   if (!shown || !scrutin.data) {
     return (
-      <p className="mb-6 rounded border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+      <p className="mt-9 rounded bg-surface px-4 py-3 text-sm text-ink-soft md:mt-12">
         Aucun vote final publié n'est rattaché à ce texte. Les votes éventuellement disponibles restent consultables dans l'onglet dédié.
       </p>
     )
@@ -99,29 +99,25 @@ export default function DossierFinalScrutin({ uid, acts }: { uid: string; acts: 
   const rejectionMotion = /^la motion de rejet/i.test(data.subject.trim())
 
   return (
-    <section className="mb-6" aria-labelledby="dossier-scrutin-final">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div>
-          <h3 id="dossier-scrutin-final" className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-            {shown.decisionDate ? 'Vote décisif' : 'Vote final publié'}
-          </h3>
-          <p className="mt-1 text-sm text-ink-soft">
-            <Link to={`/scrutins/${data.uid}`} className="font-medium link">
-              Scrutin n° {data.number}
-            </Link>
-            {' '}— {longDate(data.date)}
-            {shown.reading && <> · {shown.reading}</>}
-          </p>
-        </div>
-        <Pill tone={data.outcome_code === 'adopted' ? 'yes' : data.outcome_code === 'rejected' ? 'no' : 'neutral'}>
+    <section className="mt-9 md:mt-12" aria-labelledby="dossier-scrutin-final">
+      <h3 id="dossier-scrutin-final" className="heading-4 md:heading-3">
+        {shown.decisionDate ? 'Vote décisif' : 'Vote final publié'}
+      </h3>
+      <p className="mt-1.5 mb-4 text-sm leading-snug text-ink-soft">
+        <Link to={`/scrutins/${data.uid}`} className="font-semibold link">
+          Scrutin n° {data.number}
+        </Link>
+        {' '}— {longDate(data.date)}
+        {shown.reading && <> · {shown.reading}</>}
+      </p>
+
+      <Card className="p-5 md:p-6">
+        <Pill tone={data.outcome_code === 'adopté' ? 'yes' : data.outcome_code === 'rejeté' ? 'no' : 'neutral'}>
           {data.outcome_label}
         </Pill>
-      </div>
-
-      <Card className="px-4 py-3 sm:px-5 sm:py-4">
-        <p className="text-sm leading-snug text-ink">{data.subject}</p>
+        <p className="mt-3 heading-5 text-ink">{data.subject}</p>
         {(shown.decisionDate || rejectionMotion) && (
-          <p className="mt-1 text-xs leading-snug text-ink-soft">
+          <p className="mt-1.5 text-[13px] leading-snug text-ink-soft">
             {shown.decisionDate &&
               `L'Assemblée rattache à ce scrutin sa décision de séance du ${longDate(shown.decisionDate)}.`}
             {shown.decisionDate && rejectionMotion && ' '}
@@ -133,20 +129,28 @@ export default function DossierFinalScrutin({ uid, acts }: { uid: string; acts: 
             {votes.length > 0 ? (
               <Hemicycle votes={votes} labelledBy="dossier-scrutin-final" />
             ) : (
-              <p className="rounded border border-line bg-surface-soft px-3 py-2 text-sm text-ink-soft">
+              <p className="rounded bg-surface-soft px-3 py-2 text-sm text-ink-soft">
                 La source ne publie aucune position nominale exploitable pour représenter l'hémicycle de ce vote.
               </p>
             )}
           </div>
-          <div className="space-y-3 border-t border-line pt-3 lg:border-t-0 lg:border-l lg:pl-4 lg:pt-0">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-              <span><b className="font-semibold text-yes">{data.synthesis.tally.votes_for}</b> pour</span>
-              <span><b className="font-semibold text-no">{data.synthesis.tally.votes_against}</b> contre</span>
-              <span><b className="font-semibold text-abstain">{data.synthesis.tally.abstentions}</b> abstentions</span>
-              <span><b className="font-semibold text-ink-soft">{data.synthesis.tally.not_voting}</b> non-votants</span>
+          <div className="space-y-4 border-t border-line pt-4 lg:border-t-0 lg:border-l lg:pl-6 lg:pt-0">
+            <div className="grid grid-cols-3 gap-x-3 gap-y-2 text-[13px] text-ink-soft">
+              <span>
+                <b className="figure block text-[34px] text-yes">{data.synthesis.tally.votes_for}</b> pour
+              </span>
+              <span>
+                <b className="figure block text-[34px] text-no">{data.synthesis.tally.votes_against}</b> contre
+              </span>
+              <span>
+                <b className="figure block text-[34px] text-abstain">{data.synthesis.tally.abstentions}</b> abstentions
+              </span>
+              <span className="col-span-3">
+                <b className="font-semibold text-ink-soft">{data.synthesis.tally.not_voting}</b> non-votants
+              </span>
             </div>
-            <VoteBar tally={data.synthesis.tally} />
-            <a href={data.official_url} target="_blank" rel="noreferrer" className="text-xs link">
+            <VoteBar tally={data.synthesis.tally} thick />
+            <a href={data.official_url} target="_blank" rel="noreferrer" className="inline-block text-sm font-semibold link">
               Source officielle ↗
             </a>
           </div>

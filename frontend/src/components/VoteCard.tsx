@@ -13,8 +13,8 @@ import {
 import type { GroupDto, StanceDto, TallyDto } from '../types/finalVotes'
 import { formatDate } from '../types/scrutins'
 import GroupBreakdown from './entry/GroupBreakdown'
-import PositionGlyph from './entry/PositionGlyph'
-import { BADGE_CLASS, BADGE_WORD, BANNER_CLASS, FOCUS_RING, SWATCH_CLASS } from './entry/styles'
+import { StateDot } from './entry/PositionGlyph'
+import { BADGE_CLASS, BADGE_WORD, BANNER_CLASS, FOCUS_RING } from './entry/styles'
 import { PoliticalLogo } from './PoliticalLogo'
 import { VoteBar } from './ui'
 
@@ -61,7 +61,7 @@ export interface VoteCardProps {
   tally: TallyDto
   /** Carte complète seulement. */
   groups?: VoteCardGroups
-  /** Sans cadre : la carte est une ligne d'un bloc qui l'encadre déjà. */
+  /** Sans fond : la carte est une ligne d'un bloc qui la porte déjà. */
   bare?: boolean
   /** Carte seule en pleine largeur : à partir de 1024 px, l'intitulé à gauche,
    * les groupes et le décompte à droite. */
@@ -70,6 +70,9 @@ export interface VoteCardProps {
    * l'intitulé, au-dessus des groupes ; à partir de 1024 px, l'intitulé prend
    * toute la largeur et la figure se place à gauche des groupes. */
   figure?: ReactNode
+  /** Carte à figure seulement : l'issue est inscrite dans la figure (`VoteIssue`),
+   * l'en-tête ne la répète pas ; il ne garde que ce qui est mis aux voix et la date. */
+  outcomeInFigure?: boolean
 }
 
 const plural = (count: number, word: string) => `${count} ${word}${count > 1 ? 's' : ''}`
@@ -98,7 +101,7 @@ export function AssemblyFooter({ tally }: { tally: TallyDto }) {
   )
 }
 
-/** En-tête commun : l'issue et la lecture dans une pastille, puis la date. */
+/** En-tête commun : l'issue et la lecture (pastille ronde, puis le mot), puis la date. */
 export function VoteCardHeader({
   adopted,
   outcome,
@@ -107,20 +110,59 @@ export function VoteCardHeader({
   date,
 }: Pick<VoteCardProps, 'adopted' | 'outcome' | 'outcomeTitle' | 'reading' | 'date'>) {
   return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-ink-faint">
+    <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint">
       <span
         title={outcomeTitle}
-        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
-          adopted ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'
-        }`}
+        className={`inline-flex items-center gap-1.5 font-semibold ${adopted ? 'text-yes' : 'text-no'}`}
       >
-        <PositionGlyph position={adopted ? 'for' : 'against'} className="size-3" strokeWidth={3.2} />
+        <StateDot position={adopted ? 'for' : 'against'} />
         {outcome}
         {reading && <> · {readingShort(reading)}</>}
       </span>
       <time dateTime={date}>{formatDate(date)}</time>
     </p>
   )
+}
+
+/**
+ * L'issue du vote inscrite dans le creux de l'hémicycle : la pastille et le mot,
+ * puis la lecture en dessous. Le « · » du texte d'origine reste lu par les
+ * lecteurs d'écran.
+ */
+export function VoteIssue({
+  adopted,
+  outcome,
+  outcomeTitle,
+  reading,
+}: Pick<VoteCardProps, 'adopted' | 'outcome' | 'outcomeTitle' | 'reading'>) {
+  return (
+    <p title={outcomeTitle} className="flex flex-col items-center gap-0.5">
+      <span
+        className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${adopted ? 'text-yes' : 'text-no'}`}
+      >
+        <StateDot position={adopted ? 'for' : 'against'} />
+        {outcome}
+      </span>
+      {reading && fitsHollow(reading) && (
+        <span className="text-xs leading-tight font-medium whitespace-nowrap text-ink-soft">
+          <span className="sr-only"> · </span>
+          {readingShort(reading)}
+        </span>
+      )}
+    </p>
+  )
+}
+
+/*
+ * Le creux de l'hémicycle n'a qu'une centaine de pixels de large à 375 px :
+ * « 1re lecture » ou « Lecture définitive » y tiennent sur une ligne, pas
+ * « Texte de la commission mixte paritaire ». Une lecture plus longue reste
+ * affichée, mais dans la ligne de la mention, au-dessus de l'intitulé.
+ */
+const HOLLOW_MAX_CHARS = 18
+
+function fitsHollow(reading: string): boolean {
+  return readingShort(reading).length <= HOLLOW_MAX_CHARS
 }
 
 /** « première lecture » → « 1re lecture » : la pastille doit tenir sur une ligne. */
@@ -221,13 +263,8 @@ export function GroupsByPosition({
                 wide ? 'lg:grid-cols-[112px_minmax(0,1fr)]' : ''
               }`}
             >
-              <div className="flex min-h-[30px] items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className={`inline-flex size-5 shrink-0 items-center justify-center rounded ${SWATCH_CLASS[row.key]}`}
-                >
-                  <PositionGlyph position={row.key} className="size-3" />
-                </span>
+              <div className="flex min-h-7 items-center gap-1.5">
+                <StateDot position={row.key} />
                 <span className={`text-[13px] font-semibold ${ROW_WORD_CLASS[row.key]}`}>
                   {row.label}
                 </span>
@@ -248,8 +285,8 @@ export function GroupsByPosition({
                         onClick={(event) =>
                           setOpened(isOpen ? null : { group, anchor: event.currentTarget })
                         }
-                        // Le logo reste à 30 px de haut, la zone de toucher atteint 44 px.
-                        className={`relative flex h-[30px] w-11 items-center justify-center rounded bg-white p-[3px] ring-1 ring-black/10 ring-inset transition-[opacity,transform] motion-safe:hover:-translate-y-0.5 after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${FOCUS_RING} ${
+                        // La vignette fait 42 × 28 px, la zone de toucher atteint 44 px.
+                        className={`relative flex h-7 w-[42px] items-center justify-center rounded-lg transition-[opacity,transform] motion-safe:hover:-translate-y-0.5 after:absolute after:-inset-x-0.5 after:-inset-y-2 after:content-[''] ${FOCUS_RING} ${
                           on ? 'ring-2 ring-ink' : ''
                         } ${isOpen ? 'outline-2 outline-offset-1 outline-accent' : ''} ${
                           dimOthers && !on && !isOpen ? 'opacity-35 hover:opacity-80' : ''
@@ -302,6 +339,7 @@ export default function VoteCard({
   bare = false,
   wide = false,
   figure,
+  outcomeInFigure = false,
 }: VoteCardProps) {
   const compact = size === 'compact'
   const withFigure = wide && figure != null
@@ -319,7 +357,7 @@ export default function VoteCard({
       className={`group relative flex flex-col gap-2.5 ${
         bare
           ? 'px-4 py-3.5 sm:px-[18px]'
-          : 'rounded border border-line bg-surface p-4 shadow-card sm:px-5'
+          : 'rounded bg-surface p-4 sm:px-5'
       } ${compact ? 'transition-colors hover:bg-surface-soft/50' : ''} ${
         withFigure ? 'lg:px-7 lg:py-6' : ''
       } ${
@@ -329,14 +367,35 @@ export default function VoteCard({
       }`}
     >
       <div className="space-y-1.5">
-        <VoteCardHeader
-          adopted={adopted}
-          outcome={outcome}
-          outcomeTitle={outcomeTitle}
-          reading={reading}
-          date={date}
-        />
-        {kicker && <p className="text-[12.5px] font-medium text-ink-soft">{kicker}</p>}
+        {withFigure && outcomeInFigure ? (
+          <p className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[13px] text-ink-faint">
+            {/* La date reste avant la mention dans le texte, comme dans l'en-tête commun ;
+                `order` les remet dans le sens de lecture. */}
+            <time dateTime={date} className="order-2 whitespace-nowrap">
+              {formatDate(date)}
+            </time>
+            <span className="order-1 font-semibold text-ink-soft">
+              {kicker}
+              {reading && !fitsHollow(reading) && (
+                <span className="font-medium">
+                  {' · '}
+                  {readingShort(reading)}
+                </span>
+              )}
+            </span>
+          </p>
+        ) : (
+          <>
+            <VoteCardHeader
+              adopted={adopted}
+              outcome={outcome}
+              outcomeTitle={outcomeTitle}
+              reading={reading}
+              date={date}
+            />
+            {kicker && <p className="text-[12.5px] font-medium text-ink-soft">{kicker}</p>}
+          </>
+        )}
         <h3
           className={`text-ink ${
             compact

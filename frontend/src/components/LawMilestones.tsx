@@ -73,7 +73,7 @@ function Marker({ milestone, stateKind }: { milestone: Milestone; stateKind: Law
     'absolute top-0 left-0 flex size-5 items-center justify-center rounded-full box-border'
   if (milestone.step === 'law' && stateKind === 'became_law') {
     return (
-      <span className={`${base} bg-yes text-surface`}>
+      <span className={`${base} bg-yes-bar text-white`}>
         <LawStateIcon kind="became_law" className="size-2.5" bold />
       </span>
     )

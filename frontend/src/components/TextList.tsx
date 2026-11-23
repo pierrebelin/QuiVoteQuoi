@@ -21,7 +21,7 @@ export default function TextList({
   }
 
   return (
-    <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+    <ul className="divide-y divide-line overflow-hidden rounded bg-surface">
       {texts.map((text) => (
         <li
           key={text.key}
@@ -44,7 +44,7 @@ export default function TextList({
           </div>
           <div className="max-w-full shrink-0">
             {showFamilies && text.families.length > 0 ? (
-              <FamilyBadges families={text.families} />
+              <FamilyBadges families={text.families} onCard />
             ) : (
               <UnassignedNote outcome={text.last_attempt_outcome} />
             )}

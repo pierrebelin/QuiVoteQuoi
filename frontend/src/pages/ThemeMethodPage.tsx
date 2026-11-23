@@ -5,9 +5,9 @@ import type { MethodResponse } from '../types/themes'
 
 function Row({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-line py-1">
-      <span className="text-xs text-ink-soft">{label}</span>
-      <span className="text-sm">{value}</span>
+    <div className="flex items-baseline justify-between gap-4 border-t border-line py-2">
+      <span className="text-[13px] text-ink-soft">{label}</span>
+      <span className="text-[15px] font-semibold text-ink">{value}</span>
     </div>
   )
 }
@@ -20,10 +20,8 @@ function Block({
   children: React.ReactNode
 }) {
   return (
-    <section className="rounded border border-line bg-surface px-4 py-3">
-      <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
-        {title}
-      </h3>
+    <section className="border-t border-line pt-5">
+      <h3 className="heading-5 mb-2.5 text-ink">{title}</h3>
       {children}
     </section>
   )
@@ -49,19 +47,21 @@ export default function ThemeMethodPage() {
   const linking = data.amendment_linking
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-9">
       <div className="max-w-3xl">
         <BackLink to="/par-sujet">Votes par sujet</BackLink>
-        <h2 className="mt-1 heading-2">
+        <h2 className="mt-1 heading-2 md:heading-1">
           Méthode de thématisation
         </h2>
-        <p className="mt-1 text-sm text-ink-soft">{data.method_note}</p>
+        <p className="mt-2 text-base leading-normal text-ink-soft md:mt-3 md:text-lg md:leading-relaxed">
+          {data.method_note}
+        </p>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-x-14 gap-y-9 md:grid-cols-2">
         <Block title="Ce qui porte le sujet">
-          <p className="text-sm text-ink-soft">{data.extraction_rule}</p>
-          <p className="mt-1.5 text-sm text-ink-soft">
+          <p className="text-[15px] leading-[1.55] text-ink-soft">{data.extraction_rule}</p>
+          <p className="mt-2 text-[15px] leading-[1.55] text-ink-soft">
             Un vote reçoit les familles du texte qu'il met aux voix. Le lien
             entre un dossier législatif et un texte est établi par les votes
             que la source rattache aux deux — aucun rapprochement de libellés
@@ -70,8 +70,8 @@ export default function ThemeMethodPage() {
         </Block>
 
         <Block title="Ce que fait le modèle">
-          <p className="text-sm text-ink-soft">{data.model_scope}</p>
-          <p className="mt-1.5 text-sm text-ink-soft">
+          <p className="text-[15px] leading-[1.55] text-ink-soft">{data.model_scope}</p>
+          <p className="mt-2 text-[15px] leading-[1.55] text-ink-soft">
             Un texte porte {data.max_families_per_text} familles au plus. Les
             familles « Société / libertés » et « Immigration » rattachent sur
             l'objet du texte, jamais sur son orientation.
@@ -79,22 +79,22 @@ export default function ThemeMethodPage() {
         </Block>
 
         <Block title="Ce que tranchent les règles">
-          <p className="text-sm text-ink-soft">{data.rule_scope}</p>
-          <ul className="mt-2 space-y-1.5">
+          <p className="text-[15px] leading-[1.55] text-ink-soft">{data.rule_scope}</p>
+          <ul className="mt-3">
             {data.rules.map((rule) => (
-              <li key={rule.id} className="border-b border-line pb-1.5 last:border-0">
+              <li key={rule.id} className="border-t border-line py-2.5">
                 <div className="flex flex-wrap items-baseline gap-x-1.5">
-                  <code className="rounded bg-surface-soft px-1 py-0.5 text-[11px] text-ink-soft">
+                  <code className="rounded bg-surface px-1.5 py-0.5 text-xs text-ink-soft">
                     {rule.marker}
                   </code>
                   {rule.whole_word && (
-                    <span className="text-xs text-ink-faint">(mot entier)</span>
+                    <span className="text-[13px] text-ink-faint">(mot entier)</span>
                   )}
-                  <span className="text-xs text-ink-faint">
+                  <span className="text-[13px] text-ink-faint">
                     → {rule.families.map((f) => f.label).join(', ')}
                   </span>
                 </div>
-                <p className="mt-0.5 text-xs text-ink-soft">{rule.statement}</p>
+                <p className="mt-1 text-[13px] leading-[1.5] text-ink-soft">{rule.statement}</p>
               </li>
             ))}
           </ul>
@@ -122,7 +122,7 @@ export default function ThemeMethodPage() {
             value={data.scrutins_without_text}
           />
           <Row label="Votes portant au moins une famille" value={data.scrutins_assigned} />
-          <p className="mt-1.5 text-xs text-ink-faint">
+          <p className="mt-3 text-[13px] leading-[1.5] text-ink-faint">
             Les votes sans texte et les textes sans famille restent
             consultables :{' '}
             <Link to="/themes/non-rattaches" className="link">
@@ -140,7 +140,7 @@ export default function ThemeMethodPage() {
             value={data.dossiers_without_text}
           />
           <Row label="Dossiers portant une famille" value={data.dossiers_assigned} />
-          <p className="mt-1.5 text-xs text-ink-faint">
+          <p className="mt-3 text-[13px] leading-[1.5] text-ink-faint">
             Un dossier relié à un texte voté reçoit les familles de ce texte : il
             n'est jamais soumis séparément. Seuls les dossiers qu'aucun vote ne
             relie à un texte sont classés sur leur propre titre.
@@ -148,7 +148,7 @@ export default function ThemeMethodPage() {
         </Block>
 
         <Block title="Rapprochement votes–amendements">
-          <p className="mb-1.5 text-sm text-ink-soft">
+          <p className="mb-3 text-[15px] leading-[1.55] text-ink-soft">
             L'objet d'un vote cite des numéros d'amendement. Chaque numéro
             est cherché dans le texte que la source rattache au vote : il
             est relié à l'amendement unique qui le porte, ou reste sans lien,
@@ -162,7 +162,7 @@ export default function ThemeMethodPage() {
           {linking.absences.map((absence) => (
             <Row key={absence.code} label={absence.label} value={absence.count} />
           ))}
-          <p className="mt-1.5 text-xs text-ink-faint">
+          <p className="mt-3 text-[13px] leading-[1.5] text-ink-faint">
             {data.amendment_linking_note}
           </p>
         </Block>

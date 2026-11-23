@@ -12,7 +12,7 @@ import type { FamilyDto } from '../../types/themes'
 import { BottomSheet } from '../BottomSheet'
 import { FamilyIllustration } from '../FamilyIllustration'
 import { Icon } from '../icons'
-import { ErrorPanel, Loading, SectionTitle } from '../ui'
+import { Card, ErrorPanel, Loading, SectionTitle } from '../ui'
 import { CandidateSources, GroupLinks } from './CandidateDetails'
 import { CandidatePortrait } from './CandidateIdentity'
 import { CandidatePicker } from './CandidateSlots'
@@ -41,25 +41,25 @@ export function CandidateChooser({
   return (
     <section className="md:max-w-2xl">
       <SectionTitle>Choisir une candidature</SectionTitle>
-      <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+      <ul className="divide-y divide-line border-y border-line">
         {withExcerpts.map((candidate) => (
           <li key={candidate.id}>
             <Link
               to={programHref(candidate.id)}
-              className={`grid min-h-[60px] grid-cols-[40px_minmax(0,1fr)_18px] items-center gap-3 px-3.5 py-2 transition-colors hover:bg-surface-soft ${FOCUS}`}
+              className={`group grid min-h-16 grid-cols-[44px_minmax(0,1fr)_18px] items-center gap-3 py-2.5 ${FOCUS}`}
             >
-              <CandidatePortrait candidate={candidate} className="size-10" />
+              <CandidatePortrait candidate={candidate} className="size-11" />
               <span className="min-w-0">
-                <span className="block text-[15px] leading-[19px] font-semibold text-ink">
+                <span className="block text-base leading-5 font-[620] text-ink">
                   {candidate.display_name}
                 </span>
                 {organizationLabel(candidate) && (
-                  <span className="block truncate text-[12.5px] leading-4 text-ink-soft">
+                  <span className="block truncate text-[13px] leading-4 text-ink-faint">
                     {organizationLabel(candidate)}
                   </span>
                 )}
               </span>
-              <Icon name="chevron" className="size-[18px] text-ink-soft" />
+              <Icon name="chevron" className="size-[18px] text-ink-faint transition-colors group-hover:text-ink" />
             </Link>
           </li>
         ))}
@@ -131,20 +131,20 @@ export function CandidateProgram({
       className="scroll-mt-20 md:grid md:grid-cols-[minmax(0,260px)_minmax(0,1fr)] md:items-start md:gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
     >
       <aside className="mb-5 md:mb-0">
-        <div className="rounded border border-line bg-surface px-4 py-4 shadow-card">
+        <Card className="px-4 py-4">
           <div className="flex items-center gap-3">
             <CandidatePortrait candidate={candidate} className="size-12 md:size-14" />
-            <h3 className="min-w-0 flex-1 text-base leading-tight font-semibold text-ink md:heading-5">
+            <h3 className="min-w-0 flex-1 heading-5 text-ink">
               {candidate.display_name}
             </h3>
             <button
               type="button"
               aria-haspopup="dialog"
               onClick={() => setPicking(true)}
-              className={`flex min-h-11 shrink-0 items-center gap-1 rounded px-2 text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft md:hidden ${FOCUS}`}
+              className={`flex min-h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-accent md:hidden ${FOCUS}`}
             >
               Changer
-              <Icon name="down" className="size-4 text-ink-soft" />
+              <Icon name="down" className="size-4" strokeWidth={2} />
             </button>
           </div>
           <div className="mt-3">
@@ -156,27 +156,30 @@ export function CandidateProgram({
               type="button"
               aria-haspopup="dialog"
               onClick={() => setPicking(true)}
-              className={`hidden h-10 items-center justify-center rounded bg-surface-soft px-4 text-[13.5px] font-semibold text-ink transition-colors hover:bg-line md:flex ${FOCUS}`}
+              className={`hidden h-11 items-center justify-center rounded-xl bg-canvas px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft md:flex ${FOCUS}`}
             >
               Changer de candidature
             </button>
           </div>
-        </div>
+        </Card>
 
         {covered.length > 0 && (
           <nav aria-label="Sujets du programme" className="mt-5 hidden md:block">
-            <SectionTitle>Sujets</SectionTitle>
+            <div className="px-3">
+              <SectionTitle>Sujets</SectionTitle>
+            </div>
             <ul className="space-y-0.5">
               {covered.map((family) => (
                 <li key={family.code}>
                   <a
                     href={`#programme-${family.code}`}
-                    className={`flex min-h-9 items-center gap-2 rounded px-2 py-1 text-[13.5px] font-medium text-ink transition-colors hover:bg-surface-soft ${FOCUS}`}
+                    className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-1 text-sm font-medium text-ink-soft transition-colors hover:bg-surface hover:text-ink ${FOCUS}`}
                   >
                     <FamilyIllustration
+                      bare
                       code={family.code}
-                      className="size-6 shrink-0 rounded"
-                      glyphClassName="size-3.5"
+                      className="size-5 shrink-0"
+                      glyphClassName="size-5"
                     />
                     {family.label}
                   </a>
@@ -191,26 +194,27 @@ export function CandidateProgram({
         {query.isLoading && <Loading>Chargement du programme…</Loading>}
         {query.isError && <ErrorPanel error={query.error} />}
         {query.data && covered.length > 0 && (
-          <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+          <div className="divide-y divide-line border-y border-line">
             {covered.map((family) => (
               <section
                 key={family.code}
                 id={`programme-${family.code}`}
                 aria-labelledby={`programme-${family.code}-titre`}
-                className="scroll-mt-20 px-4 pt-4 pb-4 md:px-6 md:pt-5"
+                className="scroll-mt-20 py-5 md:py-6"
               >
                 <h4
                   id={`programme-${family.code}-titre`}
-                  className="mb-3 flex items-center gap-2.5 font-heading text-[17px] leading-[22px] font-[460] text-ink md:text-xl md:leading-6"
+                  className="mb-3 flex items-center gap-2.5 text-[17px] leading-[22px] font-[620] tracking-[-0.01em] text-ink md:text-lg md:leading-6"
                 >
                   <FamilyIllustration
+                    bare
                     code={family.code}
-                    className="size-7 shrink-0 rounded md:size-8"
-                    glyphClassName="size-4 md:size-[18px]"
+                    className="size-6 shrink-0"
+                    glyphClassName="size-6"
                   />
                   {family.label}
                 </h4>
-                <div className="flex max-w-[720px] flex-col gap-3">
+                <div className="flex max-w-[720px] flex-col gap-4">
                   {(byFamily.get(family.code) ?? []).map((proposal, index) => (
                     <ProgramExcerpt key={`${proposal.source_url}-${index}`} proposal={proposal} />
                   ))}
@@ -229,7 +233,7 @@ export function CandidateProgram({
 
         <section className="mt-6">
           <SectionTitle>Votes des groupes associés</SectionTitle>
-          <div className="rounded border border-line bg-surface px-4 py-3.5 shadow-card">
+          <div className="border-y border-line py-3.5">
             <GroupLinks groups={groups} failed={query.isError} theme="" />
           </div>
         </section>

@@ -14,12 +14,12 @@ export default function AmendmentAuthor({ amendment }: { amendment: AmendmentDto
           href={amendment.author_official_url}
           target="_blank"
           rel="noreferrer"
-          className="font-medium text-ink hover:underline"
+          className="font-semibold text-ink hover:underline"
         >
           {name}
         </a>
       ) : (
-        <span className="font-medium text-ink">{name}</span>
+        <span className="font-semibold text-ink">{name}</span>
       )}
 
       {amendment.author_group_abbrev && (

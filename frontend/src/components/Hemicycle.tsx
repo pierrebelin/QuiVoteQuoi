@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { positionLabels } from '../types/scrutins'
 import { PLAN_SIEGES, PLAN_VUE, RAYON_SIEGE } from './planHemicycle'
 import {
@@ -74,6 +74,18 @@ function Infobulle({ place }: { place: Place }) {
   )
 }
 
+/**
+ * Le creux de l'hémicycle, posé sur le plan (parent `relative`, aux proportions
+ * du plan). Il fait 29 % de la largeur : le bloc y tient, au pied de l'arc.
+ */
+export function CentreHemicycle({ children }: { children: ReactNode }) {
+  return (
+    <div className="absolute bottom-[-6px] left-1/2 flex w-[29%] -translate-x-1/2 flex-col items-center text-center">
+      {children}
+    </div>
+  )
+}
+
 /** Durée du remplissage, du premier siège à gauche au dernier à droite. */
 const REMPLISSAGE_MS = 1000
 
@@ -109,9 +121,12 @@ function retardRemplissage({ x, y }: { x: number; y: number }): number {
 export default function Hemicycle({
   votes,
   labelledBy,
+  centre,
 }: {
   votes: SiegeVote[]
   labelledBy?: string
+  /** Inscrit dans le creux de l'hémicycle, au pied de l'arc (l'issue du vote, à l'accueil). */
+  centre?: ReactNode
 }) {
   const [survol, setSurvol] = useState<number | null>(null)
 
@@ -203,6 +218,8 @@ export default function Hemicycle({
           />
         )}
       </svg>
+
+      {centre && <CentreHemicycle>{centre}</CentreHemicycle>}
 
       {vise && <Infobulle place={vise} />}
 

@@ -5,7 +5,7 @@ import { NAV_MORE, isActive } from '../lib/navigation'
 import { Icon } from './icons'
 
 const ITEM_CLASS =
-  'flex min-h-10 items-center gap-2.5 rounded px-3 text-[13px] font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
+  'flex min-h-11 items-center gap-2.5 rounded-[12px] px-3 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent'
 
 /**
  * « Plus » de la barre haute : les pages de fond (Comprendre) dans un menu
@@ -23,10 +23,12 @@ export default function NavMoreMenu({ className = '' }: { className?: string }) 
       <Menu.Root open={open} onOpenChange={(next) => setOpenedAt(next ? location.key : null)}>
         <Menu.Trigger
           aria-current={active ? 'page' : undefined}
-          className={`inline-flex items-center gap-1 rounded px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
-            active || open
-              ? 'bg-surface-soft text-ink'
-              : 'text-ink-soft hover:bg-surface-soft hover:text-ink'
+          className={`inline-flex h-10 items-center gap-1.5 rounded-[12px] px-3.5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
+            active
+              ? 'bg-accent-soft text-accent-ink'
+              : open
+                ? 'bg-surface text-ink'
+                : 'text-ink-soft hover:bg-surface hover:text-ink'
           }`}
         >
           Plus
@@ -34,7 +36,7 @@ export default function NavMoreMenu({ className = '' }: { className?: string }) 
         </Menu.Trigger>
         <Menu.Portal>
           <Menu.Positioner side="bottom" align="end" sideOffset={6} className="z-30">
-            <Menu.Popup className="w-52 rounded border border-line bg-surface p-1.5 shadow-card-hover outline-none">
+            <Menu.Popup className="w-56 rounded border border-line bg-canvas p-1.5 shadow-float outline-none">
               {NAV_MORE.map((link) => {
                 const current = isActive(location.pathname, link)
                 return (
@@ -44,7 +46,7 @@ export default function NavMoreMenu({ className = '' }: { className?: string }) 
                     render={<Link to={link.to} />}
                     aria-current={current ? 'page' : undefined}
                     className={`${ITEM_CLASS} ${
-                      current ? 'bg-surface-soft text-ink' : 'text-ink-soft hover:bg-surface-soft hover:text-ink'
+                      current ? 'bg-accent-soft text-accent-ink' : 'text-ink-soft hover:bg-surface hover:text-ink'
                     }`}
                   >
                     <Icon name={link.icon} className="size-4" />

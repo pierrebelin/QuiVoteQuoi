@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { readingKey, readingLabel } from '../lib/dossierStatus'
+import { Icon } from './icons'
 
 export interface ParcoursActDto {
   date: string
@@ -130,12 +131,12 @@ function DocumentLink({ document }: { document: ParcoursDocumentDto }) {
       target="_blank"
       rel="noreferrer"
       title={title}
-      className="font-medium link"
+      className="text-sm font-semibold link"
     >
       {label} ↗
     </a>
   ) : (
-    <span title={title} className="font-medium text-ink-soft">
+    <span title={title} className="text-sm font-medium text-ink-soft">
       {label}
     </span>
   )
@@ -186,9 +187,10 @@ export default function DossierParcours({
         <button
           type="button"
           onClick={() => setExpanded(true)}
-          className="mb-3 text-xs font-medium link"
+          className="mb-3 inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold link"
         >
           Afficher {hidden} lecture{hidden > 1 ? 's' : ''} antérieure{hidden > 1 ? 's' : ''}
+          <Icon name="down" className="size-4 text-ink-faint" strokeWidth={2} />
         </button>
       )}
       <ol className="ml-1.5 border-l-2 border-line pl-5">
@@ -199,19 +201,19 @@ export default function DossierParcours({
               <div className="relative">
                 <span
                   aria-hidden
-                  className={`absolute top-[5px] -left-[28px] size-3 rounded-full ring-4 ring-surface ${phase.key === 'PROM' ? 'bg-yes' : isLast ? 'bg-info' : 'bg-ink-faint'}`}
+                  className={`absolute top-[5px] -left-[28px] size-3 rounded-full ring-4 ring-surface ${phase.key === 'PROM' ? 'bg-yes-bar' : 'bg-ink'}`}
                 />
-                <p className="text-sm leading-snug font-semibold text-ink">{phase.label}</p>
-                <p className="text-xs text-ink-faint">{range(phase.first, phase.last)}</p>
+                <p className="text-base leading-snug font-semibold text-ink">{phase.label}</p>
+                <p className="text-[13px] text-ink-faint tabular-nums">{range(phase.first, phase.last)}</p>
               </div>
-              <ul className="mt-2 space-y-2 text-[13px] leading-snug">
+              <ul className="mt-2 space-y-2 text-sm leading-snug">
                 {phase.steps.map((step, j) => (
-                  <li key={j} className="relative">
+                  <li key={j} className="relative flex items-baseline justify-between gap-3">
                     <span
                       aria-hidden
-                      className="absolute top-[6px] -left-[25px] size-1.5 rounded-full bg-line-strong"
+                      className="absolute top-[8px] -left-[25px] size-1.5 rounded-full bg-line-strong"
                     />
-                    <span className="text-ink">
+                    <span className="min-w-0 text-ink">
                       {step.label}
                       {step.count > 1 && (
                         <span className="ml-1 rounded bg-surface-soft px-1 text-[11px] font-semibold text-ink-soft">
@@ -219,12 +221,14 @@ export default function DossierParcours({
                         </span>
                       )}
                     </span>
-                    <span className="block text-xs text-ink-faint">{range(step.first, step.last)}</span>
+                    <span className="shrink-0 text-[13px] whitespace-nowrap text-ink-faint tabular-nums">
+                      {range(step.first, step.last)}
+                    </span>
                   </li>
                 ))}
               </ul>
               {phase.documents.length > 0 && (
-                <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[13px]">
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm">
                   {phase.documents.map((document) => (
                     <DocumentLink key={document.document_uid} document={document} />
                   ))}
@@ -237,8 +241,8 @@ export default function DossierParcours({
 
       {unplaced.length > 0 && (
         <div className="mt-4 border-t border-line pt-3">
-          <p className="mb-1 text-xs text-ink-faint">Autres documents</p>
-          <div className="flex flex-col gap-1 text-[13px]">
+          <p className="mb-1 text-[13px] text-ink-faint">Autres documents</p>
+          <div className="flex flex-col gap-1 text-sm">
             {unplaced.map((document) => (
               <DocumentLink key={document.document_uid} document={document} />
             ))}
@@ -247,7 +251,7 @@ export default function DossierParcours({
       )}
 
       {documents.length > 0 && (
-        <p className="mt-4 hidden text-xs leading-relaxed text-ink-faint md:block">
+        <p className="mt-4 hidden text-[13px] leading-relaxed text-ink-faint md:block">
           <DocumentsSource documents={documents} />
         </p>
       )}

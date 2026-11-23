@@ -22,7 +22,7 @@ export function LawStateGroupHeading({
 }) {
   return (
     <h3
-      className={`mb-1 flex items-center gap-1.5 text-xs font-semibold tracking-[0.06em] uppercase ${
+      className={`mb-1 flex items-center gap-1.5 text-[13px] font-semibold ${
         first ? '' : 'mt-4'
       } ${kind === 'in_shuttle' ? 'text-ink-soft' : 'text-yes'} ${className}`}
     >

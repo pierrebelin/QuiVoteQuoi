@@ -74,7 +74,7 @@ function ThemeTile({
       } text-left text-[12.5px] leading-tight transition-colors ${FOCUS} ${
         active
           ? 'bg-ink font-semibold text-surface'
-          : 'font-medium text-ink-soft ring-1 ring-line ring-inset hover:text-ink hover:ring-line-strong'
+          : 'bg-surface font-medium text-ink-soft hover:bg-surface-soft hover:text-ink'
       }`}
     >
       {active ? (

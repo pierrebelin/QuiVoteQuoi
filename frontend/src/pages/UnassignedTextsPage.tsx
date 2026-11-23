@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BackLink } from '../components/ui'
+import { BackLink, Button } from '../components/ui'
 import TextList from '../components/TextList'
 import type { TextListResponse } from '../types/themes'
 
@@ -29,18 +29,18 @@ export default function UnassignedTextsPage() {
   const data = texts.data!
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       <div>
         <BackLink to="/par-sujet">Votes par sujet</BackLink>
         <div className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <h2 className="heading-2">
+          <h2 className="heading-2 md:heading-1">
             Textes non rattachés
           </h2>
-          <span className="text-xs text-ink-faint">
+          <span className="text-[13px] text-ink-faint">
             {data.total} texte{data.total > 1 ? 's' : ''}
           </span>
         </div>
-        <p className="mt-0.5 text-sm text-ink-soft">
+        <p className="mt-2 max-w-2xl text-base leading-normal text-ink-soft md:mt-3 md:text-lg md:leading-relaxed">
           Ces textes n'ont aucune famille. Ils restent consultables et leurs
           votes sont exposés comme les autres : le site ne retire rien faute de
           sujet.
@@ -50,27 +50,17 @@ export default function UnassignedTextsPage() {
       <TextList texts={data.items} showFamilies={false} />
 
       <div className="flex items-center justify-between">
-        <button
-          type="button"
-          disabled={offset === 0}
-          onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
-          className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40"
-        >
+        <Button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
           Précédent
-        </button>
-        <span className="text-xs text-ink-faint">
+        </Button>
+        <span className="text-[13px] text-ink-faint">
           {data.total === 0
             ? '0'
             : `${offset + 1} – ${Math.min(offset + PAGE_SIZE, data.total)} sur ${data.total}`}
         </span>
-        <button
-          type="button"
-          disabled={offset + PAGE_SIZE >= data.total}
-          onClick={() => setOffset(offset + PAGE_SIZE)}
-          className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:opacity-40"
-        >
+        <Button disabled={offset + PAGE_SIZE >= data.total} onClick={() => setOffset(offset + PAGE_SIZE)}>
           Suivant
-        </button>
+        </Button>
       </div>
     </div>
   )

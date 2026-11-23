@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import DossierCardShell, { OutcomeSplit } from '../DossierCardShell'
-import PositionGlyph from '../entry/PositionGlyph'
+import { StateDot } from '../entry/PositionGlyph'
 import VoteCard from '../VoteCard'
 import { capitalized } from '../../lib/entryFlow'
 import { agreed, scrutinCard } from '../voteCardData'
@@ -29,11 +29,9 @@ function LatestFinal({ final, textLabel }: { final: NonNullable<WeekCardTally['l
       Dont le vote sur l’ensemble,
       <span
         title={capitalized(final.outcome_label)}
-        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${
-          adopted ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'
-        }`}
+        className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${adopted ? 'text-yes' : 'text-no'}`}
       >
-        <PositionGlyph position={adopted ? 'for' : 'against'} className="size-3" strokeWidth={3.2} />
+        <StateDot position={adopted ? 'for' : 'against'} />
         {agreed(adopted, textLabel)}
       </span>
     </p>
@@ -93,7 +91,7 @@ export default function WeekTextCard({
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="flex min-h-11 w-full items-center justify-center border-t border-line text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft/50"
+        className="mx-[18px] mb-1.5 flex min-h-11 items-center text-sm font-semibold link"
       >
         {expanded
           ? 'Replier'
@@ -106,7 +104,7 @@ export default function WeekTextCard({
 
   if (!text.dossier_uid) {
     return (
-      <article className="overflow-hidden rounded border border-line bg-surface shadow-card">
+      <article className="overflow-hidden rounded bg-surface">
         <header className="px-[18px] pt-3 pb-3.5">
           <h2 className="text-[16.5px] leading-snug font-semibold text-ink">Votes sans texte rattaché</h2>
           <p className="mt-1 text-[12.5px] text-ink-soft">La source ne publie pas de texte rattaché pour ces votes.</p>

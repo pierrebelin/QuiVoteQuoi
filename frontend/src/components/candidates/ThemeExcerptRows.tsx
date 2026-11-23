@@ -36,7 +36,7 @@ export function ThemeRow({
   }, [open])
 
   return (
-    <div className="bg-surface">
+    <div>
       <h4>
         <button
           ref={buttonRef}
@@ -45,19 +45,18 @@ export function ThemeRow({
           aria-expanded={open}
           aria-controls={panelId}
           onClick={onToggle}
-          className={`grid min-h-[54px] w-full scroll-mt-20 grid-cols-[38px_minmax(0,1fr)_18px] items-center gap-2.5 px-3.5 py-2 text-left text-[14.5px] leading-tight font-semibold text-ink transition-colors hover:bg-surface-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
-            open ? 'bg-surface-soft' : ''
-          }`}
+          className="group grid min-h-14 w-full scroll-mt-20 grid-cols-[24px_minmax(0,1fr)_18px] items-center gap-3 py-2 text-left text-[15px] leading-tight font-[620] text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         >
           <FamilyIllustration
+            bare
             code={family.code}
-            className="size-[38px] rounded"
-            glyphClassName="size-[22px]"
+            className="size-6"
+            glyphClassName="size-6"
           />
           <span>{family.label}</span>
           <Icon
             name="chevron"
-            className={`size-[18px] text-ink-soft transition-transform ${open ? 'rotate-90' : ''}`}
+            className={`size-[18px] text-ink-faint transition-transform group-hover:text-ink ${open ? 'rotate-90' : ''}`}
           />
         </button>
       </h4>
@@ -97,7 +96,7 @@ export function ThemeExcerpts({
 
   if (candidates.length === 0) {
     return (
-      <p className="px-4 py-5 text-sm leading-relaxed text-ink-soft">
+      <p className="py-5 text-sm leading-relaxed text-ink-soft">
         Choisissez une candidature pour lire ses extraits sur ce sujet.
       </p>
     )
@@ -106,7 +105,7 @@ export function ThemeExcerpts({
   const data = query.data
   if (query.isError && !data) {
     return (
-      <p role="alert" className="px-4 py-5 text-sm leading-relaxed text-no">
+      <p role="alert" className="py-5 text-sm leading-relaxed text-no">
         Les extraits ne se chargent pas pour le moment
         {query.error instanceof Error ? ` (${query.error.message})` : ''}.
       </p>
@@ -132,11 +131,11 @@ export function ThemeExcerpts({
           <section
             key={candidate.id}
             aria-label={candidate.display_name}
-            className="flex min-w-0 flex-col gap-3 bg-surface p-3 md:p-4"
+            className="flex min-w-0 flex-col gap-3 bg-canvas px-3 py-4 first:pl-0 last:pr-0 md:px-4"
           >
             <div className="flex items-center gap-2">
-              <CandidatePortrait candidate={candidate} className="size-6" />
-              <h5 className="min-w-0 text-[13px] leading-tight font-semibold [overflow-wrap:anywhere] text-ink">
+              <CandidatePortrait candidate={candidate} className="size-7" />
+              <h5 className="min-w-0 text-sm leading-tight font-[620] [overflow-wrap:anywhere] text-ink">
                 {candidate.display_name}
               </h5>
             </div>
@@ -151,7 +150,7 @@ export function ThemeExcerpts({
                 {proposals.map((proposal, index) => (
                   <li
                     key={`${proposal.source_url}-${index}`}
-                    className="border-l-2 border-line pl-2.5 md:pl-3"
+                    className="border-l-2 border-line-strong pl-2.5 md:pl-3"
                   >
                     <p className="text-[13.5px] leading-[1.45] text-ink">« {proposal.excerpt} »</p>
                     <p className="mt-1 text-xs leading-[1.3] text-ink-soft">

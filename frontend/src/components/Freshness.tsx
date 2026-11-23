@@ -96,9 +96,9 @@ function attemptText(source: SourceFreshness): string {
 export function FreshnessSection() {
   const { data, isLoading, isError } = useFreshness()
   return (
-    <section id="fraicheur" className="scroll-mt-6 space-y-3">
-      <h2 className="heading-4">Fraîcheur des données</h2>
-      <p className="text-sm text-ink-soft">
+    <section id="fraicheur" className="band scroll-mt-6 space-y-3.5 py-8 md:py-10">
+      <h2 className="heading-4 md:heading-3">Fraîcheur des données</h2>
+      <p className="text-sm text-ink-soft md:max-w-2xl md:text-[15px] md:leading-normal">
         Une source passe « en retard » après 6 h sans synchronisation réussie.
         Le motif d'un échec n'est pas publié.
       </p>
@@ -110,21 +110,27 @@ export function FreshnessSection() {
       )}
       {data && (
         <>
-          <ul className="grid gap-2">
+          <ul className="border-b border-line">
             {data.sources.map((source) => (
               <li
                 key={source.source}
-                className="grid gap-x-4 gap-y-1 rounded border border-line px-4 py-3 text-sm sm:grid-cols-[1.2fr_auto_1fr_1fr]"
+                className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-6 gap-y-2 border-t border-line py-3.5 text-sm sm:grid-cols-[1.2fr_auto_1fr_1fr] sm:items-start sm:py-4"
               >
                 <span className="font-semibold">{source.label}</span>
-                <span className="font-semibold">{source.status_label}</span>
-                <span>
+                <span className="inline-flex items-center gap-1.5 font-semibold text-ink-soft">
+                  <span
+                    aria-hidden
+                    className={`size-2 rounded-full ${source.status === 'up_to_date' ? 'bg-accent' : 'bg-ink-faint'}`}
+                  />
+                  {source.status_label}
+                </span>
+                <span className="col-span-2 sm:col-span-1">
                   <span className="block text-xs text-ink-faint">
                     Dernière réussite
                   </span>
                   {formatDateTime(source.last_success_at)}
                 </span>
-                <span>
+                <span className="col-span-2 sm:col-span-1">
                   <span className="block text-xs text-ink-faint">
                     Dernière tentative
                   </span>

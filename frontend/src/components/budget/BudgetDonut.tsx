@@ -35,12 +35,15 @@ export function Donut<T>({
   slices,
   size,
   label,
+  onCard = false,
   children,
 }: {
   slices: Slice<T>[]
   size: number
   /** Nom accessible : les parts et leur poids, l'anneau n'ayant pas de texte. */
   label: string
+  /** Anneau posé sur une carte grise : le liseré entre les parts prend son gris, non le blanc de la page. */
+  onCard?: boolean
   /** Chiffre posé au centre de l'anneau. */
   children: ReactNode
 }) {
@@ -55,7 +58,7 @@ export function Donut<T>({
         key={slice.key}
         d={sector(from, turn)}
         fill={sliceColor(slice.colorIndex)}
-        stroke="var(--color-surface)"
+        stroke={onCard ? 'var(--color-surface)' : 'var(--color-canvas)'}
         strokeWidth={2}
         strokeLinejoin="round"
       />,

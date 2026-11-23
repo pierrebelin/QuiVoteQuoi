@@ -44,15 +44,15 @@ export default function AdvancedTexts({ advanced }: { advanced: AdvancedText[] }
     <section
       id={ADVANCED_ANCHOR}
       aria-labelledby={`${ADVANCED_ANCHOR}-titre`}
-      className="scroll-mt-20 rounded-[18px] border border-line bg-surface p-4 md:p-6"
+      className="band scroll-mt-20 py-8 md:py-10"
     >
       <h2
         id={`${ADVANCED_ANCHOR}-titre`}
-        className="mb-1 font-heading text-[22px] leading-[26px] font-[460] tracking-[-0.01em] md:text-[26px] md:leading-[30px]"
+        className="mb-1.5 heading-4 md:heading-3"
       >
         Textes qui ont avancé
       </h2>
-      <p className="mb-3.5 text-[13px] leading-[19px] text-ink-soft">
+      <p className="mb-5 text-[13px] leading-[19px] text-ink-soft md:text-sm">
         Étapes de la semaine à l’Assemblée et au Sénat, avec ou sans scrutin public.
       </p>
       {groups.map(({ kind, items }, index) => {

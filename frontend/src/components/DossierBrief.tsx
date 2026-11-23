@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router'
-import { Card, ErrorPanel, Meta, Note, Pill } from './ui'
+import { ErrorPanel, Meta, Note, Pill } from './ui'
+import { Icon } from './icons'
 import { fetchJson } from '../lib/fetchJson'
 import type {
   ArticleBriefDto,
@@ -78,12 +79,9 @@ function OfficialLink({ officialUrl, children }: { officialUrl: string; children
   )
 }
 
+/** Chevron de dépliage, à droite de la ligne : il se retourne quand le bloc est ouvert. */
 function Chevron({ openedBy }: { openedBy: string }) {
-  return (
-    <span aria-hidden className={`w-3 shrink-0 text-center text-ink-faint transition-transform ${openedBy}`}>
-      ›
-    </span>
-  )
+  return <Icon name="down" className={`size-[18px] text-ink-faint transition-transform ${openedBy}`} />
 }
 
 function ArticleLine({
@@ -131,20 +129,20 @@ function WaitingArticles({
   ].filter((count) => count !== null)
   const link = articles.length > 2 ? 'à' : 'et'
   return (
-    <details className="group/waiting my-1.5 rounded bg-surface-soft text-[13.5px] text-ink-soft">
-      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-2.5 py-2 [&::-webkit-details-marker]:hidden">
-        <Chevron openedBy="group-open/waiting:rotate-90" />
+    <details className="group/waiting my-1.5 rounded bg-surface text-[13.5px] text-ink-soft">
+      <summary className="flex min-h-11 cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 [&::-webkit-details-marker]:hidden">
         <span className="font-semibold">
           Articles {articles[0].label} {link} {articles[articles.length - 1].label}
         </span>
         <span className="ml-auto">{counts.join(', ')}</span>
+        <Chevron openedBy="group-open/waiting:rotate-180" />
       </summary>
-      <ul className="flex flex-wrap gap-1 px-2.5 pb-2 text-[12.5px]">
+      <ul className="flex flex-wrap gap-1 px-3 pb-2 text-[12.5px]">
         {articles.map((article, index) => (
           <li
             key={`${article.label}-${index}`}
             title={`${fullName(article)} : ${waitingWord(article)}`}
-            className={`rounded bg-surface px-1.5 py-px ${article.state === 'pending' ? '' : 'text-ink-faint line-through'}`}
+            className={`rounded bg-canvas px-1.5 py-px ${article.state === 'pending' ? '' : 'text-ink-faint line-through'}`}
           >
             {article.label}
             <span className="sr-only"> : {waitingWord(article)}</span>
@@ -152,7 +150,7 @@ function WaitingArticles({
         ))}
       </ul>
       {officialUrl && (
-        <p className="px-2.5 pb-2.5 text-[13px]">
+        <p className="px-3 pb-3 text-[13px]">
           <OfficialLink officialUrl={officialUrl}>Lire ces articles dans le texte officiel ↗</OfficialLink>
         </p>
       )}
@@ -221,20 +219,20 @@ function Articles({
   const parts = runsBy(articles, (article) => topLevel(article.division))
   const firstNamedPart = parts.findIndex((part) => part.key !== null)
   return (
-    <div className="space-y-2.5">
+    <div>
       {parts.map((part, index) =>
         part.key === null ? (
           <DivisionBlock key={index} heading={null} articles={part.articles} officialUrl={officialUrl} />
         ) : (
-          <details key={index} open={index === firstNamedPart} className="group/part rounded border border-line">
-            <summary className="flex cursor-pointer list-none items-start gap-2 px-3.5 py-3 text-sm font-semibold text-ink [&::-webkit-details-marker]:hidden">
-              <Chevron openedBy="group-open/part:rotate-90" />
+          <details key={index} open={index === firstNamedPart} className="group/part border-b border-line first:border-t">
+            <summary className="flex min-h-11 cursor-pointer list-none items-start justify-between gap-3 py-4 text-[15px] leading-snug font-medium text-ink [&::-webkit-details-marker]:hidden">
               <span className="min-w-0">
                 {readableDivision(part.key)}
-                <span className="block text-[13px] font-normal text-ink-faint">{partTally(part.articles)}</span>
+                <span className="mt-1 block text-[13px] font-normal text-ink-faint">{partTally(part.articles)}</span>
               </span>
+              <Chevron openedBy="group-open/part:rotate-180" />
             </summary>
-            <div className="px-3.5 pb-2">
+            <div className="pb-3">
               {runsBy(part.articles, (article) => article.division).map((run, subIndex) => (
                 <DivisionBlock
                   key={subIndex}
@@ -259,12 +257,13 @@ function VersionPicker({
   onSelect: (documentUid: string) => void
 }) {
   return (
-    <label className="flex flex-wrap items-center gap-2 text-xs text-ink-faint">
+    <label className="flex max-w-lg flex-col gap-1.5 text-[13px] font-semibold text-ink-faint">
       Version
+      <span className="relative flex">
       <select
         value={data.shown?.document_uid ?? ''}
         onChange={(event) => onSelect(event.target.value)}
-        className="min-w-0 rounded border border-line bg-surface px-2.5 py-1.5 text-sm text-ink-soft"
+        className="h-12 w-full min-w-0 appearance-none rounded-xl border border-line bg-canvas pr-10 pl-3.5 text-[15px] font-normal text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
       >
         {data.shown === null && (
           <option value="" disabled>
@@ -278,6 +277,8 @@ function VersionPicker({
           </option>
         ))}
       </select>
+      <Icon name="down" className="pointer-events-none absolute top-1/2 right-3.5 size-[18px] -translate-y-1/2 text-ink-faint" />
+      </span>
     </label>
   )
 }
@@ -286,14 +287,14 @@ function VersionPicker({
 function ShownVersion({ shown }: { shown: TextVersionDto }) {
   return (
     <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-      <span className="text-sm font-medium text-ink">{shown.label}</span>
-      <Meta>{formatDate(shown.deposited_on)}</Meta>
+      <span className="basis-full heading-5 text-ink sm:basis-auto">{shown.label}</span>
+      <span className="text-sm text-ink-soft">{formatDate(shown.deposited_on)}</span>
       {shown.official_url && (
         <a
           href={shown.official_url}
           target="_blank"
           rel="noreferrer"
-          className="text-xs font-medium link"
+          className="text-sm font-semibold link"
         >
           Lire le texte officiel ↗
         </a>
@@ -349,7 +350,7 @@ function Body({ data }: { data: DossierBriefResponse }) {
 function Footer({ data }: { data: DossierBriefResponse }) {
   if (data.models.length === 0 || !data.generated_at) return null
   return (
-    <p className="mt-4 text-xs leading-relaxed text-ink-faint">
+    <p className="mt-4 border-t border-line pt-3 text-[13px] leading-relaxed text-ink-faint">
       Lignes produites par {data.models.join(', ')}, dernière génération le {formatDate(data.generated_at)}.
     </p>
   )
@@ -401,8 +402,8 @@ export default function DossierBrief({ uid }: { uid: string }) {
     content = <ErrorPanel error={error} />
   } else {
     content = (
-      <div className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+      <div className="space-y-4">
+        <div className="space-y-4">
           <div className="min-w-0 space-y-1">
             {data.shown && <ShownVersion shown={data.shown} />}
             {data.text_status === 'read' && !data.is_latest && (
@@ -419,16 +420,14 @@ export default function DossierBrief({ uid }: { uid: string }) {
   }
 
   return (
-    <section className="mb-4" aria-labelledby="dossier-en-bref">
-      <Card className="px-4 py-4 sm:px-6 sm:py-5">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h3 id="dossier-en-bref" className="text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
-            En bref
-          </h3>
-          <Pill tone="info">Synthèse automatique</Pill>
-        </div>
-        {content}
-      </Card>
+    <section className="mt-9 md:mt-12" aria-labelledby="dossier-en-bref">
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <h3 id="dossier-en-bref" className="heading-4 md:heading-3">
+          En bref
+        </h3>
+        <Pill tone="info">Synthèse automatique</Pill>
+      </div>
+      {content}
     </section>
   )
 }

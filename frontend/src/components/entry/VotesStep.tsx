@@ -10,6 +10,7 @@ import VoteCard from '../VoteCard'
 import { finalVoteCard } from '../voteCardData'
 import VotesToolbar from './VotesToolbar'
 import ThemeTexts from './ThemeTexts'
+import { FamilyIllustration } from '../FamilyIllustration'
 import { InfoTip } from '../InfoTip'
 
 const PREVIEW_SIZE = 5
@@ -40,7 +41,7 @@ function ReadingNote() {
     <>
       Un groupe parlementaire n’est pas un parti. Les chiffres sont ceux publiés par
       l’Assemblée nationale ; le détail de chaque vote, député par député, s’ouvre depuis son
-      titre. <Link to="/votes-par-groupe/methode" className="underline">Méthode</Link>
+      titre. <Link to="/votes-par-groupe/methode" className="link">Méthode</Link>
     </>
   )
 }
@@ -64,26 +65,32 @@ function ThemeSection({
   const total = query.data?.total ?? 0
 
   return (
-    <section aria-labelledby={`theme-${family.code}`} className="space-y-3">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2
-          id={first ? 'entry-heading' : `theme-${family.code}`}
-          tabIndex={first ? -1 : undefined}
-          className="heading-3 outline-none"
-        >
-          {typographic(family.label)}{' '}
-          <span className="text-[15px] font-normal text-ink-soft">· dernières lois{' '}
-            {/* Insécable : l'icône ne doit pas partir seule à la ligne. */}
-            <span className="whitespace-nowrap">
-              votées
-              {info && (
-                <InfoTip label="Comment lire ces votes" className="md:hidden">
-                  {info}
-                </InfoTip>
-              )}
-            </span>
+    <section aria-labelledby={`theme-${family.code}`} className="space-y-3 md:space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+        {/* L'icône de famille en couleur, sur une pastille grise, devant le titre. */}
+        <div className="flex min-w-0 items-center gap-3 md:gap-4">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface md:size-14 md:rounded-2xl">
+            <FamilyIllustration bare code={family.code} glyphClassName="size-[22px] md:size-7" />
           </span>
-        </h2>
+          <h2
+            id={first ? 'entry-heading' : `theme-${family.code}`}
+            tabIndex={first ? -1 : undefined}
+            className="min-w-0 heading-3 text-balance outline-none md:heading-2"
+          >
+            {typographic(family.label)}{' '}
+            <span className="text-[15px] font-normal text-ink-soft">· dernières lois{' '}
+              {/* Insécable : l'icône ne doit pas partir seule à la ligne. */}
+              <span className="whitespace-nowrap">
+                votées
+                {info && (
+                  <InfoTip label="Comment lire ces votes" className="md:hidden">
+                    {info}
+                  </InfoTip>
+                )}
+              </span>
+            </span>
+          </h2>
+        </div>
         {total > 0 && (
           <Link
             to={allVotesLink(family.code, followed)}
@@ -98,7 +105,7 @@ function ThemeSection({
       {query.isError && <ErrorPanel error={query.error} />}
       {query.data &&
         (query.data.items.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-3 md:space-y-4">
             {query.data.items.map((vote) => (
               <VoteCard
                 key={vote.scrutin_uid}
@@ -203,12 +210,16 @@ export default function VotesStep({
         ))}
       </div>
 
-      <div className="space-y-2">
-        <Note desktopOnly>{OUTCOME_NOTE}</Note>
-        {scopeNote && <Note desktopOnly>{scopeNote}</Note>}
-        <Note desktopOnly>
-          <ReadingNote />
-        </Note>
+      {/* À partir de 768 px, les mentions sont écrites en trois colonnes, dans une bande grise
+          qui descend jusqu'au pied de page (marge basse de la page, 2 rem, et marge haute du pied, 3 rem). */}
+      <div className="band mt-6 -mb-20 hidden py-10 md:block">
+        <ul className="grid grid-cols-3 gap-6 text-[15px] leading-[1.55] text-ink-soft [&_li]:text-pretty">
+          <li>{OUTCOME_NOTE}</li>
+          {scopeNote && <li>{scopeNote}</li>}
+          <li>
+            <ReadingNote />
+          </li>
+        </ul>
       </div>
     </div>
   )
