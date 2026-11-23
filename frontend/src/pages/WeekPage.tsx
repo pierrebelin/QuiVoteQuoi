@@ -27,7 +27,7 @@ function Chevron({ direction }: { direction: 'left' | 'right' }) {
   )
 }
 
-const ROUND = 'flex size-11 shrink-0 items-center justify-center rounded-full border border-line bg-surface'
+const ROUND = 'flex size-11 shrink-0 items-center justify-center rounded-full bg-surface'
 
 /** Flèche vers une semaine voisine, inactive à la borne (RM-12). */
 function WeekArrow({ to, label, direction }: { to: string | null; label: string; direction: 'left' | 'right' }) {
@@ -39,7 +39,7 @@ function WeekArrow({ to, label, direction }: { to: string | null; label: string;
     )
   }
   return (
-    <Link to={to} aria-label={label} className={`${ROUND} text-ink hover:border-line-strong`}>
+    <Link to={to} aria-label={label} className={`${ROUND} text-ink transition-colors hover:bg-surface-soft`}>
       <Chevron direction={direction} />
     </Link>
   )
@@ -50,11 +50,11 @@ function FooterLink({ to, caption, children }: { to: string; caption: string; ch
   return (
     <Link
       to={to}
-      className="flex min-h-14 items-center justify-between gap-3 rounded-[18px] border border-line bg-surface px-4 py-3 hover:border-line-strong"
+      className="flex min-h-16 items-center justify-between gap-3 border-t border-line py-3.5 hover:text-accent-ink"
     >
       <span>
-        <span className="block text-[12.5px] text-ink-faint">{caption}</span>
-        <span className="block text-[14.5px] font-semibold">{children}</span>
+        <span className="block text-[13px] text-ink-faint">{caption}</span>
+        <span className="block text-[15px] leading-snug font-semibold">{children}</span>
       </span>
       <Chevron direction="right" />
     </Link>
@@ -105,20 +105,18 @@ export default function WeekPage() {
   const previousLabel = data.previous ? weekSpan(data.previous.monday) : null
 
   return (
-    <div className="flex flex-col gap-[22px] md:gap-7">
+    <div className="flex flex-col gap-7 md:gap-9">
       <VotesTabs current="semaine" />
 
       {data.current_week_empty && (
-        <p className="rounded-[14px] bg-surface-soft px-4 py-2.5 text-[13.5px] text-ink-soft">
-          Aucun vote publié cette semaine pour l’instant.
-        </p>
+        <p className="-mb-2 text-[13.5px] text-ink-soft">Aucun vote publié cette semaine pour l’instant.</p>
       )}
 
-      <div className="flex flex-col gap-[22px] md:flex-row md:items-end md:justify-between md:gap-8">
-        <div className="flex flex-col gap-3.5 md:gap-4">
+      <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between md:gap-8">
+        <div className="flex flex-col gap-4 md:gap-5">
           <div>
             <p className="mb-0.5 text-[13px] text-ink-faint md:text-sm">Assemblée nationale</p>
-            <h1 className="flex items-center gap-1 font-heading text-[30px] leading-[34px] font-[460] tracking-[-0.01em] md:gap-1.5 md:text-[40px] md:leading-[44px]">
+            <h1 className="flex items-center gap-1 heading-2 md:gap-1.5 md:heading-1">
               La semaine
               <InfoTip label="À propos de cette page">
                 <p>Tous les votes publics de la semaine, sans sélection.</p>
@@ -133,11 +131,11 @@ export default function WeekPage() {
               direction="left"
             />
             <div className="flex-1 text-center md:flex-none md:text-left">
-              <p className="font-heading text-[16.5px] leading-[22px] font-[460] tracking-[-0.01em] whitespace-nowrap md:text-[22px] md:leading-7">
+              <p className="font-heading text-[16.5px] leading-6 font-[560] tracking-[-0.01em] whitespace-nowrap md:text-2xl md:leading-7">
                 {weekSpan(data.monday)}
               </p>
               {data.is_current && (
-                <span className="inline-flex rounded-full bg-info-soft px-2 text-xs leading-[18px] font-semibold text-info md:text-[12.5px]">
+                <span className="inline-flex rounded-full bg-accent-soft px-2 text-xs leading-[18px] font-semibold text-accent-ink md:text-[12.5px]">
                   Semaine en cours
                 </span>
               )}
@@ -146,21 +144,21 @@ export default function WeekPage() {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2.5 rounded-[18px] border border-line bg-surface p-4 md:w-[520px] md:gap-3 md:px-6 md:py-5">
-          <WeekFigures totals={totals} />
+        <div className="flex flex-col gap-3 border-t border-line pt-4 md:w-[520px] md:gap-3.5 md:border-t-0 md:pt-0">
+          <WeekFigures totals={totals} large />
           {totals.others.length > 0 && (
             <p className="text-[12.5px] text-ink-soft">
               Dont {totals.others.map((other) => `${other.count} ${other.label}`).join(', ')}
             </p>
           )}
-          <p className="border-t border-line pt-2.5 text-[12.5px] leading-[18px] text-ink-faint md:pt-3 md:text-[13px]">
+          <p className="text-[13px] leading-[18px] text-ink-faint">
             Sur {data.texts_count} texte{data.texts_count > 1 ? 's' : ''}
             {data.last_published &&
               ` · dernier vote publié le ${new Date(data.last_published + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`}
           </p>
           {data.advanced_count > 0 && (
-            <p className="flex items-baseline gap-2 border-t border-line pt-2.5 text-sm md:pt-3">
-              <span className="figure text-[26px] leading-[30px] tracking-normal">
+            <p className="flex items-baseline gap-2 border-y border-line py-3 text-sm md:py-3.5">
+              <span className="figure text-[26px] leading-[30px] tracking-normal md:text-[28px] md:leading-8">
                 {data.advanced_count.toLocaleString('fr-FR')}
               </span>
               {data.advanced_count > 1 ? 'textes ont avancé' : 'texte a avancé'}
@@ -181,15 +179,15 @@ export default function WeekPage() {
       <DayPills days={data.days} selected={day} onSelect={setDay} />
 
       {empty ? (
-        <p className="rounded-[18px] border border-line bg-surface px-4 py-6 text-sm text-ink-soft">
+        <p className="rounded bg-surface px-4 py-6 text-sm text-ink-soft">
           Aucun vote public publié cette semaine.
         </p>
       ) : (
         <>
-          <section className="flex flex-col gap-3">
-            <h2 className="font-heading text-xl leading-[26px] font-[460] tracking-[-0.01em]">
-              Votes sur l’ensemble d’un texte{' '}
-              <InfoTip label="Critère des votes sur l’ensemble" className="align-middle">
+          <section className="flex flex-col gap-4">
+            <h2 className="flex items-center gap-1 heading-4 md:heading-3">
+              <span className="text-balance">Votes sur l’ensemble d’un texte</span>
+              <InfoTip label="Critère des votes sur l’ensemble">
                 <p>
                   Critère : un vote dont l’objet officiel porte sur l’ensemble d’un texte. Tous les autres votes de
                   la semaine sont listés plus bas.
@@ -223,12 +221,10 @@ export default function WeekPage() {
             )}
           </section>
 
-          <section className="flex flex-col gap-3">
+          <section className="flex flex-col gap-4">
             <div>
-              <h2 className="font-heading text-xl leading-[26px] font-[460] tracking-[-0.01em]">
-                Tous les votes, texte par texte
-              </h2>
-              <p className="mt-0.5 text-[13.5px] leading-5 text-ink-soft">
+              <h2 className="heading-4 md:heading-3">Tous les votes, texte par texte</h2>
+              <p className="mt-1 text-[13.5px] leading-5 text-ink-soft">
                 {votesWord(shownVotes)} sur {shownTextCount} texte{shownTextCount > 1 ? 's' : ''}
                 {day ? ' ce jour' : ''}, dans l’ordre du premier vote de la semaine.
               </p>
@@ -248,7 +244,7 @@ export default function WeekPage() {
         </>
       )}
 
-      <div className="grid gap-2.5 md:grid-cols-2 md:gap-4 xl:grid-cols-3">
+      <div className="grid md:grid-cols-2 md:gap-x-6 xl:grid-cols-3">
         {data.previous && previousLabel && (
           <FooterLink to={`/semaine/${data.previous.monday}`} caption="Semaine précédente">
             {previousLabel} · {votesWord(data.previous.votes)}

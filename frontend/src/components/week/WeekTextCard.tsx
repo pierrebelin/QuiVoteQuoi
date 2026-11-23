@@ -91,7 +91,7 @@ export default function WeekTextCard({
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="flex min-h-11 w-full items-center justify-center border-t border-line text-[13.5px] font-semibold text-ink transition-colors hover:bg-surface-soft/50"
+        className="mx-[18px] mb-1.5 flex min-h-11 items-center text-sm font-semibold link"
       >
         {expanded
           ? 'Replier'
