@@ -45,6 +45,13 @@ const POSITION_CLASSES: Record<string, string> = {
   abstention: 'text-abstain',
 }
 
+/** Même table pour la pastille d'état : pastille ronde de la position, puis le mot. */
+const POSITION_TONES: Record<string, 'yes' | 'no' | 'abstain'> = {
+  for: 'yes',
+  against: 'no',
+  abstention: 'abstain',
+}
+
 
 /**
  * Colonnes des cartes de position. Au-delà de deux groupes, la largeur du site
@@ -78,13 +85,13 @@ function ShareBar({ share }: { share: NonNullable<StanceDto['share']> }) {
 function NoSelectionHelp({ maxGroups }: { maxGroups: number }) {
   return (
     <>
-      <p className="max-w-3xl text-sm leading-relaxed text-ink-soft">
+      <p className="max-w-2xl text-sm leading-relaxed text-ink-soft md:text-[15px]">
         Choisir pour vous les groupes à comparer reviendrait à désigner la
         comparaison qui mérite d'être faite. Sélectionnez ci-dessus les
         groupes que vous voulez lire côte à côte — {maxGroups} au maximum —
         pour afficher les votes sur l'ensemble.
       </p>
-      <p className="mt-2 max-w-3xl text-sm leading-relaxed text-ink-soft">
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft md:text-[15px]">
         Les sigles ne vous parlent pas ? La{' '}
         <Link to="/groupes" className="link">
           liste des groupes
@@ -120,8 +127,8 @@ function StanceExplanation({
 }) {
   const position = explanation.speaker_position
   return (
-    <div className="mt-2 border-t border-line pt-2">
-      <p className="text-xs text-ink-faint">
+    <div className="mt-3">
+      <p className="text-[13px] text-ink-faint">
         {explanation.speaker_name ?? 'Orateur du groupe'}
         {', '}
         {position ? (
@@ -133,15 +140,15 @@ function StanceExplanation({
         )}
       </p>
       {explanation.preview && (
-        <p className="mt-1 line-clamp-3 text-[13px] leading-5 text-ink-soft">
+        <p className="mt-1 line-clamp-3 text-sm leading-[1.45] text-ink-soft">
           {/* L'aperçu coupé porte déjà ses points de suspension. */}«{' '}
           {explanation.preview_truncated ? explanation.preview : `${explanation.preview} »`}
         </p>
       )}
-      <p className="mt-1 text-xs">
+      <p className="mt-1.5 text-sm">
         <Link
           to={`/scrutins/${scrutinUid}#explication-${explanation.rank}`}
-          className="font-medium link"
+          className="relative font-semibold link after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']"
         >
           Lire l’explication en entier
         </Link>
@@ -160,24 +167,30 @@ function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto })
     stance.majority !== null && share?.leading !== null && stance.majority !== share?.leading
 
   return (
-    <div className="min-w-0 rounded border border-line bg-canvas px-3 py-2.5">
-      <div className="flex items-center gap-1.5">
+    <div className="min-w-0 border-t border-line pt-3.5 pb-1">
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
         <GroupMark abbrev={stance.abbrev} color={stance.color} className="h-6 w-10 p-0.5" />
-        <span className="text-sm font-semibold">{stance.abbrev}</span>
+        <span className="text-[15px] font-semibold">{stance.abbrev}</span>
         {leading ? (
-          <span
-            className={`ml-auto text-sm font-semibold ${POSITION_CLASSES[share?.leading ?? ''] ?? 'text-ink-soft'}`}
-          >
-            {leading}
+          <span className="ml-auto inline-flex items-center gap-2">
+            {POSITION_TONES[share?.leading ?? ''] ? (
+              <Pill tone={POSITION_TONES[share?.leading ?? '']}>{leading}</Pill>
+            ) : (
+              <span className="text-[13px] font-semibold text-ink-soft">{leading}</span>
+            )}
             {share?.leading_percent !== null && (
-              <span> {share?.leading_percent} %</span>
+              <span
+                className={`figure text-[22px] ${POSITION_CLASSES[share?.leading ?? ''] ?? 'text-ink-soft'}`}
+              >
+                {share?.leading_percent} %
+              </span>
             )}
           </span>
         ) : (
           // Égalité stricte entre deux positions : aucune ne l'emporte, et en
           // désigner une au hasard serait une invention.
           share !== null && (
-            <span className="ml-auto text-sm text-ink-soft">
+            <span className="ml-auto text-[13px] font-semibold text-ink-soft">
               {share.tied_labels.join(' et ')} à égalité
             </span>
           )
@@ -185,15 +198,15 @@ function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto })
       </div>
 
       {share === null ? (
-        <p className="mt-1.5 text-xs text-ink-faint">
+        <p className="mt-2 text-[13px] text-ink-faint">
           Aucun membre du groupe ne s'est prononcé sur ce vote.
         </p>
       ) : (
         <>
-          <div className="mt-2">
+          <div className="mt-2.5">
             <ShareBar share={share} />
           </div>
-          <p className="mt-1.5 text-xs text-ink-soft">
+          <p className="mt-2 text-[13px] text-ink-soft">
             <span className="font-semibold text-yes">{tally.votes_for}</span> pour ·{' '}
             <span className="font-semibold text-no">{tally.votes_against}</span> contre ·{' '}
             <span className="font-semibold text-abstain">{tally.abstentions}</span> abst.
@@ -206,13 +219,13 @@ function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto })
       )}
 
       {divergent && stance.majority_label && (
-        <p className="mt-1 text-xs text-ink-faint">
+        <p className="mt-1 text-[13px] text-ink-faint">
           Position majoritaire publiée par l'Assemblée : {stance.majority_label}.
         </p>
       )}
 
       {tally.not_voting > 0 && (
-        <p className="mt-0.5 text-xs text-ink-faint">
+        <p className="mt-0.5 text-[13px] text-ink-faint">
           {tally.not_voting} non-votant{tally.not_voting > 1 ? 's' : ''}
         </p>
       )}
@@ -223,7 +236,7 @@ function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto })
         (stance.explanation ? (
           <StanceExplanation explanation={stance.explanation} scrutinUid={vote.scrutin_uid} />
         ) : (
-          <p className="mt-2 border-t border-line pt-2 text-xs text-ink-faint">
+          <p className="mt-2.5 text-[13px] text-ink-faint">
             Pas d’explication de vote.
           </p>
         ))}
@@ -237,12 +250,12 @@ function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto })
  */
 function MissingStance({ group }: { group: GroupDto }) {
   return (
-    <div className="min-w-0 rounded border border-dashed border-line px-3 py-2.5">
-      <div className="flex items-center gap-1.5">
+    <div className="min-w-0 border-t border-dashed border-line-strong pt-3.5 pb-1">
+      <div className="flex items-center gap-2.5">
         <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-10 p-0.5 opacity-60" />
-        <span className="text-sm font-semibold text-ink-soft">{group.abbrev}</span>
+        <span className="text-[15px] font-semibold text-ink-soft">{group.abbrev}</span>
       </div>
-      <p className="mt-1.5 text-xs text-ink-faint">
+      <p className="mt-2 text-[13px] text-ink-faint">
         Aucune ligne pour ce groupe sur ce vote.
       </p>
     </div>
@@ -251,14 +264,17 @@ function MissingStance({ group }: { group: GroupDto }) {
 
 function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] }) {
   return (
-    <Card className="px-4 py-3.5">
-      {/* Sur petit écran la date passe sous le titre : gardée sur la même
-          ligne, elle réduisait le titre à trois mots par ligne. */}
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <Pill tone={vote.adopted ? 'yes' : 'no'}>
-          {vote.adopted ? 'adopté' : 'rejeté'}
-        </Pill>
-        <h3 className="min-w-0 flex-1 basis-full text-[15px] font-semibold leading-snug sm:basis-auto">
+    <Card className="px-4 py-4 md:px-7 md:py-6">
+      {/* L'état et la date sur une ligne, le titre dessous (refonte A) : le
+          titre garde toute la largeur, à 375 comme à 1280 px. L'ordre de lecture
+          reste état, titre, date. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <span className="order-1">
+          <Pill tone={vote.adopted ? 'yes' : 'no'}>
+            {vote.adopted ? 'adopté' : 'rejeté'}
+          </Pill>
+        </span>
+        <h3 className="order-3 min-w-0 basis-full heading-5 text-balance text-ink md:text-[19px] md:leading-6">
           <Link
             to={`/textes/${encodeURIComponent(vote.text_key)}`}
             className="transition-colors hover:text-accent"
@@ -266,37 +282,42 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
             {vote.text_label}
           </Link>
         </h3>
-        <span className="shrink-0 text-xs text-ink-faint">
+        <span className="order-2 ml-auto shrink-0 text-[13px] text-ink-faint">
           {formatDate(vote.date)} · n° {vote.number}
         </span>
       </div>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-faint">
-        <span>{vote.ballot_type_label}</span>
-        {vote.reading && <span>· {vote.reading}</span>}
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-ink-faint">
+        <span>
+          {vote.ballot_type_label}
+          {vote.reading && ` · ${vote.reading}`}
+        </span>
         <FamilyBadges families={vote.families} onCard />
         {vote.dossier_uid && (
           <Link
             to={`/dossiers/${vote.dossier_uid}`}
-            className="link"
+            className="relative text-[15px] font-semibold link after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']"
           >
             Texte
           </Link>
         )}
-        <Link to={`/scrutins/${vote.scrutin_uid}`} className="link">
+        <Link
+          to={`/scrutins/${vote.scrutin_uid}`}
+          className="relative text-[15px] font-semibold link after:absolute after:-inset-x-1 after:-inset-y-3 after:content-['']"
+        >
           Détail du vote
         </Link>
       </div>
 
       {vote.official_text ? (
-        <div className="mt-2 rounded bg-surface-soft px-3 py-2 text-xs text-ink-soft">
+        <div className="mt-3 border-t border-line pt-3 text-[13px] leading-relaxed text-ink-soft">
           <p>
             Version liée au vote :{' '}
             <a
               href={vote.official_text.official_url}
               target="_blank"
               rel="noreferrer"
-              className="font-medium link"
+              className="font-semibold link"
             >
               {vote.official_text.version_label}
             </a>{' '}
@@ -316,13 +337,13 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
           </p>
         </div>
       ) : (
-        <p className="mt-2 text-xs text-ink-faint">
+        <p className="mt-3 text-[13px] text-ink-faint">
           La version exacte du texte lié à ce vote n’est pas encore référencée.
         </p>
       )}
 
       {selected.length > 0 && (
-        <div className={`mt-2 grid gap-2 ${stanceGridCols(selected.length)}`}>
+        <div className={`mt-3 grid gap-x-8 ${stanceGridCols(selected.length)}`}>
           {selected.map((group) => {
             const stance = vote.stances.find((s) => s.group_uid === group.uid)
             return stance ? (
@@ -335,12 +356,12 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
       )}
 
       {selected.length > 0 && vote.explanations_state === 'no_explanation' && (
-        <p className="mt-2 text-xs text-ink-faint">
+        <p className="mt-3 text-[13px] text-ink-faint">
           Aucune explication de vote dans le compte rendu de la séance.
         </p>
       )}
 
-      <p className="mt-2 text-xs text-ink-faint">
+      <p className="mt-4 border-t border-line pt-3.5 text-[13px] text-ink-faint">
         Assemblée entière : {vote.synthesis.votes_for} pour ·{' '}
         {vote.synthesis.votes_against} contre · {vote.synthesis.abstentions} abst.
       </p>
@@ -393,7 +414,7 @@ function GroupPicker({
                   aria-haspopup="dialog"
                   aria-label="Ajouter un groupe"
                   onClick={() => setOpen(true)}
-                  className={`flex min-h-[60px] w-full flex-col items-center justify-center gap-0.5 rounded border-[1.5px] border-dashed border-line-strong px-0.5 py-1 text-xs leading-tight font-medium text-ink-soft transition-colors hover:bg-surface-soft ${FOCUS}`}
+                  className={`flex min-h-[72px] w-full flex-col items-center justify-center gap-1 rounded-[14px] border-[1.5px] border-dashed border-line-strong px-0.5 py-1 text-[13px] leading-tight font-semibold text-ink-soft transition-colors hover:bg-surface-soft ${FOCUS}`}
                 >
                   <Icon name="add" className="size-[18px]" />
                   Ajouter
@@ -403,19 +424,16 @@ function GroupPicker({
                   type="button"
                   aria-label={`Retirer ${abbrev}${group ? ` (${group.label})` : ''}`}
                   onClick={() => onToggle(abbrev)}
-                  className={`relative flex min-h-[60px] w-full flex-col items-center justify-center gap-1 rounded bg-ink px-0.5 py-1 text-xs leading-tight font-semibold text-surface transition-opacity hover:opacity-90 ${FOCUS}`}
+                  className={`relative flex min-h-[72px] w-full flex-col items-center justify-center gap-1.5 rounded-[14px] bg-surface px-0.5 py-1 text-[13px] leading-tight font-semibold text-ink transition-colors hover:bg-surface-soft ${FOCUS}`}
                 >
                   <GroupMark
                     abbrev={abbrev}
                     color={group?.color ?? null}
-                    className="h-[22px] w-9 p-0.5"
+                    className="h-6 w-10 p-0.5"
                   />
                   <span className="max-w-full truncate">{abbrev}</span>
-                  <span
-                    aria-hidden
-                    className="absolute top-[3px] right-[3px] flex size-4 items-center justify-center rounded-full bg-surface text-ink"
-                  >
-                    <Icon name="close" className="size-[11px]" strokeWidth={3.4} />
+                  <span aria-hidden className="absolute top-1.5 right-1.5 flex text-ink-faint">
+                    <Icon name="close" className="size-3.5" strokeWidth={2.4} />
                   </span>
                 </button>
               )}
@@ -569,7 +587,7 @@ export default function GroupVotesPage() {
   )
 
   const selectionNotes = data && hasSelection && (
-    <div className="space-y-1">
+    <div className="space-y-1 md:columns-2 md:gap-x-12 md:space-y-0 md:[&>p]:mb-3 md:[&>p]:break-inside-avoid">
       <p>
         {data.scope_note}{' '}
         <Link to="/scrutins" className="link">
@@ -608,10 +626,10 @@ export default function GroupVotesPage() {
         lede="Choisissez les groupes à mettre côte à côte : chaque vote sur l'ensemble d'un texte affiche leur position, en pourcentage et en voix."
       />
 
-      <p className="mb-2 text-xs text-ink-faint">
+      <p className="mb-2">
         <Link
           to="/votes-par-groupe/methode"
-          className="inline-flex min-h-11 items-center link"
+          className="inline-flex min-h-11 items-center text-[15px] font-semibold link"
         >
           Comment sont retenus les votes sur l’ensemble ?
         </Link>
@@ -628,25 +646,29 @@ export default function GroupVotesPage() {
                 onToggle={toggleGroup}
               />
             ) : isLoading ? (
-              <Card className="px-4 py-3">
-                <Loading>Chargement des groupes disponibles…</Loading>
-              </Card>
+              <Loading>Chargement des groupes disponibles…</Loading>
             ) : null}
           </div>
-          <label className="flex items-center gap-2 text-sm font-medium text-ink-soft md:w-72 md:shrink-0">
+          <label className="flex items-center gap-3 text-[13px] font-semibold text-ink-soft md:w-80 md:shrink-0">
             Sujet
-            <select
-              value={theme}
-              onChange={(e) => update({ theme: e.target.value })}
-              className="h-11 min-w-0 flex-1 rounded border border-line-strong bg-surface px-3 text-base font-normal text-ink focus:border-accent focus:ring-2 focus:ring-accent/15 focus:outline-none md:text-sm"
-            >
-              <option value="">Tous</option>
-              {(families.data?.families ?? []).map((family) => (
-                <option key={family.code} value={family.code}>
-                  {family.label}
-                </option>
-              ))}
-            </select>
+            <span className="relative flex min-w-0 flex-1">
+              <select
+                value={theme}
+                onChange={(e) => update({ theme: e.target.value })}
+                className="h-12 min-w-0 flex-1 appearance-none rounded-xl bg-surface py-0 pr-10 pl-3.5 text-base font-semibold text-ink focus:ring-2 focus:ring-accent/40 focus:outline-none md:text-[15px]"
+              >
+                <option value="">Tous</option>
+                {(families.data?.families ?? []).map((family) => (
+                  <option key={family.code} value={family.code}>
+                    {family.label}
+                  </option>
+                ))}
+              </select>
+              <Icon
+                name="down"
+                className="pointer-events-none absolute top-1/2 right-3.5 size-[18px] -translate-y-1/2 text-ink-faint"
+              />
+            </span>
           </label>
         </div>
 
@@ -656,7 +678,7 @@ export default function GroupVotesPage() {
              demande qui ils recouvrent, pas trois pages plus tôt. */
           <Link
             to="/groupes"
-            className="inline-flex min-h-11 items-center text-xs font-medium link"
+            className="inline-flex min-h-11 items-center text-[15px] font-semibold link"
           >
             Qui est qui : effectifs et composition des {groups.length} groupes →
           </Link>
@@ -668,22 +690,24 @@ export default function GroupVotesPage() {
           l'écran. Le contenu est intégral, c'est le poids visuel qui baisse.
         */}
         {data && hasSelection && (
-          <Note desktopOnly>{selectionNotes}</Note>
+          <Note desktopOnly flat className="mt-2 border-t border-line pt-6">
+            {selectionNotes}
+          </Note>
         )}
       </div>
 
       {!hasSelection && data && (
-        <Card className="px-4 py-3">
-          <p className="flex items-center justify-between gap-1 text-sm font-semibold md:block">
+        <div className="border-y border-line py-4 md:py-6">
+          <p className="flex items-center justify-between gap-1 text-[17px] leading-snug font-[620] md:block">
             Aucun groupe n'est sélectionné au départ.
             <InfoTip label="Pourquoi aucun groupe n'est sélectionné" className="md:hidden">
               <NoSelectionHelp maxGroups={maxGroups} />
             </InfoTip>
           </p>
-          <div className="mt-1 hidden md:block">
+          <div className="mt-2 hidden md:block">
             <NoSelectionHelp maxGroups={maxGroups} />
           </div>
-        </Card>
+        </div>
       )}
 
       {reloading && <Loading>Chargement des votes…</Loading>}
@@ -691,8 +715,11 @@ export default function GroupVotesPage() {
 
       {data && hasSelection && !reloading && (
         <>
-          <p className="mb-2 text-xs text-ink-faint">
-            {data.total.toLocaleString('fr-FR')} vote{data.total > 1 ? 's' : ''} sur
+          <p className="mb-3 text-sm text-ink-soft md:mb-4">
+            <span className="figure text-xl text-ink">
+              {data.total.toLocaleString('fr-FR')}
+            </span>{' '}
+            vote{data.total > 1 ? 's' : ''} sur
             l'ensemble
             {data.total > 0 && ` — affichés ${data.offset + 1} à ${data.offset + shown}`}
           </p>
@@ -704,7 +731,7 @@ export default function GroupVotesPage() {
               </p>
             </Card>
           ) : (
-            <div className="space-y-2.5">
+            <div className="space-y-3">
               {data.items.map((vote) => (
                 <VoteRow key={vote.scrutin_uid} vote={vote} selected={selected} />
               ))}
