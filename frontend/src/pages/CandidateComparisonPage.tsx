@@ -375,7 +375,7 @@ function ViewTabs({
             aria-pressed={on}
             onClick={() => onChange(option.value)}
             className={`flex min-h-9 items-center justify-center gap-1.5 rounded px-1 text-[13px] font-semibold whitespace-nowrap transition-colors md:text-sm ${FOCUS} ${
-              on ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
+              on ? 'bg-canvas text-ink shadow-seg' : 'text-ink-soft hover:text-ink'
             }`}
           >
             {option.label}

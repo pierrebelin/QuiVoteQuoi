@@ -253,7 +253,7 @@ function ViewToggle({ view, onChange }: { view: ListView; onChange: (view: ListV
             aria-pressed={on}
             onClick={() => onChange(option.value)}
             className={`flex min-h-11 items-center justify-center gap-1.5 rounded px-2 text-sm whitespace-nowrap transition-colors ${FOCUS} ${
-              on ? 'bg-surface font-semibold text-ink shadow-card' : 'font-medium text-ink-soft hover:text-ink'
+              on ? 'bg-canvas font-semibold text-ink shadow-seg' : 'font-medium text-ink-soft hover:text-ink'
             }`}
           >
             <Icon name={option.icon} className="size-[18px]" />

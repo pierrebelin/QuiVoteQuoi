@@ -196,7 +196,7 @@ export default function VoteImageExport({
                   onClick={() => setReseau(valeur as ReseauImage)}
                   className={`truncate rounded px-1.5 py-1 text-xs font-medium transition-colors ${
                     reseau === valeur
-                      ? 'bg-surface text-ink shadow-card'
+                      ? 'bg-canvas text-ink shadow-seg'
                       : 'text-ink-soft hover:text-ink'
                   }`}
                 >

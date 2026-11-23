@@ -411,7 +411,7 @@ export function SegmentedControl({
               onClick={() => onChange(option.value)}
               className={`inline-flex items-center gap-1 rounded px-2.5 py-1 text-xs font-medium transition-colors ${
                 active
-                  ? 'bg-surface text-ink shadow-card ring-1 ring-line-strong ring-inset'
+                  ? 'bg-canvas text-ink shadow-seg'
                   : 'text-ink-soft hover:text-ink'
               }`}
             >

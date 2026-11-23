@@ -233,7 +233,7 @@ function TabButton({
     <Tabs.Tab
       value={value}
       className={`inline-flex items-center gap-2 rounded px-3.5 py-1.5 text-sm font-medium transition-colors ${FOCUS_RING} ${
-        active ? 'bg-surface text-ink shadow-card' : 'text-ink-soft hover:text-ink'
+        active ? 'bg-canvas text-ink shadow-seg' : 'text-ink-soft hover:text-ink'
       }`}
     >
       {children}
