@@ -63,7 +63,7 @@ export function SubjectCandidates({
   if (query.isLoading) return <Loading>Chargement des extraits…</Loading>
   if (query.isError && !data) {
     return (
-      <p role="alert" className="rounded border border-line bg-surface px-4 py-4 text-sm leading-relaxed text-no">
+      <p role="alert" className="rounded bg-surface px-4 py-4 text-sm leading-relaxed text-no">
         Les extraits ne se chargent pas pour le moment
         {query.error instanceof Error ? ` (${query.error.message})` : ''}.
       </p>
@@ -84,7 +84,7 @@ export function SubjectCandidates({
       aria-busy={query.isFetching}
       className={`transition-opacity ${query.isPlaceholderData ? 'opacity-60' : ''}`}
     >
-      <p className="mb-2.5 text-[13px] leading-[18px] text-ink-soft">
+      <p className="mb-2 text-[13px] leading-[18px] text-ink-soft">
         {withExcerpt.length === 1
           ? `1 candidature sur ${candidates.length} a un extrait sur ce sujet`
           : `${withExcerpt.length} candidatures sur ${candidates.length} ont un extrait sur ce sujet`}
@@ -92,7 +92,7 @@ export function SubjectCandidates({
       </p>
 
       {withExcerpt.length > 0 && (
-        <ul className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
+        <ul>
           {withExcerpt.map((candidate) => (
             // La clé porte le sujet : une ligne ouverte se referme quand il change.
             <CandidateExcerptRow
@@ -137,7 +137,9 @@ function CandidateExcerptRow({
   const first = proposals[0]
 
   return (
-    <li>
+    // À plat, un filet entre deux candidatures ; la ligne ouverte devient une
+    // carte grise (un objet), comme un groupe déplié.
+    <li className={open ? 'my-1.5 rounded-[20px] bg-surface px-4 pb-4 md:px-6 md:pb-5' : 'border-t border-line'}>
       <h4>
         <button
           id={buttonId}
@@ -145,33 +147,33 @@ function CandidateExcerptRow({
           aria-expanded={open}
           aria-controls={panelId}
           onClick={() => setOpen((value) => !value)}
-          className={`flex w-full gap-2.5 px-3.5 py-3 text-left transition-colors hover:bg-surface-soft ${FOCUS} ${
-            open ? 'items-center bg-surface-soft' : 'items-start'
+          className={`group flex w-full gap-3 text-left ${FOCUS} ${
+            open ? 'items-center py-4' : 'items-start py-3.5 md:py-4'
           }`}
         >
-          <CandidatePortrait candidate={candidate} className="size-9" />
+          <CandidatePortrait candidate={candidate} className="size-11" />
           <span className="block min-w-0 flex-1">
-            <span className="block text-[15px] leading-[19px] font-semibold text-ink">
+            <span className="block text-base leading-5 font-[620] text-ink">
               {candidate.display_name}
               {selected && (
-                <span className="ml-1.5 inline-flex items-center gap-0.5 align-[1px] text-[11px] font-semibold text-accent">
+                <span className="ml-2 inline-flex items-center gap-0.5 rounded-full bg-accent-soft px-2 py-0.5 align-[1px] text-xs leading-4 font-semibold text-accent-ink">
                   <Icon name="check" className="size-3" strokeWidth={3} />
                   Face-à-face
                 </span>
               )}
             </span>
             {organization && (
-              <span className="block truncate text-[12.5px] leading-4 font-normal text-ink-soft">{organization}</span>
+              <span className="block truncate text-[13px] leading-4 font-normal text-ink-faint">{organization}</span>
             )}
             {!open && first && (
-              <span className="mt-1 line-clamp-2 text-sm leading-[21px] font-normal text-ink">
+              <span className="mt-1.5 line-clamp-2 text-[15px] leading-[1.45] font-normal text-ink-soft">
                 « {first.excerpt} »
               </span>
             )}
           </span>
           <Icon
             name="down"
-            className={`size-[18px] shrink-0 text-ink-soft transition-transform ${open ? 'rotate-180' : 'mt-2.5'}`}
+            className={`size-[18px] shrink-0 text-ink-faint transition-transform group-hover:text-ink ${open ? 'rotate-180' : 'mt-3'}`}
           />
         </button>
       </h4>
@@ -180,7 +182,7 @@ function CandidateExcerptRow({
           id={panelId}
           role="region"
           aria-labelledby={buttonId}
-          className="flex flex-col gap-3 border-t border-line px-3.5 pt-3 pb-3.5"
+          className="flex flex-col gap-4 md:pl-14"
         >
           {proposals.map((proposal, index) => (
             <ProgramExcerpt key={`${proposal.source_url}-${index}`} proposal={proposal} />
@@ -205,7 +207,7 @@ export function FaceToFaceButton({ candidate, faceToFace }: { candidate: Candida
         disabled={blocked}
         aria-pressed={selected}
         onClick={() => faceToFace.toggle(candidate.id)}
-        className={`flex h-10 w-full items-center justify-center gap-1.5 rounded border border-line text-[13.5px] font-semibold transition-colors md:w-auto md:px-4 ${FOCUS} ${
+        className={`flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-canvas text-sm font-semibold transition-colors md:w-auto md:px-4 ${FOCUS} ${
           blocked ? 'cursor-not-allowed text-ink-faint' : 'text-ink hover:bg-surface-soft'
         }`}
       >
@@ -226,33 +228,33 @@ function WithoutExcerptGroup({ candidates }: { candidates: CandidateDto[] }) {
   const [open, setOpen] = useState(false)
   const panelId = useId()
   return (
-    <div className="mt-3 overflow-hidden rounded border border-line bg-surface shadow-card">
+    <div className="mt-3 overflow-hidden rounded-2xl bg-surface">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((value) => !value)}
-        className={`flex w-full items-center gap-2.5 px-3.5 py-3 text-left transition-colors hover:bg-surface-soft ${FOCUS}`}
+        className={`flex min-h-[60px] w-full items-center gap-3 px-4 py-2 text-left transition-colors hover:bg-surface-soft ${FOCUS}`}
       >
         <span className="flex shrink-0">
           {candidates.slice(0, STACKED_PORTRAITS).map((candidate, index) => (
-            <span key={candidate.id} className={`block rounded-full ring-2 ring-surface ${index > 0 ? '-ml-2' : ''}`}>
-              <CandidatePortrait candidate={candidate} className="size-[26px]" />
+            <span key={candidate.id} className={`block rounded-full ring-2 ring-surface ${index > 0 ? '-ml-3' : ''}`}>
+              <CandidatePortrait candidate={candidate} className="size-7 grayscale" />
             </span>
           ))}
         </span>
-        <span className="flex-1 text-sm leading-[18px] font-semibold text-ink">{withoutLabel(candidates.length)}</span>
-        <Icon name="down" className={`size-[18px] shrink-0 text-ink-soft transition-transform ${open ? 'rotate-180' : ''}`} />
+        <span className="flex-1 text-[15px] leading-5 font-semibold text-ink">{withoutLabel(candidates.length)}</span>
+        <Icon name="down" className={`size-[18px] shrink-0 text-ink-faint transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
         <ul id={panelId} className="divide-y divide-line border-t border-line">
           {candidates.map((candidate) => (
-            <li key={candidate.id} className="flex items-center gap-2.5 px-3.5 py-2">
+            <li key={candidate.id} className="flex items-center gap-3 px-4 py-2.5">
               <CandidatePortrait candidate={candidate} className="size-7" />
               <span className="min-w-0">
                 <span className="block text-sm leading-[18px] font-medium text-ink">{candidate.display_name}</span>
                 {organizationLabel(candidate) && (
-                  <span className="block truncate text-xs leading-4 text-ink-soft">{organizationLabel(candidate)}</span>
+                  <span className="block truncate text-xs leading-4 text-ink-faint">{organizationLabel(candidate)}</span>
                 )}
               </span>
             </li>
@@ -266,15 +268,15 @@ function WithoutExcerptGroup({ candidates }: { candidates: CandidateDto[] }) {
 /** Ordinateur : la place ne manque pas, les noms restent visibles en pastilles. */
 function WithoutExcerptPills({ candidates }: { candidates: CandidateDto[] }) {
   return (
-    <section className="mt-4">
-      <h4 className="mb-2 text-sm font-semibold text-ink">{withoutLabel(candidates.length)}</h4>
-      <ul className="flex flex-wrap gap-1.5">
+    <section className="mt-5 border-t border-line pt-5">
+      <h4 className="mb-3 text-[15px] font-[620] text-ink">{withoutLabel(candidates.length)}</h4>
+      <ul className="flex flex-wrap gap-2">
         {candidates.map((candidate) => (
           <li
             key={candidate.id}
-            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface py-1 pr-3 pl-1 text-[13px] text-ink"
+            className="inline-flex h-9 items-center gap-2 rounded-full bg-surface pr-3.5 pl-1.5 text-sm font-medium text-ink-soft"
           >
-            <CandidatePortrait candidate={candidate} className="size-[22px]" />
+            <CandidatePortrait candidate={candidate} className="size-6" />
             {candidate.display_name}
           </li>
         ))}

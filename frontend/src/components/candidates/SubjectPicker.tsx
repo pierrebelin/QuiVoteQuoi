@@ -27,14 +27,17 @@ export function SubjectButton({
         type="button"
         aria-haspopup="dialog"
         onClick={() => setOpen(true)}
-        className={`mb-3 flex w-full items-center gap-2.5 rounded border border-line bg-surface py-2 pr-3.5 pl-2 text-left shadow-card transition-colors hover:bg-surface-soft ${FOCUS}`}
+        className={`mb-3 flex min-h-16 w-full items-center gap-3 rounded-2xl bg-surface px-4 py-2.5 text-left transition-colors hover:bg-surface-soft ${FOCUS}`}
       >
-        <FamilyIllustration code={current.code} className="size-[38px] rounded" glyphClassName="size-[22px]" />
+        <FamilyIllustration bare code={current.code} className="size-10 shrink-0 rounded-xl bg-canvas" glyphClassName="size-[22px]" />
         <span className="min-w-0 flex-1">
-          <span className="block text-xs leading-[15px] text-ink-soft">Sujet</span>
-          <span className="block text-[15px] leading-[19px] font-semibold text-ink">{current.label}</span>
+          <span className="block text-[13px] leading-4 text-ink-faint">Sujet</span>
+          <span className="block text-base leading-5 font-[620] text-ink">{current.label}</span>
         </span>
-        <span className="text-[13px] font-semibold text-accent">Changer</span>
+        <span className="flex items-center gap-1 text-sm font-semibold text-accent">
+          Changer
+          <Icon name="down" className="size-4" strokeWidth={2} />
+        </span>
       </button>
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Choisir un sujet">
         <ul className="max-h-[70dvh] overflow-y-auto px-2 pb-3">
@@ -49,11 +52,11 @@ export function SubjectButton({
                     onPick(family.code)
                     setOpen(false)
                   }}
-                  className={`grid min-h-[52px] w-full grid-cols-[34px_minmax(0,1fr)_18px] items-center gap-2.5 rounded px-2 py-1.5 text-left text-[14.5px] leading-tight transition-colors hover:bg-surface-soft ${FOCUS} ${
-                    on ? 'bg-accent-soft font-semibold text-accent' : 'font-medium text-ink'
+                  className={`grid min-h-[52px] w-full grid-cols-[28px_minmax(0,1fr)_18px] items-center gap-3 rounded-xl px-2.5 py-1.5 text-left text-[15px] leading-tight transition-colors ${FOCUS} ${
+                    on ? 'bg-accent-soft font-semibold text-accent-ink' : 'font-medium text-ink hover:bg-surface'
                   }`}
                 >
-                  <FamilyIllustration code={family.code} className="size-[34px] rounded" glyphClassName="size-5" />
+                  <FamilyIllustration bare code={family.code} className="size-7" glyphClassName="size-[22px]" />
                   <span>{family.label}</span>
                   {on && <Icon name="check" className="size-[18px]" strokeWidth={2.5} />}
                 </button>
@@ -78,8 +81,10 @@ export function SubjectList({
 }) {
   return (
     <div>
-      <SectionTitle>Sujet</SectionTitle>
-      <nav aria-label="Sujets" className="rounded border border-line bg-surface p-1.5 shadow-card">
+      <div className="px-2.5">
+        <SectionTitle>Sujet</SectionTitle>
+      </div>
+      <nav aria-label="Sujets">
         <ul className="flex flex-col gap-0.5">
           {families.map((family) => {
             const on = family.code === current
@@ -89,12 +94,13 @@ export function SubjectList({
                   type="button"
                   aria-pressed={on}
                   onClick={() => onPick(family.code)}
-                  className={`flex min-h-[38px] w-full items-center justify-between gap-2 rounded px-3 py-1.5 text-left text-sm leading-tight transition-colors ${FOCUS} ${
-                    on ? 'bg-accent-soft font-semibold text-accent' : 'text-ink hover:bg-surface-soft'
+                  className={`flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-sm leading-tight transition-colors ${FOCUS} ${
+                    on ? 'bg-surface font-[620] text-ink' : 'font-medium text-ink-soft hover:bg-surface hover:text-ink'
                   }`}
                 >
-                  {family.label}
-                  {on && <Icon name="chevron" className="size-4 shrink-0" />}
+                  <FamilyIllustration bare code={family.code} className="size-5 shrink-0" glyphClassName="size-5" />
+                  <span className="min-w-0 flex-1">{family.label}</span>
+                  {on && <Icon name="chevron" className="size-4 shrink-0" strokeWidth={2} />}
                 </button>
               </li>
             )
@@ -118,25 +124,25 @@ export function FaceToFaceBox({
   onCompare: () => void
 }) {
   return (
-    <section className="mt-5">
+    <section className="mt-8 px-2.5">
       <SectionTitle>{`Face-à-face · ${selected.length} sur ${max}`}</SectionTitle>
-      <div className="flex flex-col gap-3 rounded border border-line bg-surface p-3 shadow-card">
+      <div className="flex flex-col gap-3">
         {selected.length === 0 ? (
           <p className="text-[13px] leading-snug text-ink-soft">
             Dépliez une candidature et ajoutez-la pour lire ses extraits à côté d’autres.
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
+          <ul>
             {selected.map((candidate) => (
-              <li key={candidate.id} className="flex items-center gap-2.5">
+              <li key={candidate.id} className="flex min-h-12 items-center gap-2.5 border-t border-line">
                 <CandidatePortrait candidate={candidate} className="size-7" />
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-ink">{candidate.display_name}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-ink">{candidate.display_name}</span>
                 <button
                   type="button"
                   onClick={() => onRemove(candidate.id)}
                   aria-label={`Retirer du face-à-face : ${candidate.display_name}`}
                   title="Retirer du face-à-face"
-                  className={`flex size-8 shrink-0 items-center justify-center rounded text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink ${FOCUS}`}
+                  className={`-mr-2.5 flex size-11 shrink-0 items-center justify-center rounded-xl text-ink-faint transition-colors hover:text-ink ${FOCUS}`}
                 >
                   <Icon name="close" className="size-4" />
                 </button>
@@ -147,7 +153,7 @@ export function FaceToFaceBox({
         <button
           type="button"
           onClick={onCompare}
-          className={`flex h-10 items-center justify-center rounded bg-accent text-[13.5px] font-semibold text-surface transition-colors hover:bg-accent-strong ${FOCUS}`}
+          className={`flex h-12 items-center justify-center rounded-[14px] bg-ink text-[15px] font-semibold text-surface transition-colors hover:bg-ink/90 ${FOCUS}`}
         >
           Comparer
         </button>

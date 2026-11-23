@@ -201,7 +201,7 @@ export default function CandidateComparisonPage() {
       {data && (
         <div className="space-y-5">
           {data.declaration_note && (
-            <Note desktopOnly>
+            <Note desktopOnly flat>
               {data.declaration_note}
             </Note>
           )}
@@ -244,8 +244,8 @@ export default function CandidateComparisonPage() {
                     <div className="hidden md:block">
                       <SectionTitle>{`Extraits · ${subject.label}`}</SectionTitle>
                       {data.proposals_note && (
-                        <div className="mb-3">
-                          <Note>{data.proposals_note}</Note>
+                        <div className="mb-3 max-w-[720px]">
+                          <Note flat>{data.proposals_note}</Note>
                         </div>
                       )}
                     </div>
@@ -349,7 +349,11 @@ export default function CandidateComparisonPage() {
   )
 }
 
-/** Onglets Par sujet / Par candidature / Face-à-face ; le dernier montre combien de cases sont prises. */
+/**
+ * Onglets Par sujet / Par candidature / Face-à-face ; le dernier montre combien
+ * de cases sont prises. Soulignés (refonte A) : 2 px d'accent sous l'onglet
+ * actif, texte d'encre ; les autres en gris. Ce sont des boutons à état (`aria-pressed`).
+ */
 function ViewTabs({
   view,
   faceCount,
@@ -365,7 +369,7 @@ function ViewTabs({
     { value: 'face', label: 'Face-à-face' },
   ]
   return (
-    <div role="group" aria-label="Vue" className="grid w-full grid-cols-[1fr_1.3fr_1.1fr] gap-1 rounded bg-surface-soft p-[3px] md:w-[480px]">
+    <div role="group" aria-label="Vue" className="flex gap-5 border-b border-line">
       {options.map((option) => {
         const on = view === option.value
         return (
@@ -374,13 +378,13 @@ function ViewTabs({
             type="button"
             aria-pressed={on}
             onClick={() => onChange(option.value)}
-            className={`flex min-h-9 items-center justify-center gap-1.5 rounded px-1 text-[13px] font-semibold whitespace-nowrap transition-colors md:text-sm ${FOCUS} ${
-              on ? 'bg-canvas text-ink shadow-seg' : 'text-ink-soft hover:text-ink'
+            className={`-mb-px flex h-11 items-center gap-1.5 border-b-2 text-sm font-semibold whitespace-nowrap transition-colors ${FOCUS} ${
+              on ? 'border-accent text-ink' : 'border-transparent text-ink-faint hover:text-ink'
             }`}
           >
             {option.label}
             {option.value === 'face' && faceCount > 0 && (
-              <span className="inline-block min-w-[18px] rounded-full bg-accent px-[5px] text-[11px] leading-[18px] text-surface tabular-nums">
+              <span className="inline-block min-w-5 rounded-full bg-surface-soft px-1.5 text-center text-xs leading-5 text-ink tabular-nums">
                 <span className="sr-only">, candidatures choisies : </span>
                 {faceCount}
               </span>

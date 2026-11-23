@@ -60,7 +60,7 @@ export function PageHeader({
   )
 }
 
-/** Intitulé de section, au-dessus d'une liste ou d'une grille. */
+/** Intitulé de section, au-dessus d'une liste ou d'une grille (refonte A : 13 px, gris, sans capitales espacées). */
 export function SectionTitle({
   children,
   count,
@@ -73,7 +73,7 @@ export function SectionTitle({
 }) {
   return (
     <div className="mb-2 flex items-baseline gap-2">
-      <h3 className="text-xs font-semibold uppercase tracking-[0.06em] text-ink-faint">
+      <h3 className="text-[13px] font-semibold text-ink-faint">
         {children}
       </h3>
       {count != null && <span className="text-xs text-ink-faint">{count}</span>}
