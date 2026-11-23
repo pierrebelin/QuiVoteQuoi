@@ -322,13 +322,9 @@ export default function DossierDetailPage() {
                     <Link
                       key={family.code}
                       to={themeLink(family.code)}
-                      className={`inline-flex items-center gap-2 rounded-full border border-line bg-surface py-0.5 pr-3 pl-0.5 text-[13px] font-semibold text-ink transition-colors hover:border-line-strong ${FOCUS_RING}`}
+                      className={`inline-flex h-[26px] items-center gap-1.5 rounded-full bg-surface pr-2.5 pl-2 text-[13px] font-medium text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink ${FOCUS_RING}`}
                     >
-                      <FamilyIllustration
-                        code={family.code}
-                        className="size-6 shrink-0 rounded-full"
-                        glyphClassName="size-3.5"
-                      />
+                      <FamilyIllustration code={family.code} bare className="shrink-0" glyphClassName="size-[15px]" />
                       {typographic(family.label)}
                     </Link>
                   ))
