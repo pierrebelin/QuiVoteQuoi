@@ -12,20 +12,12 @@ import LawAnswer from '../components/LawAnswer'
 import LawMilestones from '../components/LawMilestones'
 import VoteImageExport from '../components/VoteImageExport'
 import { VoteCardHeader } from '../components/VoteCard'
+import { StateDot } from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
 import { siegesDesGroupes } from '../components/sieges'
 import { InfoTip } from '../components/InfoTip'
 import { CoverageNote } from '../components/ScrutinList'
-import {
-  BackLink,
-  Card,
-  ErrorPanel,
-  Loading,
-  Note,
-  Pill,
-  SectionTitle,
-  VoteBar,
-} from '../components/ui'
+import { BackLink, ErrorPanel, Loading, Note, Pill, VoteBar } from '../components/ui'
 import { GROUP_LOGOS } from '../content/logos'
 import { fetchJson } from '../lib/fetchJson'
 import { reattachedNote } from '../lib/sourceDossier'
@@ -45,7 +37,6 @@ import type {
 import {
   explanationsStateLabel,
   leadingPosition,
-  positionClasses,
   positionLabels,
 } from '../types/scrutins'
 
@@ -54,6 +45,24 @@ interface DossierContextDto {
   procedure: string
   initiators: InitiatorDto[]
   outcome: OutcomeDto
+}
+
+/** Position d'un député : la pastille ronde de son état, puis le mot à la même couleur. */
+const POSITION_MARK: Record<VoteDto['position'], { dot: 'for' | 'against' | 'abstention' | 'nobody'; text: string }> = {
+  for: { dot: 'for', text: 'text-yes' },
+  against: { dot: 'against', text: 'text-no' },
+  abstention: { dot: 'abstention', text: 'text-abstain' },
+  not_voting: { dot: 'nobody', text: 'text-ink-soft' },
+}
+
+function PositionWord({ position }: { position: VoteDto['position'] }) {
+  const mark = POSITION_MARK[position]
+  return (
+    <span className={`inline-flex shrink-0 items-center gap-1.5 align-middle text-[13px] font-semibold ${mark.text}`}>
+      <StateDot position={mark.dot} />
+      {positionLabels[position]}
+    </span>
+  )
 }
 
 function shortDate(iso: string) {
@@ -365,11 +374,9 @@ function ExplanationsSource({ explanations }: { explanations: Explanations }) {
 function ExplanationsAbsent({ explanations }: { explanations: Explanations }) {
   if (explanations.state === 'explained') return null
   return (
-    <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
-      <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
-        Explications de vote
-      </h3>
-      <p className="text-sm text-ink-soft">
+    <div className="lg:col-span-5">
+      <h3 className="mb-2 text-[13px] font-semibold text-ink-faint">Explications de vote</h3>
+      <p className="text-[15px] leading-relaxed text-ink-soft">
         {explanationsStateLabel(explanations.state, explanations.report_version)}
         {explanations.source_url && (
           <>
@@ -385,7 +392,7 @@ function ExplanationsAbsent({ explanations }: { explanations: Explanations }) {
           </>
         )}
       </p>
-    </Card>
+    </div>
   )
 }
 
@@ -443,7 +450,7 @@ function GroupRow({
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className={`flex w-full items-center gap-3 rounded py-2.5 text-left transition-colors hover:bg-surface-soft sm:px-2 ${FOCUS_RING}`}
+        className={`flex w-full items-center gap-3 rounded py-3.5 text-left transition-colors hover:bg-surface sm:px-2 ${FOCUS_RING}`}
       >
         <PoliticalLogo
           logo={group.abbrev ? GROUP_LOGOS[group.abbrev] : undefined}
@@ -484,7 +491,7 @@ function GroupRow({
       </button>
 
       {open && (
-        <div className="mb-2 divide-y divide-line rounded border border-line bg-surface-soft/40">
+        <div className="mb-2 divide-y divide-line rounded bg-surface">
           {group.group_uid === null && (
             <p className="px-3 py-2 text-xs text-ink-faint">
               La source ne rattache ces positions à aucun groupe. Elles sont
@@ -521,11 +528,7 @@ function GroupRow({
                     <span className="ml-2 text-xs text-ink-faint">cause {v.cause_code}</span>
                   )}
                 </span>
-                <span
-                  className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${positionClasses[v.position]}`}
-                >
-                  {positionLabels[v.position]}
-                </span>
+                <PositionWord position={v.position} />
               </div>
             ))
           )}
@@ -550,10 +553,10 @@ function GroupRow({
  * recalculée : quand elle diffère, la ligne l'affiche à part (RM-02).
  */
 const SECTIONS = [
-  { key: 'for', title: 'Majoritairement pour', dot: 'bg-yes-bar' },
-  { key: 'against', title: 'Majoritairement contre', dot: 'bg-no-bar' },
-  { key: 'abstention', title: 'Majoritairement abstention', dot: 'bg-abstain-bar' },
-  { key: null, title: 'Partagés à égalité, ou sans votant', dot: 'bg-line-strong' },
+  { key: 'for', title: 'Majoritairement pour', dot: 'for', text: 'text-yes' },
+  { key: 'against', title: 'Majoritairement contre', dot: 'against', text: 'text-no' },
+  { key: 'abstention', title: 'Majoritairement abstention', dot: 'abstention', text: 'text-abstain' },
+  { key: null, title: 'Partagés à égalité, ou sans votant', dot: 'nobody', text: 'text-ink-soft' },
 ] as const
 
 /**
@@ -582,14 +585,14 @@ function GroupRows({
   const silent = new Set(explained?.groups_without_speaker.map((g) => g.group_uid))
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {SECTIONS.map((section) => {
         const members = groups.filter((g) => leadingPosition(g.tally) === section.key)
         if (members.length === 0) return null
         return (
           <div key={section.title}>
-            <h4 className="mb-1 flex items-center gap-2 text-[13px] font-semibold">
-              <span aria-hidden className={`size-2.5 rounded-[3px] ${section.dot}`} />
+            <h4 className={`mb-1 flex items-center gap-2 text-[13px] font-semibold ${section.text}`}>
+              <StateDot position={section.dot} />
               {section.title}
               <span className="font-normal text-ink-faint">
                 · {members.length} groupe{members.length > 1 ? 's' : ''}
@@ -684,7 +687,7 @@ export default function ScrutinDetailPage() {
           reading={data.reading}
           date={data.date}
         />
-        <h2 className="heading-2">
+        <h2 className="heading-2 text-balance max-md:text-[30px] max-md:leading-[33px] md:heading-1">
           {data.dossier_uid ? data.dossier_label || data.dossier_uid : capitalized(data.subject)}
         </h2>
         {data.source_dossier_label && (
@@ -707,15 +710,13 @@ export default function ScrutinDetailPage() {
       </header>
 
       {/*
-        Une seule carte pour ce qui a été mis aux voix : l'amendement, son
-        auteur et son exposé tels que publiés, l'intitulé officiel, puis le
-        texte — où il en est, qui l'a déposé.
+        Ce qui a été mis aux voix, à plat : l'amendement, son auteur et son
+        exposé tels que publiés, puis l'intitulé officiel. Le texte — où il en
+        est, qui l'a déposé — vient dans une bande grise.
       */}
       {(hasCited || data.dossier_uid || hasDossierContext) && (
-        <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
-          <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
-            Ce qui a été mis aux voix
-          </h3>
+        <section className="mt-9 md:mt-12">
+          <h3 className="mb-3 text-[13px] font-semibold text-ink-faint">Ce qui a été mis aux voix</h3>
           {hasCited && (
             <div className="divide-y divide-line">
               {data.cited.map((c) => (
@@ -744,59 +745,59 @@ export default function ScrutinDetailPage() {
                 {capitalized(data.subject)}
               </p>
             ) : (
-              <p className="text-[15px] leading-relaxed text-ink">{capitalized(data.subject)}</p>
+              <p className="max-w-3xl text-base leading-relaxed text-ink md:text-lg">{capitalized(data.subject)}</p>
             ))}
-          {/* Où en est la loi (SPEC-navette, Q6) : jalons et encadré avant le
-              résultat ; un dossier sans état garde l'ancien bloc (RM-04). */}
-          {data.dossier_uid && lawProgress?.law_state && (
-            <div className="mt-4 border-t border-line pt-3">
-              <p className="text-xs font-semibold text-ink-faint">Où en est le texte</p>
-              <LawMilestones
-                milestones={lawProgress.milestones}
-                stateKind={lawProgress.law_state.kind}
-                className="mt-2.5"
+        </section>
+      )}
+      {/* Où en est la loi (SPEC-navette, Q6) : jalons et encadré avant le
+          résultat ; un dossier sans état garde l'ancien bloc (RM-04). */}
+      {data.dossier_uid && lawProgress?.law_state && (
+        <section className="band mt-9 py-8 md:mt-12 md:py-10">
+          <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-6">
+            <p className="text-[13px] font-semibold text-ink-faint lg:col-span-7">Où en est le texte</p>
+            <LawMilestones
+              milestones={lawProgress.milestones}
+              stateKind={lawProgress.law_state.kind}
+              className="mt-3.5 lg:col-span-7 lg:col-start-1 lg:row-start-2"
+            />
+            {lawProgress.answer && (
+              <LawAnswer
+                answer={lawProgress.answer}
+                lawState={lawProgress.law_state}
+                compact
+                className="mt-5 lg:col-span-4 lg:col-start-9 lg:row-span-3 lg:row-start-1 lg:mt-0"
               />
-              {lawProgress.answer && (
-                <LawAnswer
-                  answer={lawProgress.answer}
-                  lawState={lawProgress.law_state}
-                  compact
-                  className="mt-4"
-                />
-              )}
-              <Link
-                to={`/dossiers/${data.dossier_uid}`}
-                className="mt-3 inline-block text-sm font-medium link"
-              >
-                Voir le texte et son parcours →
-              </Link>
-              {dossier && dossier.initiators.length > 0 && (
-                <div className="mt-4 grid gap-2.5 sm:grid-cols-2">
-                  {dossier.initiators.length === 1 ? (
-                    <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
-                  ) : (
-                    <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-          {!lawProgress?.law_state && hasDossierContext && dossier && (
-            <div className="mt-4 border-t border-line pt-3">
-              <p className="mb-2 text-xs font-semibold text-ink-faint">Le texte</p>
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                {data.dossier_uid && (
-                  <OutcomeBox outcome={dossier.outcome} dossierUid={data.dossier_uid} />
-                )}
+            )}
+            <Link
+              to={`/dossiers/${data.dossier_uid}`}
+              className="mt-3 inline-block text-sm font-medium link lg:col-span-7 lg:col-start-1 lg:justify-self-start"
+            >
+              Voir le texte et son parcours →
+            </Link>
+            {dossier && dossier.initiators.length > 0 && (
+              <div className="mt-4 grid gap-2.5 sm:grid-cols-2 lg:col-span-7 lg:col-start-1 lg:grid-cols-1">
                 {dossier.initiators.length === 1 ? (
                   <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
-                ) : dossier.initiators.length > 1 ? (
+                ) : (
                   <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
-                ) : null}
+                )}
               </div>
-            </div>
-          )}
-        </Card>
+            )}
+          </div>
+        </section>
+      )}
+      {!lawProgress?.law_state && hasDossierContext && dossier && (
+        <section className="band mt-9 py-8 md:mt-12 md:py-10">
+          <p className="mb-2.5 text-[13px] font-semibold text-ink-faint">Le texte</p>
+          <div className="grid gap-2.5 sm:grid-cols-2">
+            {data.dossier_uid && <OutcomeBox outcome={dossier.outcome} dossierUid={data.dossier_uid} />}
+            {dossier.initiators.length === 1 ? (
+              <InitiatorBox initiator={dossier.initiators[0]} kind={textKind(dossier.procedure)} />
+            ) : dossier.initiators.length > 1 ? (
+              <InitiatorsBox initiators={dossier.initiators} kind={textKind(dossier.procedure)} />
+            ) : null}
+          </div>
+        </section>
       )}
 
       {/*
@@ -804,14 +805,11 @@ export default function ScrutinDetailPage() {
         ensemble montrent ce qu'aucun total ne montre : les fractures à
         l'intérieur des groupes, un non-votant isolé, une abstention unique.
       */}
-      <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
-        <h3
-          id="hemicycle-scrutin"
-          className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase"
-        >
+      <section className="mt-9 md:mt-12">
+        <h3 id="hemicycle-scrutin" className="mb-4 heading-4 md:heading-3">
           Résultat
         </h3>
-        <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <div className="grid items-center gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-x-10">
           <div>
             <div className="flex flex-wrap gap-x-7 gap-y-3">
               {(
@@ -822,17 +820,17 @@ export default function ScrutinDetailPage() {
                 ] as const
               ).map(([label, value, color]) => (
                 <div key={label}>
-                  <p className={`figure text-[48px] ${color}`}>
+                  <p className={`figure text-[38px] md:text-[44px] ${color}`}>
                     <CountUp value={value} />
                   </p>
-                  <p className="mt-1 text-xs text-ink-faint">{label}</p>
+                  <p className="mt-1.5 text-[13px] text-ink-soft">{label}</p>
                 </div>
               ))}
             </div>
             <div className="mt-4">
-              <VoteBar tally={s.tally} />
+              <VoteBar tally={s.tally} thick />
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+            <p className="mt-3 text-[13px] leading-relaxed text-ink-soft">
               {s.required} voix requises sur {s.expressed} suffrages exprimés
               {data.majority_label && ` (${data.majority_label.toLowerCase()})`}
               {s.tally.not_voting > 0 &&
@@ -855,18 +853,18 @@ export default function ScrutinDetailPage() {
           </div>
 
           {votesNominaux.length > 0 && (
-            <div>
+            <div className="w-full max-w-[560px] lg:ml-auto">
               <Hemicycle votes={votesNominaux} labelledBy="hemicycle-scrutin" />
-              <p className="mt-1 hidden text-center text-xs text-ink-faint md:block">
+              <p className="mt-1 hidden text-center text-[13px] text-ink-soft md:block">
                 <HemicycleHelp />
               </p>
             </div>
           )}
         </div>
-      </Card>
+      </section>
 
-      <Card className="mt-4 px-4 py-4 sm:px-6 sm:py-5">
-        <h3 className="mb-1 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+      <section className="mt-9 md:mt-12">
+        <h3 className="mb-1 flex items-center gap-1 heading-4 md:heading-3">
           Qui a voté quoi
           <InfoTip label="Comment lire ces votes" className="md:hidden">
             <p>
@@ -878,7 +876,7 @@ export default function ScrutinDetailPage() {
             <p>{data.coverage_note}</p>
           </InfoTip>
         </h3>
-        <p className="mb-3 text-xs text-ink-faint">
+        <p className="mb-4 text-[13px] text-ink-soft md:max-w-3xl md:text-sm">
           Touchez un groupe pour le vote de chaque député.
           <span className="hidden md:inline">
             {' '}
@@ -890,7 +888,7 @@ export default function ScrutinDetailPage() {
             chiffres marqués « reconstituée » sont produits par le site, pas
             publiés par l'Assemblée. */}
         {methodNote && (
-          <p className="mb-4 hidden rounded bg-info-soft px-3 py-2 text-xs leading-relaxed text-info ring-1 ring-info/15 ring-inset md:block">
+          <p className="mb-4 hidden rounded bg-surface px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-soft md:block">
             {methodNote}
           </p>
         )}
@@ -898,84 +896,87 @@ export default function ScrutinDetailPage() {
         {data.explanations?.state === 'explained' && (
           <ExplanationsSource explanations={data.explanations} />
         )}
-      </Card>
+      </section>
 
-      {data.explanations && <ExplanationsAbsent explanations={data.explanations} />}
+      {((data.explanations && data.explanations.state !== 'explained') || data.corrections.length > 0) && (
+        <div className="band mt-9 py-8 md:mt-12 md:py-10 lg:grid lg:grid-cols-12 lg:items-start lg:gap-x-6">
+          {data.explanations && <ExplanationsAbsent explanations={data.explanations} />}
 
-      {data.corrections.length > 0 && (
-        <section className="mt-4">
-          <SectionTitle info="Déclarations postérieures au vote. Elles ne modifient ni le résultat ni la répartition ci-dessus.">
-            Mises au point · {data.corrections.length}
-          </SectionTitle>
-          {/* Déclarations postérieures des députés. Elles ne modifient aucun
-              décompte publié par l'Assemblée. */}
-          <p className="mb-3 hidden text-xs text-ink-faint md:block">
-            Déclarations postérieures au vote. Elles ne modifient ni le
-            résultat ni la répartition ci-dessus.
-          </p>
-          <div className="divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card">
-            {data.corrections.map((c) => (
-              <div key={c.actor_uid} className="flex items-center justify-between gap-3 px-4 py-1.5">
-                <span className="truncate text-sm">
-                  {c.full_name ?? (
-                    <span className="font-mono text-xs text-ink-faint">{c.actor_uid}</span>
-                  )}
-                  {c.malfunction && (
-                    <span className="ml-2 text-xs text-ink-faint">dysfonctionnement signalé</span>
-                  )}
-                </span>
-                <span className="shrink-0 text-xs text-ink-soft">
-                  souhaitait voter{' '}
-                  <span
-                    className={`rounded px-1.5 py-0.5 text-[11px] font-medium ring-1 ring-inset ${positionClasses[c.claimed_position]}`}
-                  >
-                    {positionLabels[c.claimed_position]}
-                  </span>
-                </span>
+          {data.corrections.length > 0 && (
+            <section className="mt-8 first:mt-0 lg:col-span-6 lg:col-start-7 lg:mt-0">
+              <h3 className="mb-1 flex items-center gap-1 text-[13px] font-semibold text-ink-faint">
+                Mises au point · {data.corrections.length}
+                <InfoTip label="À propos : cette section" className="md:hidden">
+                  Déclarations postérieures au vote. Elles ne modifient ni le résultat ni la répartition
+                  ci-dessus.
+                </InfoTip>
+              </h3>
+              {/* Déclarations postérieures des députés. Elles ne modifient aucun
+                  décompte publié par l'Assemblée. */}
+              <p className="mb-3 hidden text-[13px] text-ink-soft md:block">
+                Déclarations postérieures au vote. Elles ne modifient ni le
+                résultat ni la répartition ci-dessus.
+              </p>
+              <div className="divide-y divide-line">
+                {data.corrections.map((c) => (
+                  <div key={c.actor_uid} className="flex min-h-12 items-center justify-between gap-3 py-1.5">
+                    <span className="min-w-0 text-[15px] font-semibold">
+                      {c.full_name ?? (
+                        <span className="font-mono text-xs text-ink-faint">{c.actor_uid}</span>
+                      )}
+                      {c.malfunction && (
+                        <span className="ml-2 text-xs font-normal text-ink-faint">dysfonctionnement signalé</span>
+                      )}
+                    </span>
+                    <span className="shrink-0 text-[13px] whitespace-nowrap text-ink-soft">
+                      souhaitait voter <PositionWord position={c.claimed_position} />
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
+          )}
+        </div>
       )}
 
       {/* Les liens et la référence officielle, en bas : on y va après avoir lu. */}
       <nav
         aria-label="Pour aller plus loin"
-        className="mt-6 divide-y divide-line overflow-hidden rounded border border-line bg-surface shadow-card"
+        className="mt-9 divide-y divide-line border-y border-line md:mt-12 lg:grid lg:grid-cols-3 lg:gap-x-6 lg:divide-y-0 lg:border-y-0"
       >
         {data.dossier_uid && (
           <Link
             to={`/dossiers/${data.dossier_uid}`}
-            className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium link hover:bg-surface-soft ${FOCUS_RING}`}
+            className={`flex min-h-14 items-center justify-between gap-3 text-[15px] font-semibold text-ink hover:text-accent-ink lg:border-y lg:border-line ${FOCUS_RING}`}
           >
             Le texte et tout son parcours
-            <span aria-hidden>→</span>
+            <span aria-hidden className="text-accent">→</span>
           </Link>
         )}
         <a
           href={data.official_url}
           target="_blank"
           rel="noreferrer"
-          className={`flex min-h-12 items-center justify-between gap-3 px-4 text-sm font-medium link hover:bg-surface-soft ${FOCUS_RING}`}
+          className={`flex min-h-14 items-center justify-between gap-3 text-[15px] font-semibold text-ink hover:text-accent-ink lg:border-y lg:border-line ${FOCUS_RING}`}
         >
           Page officielle du scrutin
-          <span aria-hidden>↗</span>
+          <span aria-hidden className="text-accent">↗</span>
         </a>
         <button
           type="button"
           onClick={() => setPartage(!partage)}
           aria-expanded={partage}
-          className={`flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left text-sm font-medium link hover:bg-surface-soft ${FOCUS_RING}`}
+          className={`flex min-h-14 w-full items-center justify-between gap-3 text-left text-[15px] font-semibold text-ink hover:text-accent-ink lg:border-y lg:border-line ${FOCUS_RING}`}
         >
           Partager en image
-          <span aria-hidden>{partage ? '−' : '+'}</span>
+          <span aria-hidden className="text-accent">{partage ? '−' : '+'}</span>
         </button>
       </nav>
 
       {partage && <VoteImageExport scrutin={data} onClose={() => setPartage(false)} />}
 
       {/* Ce que le vote recouvre exactement, et ce qu'il ne recouvre pas. */}
-      <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+      <p className="mt-4 text-[13px] leading-relaxed text-ink-soft md:max-w-3xl md:text-sm">
         Scrutin n° {data.number} · {data.ballot_type_label}
         {data.requester && `, demandé par : ${data.requester}`}.{' '}
         <span className="hidden md:inline">
