@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from 'react'
 import { Link } from 'react-router'
 import type { TallyDto } from '../types/scrutins'
+import { StateDot } from './entry/PositionGlyph'
 import { Icon } from './icons'
 import { InfoTip } from './InfoTip'
 
@@ -174,18 +175,23 @@ export function Loading({ children }: { children: ReactNode }) {
 
 export type PillTone = 'yes' | 'no' | 'neutral' | 'info' | 'abstain'
 
-const pillTones: Record<PillTone, string> = {
-  yes: 'bg-yes-soft text-yes ring-yes/15',
-  no: 'bg-no-soft text-no ring-no/15',
-  abstain: 'bg-abstain-soft text-abstain ring-abstain/15',
-  info: 'bg-info-soft text-info ring-info/15',
-  neutral: 'bg-surface-soft text-ink-soft ring-line',
-}
+/** États de vote : pastille ronde pleine, puis le mot à la même couleur. */
+const stateTones = {
+  yes: { position: 'for', text: 'text-yes' },
+  no: { position: 'against', text: 'text-no' },
+  abstain: { position: 'abstention', text: 'text-abstain' },
+} as const
+
+/** Étiquettes sans état : fond neutre, aucune couleur de position. */
+const labelTones = {
+  info: 'bg-surface-soft text-info',
+  neutral: 'bg-surface-soft text-ink-soft',
+} as const
 
 /**
- * Pastille d'état. Un anneau d'un pixel plutôt qu'une bordure : sur un fond
- * teinté, la bordure pleine épaissit la pastille et la fait ressembler à un
- * bouton cliquable.
+ * Pastille d'état. Un état de vote (pour, contre, abstention) s'écrit en pastille
+ * ronde pleine suivie du mot coloré ; une information neutre (étape, procédure,
+ * mention) reste une étiquette grise, sans bordure.
  */
 export function Pill({
   children,
@@ -196,10 +202,22 @@ export function Pill({
   tone?: PillTone
   title?: string
 }) {
+  if (tone === 'yes' || tone === 'no' || tone === 'abstain') {
+    const state = stateTones[tone]
+    return (
+      <span
+        title={title}
+        className={`inline-flex shrink-0 items-center gap-1.5 text-[13px] leading-[18px] font-semibold ${state.text}`}
+      >
+        <StateDot position={state.position} />
+        {children}
+      </span>
+    )
+  }
   return (
     <span
       title={title}
-      className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] font-medium leading-4 ring-1 ring-inset ${pillTones[tone]}`}
+      className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11.5px] font-medium leading-4 ${labelTones[tone]}`}
     >
       {children}
     </span>
@@ -269,9 +287,9 @@ export function VoteBar({
   const scale = outOf && outOf > 0 ? Math.min(1, total / outOf) : 1
 
   return (
-    <div className="w-full rounded-full bg-surface-soft">
+    <div className="w-full rounded-full bg-seat-empty">
       <div
-        className={`bar-grow flex overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-1.5'}`}
+        className={`bar-grow flex gap-0.5 overflow-hidden rounded-full ${thick ? 'h-2.5' : 'h-2'}`}
         style={{ width: `${scale * 100}%` }}
         role="img"
         title={label}

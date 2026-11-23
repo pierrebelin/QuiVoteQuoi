@@ -196,23 +196,26 @@ export function FamilyIllustration({
   code,
   className = '',
   glyphClassName = 'size-9',
+  bare = false,
 }: {
   code: string
   className?: string
   glyphClassName?: string
+  /** L'icône seule, à la teinte de la famille, sans vignette (étiquettes de sujet). */
+  bare?: boolean
 }) {
   const art = ART[code] ?? FALLBACK
   return (
     <div
       aria-hidden
       style={{ '--family-hue': art.hue } as CSSProperties}
-      className={`family-art flex items-center justify-center ${className}`}
+      className={`${bare ? 'family-glyph' : 'family-art'} flex items-center justify-center ${className}`}
     >
       <svg
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
-        strokeWidth={1.5}
+        strokeWidth={bare ? 1.8 : 1.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         className={`${glyphClassName} transition-transform duration-300 group-hover:scale-110`}

@@ -44,7 +44,7 @@ export default function TextList({
           </div>
           <div className="max-w-full shrink-0">
             {showFamilies && text.families.length > 0 ? (
-              <FamilyBadges families={text.families} />
+              <FamilyBadges families={text.families} onCard />
             ) : (
               <UnassignedNote outcome={text.last_attempt_outcome} />
             )}

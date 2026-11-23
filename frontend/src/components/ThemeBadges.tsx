@@ -15,24 +15,24 @@ import type { AssignedFamilyDto } from '../types/themes'
 export function FamilyBadges({
   families,
   linkToFamily = true,
+  onCard = false,
 }: {
   families: AssignedFamilyDto[]
   linkToFamily?: boolean
+  /** Posées sur une carte grise : l'étiquette passe au blanc pour s'en détacher. */
+  onCard?: boolean
 }) {
   if (families.length === 0) return null
 
   return (
     <div className="flex flex-wrap gap-1.5">
       {families.map((family) => {
-        const className =
-          'inline-flex items-center gap-1.5 rounded bg-surface-soft py-0.5 pr-2 pl-0.5 text-xs font-medium text-ink-soft ring-1 ring-inset ring-line'
+        const className = `inline-flex h-[26px] items-center gap-1.5 rounded-full pr-2.5 pl-2 text-[13px] font-medium text-ink-soft ${
+          onCard ? 'bg-canvas' : 'bg-surface'
+        }`
         const content = (
           <>
-            <FamilyIllustration
-              code={family.code}
-              className="size-5 rounded"
-              glyphClassName="size-3.5"
-            />
+            <FamilyIllustration code={family.code} bare className="shrink-0" glyphClassName="size-[15px]" />
             {family.label}
           </>
         )
@@ -40,7 +40,7 @@ export function FamilyBadges({
           <Link
             key={family.code}
             to={themeLink(family.code)}
-            className={`${className} transition-colors hover:bg-surface hover:text-ink hover:ring-line-strong`}
+            className={`${className} transition-colors hover:bg-surface-soft hover:text-ink`}
           >
             {content}
           </Link>

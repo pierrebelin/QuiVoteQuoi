@@ -85,7 +85,7 @@ export default function GroupStep({
                   logo={GROUP_LOGOS[group.abbrev]}
                   fallback={group.abbrev}
                   color={null}
-                  className="h-9 w-14 rounded"
+                  className="h-9 w-14"
                 />
                 <span className="min-w-0 flex-1 text-sm leading-snug font-semibold">
                   {groupShortName(group)}

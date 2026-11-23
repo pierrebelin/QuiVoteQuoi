@@ -13,8 +13,8 @@ import {
 import type { GroupDto, StanceDto, TallyDto } from '../types/finalVotes'
 import { formatDate } from '../types/scrutins'
 import GroupBreakdown from './entry/GroupBreakdown'
-import PositionGlyph from './entry/PositionGlyph'
-import { BADGE_CLASS, BADGE_WORD, BANNER_CLASS, FOCUS_RING, SWATCH_CLASS } from './entry/styles'
+import { StateDot } from './entry/PositionGlyph'
+import { BADGE_CLASS, BADGE_WORD, BANNER_CLASS, FOCUS_RING } from './entry/styles'
 import { PoliticalLogo } from './PoliticalLogo'
 import { VoteBar } from './ui'
 
@@ -98,7 +98,7 @@ export function AssemblyFooter({ tally }: { tally: TallyDto }) {
   )
 }
 
-/** En-tête commun : l'issue et la lecture dans une pastille, puis la date. */
+/** En-tête commun : l'issue et la lecture (pastille ronde, puis le mot), puis la date. */
 export function VoteCardHeader({
   adopted,
   outcome,
@@ -107,14 +107,12 @@ export function VoteCardHeader({
   date,
 }: Pick<VoteCardProps, 'adopted' | 'outcome' | 'outcomeTitle' | 'reading' | 'date'>) {
   return (
-    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-ink-faint">
+    <p className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13px] text-ink-faint">
       <span
         title={outcomeTitle}
-        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
-          adopted ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'
-        }`}
+        className={`inline-flex items-center gap-1.5 font-semibold ${adopted ? 'text-yes' : 'text-no'}`}
       >
-        <PositionGlyph position={adopted ? 'for' : 'against'} className="size-3" strokeWidth={3.2} />
+        <StateDot position={adopted ? 'for' : 'against'} />
         {outcome}
         {reading && <> · {readingShort(reading)}</>}
       </span>
@@ -221,13 +219,8 @@ export function GroupsByPosition({
                 wide ? 'lg:grid-cols-[112px_minmax(0,1fr)]' : ''
               }`}
             >
-              <div className="flex min-h-[30px] items-center gap-1.5">
-                <span
-                  aria-hidden
-                  className={`inline-flex size-5 shrink-0 items-center justify-center rounded ${SWATCH_CLASS[row.key]}`}
-                >
-                  <PositionGlyph position={row.key} className="size-3" />
-                </span>
+              <div className="flex min-h-7 items-center gap-1.5">
+                <StateDot position={row.key} />
                 <span className={`text-[13px] font-semibold ${ROW_WORD_CLASS[row.key]}`}>
                   {row.label}
                 </span>
@@ -248,8 +241,8 @@ export function GroupsByPosition({
                         onClick={(event) =>
                           setOpened(isOpen ? null : { group, anchor: event.currentTarget })
                         }
-                        // Le logo reste à 30 px de haut, la zone de toucher atteint 44 px.
-                        className={`relative flex h-[30px] w-11 items-center justify-center rounded bg-white p-[3px] ring-1 ring-black/10 ring-inset transition-[opacity,transform] motion-safe:hover:-translate-y-0.5 after:absolute after:-inset-y-[7px] after:inset-x-0 after:content-[''] ${FOCUS_RING} ${
+                        // La vignette fait 42 × 28 px, la zone de toucher atteint 44 px.
+                        className={`relative flex h-7 w-[42px] items-center justify-center rounded-lg transition-[opacity,transform] motion-safe:hover:-translate-y-0.5 after:absolute after:-inset-x-0.5 after:-inset-y-2 after:content-[''] ${FOCUS_RING} ${
                           on ? 'ring-2 ring-ink' : ''
                         } ${isOpen ? 'outline-2 outline-offset-1 outline-accent' : ''} ${
                           dimOthers && !on && !isOpen ? 'opacity-35 hover:opacity-80' : ''

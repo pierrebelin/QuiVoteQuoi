@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import DossierCardShell, { OutcomeSplit } from '../DossierCardShell'
-import PositionGlyph from '../entry/PositionGlyph'
+import { StateDot } from '../entry/PositionGlyph'
 import VoteCard from '../VoteCard'
 import { capitalized } from '../../lib/entryFlow'
 import { agreed, scrutinCard } from '../voteCardData'
@@ -29,11 +29,9 @@ function LatestFinal({ final, textLabel }: { final: NonNullable<WeekCardTally['l
       Dont le vote sur l’ensemble,
       <span
         title={capitalized(final.outcome_label)}
-        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12.5px] font-semibold ${
-          adopted ? 'bg-yes-soft text-yes' : 'bg-no-soft text-no'
-        }`}
+        className={`inline-flex items-center gap-1.5 text-[13px] font-semibold ${adopted ? 'text-yes' : 'text-no'}`}
       >
-        <PositionGlyph position={adopted ? 'for' : 'against'} className="size-3" strokeWidth={3.2} />
+        <StateDot position={adopted ? 'for' : 'against'} />
         {agreed(adopted, textLabel)}
       </span>
     </p>

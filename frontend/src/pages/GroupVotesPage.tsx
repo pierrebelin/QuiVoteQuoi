@@ -162,7 +162,7 @@ function StanceCard({ stance, vote }: { stance: StanceDto; vote: FinalVoteDto })
   return (
     <div className="min-w-0 rounded border border-line bg-canvas px-3 py-2.5">
       <div className="flex items-center gap-1.5">
-        <GroupMark abbrev={stance.abbrev} color={stance.color} className="h-6 w-10 rounded p-0.5" />
+        <GroupMark abbrev={stance.abbrev} color={stance.color} className="h-6 w-10 p-0.5" />
         <span className="text-sm font-semibold">{stance.abbrev}</span>
         {leading ? (
           <span
@@ -239,7 +239,7 @@ function MissingStance({ group }: { group: GroupDto }) {
   return (
     <div className="min-w-0 rounded border border-dashed border-line px-3 py-2.5">
       <div className="flex items-center gap-1.5">
-        <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-10 rounded p-0.5 opacity-60" />
+        <GroupMark abbrev={group.abbrev} color={group.color} className="h-6 w-10 p-0.5 opacity-60" />
         <span className="text-sm font-semibold text-ink-soft">{group.abbrev}</span>
       </div>
       <p className="mt-1.5 text-xs text-ink-faint">
@@ -274,7 +274,7 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-ink-faint">
         <span>{vote.ballot_type_label}</span>
         {vote.reading && <span>· {vote.reading}</span>}
-        <FamilyBadges families={vote.families} />
+        <FamilyBadges families={vote.families} onCard />
         {vote.dossier_uid && (
           <Link
             to={`/dossiers/${vote.dossier_uid}`}
@@ -408,7 +408,7 @@ function GroupPicker({
                   <GroupMark
                     abbrev={abbrev}
                     color={group?.color ?? null}
-                    className="h-[22px] w-9 rounded p-0.5"
+                    className="h-[22px] w-9 p-0.5"
                   />
                   <span className="max-w-full truncate">{abbrev}</span>
                   <span
@@ -454,7 +454,7 @@ function GroupPicker({
                 <GroupMark
                   abbrev={group.abbrev}
                   color={group.color}
-                  className="h-6 w-10 rounded p-0.5"
+                  className="h-6 w-10 p-0.5"
                 />
                 <span className="min-w-0 py-1 leading-tight">
                   {group.abbrev}

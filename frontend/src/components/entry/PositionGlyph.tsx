@@ -1,4 +1,5 @@
 import type { GroupPosition } from '../../lib/entryFlow'
+import { SWATCH_CLASS } from './styles'
 
 /** Glyphe d'une position ; vide pour « personne n'a voté » et « aucune ligne ». */
 export default function PositionGlyph({
@@ -32,5 +33,21 @@ export default function PositionGlyph({
     >
       <path d={path} />
     </svg>
+  )
+}
+
+/**
+ * Pastille d'état de la refonte A : un disque plein de 18 px, le glyphe de la
+ * position dedans. Elle ne dit que l'état (pour, contre, abstention) ; le mot
+ * qui la suit porte la même couleur, la couleur seule ne suffit pas.
+ */
+export function StateDot({ position }: { position: GroupPosition }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex size-[18px] shrink-0 items-center justify-center rounded-full ${SWATCH_CLASS[position]}`}
+    >
+      <PositionGlyph position={position} className="size-3" />
+    </span>
   )
 }

@@ -144,7 +144,7 @@ export function CandidateDetails({
             Déclaration, sources et groupes associés
           </span>
         </span>
-        <CandidateLogo candidate={candidate} className="hidden h-8 w-12 rounded p-0.5 sm:flex" />
+        <CandidateLogo candidate={candidate} className="hidden h-8 w-12 p-0.5 sm:flex" />
         <Icon
           name="chevron"
           className="size-[18px] text-ink-soft transition-transform group-open:rotate-90"

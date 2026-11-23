@@ -505,3 +505,8 @@ body {
     color-mix(in oklab, var(--family-hue) 10%, var(--color-surface));
   color: color-mix(in oklab, var(--family-hue) 80%, var(--color-ink));
 }
+
+/* Même teinte, sans la vignette : l'icône seule, dans une étiquette de sujet. */
+.family-glyph {
+  color: color-mix(in oklab, var(--family-hue) 80%, var(--color-ink));
+}
