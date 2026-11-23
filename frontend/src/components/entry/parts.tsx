@@ -79,7 +79,7 @@ export function StepIntro({
 /** Barre collée en bas de l'écran : le résumé du choix et l'action suivante. */
 export function ActionBar({ summary, children }: { summary: ReactNode; children: ReactNode }) {
   return (
-    <div className="sticky bottom-[var(--mobile-nav-h)] z-10 -mx-6 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-canvas/95 px-6 py-3.5 backdrop-blur">
+    <div className="sticky bottom-[var(--mobile-nav-h)] z-10 -mx-5 flex flex-wrap items-center justify-between gap-3 border-t border-line bg-canvas/95 px-5 py-3.5 backdrop-blur md:-mx-6 md:px-6">
       <p className="text-sm text-ink-soft" aria-live="polite">
         {summary}
       </p>

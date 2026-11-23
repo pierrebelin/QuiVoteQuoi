@@ -121,7 +121,7 @@ export default function VotesToolbar({
     <>
       <div
         onKeyDown={onKeyDown}
-        className="sticky z-10 -mx-6 -mt-8 border-b border-line bg-surface/95 px-6 py-2.5 shadow-card backdrop-blur"
+        className="sticky z-10 -mx-5 -mt-8 border-b border-line bg-canvas/95 px-5 py-2.5 md:-mx-6 md:px-6 shadow-card backdrop-blur"
         style={{ top: headerHeight }}
       >
         <div className="grid grid-cols-2 items-center gap-2 md:flex md:flex-wrap">

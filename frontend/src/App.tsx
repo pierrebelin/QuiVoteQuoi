@@ -52,20 +52,20 @@ export default function App() {
         navigation qu'il faut remonter chercher n'est pas une navigation. Sous
         768 px il se réduit au logo et au nom : la navigation est en bas.
       */}
-      <header className="sticky top-0 z-20 border-b border-line bg-surface/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-8 px-6 py-2.5">
+      <header className="sticky top-0 z-20 border-b border-line bg-canvas/90 backdrop-blur-md">
+        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-8 pr-4 pl-5 md:h-16 md:px-6">
           <Link
             to="/"
-            className="flex items-center gap-2 transition-opacity hover:opacity-70"
+            className="flex items-center gap-2.5 transition-opacity hover:opacity-70"
           >
-            <Logo className="h-9 w-auto shrink-0" />
-            <h1 className="text-[15px] font-semibold tracking-tight whitespace-nowrap">
+            <Logo className="h-[30px] w-auto shrink-0" />
+            <h1 className="text-base font-semibold tracking-[-0.01em] whitespace-nowrap">
               QuiVote
               <span className="text-accent">Quoi</span>
             </h1>
           </Link>
 
-          <nav className="-mx-1 hidden flex-wrap items-center justify-end gap-0.5 md:flex" aria-label="Navigation principale">
+          <nav className="hidden flex-wrap items-center justify-end gap-0.5 md:flex" aria-label="Navigation principale">
             {NAV_TABS.map((item) => {
               const active = isActive(pathname, item)
               return (
@@ -73,10 +73,10 @@ export default function App() {
                   key={item.to}
                   to={item.to}
                   aria-current={active ? 'page' : undefined}
-                  className={`rounded px-2.5 py-1.5 text-[13px] font-medium whitespace-nowrap transition-colors ${
+                  className={`flex h-10 items-center rounded-[12px] px-3.5 text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent ${
                     active
-                      ? 'bg-surface-soft text-ink'
-                      : 'text-ink-soft hover:bg-surface-soft hover:text-ink'
+                      ? 'bg-accent-soft text-accent-ink'
+                      : 'text-ink-soft hover:bg-surface hover:text-ink'
                   }`}
                 >
                   {item.label}
@@ -84,37 +84,42 @@ export default function App() {
               )
             })}
             <NavMoreMenu />
-            <span className="mx-1 h-4 w-px bg-line" aria-hidden />
             <a
               href={GITHUB_REPOSITORY_URL}
               target="_blank"
               rel="noreferrer"
               aria-label="Consulter le code source sur GitHub"
               title="Code source sur GitHub"
-              className="rounded p-1.5 text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink"
+              className="ml-1 inline-flex size-11 items-center justify-center rounded-[14px] text-ink-soft transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
             >
-              <GitHubIcon className="h-4 w-4" />
+              <GitHubIcon className="size-5" />
             </a>
             <ThemeToggle />
           </nav>
         </div>
       </header>
 
-      <main ref={main} className="mx-auto w-full max-w-7xl flex-1 px-6 py-8">
+      <main ref={main} className="mx-auto w-full max-w-7xl flex-1 px-5 py-8 md:px-6">
         <Outlet />
       </main>
 
       {/* Marges sur le conteneur, comme l'en-tête et le contenu : sinon, au-delà
           de 1280 px, le pied de page commence 24 px plus à gauche. */}
-      <footer className="mt-12 border-t border-line py-6">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-baseline gap-x-5 gap-y-2 px-6 text-xs">
-          <span className="font-medium text-ink-soft">
-            Transparence des votes parlementaires
+      {/* Mobile : trois lignes empilées. Ordinateur : l'identité à gauche, la
+          fraîcheur des données à droite. */}
+      <footer className="mt-12 border-t border-line">
+        <div className="mx-auto flex max-w-7xl flex-col gap-1.5 px-5 pt-7 pb-5 text-[13px] leading-snug text-ink-faint md:flex-row md:items-start md:justify-between md:gap-6 md:px-6 md:pt-6 md:pb-8">
+          <span className="flex flex-col gap-1.5 md:gap-1">
+            <span className="font-semibold text-ink-soft">
+              Transparence des votes parlementaires
+            </span>
+            <span>
+              Données publiques de l'Assemblée nationale, reprises sans sélection.
+            </span>
           </span>
-          <span className="text-ink-faint">
-            Données publiques de l'Assemblée nationale, reprises sans sélection.
+          <span className="md:max-w-[50%] md:text-right">
+            <FreshnessFooterLine />
           </span>
-          <FreshnessFooterLine />
         </div>
       </footer>
 

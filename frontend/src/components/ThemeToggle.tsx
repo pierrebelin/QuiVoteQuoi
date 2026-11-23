@@ -7,7 +7,7 @@ const CLE = 'theme'
 /** Couleur de `--color-surface` dans chaque apparence : celle de l'en-tête. */
 const COULEUR_BARRE: Record<Theme, string> = {
   light: '#ffffff',
-  dark: '#1b1a18',
+  dark: '#0e1216',
 }
 
 /**
@@ -42,7 +42,7 @@ export default function ThemeToggle({ variant = 'icon' }: { variant?: 'icon' | '
   const sombre = theme === 'dark'
   const row = variant === 'row'
   const label = sombre ? 'Passer au thème clair' : 'Passer au thème sombre'
-  const glyphSize = row ? 'size-5' : 'size-4'
+  const glyphSize = 'size-5'
 
   const glyph = sombre ? (
     <svg viewBox="0 0 24 24" className={`${glyphSize} shrink-0`} aria-hidden>
@@ -72,7 +72,7 @@ export default function ThemeToggle({ variant = 'icon' }: { variant?: 'icon' | '
       <button
         type="button"
         onClick={() => setTheme(sombre ? 'light' : 'dark')}
-        className="flex min-h-[50px] w-full items-center gap-3 border-t border-line px-4 text-left text-[15px] font-medium text-ink transition-colors hover:bg-surface-soft focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+        className="flex min-h-[50px] w-full items-center gap-3 border-t border-line px-4 text-left text-[15px] font-medium text-ink transition-colors hover:bg-surface focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
       >
         {glyph}
         {label}
@@ -86,7 +86,7 @@ export default function ThemeToggle({ variant = 'icon' }: { variant?: 'icon' | '
       onClick={() => setTheme(sombre ? 'light' : 'dark')}
       aria-label={label}
       title={sombre ? 'Thème clair' : 'Thème sombre'}
-      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink"
+      className="inline-flex size-11 shrink-0 items-center justify-center rounded-[14px] text-ink-soft transition-colors hover:bg-surface hover:text-ink focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
     >
       {glyph}
     </button>

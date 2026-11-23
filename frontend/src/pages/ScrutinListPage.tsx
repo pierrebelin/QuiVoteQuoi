@@ -163,7 +163,7 @@ function StateFilter({
     <div
       role="group"
       aria-label="Où en est le texte"
-      className="-mx-6 mb-3 flex gap-2 overflow-x-auto px-6 py-1 [scrollbar-width:none] md:mx-0 md:mt-4 md:flex-wrap md:overflow-visible md:px-0"
+      className="-mx-5 mb-3 flex gap-2 overflow-x-auto px-5 py-1 [scrollbar-width:none] md:mx-0 md:mt-4 md:flex-wrap md:overflow-visible md:px-0"
     >
       {options.map((option) => {
         const on = option.kind === value
