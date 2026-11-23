@@ -24,7 +24,7 @@ export function SheetSection({
 }) {
   return (
     <section className="mt-4 first:mt-1">
-      <h3 className="mb-1.5 text-xs font-semibold tracking-wide text-ink-soft uppercase">
+      <h3 className="mb-1.5 text-[13px] font-semibold text-ink-faint">
         {title}
       </h3>
       {children}
@@ -88,7 +88,7 @@ export function SheetButton({
       className={`inline-flex min-h-11 items-center justify-center rounded px-4 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${FOCUS} ${
         primary
           ? 'min-w-0 flex-1 bg-ink text-surface'
-          : 'bg-surface text-ink ring-1 ring-line-strong ring-inset hover:bg-surface-soft disabled:hover:bg-surface'
+          : 'bg-surface text-ink hover:bg-surface-soft disabled:hover:bg-surface'
       }`}
     >
       {children}

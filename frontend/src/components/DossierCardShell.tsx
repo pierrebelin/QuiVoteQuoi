@@ -131,7 +131,7 @@ export default function DossierCardShell({
 
       <header className="px-[18px] pt-3 pb-3.5">
         <h2
-          className={`text-[16.5px] leading-snug font-semibold text-ink transition-colors ${stretched ? 'group-hover:text-accent' : 'hover:text-accent'}`}
+          className={`heading-5 text-balance text-ink transition-colors md:text-[19px] md:leading-6 ${stretched ? 'group-hover:text-accent' : 'hover:text-accent'}`}
         >
           <Link
             to={`/dossiers/${uid}`}

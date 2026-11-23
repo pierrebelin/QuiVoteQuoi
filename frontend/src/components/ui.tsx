@@ -441,7 +441,7 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="rounded border border-line bg-surface px-3 py-1.5 text-sm font-medium text-ink-soft shadow-card transition-colors hover:bg-surface-soft hover:text-ink disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-surface"
+      className="inline-flex min-h-11 items-center rounded bg-surface px-4 text-sm font-semibold text-ink transition-colors hover:bg-surface-soft disabled:cursor-not-allowed disabled:text-ink-faint disabled:opacity-60 disabled:hover:bg-surface"
     >
       {children}
     </button>
