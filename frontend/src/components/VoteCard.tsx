@@ -143,7 +143,7 @@ export function VoteIssue({
         <StateDot position={adopted ? 'for' : 'against'} />
         {outcome}
       </span>
-      {reading && (
+      {reading && fitsHollow(reading) && (
         <span className="text-xs leading-tight font-medium whitespace-nowrap text-ink-soft">
           <span className="sr-only"> · </span>
           {readingShort(reading)}
@@ -151,6 +151,18 @@ export function VoteIssue({
       )}
     </p>
   )
+}
+
+/*
+ * Le creux de l'hémicycle n'a qu'une centaine de pixels de large à 375 px :
+ * « 1re lecture » ou « Lecture définitive » y tiennent sur une ligne, pas
+ * « Texte de la commission mixte paritaire ». Une lecture plus longue reste
+ * affichée, mais dans la ligne de la mention, au-dessus de l'intitulé.
+ */
+const HOLLOW_MAX_CHARS = 18
+
+function fitsHollow(reading: string): boolean {
+  return readingShort(reading).length <= HOLLOW_MAX_CHARS
 }
 
 /** « première lecture » → « 1re lecture » : la pastille doit tenir sur une ligne. */
@@ -362,7 +374,15 @@ export default function VoteCard({
             <time dateTime={date} className="order-2 whitespace-nowrap">
               {formatDate(date)}
             </time>
-            <span className="order-1 font-semibold whitespace-nowrap text-ink-soft">{kicker}</span>
+            <span className="order-1 font-semibold text-ink-soft">
+              {kicker}
+              {reading && !fitsHollow(reading) && (
+                <span className="font-medium">
+                  {' · '}
+                  {readingShort(reading)}
+                </span>
+              )}
+            </span>
           </p>
         ) : (
           <>
