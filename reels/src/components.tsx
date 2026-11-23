@@ -1,10 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import {
   AbsoluteFill,
   Audio,
-  cancelRender,
-  continueRender,
-  delayRender,
   interpolate,
   Sequence,
   staticFile,
@@ -12,10 +9,9 @@ import {
   useVideoConfig,
 } from 'remotion'
 import '@fontsource-variable/inter'
-import { chargerPolices, dessinerVote } from '../../frontend/src/lib/voteImage'
 import { COLORS, FONT, SAFE } from './theme'
 import { INTRO, OUTRO, type CardPlan } from './timeline'
-import type { ReelProps, ScrutinDetailDto } from './types'
+import type { ReelProps } from './types'
 
 /** Fond et zone de contenu hors des zones couvertes par les réseaux. */
 export function Frame({ children }: { children: ReactNode }) {
@@ -100,59 +96,6 @@ export function CountUp({ value, label, color, length }: { value: number; label:
       </span>
       <span style={{ fontSize: 40, color: COLORS.inkSoft }}>{label}</span>
     </div>
-  )
-}
-
-/** Polices chargées une fois pour tous les canvas de la vidéo. */
-let fontsReady: Promise<void> | null = null
-function loadFonts() {
-  fontsReady ??= chargerPolices()
-  return fontsReady
-}
-
-/**
- * Image d'un scrutin dessinée par `dessinerVote` au format `reel`, comme le
- * partage du site : groupes rangés par position publiée, décompte, source.
- */
-export function VoteImage({ detail, site, scale = 1 }: { detail: ScrutinDetailDto; site: string; scale?: number }) {
-  const canvas = useRef<HTMLCanvasElement>(null)
-  const [handle] = useState(() => delayRender(`Dessin du scrutin ${detail.number}`))
-  useEffect(() => {
-    loadFonts()
-      .then(() => {
-        if (canvas.current) {
-          dessinerVote(canvas.current, detail, {
-            reseau: 'reel',
-            visuel: 'groupes',
-            theme: 'clair',
-            lien: `${site}/scrutins/${detail.uid}`,
-          })
-        }
-        continueRender(handle)
-      })
-      .catch((error: unknown) => cancelRender(error))
-  }, [detail, handle, site])
-  return <canvas ref={canvas} style={{ width: 1080 * scale, height: 1920 * scale, display: 'block' }} />
-}
-
-/** Images de scrutins à plein cadre, ou en grille quand une carte en porte plusieurs. */
-export function VoteImages({ details, site }: { details: ScrutinDetailDto[]; site: string }) {
-  if (details.length === 1) {
-    return (
-      <AbsoluteFill>
-        <VoteImage detail={details[0]} site={site} />
-      </AbsoluteFill>
-    )
-  }
-  const columns = details.length <= 2 ? 2 : Math.ceil(Math.sqrt(details.length))
-  const rows = Math.ceil(details.length / columns)
-  const scale = Math.min(1 / columns, 1 / rows)
-  return (
-    <AbsoluteFill style={{ backgroundColor: COLORS.backgroundSoft, display: 'flex', flexWrap: 'wrap', alignContent: 'center', justifyContent: 'center' }}>
-      {details.map((detail) => (
-        <VoteImage key={detail.uid} detail={detail} site={site} scale={scale} />
-      ))}
-    </AbsoluteFill>
   )
 }
 

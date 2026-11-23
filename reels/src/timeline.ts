@@ -7,10 +7,15 @@ import type { ReelProps } from './types'
  */
 export const INTRO = Math.round(2.5 * FPS)
 export const NUMBERS = 3 * FPS
-export const MOST_FOLLOWED_TITLE = 2 * FPS
-export const MOST_FOLLOWED_IMAGE = 4 * FPS
 export const SITE_NEWS = 7 * FPS
 export const OUTRO = 4 * FPS
+
+/** Reel de votes : accroche, hémicycle et groupes du scrutin le plus suivi, période, fin. */
+export const HOOK = Math.round(3.5 * FPS)
+export const HEMICYCLE = Math.round(7.3 * FPS)
+export const GROUPS = Math.round(5.5 * FPS)
+export const PERIOD = Math.round(3.5 * FPS)
+export const VOTES_OUTRO = Math.round(3.5 * FPS)
 
 /** Temps donné à l'ensemble des cartes (T7). */
 const CARDS_BUDGET_SECONDS = 90
@@ -46,10 +51,11 @@ export type Scenes = {
 
 /** Scènes d'un Reel selon son sujet : votes, programmes, nouveauté ou thème. */
 export function scenesOf({ reel }: ReelProps): Scenes {
+  if (isVotesReel(reel)) return votesScenesOf(reel)
   const votes = reel.totals !== null
   const cards = planCards(votes ? reel.final_votes.length : reel.programmes.length)
   const numbers = votes || reel.theme !== null || reel.programmes.length > 0 ? NUMBERS : 0
-  const mostFollowed = reel.most_followed ? MOST_FOLLOWED_TITLE + MOST_FOLLOWED_IMAGE : 0
+  const mostFollowed = 0
   const siteNews = reel.site_news ? SITE_NEWS : 0
   const cardsLength = cards.groups.length * cards.each
   return {
@@ -58,5 +64,26 @@ export function scenesOf({ reel }: ReelProps): Scenes {
     mostFollowed,
     siteNews,
     total: INTRO + numbers + cardsLength + mostFollowed + siteNews + OUTRO,
+  }
+}
+
+/** Même choix que `compositionOf` de `scripts/prepare.mjs` : ni thème, ni nouveauté, ni programmes. */
+export function isVotesReel(reel: ReelProps['reel']) {
+  return reel.theme === null && reel.site_news === null && reel.programmes.length === 0
+}
+
+/**
+ * Reel de votes : le scrutin le plus suivi ouvre (accroche, hémicycle, groupes),
+ * puis les nombres de la période, chaque vote sur l'ensemble, la fin (RM-03).
+ */
+function votesScenesOf(reel: ReelProps['reel']): Scenes {
+  const cards = planCards(reel.final_votes.length)
+  const mostFollowed = reel.most_followed ? HOOK + HEMICYCLE + GROUPS : 0
+  return {
+    numbers: PERIOD,
+    cards,
+    mostFollowed,
+    siteNews: 0,
+    total: mostFollowed + PERIOD + cards.groups.length * cards.each + VOTES_OUTRO,
   }
 }
