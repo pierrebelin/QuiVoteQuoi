@@ -266,3 +266,26 @@ export function BrandOutro({ site, linkPath, note }: { site: string; linkPath: s
     </Safe>
   )
 }
+
+/** Accroche des Reels hors votes : intertitre et filet, grand titre, texte facultatif, sur fond plein. */
+export function TitleHook({ kicker, title, text, background, size }: { kicker: string; title: ReactNode; text?: ReactNode; background: string; size?: number }) {
+  const frame = useCurrentFrame()
+  const { fps } = useVideoConfig()
+  const head = useEnter(0, 24)
+  const heading = useEnter(8, 80)
+  const body = useEnter(22, 40)
+  const rule = spring({ frame: frame - 4, fps, config: { damping: 200 } })
+  const fontSize = size ?? (typeof title === 'string' && title.length > 30 ? 118 : 140)
+  return (
+    <Safe background={background} color="#ffffff">
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 56 }}>
+        <div style={{ ...head, display: 'flex', alignItems: 'center', gap: 24 }}>
+          <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase' }}>{kicker}</span>
+          <span style={{ flex: 1, height: 3, background: '#ffffff', transform: `scaleX(${rule})`, transformOrigin: 'left' }} />
+        </div>
+        <div style={{ ...heading, fontSize, fontWeight: 900, lineHeight: 0.98, letterSpacing: -4 }}>{title}</div>
+        {text && <div style={{ ...body, fontSize: 50, fontWeight: 600, lineHeight: 1.25, opacity: body.opacity * 0.9 }}>{text}</div>}
+      </div>
+    </Safe>
+  )
+}

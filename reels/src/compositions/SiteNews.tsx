@@ -1,33 +1,12 @@
 import { Img, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing } from 'remotion'
 import { Soundtrack } from '../components'
-import { BrandOutro, CREAM, NAVY, PAPER, Push, Safe, useEnter, useFonts } from '../motion'
+import { BrandOutro, CREAM, NAVY, PAPER, Push, Safe, TitleHook, useEnter, useFonts } from '../motion'
 import { COLORS } from '../theme'
-import { NEWS_HOOK, NEWS_PHONE, PUSH, VOTES_OUTRO } from '../timeline'
+import { TITLE_HOOK, NEWS_PHONE, PUSH, VOTES_OUTRO } from '../timeline'
 import type { ReelProps } from '../types'
 
 /** Largeur et hauteur de l'écran du téléphone, en pixels de la vidéo. */
 const SCREEN = { width: 640, height: 1180 }
-
-function Hook({ title, text }: { title: string; text: string }) {
-  const frame = useCurrentFrame()
-  const { fps } = useVideoConfig()
-  const kicker = useEnter(0, 24)
-  const heading = useEnter(8, 80)
-  const body = useEnter(22, 40)
-  const rule = spring({ frame: frame - 4, fps, config: { damping: 200 } })
-  return (
-    <Safe background={COLORS.accent} color="#ffffff">
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 56 }}>
-        <div style={{ ...kicker, display: 'flex', alignItems: 'center', gap: 24 }}>
-          <span style={{ fontSize: 34, fontWeight: 800, letterSpacing: 5, textTransform: 'uppercase' }}>Nouveau sur le site</span>
-          <span style={{ flex: 1, height: 3, background: '#ffffff', transform: `scaleX(${rule})`, transformOrigin: 'left' }} />
-        </div>
-        <div style={{ ...heading, fontSize: title.length > 30 ? 118 : 140, fontWeight: 900, lineHeight: 0.98, letterSpacing: -4 }}>{title}</div>
-        <div style={{ ...body, fontSize: 50, fontWeight: 600, lineHeight: 1.25, opacity: body.opacity * 0.9 }}>{text}</div>
-      </div>
-    </Safe>
-  )
-}
 
 /** La page de la nouveauté, capturée en production, défile dans un téléphone (RM-08). */
 function Phone({ file, site, path }: { file: string; site: string; path: string }) {
@@ -80,17 +59,17 @@ export function SiteNews(props: ReelProps) {
   return (
     <>
       <Soundtrack audio={props.audio} />
-      <Sequence durationInFrames={NEWS_HOOK + PUSH}>
-        <Push length={NEWS_HOOK} overlap={PUSH} first>
-          <Hook title={news.title} text={news.text} />
+      <Sequence durationInFrames={TITLE_HOOK + PUSH}>
+        <Push length={TITLE_HOOK} overlap={PUSH} first>
+          <TitleHook kicker="Nouveau sur le site" title={news.title} text={news.text} background={COLORS.accent} />
         </Push>
       </Sequence>
-      <Sequence from={NEWS_HOOK} durationInFrames={NEWS_PHONE + PUSH}>
+      <Sequence from={TITLE_HOOK} durationInFrames={NEWS_PHONE + PUSH}>
         <Push length={NEWS_PHONE} overlap={PUSH}>
           {capture ? <Phone file={capture} site={site} path={news.path} /> : <Safe background={NAVY} color={CREAM}>{null}</Safe>}
         </Push>
       </Sequence>
-      <Sequence from={NEWS_HOOK + NEWS_PHONE} durationInFrames={VOTES_OUTRO}>
+      <Sequence from={TITLE_HOOK + NEWS_PHONE} durationInFrames={VOTES_OUTRO}>
         <Push length={VOTES_OUTRO} overlap={PUSH} last>
           <BrandOutro site={site} linkPath={reel.link_path} note={null} />
         </Push>

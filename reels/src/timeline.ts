@@ -5,10 +5,7 @@ import type { ReelProps } from './types'
  * Découpage d'un Reel en scènes, partagé par `calculateMetadata` (durée totale)
  * et par les compositions (début de chaque scène). Durées en images.
  */
-export const INTRO = Math.round(2.5 * FPS)
 export const NUMBERS = 3 * FPS
-export const SITE_NEWS = 7 * FPS
-export const OUTRO = 4 * FPS
 
 /**
  * Reel de votes : accroche, puis une seule scène pour l'hémicycle et les groupes
@@ -21,8 +18,8 @@ export const PERIOD = Math.round(3.5 * FPS)
 export const VOTES_OUTRO = Math.round(3.5 * FPS)
 export const PUSH = 14
 
-/** Reel « Nouveau sur le site » : accroche, page qui défile dans un téléphone, fin commune. */
-export const NEWS_HOOK = Math.round(3.5 * FPS)
+/** Reels hors votes : accroche, puis nombres du thème, cartes des programmes ou page de la nouveauté, fin commune. */
+export const TITLE_HOOK = Math.round(3.5 * FPS)
 export const NEWS_PHONE = 7 * FPS
 
 /** Temps donné à l'ensemble des cartes (T7). */
@@ -60,22 +57,16 @@ export type Scenes = {
 /** Scènes d'un Reel selon son sujet : votes, programmes, nouveauté ou thème. */
 export function scenesOf({ reel }: ReelProps): Scenes {
   if (isVotesReel(reel)) return votesScenesOf(reel)
-  if (reel.site_news) {
-    const siteNews = NEWS_HOOK + NEWS_PHONE
-    return { numbers: 0, cards: planCards(0), mostFollowed: 0, siteNews, total: siteNews + VOTES_OUTRO }
-  }
-  const votes = reel.totals !== null
-  const cards = planCards(votes ? reel.final_votes.length : reel.programmes.length)
-  const numbers = votes || reel.theme !== null || reel.programmes.length > 0 ? NUMBERS : 0
-  const mostFollowed = 0
-  const siteNews = reel.site_news ? SITE_NEWS : 0
-  const cardsLength = cards.groups.length * cards.each
+  // Même priorité que `compositionOf` : thème, puis nouveauté, puis programmes.
+  const cards = planCards(reel.theme || reel.site_news ? 0 : reel.programmes.length)
+  const numbers = reel.theme ? NUMBERS : 0
+  const siteNews = !reel.theme && reel.site_news ? NEWS_PHONE : 0
   return {
     numbers,
     cards,
-    mostFollowed,
+    mostFollowed: 0,
     siteNews,
-    total: INTRO + numbers + cardsLength + mostFollowed + siteNews + OUTRO,
+    total: TITLE_HOOK + numbers + cards.groups.length * cards.each + siteNews + VOTES_OUTRO,
   }
 }
 
