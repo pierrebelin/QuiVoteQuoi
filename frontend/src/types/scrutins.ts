@@ -52,6 +52,12 @@ export interface ScrutinSummaryDto {
   dossier_uid: string | null
   dossier_label: string | null
   /**
+   * Dossier que le fichier de l'Assemblée nomme pour ce vote, quand le
+   * rattachement ci-dessus s'en écarte. Absent quand les deux concordent.
+   */
+  source_dossier_uid: string | null
+  source_dossier_label: string | null
+  /**
    * Où en est le dossier rattaché : mêmes sort et étape que la liste des
    * dossiers. Absent sans dossier, ou quand le dossier n'est pas en base.
    */
@@ -169,6 +175,9 @@ export interface ScrutinDetailDto {
   corrections: CorrectionDto[]
   dossier_uid: string | null
   dossier_label: string | null
+  /** Dossier nommé par le fichier de l'Assemblée quand il diffère du rattachement. */
+  source_dossier_uid: string | null
+  source_dossier_label: string | null
   official_url: string
   unknown_actors: number
   cited: CitedNumberDto[]

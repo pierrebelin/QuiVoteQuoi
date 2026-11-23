@@ -28,6 +28,7 @@ import {
 } from '../components/ui'
 import { GROUP_LOGOS } from '../content/logos'
 import { fetchJson } from '../lib/fetchJson'
+import { reattachedNote } from '../lib/sourceDossier'
 import { capitalized, themeLink, typographic } from '../lib/entryFlow'
 import { amendmentCardPath } from '../types/amendments'
 import { textKind, type InitiatorDto, type OutcomeDto } from '../types/dossiers'
@@ -686,6 +687,9 @@ export default function ScrutinDetailPage() {
         <h2 className="heading-2">
           {data.dossier_uid ? data.dossier_label || data.dossier_uid : capitalized(data.subject)}
         </h2>
+        {data.source_dossier_label && (
+          <p className="text-sm text-info">{reattachedNote(data.source_dossier_label)}</p>
+        )}
         {data.families.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {data.families.map((family) => (

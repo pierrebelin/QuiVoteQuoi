@@ -57,6 +57,10 @@ pub struct ScrutinSummary {
     pub tally: VoteTally,
     pub dossier_uid: Option<String>,
     pub dossier_label: Option<String>,
+    /// Dossier que le fichier du scrutin nommait, quand le rattachement
+    /// retenu s'en ecarte.
+    pub source_dossier_uid: Option<String>,
+    pub source_dossier_label: Option<String>,
     /// Declenche la mention de methode (RM-03).
     pub has_reconstructed_tallies: bool,
 }
