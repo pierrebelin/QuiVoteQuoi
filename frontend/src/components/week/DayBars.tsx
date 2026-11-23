@@ -14,7 +14,13 @@ import { EMPTY, weekday } from './dayLabels'
 export default function DayBars({ days }: { days: WeekDay[] }) {
   const peak = Math.max(1, ...days.map((day) => (day.state === 'voted' ? day.votes : 0)))
   return (
-    <ul aria-label="Votes par jour" className="grid grid-cols-5 items-end gap-2.5 md:gap-3">
+    <ul
+      aria-label="Votes par jour"
+      className="grid items-end gap-2.5 md:gap-3"
+      // Une colonne par jour : du lundi au vendredi, plus le samedi ou le
+      // dimanche quand l'Assemblée y a voté (domain/week.rs).
+      style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+    >
       {days.map((day) => {
         const empty = day.state === 'voted' ? null : EMPTY[day.state]
         const label = `${weekday(day.date, 'long')} : ${empty ? empty.caption : `${day.votes} vote${day.votes > 1 ? 's' : ''}`}`

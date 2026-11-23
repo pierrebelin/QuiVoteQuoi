@@ -29,7 +29,12 @@ export default function DayPills({
         <span className="md:hidden">Toucher</span>
         <span className="hidden md:inline">Cliquer sur</span> un jour pour n’en voir que les votes.
       </p>
-      <ul className="grid grid-cols-5 items-end gap-2.5 md:gap-3" aria-label="Filtrer par jour">
+      <ul
+        className="grid items-end gap-2.5 md:gap-3"
+        aria-label="Filtrer par jour"
+        // Une colonne par jour, week-end compris quand il a eu des votes.
+        style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
+      >
         {days.map((day) => {
           const active = day.date === selected
           const enabled = day.state === 'voted'
