@@ -414,6 +414,58 @@ pub struct Scrutin {
     nominal_votes: Vec<NominalVote>,
     corrections: Vec<VoteCorrection>,
     dossier: Option<DossierReference>,
+    /// Dossier que le fichier du scrutin nommait, quand le rattachement
+    /// retenu s'en ecarte. Garde pour que l'ecart se voie (README.md §2).
+    source_dossier: Option<DossierReference>,
+}
+
+/// Texte que l'objet d'un scrutin designe, sous une forme comparable d'un
+/// scrutin a l'autre : « l'amendement n° 39 de M. Gillet a l'article 4 de la
+/// proposition de loi visant a lutter contre la vie chere (premiere lecture) »
+/// et « l'ensemble de la proposition de loi visant a lutter contre la vie
+/// chere (premiere lecture) » designent le meme texte.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TextName(String);
+
+impl TextName {
+    const KINDS: [&'static str; 3] = [
+        "proposition de loi",
+        "proposition de r\u{00e9}solution",
+        "projet de loi",
+    ];
+
+    /// `None` quand l'objet ne nomme aucun texte, ou seulement sa nature
+    /// (« le projet de loi ») : rien a comparer.
+    pub fn from_subject(subject: &str) -> Option<Self> {
+        let normalized = Self::normalize(subject);
+        let (start, kind) = Self::KINDS
+            .iter()
+            .filter_map(|kind| normalized.find(kind).map(|at| (at, *kind)))
+            .min_by_key(|(at, _)| *at)?;
+        let name = &normalized[start..];
+        (name.len() > kind.len()).then(|| Self(name.to_string()))
+    }
+
+    /// Minuscules, sans parentheses (la lecture n'est pas le texte), sans
+    /// ponctuation ni espaces multiples.
+    fn normalize(subject: &str) -> String {
+        let mut depth = 0usize;
+        let mut kept = String::with_capacity(subject.len());
+        for c in subject.to_lowercase().chars() {
+            match c {
+                '(' => depth += 1,
+                ')' => depth = depth.saturating_sub(1),
+                _ if depth > 0 => {}
+                c if c.is_alphanumeric() => kept.push(c),
+                _ => kept.push(' '),
+            }
+        }
+        kept.split_whitespace().collect::<Vec<_>>().join(" ")
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
 }
 
 /// Ce que la reconstruction a change, pour le journal d'ingestion (RM-03).
@@ -492,7 +544,14 @@ impl Scrutin {
             nominal_votes: parts.nominal_votes,
             corrections: parts.corrections,
             dossier: parts.dossier,
+            source_dossier: None,
         })
+    }
+
+    /// Relit depuis le stockage le dossier que le fichier nommait.
+    pub fn with_source_dossier(mut self, source_dossier: Option<DossierReference>) -> Self {
+        self.source_dossier = source_dossier;
+        self
     }
 
     pub fn uid(&self) -> &ScrutinUid {
@@ -544,15 +603,23 @@ impl Scrutin {
         self.dossier.as_ref()
     }
 
-    /// Rattache le scrutin au dossier dont l'acte de decision le cite, quand
-    /// son propre fichier en nomme un autre. Vrai si le rattachement change.
+    /// Dossier nomme par le fichier du scrutin quand le rattachement retenu
+    /// s'en ecarte ; `None` quand les deux concordent.
+    pub fn source_dossier(&self) -> Option<&DossierReference> {
+        self.source_dossier.as_ref()
+    }
+
+    /// Rattache le scrutin au dossier dont l'acte de decision tranche le texte
+    /// vote, quand son propre fichier en nomme un autre. Vrai si le
+    /// rattachement change ; le dossier du fichier reste lisible par
+    /// `source_dossier`.
     ///
     /// Un scrutin dont le fichier ne nomme aucun dossier reste sans dossier
     /// (RM-10) : seule la contradiction entre les deux jeux est tranchee.
     pub fn defer_to_decision_dossier(&mut self, decided_in: &DossierReference) -> bool {
         match &self.dossier {
             Some(named) if named.uid != decided_in.uid => {
-                self.dossier = Some(decided_in.clone());
+                self.source_dossier = self.dossier.replace(decided_in.clone());
                 true
             }
             _ => false,
@@ -1242,5 +1309,74 @@ mod tests {
     fn should_keep_subject_as_is_when_no_form_recognises_it() {
         let subject = "la d\u{00e9}claration du Gouvernement sur la politique \u{00e9}nerg\u{00e9}tique";
         assert_eq!(short(subject), subject);
+    }
+
+    #[test]
+    fn text_name_is_the_same_for_an_amendment_and_for_the_whole_text() {
+        let amendment = TextName::from_subject(
+            "l'amendement n\u{00b0} 39 de M. Gillet \u{00e0} l'article 4 de la proposition de loi visant \u{00e0} lutter contre la vie ch\u{00e8}re en renfor\u{00e7}ant le droit de la concurrence et de la r\u{00e9}gulation \u{00e9}conomique outre-mer (premi\u{00e8}re lecture).",
+        );
+        let whole = TextName::from_subject(
+            "l'ensemble de la proposition de loi visant \u{00e0} lutter contre la vie ch\u{00e8}re en renfor\u{00e7}ant le droit de la concurrence et de la r\u{00e9}gulation \u{00e9}conomique outre-mer (premi\u{00e8}re lecture).",
+        );
+
+        assert!(amendment.is_some());
+        assert_eq!(amendment, whole);
+        assert_eq!(
+            whole.unwrap().as_str(),
+            "proposition de loi visant \u{00e0} lutter contre la vie ch\u{00e8}re en renfor\u{00e7}ant le droit de la concurrence et de la r\u{00e9}gulation \u{00e9}conomique outre mer"
+        );
+    }
+
+    #[test]
+    fn text_name_ignores_the_reading_and_the_typography() {
+        assert_eq!(
+            TextName::from_subject("l'article 2 du projet de loi d\u{2019}urgence agricole (premi\u{00e8}re lecture)."),
+            TextName::from_subject("l'ensemble du projet de loi d'urgence  agricole (texte de la commission mixte paritaire)"),
+        );
+    }
+
+    #[test]
+    fn text_name_differs_between_two_texts() {
+        assert_ne!(
+            TextName::from_subject("l'ensemble de la proposition de loi sur les rapports locatifs"),
+            TextName::from_subject("l'ensemble de la proposition de loi sur la vie ch\u{00e8}re"),
+        );
+    }
+
+    #[test]
+    fn text_name_is_absent_when_the_subject_names_no_text() {
+        assert_eq!(TextName::from_subject("la motion de censure d\u{00e9}pos\u{00e9}e par M. X"), None);
+        assert_eq!(TextName::from_subject("l'ensemble du projet de loi (premi\u{00e8}re lecture)."), None);
+    }
+
+    fn reference(uid: &str, label: &str) -> DossierReference {
+        DossierReference {
+            uid: DossierUid::new(uid.into()).unwrap(),
+            label: label.into(),
+        }
+    }
+
+    #[test]
+    fn deferring_to_another_dossier_keeps_the_one_named_by_the_file() {
+        let mut scrutin = scrutin(vec![], vec![]);
+        scrutin.dossier = Some(reference("DLR5L17N51962", "Territoires z\u{00e9}ro ch\u{00f4}meur"));
+
+        let changed = scrutin.defer_to_decision_dossier(&reference("DLR5L17N51095", "Vie ch\u{00e8}re"));
+
+        assert!(changed);
+        assert_eq!(scrutin.dossier().unwrap().uid.as_str(), "DLR5L17N51095");
+        assert_eq!(scrutin.source_dossier().unwrap().uid.as_str(), "DLR5L17N51962");
+    }
+
+    #[test]
+    fn deferring_to_the_same_dossier_records_no_gap() {
+        let mut scrutin = scrutin(vec![], vec![]);
+        scrutin.dossier = Some(reference("DLR5L17N51962", "Territoires z\u{00e9}ro ch\u{00f4}meur"));
+
+        let changed = scrutin.defer_to_decision_dossier(&reference("DLR5L17N51962", "Territoires z\u{00e9}ro ch\u{00f4}meur"));
+
+        assert!(!changed);
+        assert!(scrutin.source_dossier().is_none());
     }
 }

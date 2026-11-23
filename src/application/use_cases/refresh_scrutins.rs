@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::{HashMap, HashSet};
 
 use crate::application::ports::actor_repository::ActorRepository;
@@ -8,7 +9,7 @@ use crate::application::use_cases::journaling::Journaling;
 use crate::domain::actor::ActorUid;
 use crate::domain::ingestion::IngestionSource;
 use crate::domain::legislature::CURRENT_LEGISLATURE;
-use crate::domain::scrutin::Scrutin;
+use crate::domain::scrutin::{DossierReference, Scrutin, TextName};
 
 #[derive(Debug, thiserror::Error)]
 pub enum RefreshScrutinsError {
@@ -34,6 +35,9 @@ pub struct ScrutinsSummary {
     /// Scrutins dont le fichier nommait un autre dossier que celui dont
     /// l'acte de decision les cite, rattaches a ce dernier.
     pub reattached_to_decision_dossier: usize,
+    /// Scrutins dont l'objet nomme le texte tranche par la decision d'un autre
+    /// dossier que celui de leur fichier, rattaches a ce dossier.
+    pub reattached_by_text_name: usize,
 }
 
 /// CU-01 — Ingerer les scrutins.
@@ -76,8 +80,11 @@ impl<'a> RefreshScrutins<'a> {
         let mut scrutins = self.source.fetch_scrutins(CURRENT_LEGISLATURE).await?;
 
         let mut summary = self.reconstruct_missing_groups(&mut scrutins).await?;
+        let decided_in = self.single_decision_dossiers().await?;
         summary.reattached_to_decision_dossier =
-            self.defer_to_decision_dossiers(&mut scrutins).await?;
+            Self::defer_to_decision_dossiers(&mut scrutins, &decided_in);
+        summary.reattached_by_text_name =
+            Self::defer_to_decided_texts(&mut scrutins, &decided_in);
 
         summary.scrutins = self.repository.save_scrutins(&scrutins).await?;
         summary.without_dossier = scrutins.iter().filter(|s| s.dossier().is_none()).count();
@@ -94,6 +101,12 @@ impl<'a> RefreshScrutins<'a> {
                 summary.reattached_to_decision_dossier
             );
         }
+        if summary.reattached_by_text_name > 0 {
+            tracing::warn!(
+                "{} scrutins named another dossier than the one deciding the text of their subject: reattached",
+                summary.reattached_by_text_name
+            );
+        }
         if summary.unresolved_votes > 0 {
             tracing::warn!(
                 "{} nominal votes could not be attached to a group: reconstructed breakdowns are incomplete",
@@ -104,29 +117,107 @@ impl<'a> RefreshScrutins<'a> {
         Ok(summary)
     }
 
+    /// Scrutins de decision et le dossier qui les cite, quand il est seul a
+    /// le faire. `None` quand plusieurs dossiers citent le meme scrutin : rien
+    /// ne permet alors de trancher contre le fichier du scrutin.
+    async fn single_decision_dossiers(
+        &self,
+    ) -> Result<HashMap<String, Option<DossierReference>>, RefreshScrutinsError> {
+        let mut decided_in: HashMap<String, Option<DossierReference>> = HashMap::new();
+        for vote in self.decision_votes.decision_votes().await? {
+            match decided_in.entry(vote.scrutin_uid) {
+                Entry::Vacant(first) => {
+                    first.insert(Some(vote.dossier));
+                }
+                Entry::Occupied(mut seen) => {
+                    if seen.get().as_ref().is_some_and(|d| d.uid != vote.dossier.uid) {
+                        seen.insert(None);
+                    }
+                }
+            }
+        }
+        Ok(decided_in)
+    }
+
     /// Le jeu des dossiers fait foi sur le dossier d'un scrutin de decision :
     /// le fichier du scrutin nomme parfois le texte vote juste avant dans la
     /// seance (`VTANR5L17V10080`).
-    async fn defer_to_decision_dossiers(
-        &self,
+    fn defer_to_decision_dossiers(
         scrutins: &mut [Scrutin],
-    ) -> Result<usize, RefreshScrutinsError> {
-        let decided_in: HashMap<String, _> = self
-            .decision_votes
-            .decision_votes()
-            .await?
-            .into_iter()
-            .map(|vote| (vote.scrutin_uid, vote.dossier))
-            .collect();
+        decided_in: &HashMap<String, Option<DossierReference>>,
+    ) -> usize {
         let mut reattached = 0;
         for scrutin in scrutins.iter_mut() {
-            if let Some(dossier) = decided_in.get(scrutin.uid().as_str()) {
+            if let Some(Some(dossier)) = decided_in.get(scrutin.uid().as_str()) {
                 if scrutin.defer_to_decision_dossier(dossier) {
                     reattached += 1;
                 }
             }
         }
-        Ok(reattached)
+        reattached
+    }
+
+    /// Les votes d'amendements et d'articles suivent le scrutin de decision du
+    /// texte que leur objet nomme : le 19/11/2026, `VTANR5L17V10063` a
+    /// `VTANR5L17V10079` portent sur le texte vie chere outre-mer et leur
+    /// fichier nomme Territoires zero chomeur, vote juste avant.
+    ///
+    /// Deux garde-fous, le jeu des dossiers ayant ses propres erreurs (la
+    /// decision du financement de la securite sociale pour 2027 y cite aussi
+    /// `VTANR5L17V8707`, motion de rejet du projet de loi de finances, que
+    /// l'import des dossiers ecarte) :
+    /// - un nom de texte tranche dans plusieurs dossiers ne designe personne ;
+    /// - le dossier du fichier doit avoir tranche lui-meme un autre texte,
+    ///   sans quoi rien ne prouve que le fichier se trompe.
+    fn defer_to_decided_texts(
+        scrutins: &mut [Scrutin],
+        decided_in: &HashMap<String, Option<DossierReference>>,
+    ) -> usize {
+        let mut decided_texts: HashMap<TextName, Option<DossierReference>> = HashMap::new();
+        let mut texts_decided_in: HashMap<String, HashSet<TextName>> = HashMap::new();
+        for scrutin in scrutins.iter() {
+            let Some(Some(dossier)) = decided_in.get(scrutin.uid().as_str()) else {
+                continue;
+            };
+            let Some(text) = TextName::from_subject(scrutin.subject()) else {
+                continue;
+            };
+            texts_decided_in
+                .entry(dossier.uid.as_str().to_string())
+                .or_default()
+                .insert(text.clone());
+            match decided_texts.entry(text) {
+                Entry::Vacant(first) => {
+                    first.insert(Some(dossier.clone()));
+                }
+                Entry::Occupied(mut seen) => {
+                    if seen.get().as_ref().is_some_and(|d| d.uid != dossier.uid) {
+                        seen.insert(None);
+                    }
+                }
+            }
+        }
+
+        let mut reattached = 0;
+        for scrutin in scrutins.iter_mut() {
+            if decided_in.contains_key(scrutin.uid().as_str()) {
+                continue;
+            }
+            let Some(text) = TextName::from_subject(scrutin.subject()) else {
+                continue;
+            };
+            let Some(Some(dossier)) = decided_texts.get(&text) else {
+                continue;
+            };
+            let file_dossier_decided_another_text = scrutin
+                .dossier()
+                .and_then(|named| texts_decided_in.get(named.uid.as_str()))
+                .is_some_and(|texts| !texts.contains(&text));
+            if file_dossier_decided_another_text && scrutin.defer_to_decision_dossier(dossier) {
+                reattached += 1;
+            }
+        }
+        reattached
     }
 
     /// RM-03: les scrutins ou la source ne nomme pas les groupes sont
@@ -655,6 +746,182 @@ mod tests {
 
         assert_eq!(stored_dossier(&stored, "V1"), None);
         assert_eq!(summary.without_dossier, 1);
+        assert_eq!(summary.reattached_to_decision_dossier, 0);
+    }
+
+    const TZC_WHOLE: &str = "l'ensemble de la proposition de loi visant \u{00e0} exercer l'acc\u{00e8}s \u{00e0} l'emploi (deuxi\u{00e8}me lecture).";
+    const VIE_CHERE_WHOLE: &str = "l'ensemble de la proposition de loi visant \u{00e0} lutter contre la vie ch\u{00e8}re outre-mer (premi\u{00e8}re lecture).";
+    const VIE_CHERE_AMENDMENT: &str = "l'amendement n\u{00b0} 39 de M. Gillet \u{00e0} l'article 4 de la proposition de loi visant \u{00e0} lutter contre la vie ch\u{00e8}re outre-mer (premi\u{00e8}re lecture).";
+
+    fn scrutin_about(uid: &str, subject: &str, dossier: Option<(&str, &str)>) -> Scrutin {
+        Scrutin::new(NewScrutin {
+            subject: subject.into(),
+            dossier: dossier.map(|(dossier_uid, title)| DossierReference {
+                uid: DossierUid::new(dossier_uid.into()).unwrap(),
+                label: title.into(),
+            }),
+            ..new_scrutin(uid, vec![], vec![])
+        })
+        .unwrap()
+    }
+
+    fn stored_source_dossier(stored: &[Scrutin], uid: &str) -> Option<String> {
+        stored
+            .iter()
+            .find(|s| s.uid().as_str() == uid)
+            .and_then(|s| s.source_dossier())
+            .map(|d| d.uid.as_str().to_string())
+    }
+
+    // 19/11/2026 : VTANR5L17V10063 a V10079, amendements et articles du texte
+    // vie chere, portent dans leur fichier le dossier Territoires zero chomeur.
+    #[tokio::test]
+    async fn attaches_a_scrutin_to_the_dossier_deciding_the_text_its_subject_names() {
+        let decisions = InMemoryDecisionVotes::none()
+            .citing("V10033", TZC, TZC_TITLE)
+            .citing("V10080", VIE_CHERE, VIE_CHERE_TITLE);
+
+        let (summary, stored, _) = run_with(
+            vec![
+                scrutin_about("V10033", TZC_WHOLE, Some((TZC, TZC_TITLE))),
+                scrutin_about("V10078", VIE_CHERE_AMENDMENT, Some((TZC, TZC_TITLE))),
+                scrutin_about("V10080", VIE_CHERE_WHOLE, Some((TZC, TZC_TITLE))),
+            ],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V10078"),
+            Some((VIE_CHERE.to_string(), VIE_CHERE_TITLE.to_string()))
+        );
+        assert_eq!(stored_source_dossier(&stored, "V10078"), Some(TZC.to_string()));
+        assert_eq!(stored_source_dossier(&stored, "V10080"), Some(TZC.to_string()));
+        assert_eq!(stored_source_dossier(&stored, "V10033"), None);
+        assert_eq!(summary.reattached_by_text_name, 1);
+        assert_eq!(summary.reattached_to_decision_dossier, 1);
+    }
+
+    #[tokio::test]
+    async fn keeps_the_dossier_named_by_the_scrutin_when_its_text_has_no_decision() {
+        let decisions = InMemoryDecisionVotes::none().citing("V10033", TZC, TZC_TITLE);
+
+        let (summary, stored, _) = run_with(
+            vec![
+                scrutin_about("V10033", TZC_WHOLE, Some((TZC, TZC_TITLE))),
+                scrutin_about("V10078", VIE_CHERE_AMENDMENT, Some((TZC, TZC_TITLE))),
+            ],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V10078"),
+            Some((TZC.to_string(), TZC_TITLE.to_string()))
+        );
+        assert_eq!(stored_source_dossier(&stored, "V10078"), None);
+        assert_eq!(summary.reattached_by_text_name, 0);
+    }
+
+    // Projet de loi de finances : le meme intitule est tranche dans deux
+    // dossiers, il ne designe aucun des deux.
+    #[tokio::test]
+    async fn keeps_the_dossier_named_by_the_scrutin_when_its_text_is_decided_in_two_dossiers() {
+        let decisions = InMemoryDecisionVotes::none()
+            .citing("V1", VIE_CHERE, VIE_CHERE_TITLE)
+            .citing("V2", "DLR5L17N1", "Autre dossier");
+
+        let (summary, stored, _) = run_with(
+            vec![
+                scrutin_about("V1", VIE_CHERE_WHOLE, Some((VIE_CHERE, VIE_CHERE_TITLE))),
+                scrutin_about("V2", VIE_CHERE_WHOLE, Some(("DLR5L17N1", "Autre dossier"))),
+                scrutin_about("V3", VIE_CHERE_AMENDMENT, Some((TZC, TZC_TITLE))),
+            ],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V3"),
+            Some((TZC.to_string(), TZC_TITLE.to_string()))
+        );
+        assert_eq!(summary.reattached_by_text_name, 0);
+    }
+
+    // Cas construit sur VTANR5L17V8707, motion de rejet du projet de loi de
+    // finances pour 2027 que la source cite dans la decision du financement de
+    // la securite sociale (l'import des dossiers l'ecarte aujourd'hui). Si une
+    // telle citation passait, les votes du budget ne la suivraient pas tant
+    // que leur dossier n'a rien tranche.
+    #[tokio::test]
+    async fn keeps_the_dossier_named_by_the_scrutin_when_that_dossier_decided_no_other_text() {
+        const BUDGET: &str = "DLR5L17N54629";
+        const SOCIAL: &str = "DLR5L17N54951";
+        let decisions = InMemoryDecisionVotes::none().citing("V8707", SOCIAL, "PLFSS 2027");
+
+        let (summary, stored, _) = run_with(
+            vec![
+                scrutin_about(
+                    "V8707",
+                    "la motion de rejet pr\u{00e9}alable du projet de loi de finances pour 2027 (premi\u{00e8}re lecture).",
+                    Some((BUDGET, "PLF 2027")),
+                ),
+                scrutin_about(
+                    "V8800",
+                    "l'amendement n\u{00b0} 1 de M. X \u{00e0} l'article 2 du projet de loi de finances pour 2027 (premi\u{00e8}re lecture).",
+                    Some((BUDGET, "PLF 2027")),
+                ),
+            ],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V8800"),
+            Some((BUDGET.to_string(), "PLF 2027".to_string()))
+        );
+        assert_eq!(summary.reattached_by_text_name, 0);
+    }
+
+    #[tokio::test]
+    async fn leaves_a_scrutin_without_dossier_unattached_even_when_its_text_is_decided() {
+        let decisions = InMemoryDecisionVotes::none().citing("V10080", VIE_CHERE, VIE_CHERE_TITLE);
+
+        let (summary, stored, _) = run_with(
+            vec![
+                scrutin_about("V10078", VIE_CHERE_AMENDMENT, None),
+                scrutin_about("V10080", VIE_CHERE_WHOLE, Some((VIE_CHERE, VIE_CHERE_TITLE))),
+            ],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(stored_dossier(&stored, "V10078"), None);
+        assert_eq!(summary.reattached_by_text_name, 0);
+    }
+
+    #[tokio::test]
+    async fn keeps_the_dossier_named_by_a_decision_scrutin_that_two_dossiers_cite() {
+        let decisions = InMemoryDecisionVotes::none()
+            .citing("V1", TZC, TZC_TITLE)
+            .citing("V1", VIE_CHERE, VIE_CHERE_TITLE);
+
+        let (summary, stored, _) = run_with(
+            vec![scrutin_about("V1", TZC_WHOLE, Some((TZC, TZC_TITLE)))],
+            false,
+            &decisions,
+        )
+        .await;
+
+        assert_eq!(
+            stored_dossier(&stored, "V1"),
+            Some((TZC.to_string(), TZC_TITLE.to_string()))
+        );
         assert_eq!(summary.reattached_to_decision_dossier, 0);
     }
 

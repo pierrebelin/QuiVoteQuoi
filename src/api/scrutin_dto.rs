@@ -95,6 +95,11 @@ pub struct ScrutinSummaryDto {
     pub tally: TallyDto,
     pub dossier_uid: Option<String>,
     pub dossier_label: Option<String>,
+    /// Dossier que le fichier de l'Assemblee nomme pour ce scrutin, quand le
+    /// rattachement ci-dessus s'en ecarte : l'ecart s'affiche, il n'est pas
+    /// corrige en silence. Absent quand les deux concordent.
+    pub source_dossier_uid: Option<String>,
+    pub source_dossier_label: Option<String>,
     /// Ou en est le dossier rattache, avec les memes sort et etape que la liste
     /// des dossiers. Absent sans dossier, ou quand le dossier n'est pas en base.
     pub dossier_status: Option<DossierStatusDto>,
@@ -124,6 +129,8 @@ impl From<ScrutinListItem> for ScrutinSummaryDto {
             tally: s.tally.into(),
             dossier_uid: s.dossier_uid,
             dossier_label: s.dossier_label,
+            source_dossier_uid: s.source_dossier_uid,
+            source_dossier_label: s.source_dossier_label,
             dossier_status: item.dossier.as_ref().map(DossierStatusDto::from),
             has_reconstructed_tallies: s.has_reconstructed_tallies,
             official_url,
@@ -341,6 +348,10 @@ pub struct ScrutinDetailDto {
     pub corrections: Vec<CorrectionDto>,
     pub dossier_uid: Option<String>,
     pub dossier_label: Option<String>,
+    /// Dossier nomme par le fichier de l'Assemblee quand il differe du
+    /// rattachement retenu ; absent quand les deux concordent.
+    pub source_dossier_uid: Option<String>,
+    pub source_dossier_label: Option<String>,
     pub official_url: String,
     pub unknown_actors: usize,
     /// RM-06, RM-08: ce qui a ete mis aux voix, numero par numero.
@@ -526,6 +537,8 @@ impl From<ScrutinDetail> for ScrutinDetailDto {
                 .collect(),
             dossier_uid: s.dossier().map(|d| d.uid.to_string()),
             dossier_label: s.dossier().map(|d| d.label.clone()),
+            source_dossier_uid: s.source_dossier().map(|d| d.uid.to_string()),
+            source_dossier_label: s.source_dossier().map(|d| d.label.clone()),
             official_url: s.official_url(),
             unknown_actors: detail.unknown_actors,
             cited: detail.cited.into_iter().map(CitedNumberDto::from).collect(),

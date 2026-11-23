@@ -42,6 +42,8 @@ pub fn scrutin_row(uid: &str, subject: &str) -> ScrutinSummary {
         tally: VoteTally::default(),
         dossier_uid: None,
         dossier_label: None,
+        source_dossier_uid: None,
+        source_dossier_label: None,
         has_reconstructed_tallies: false,
     }
 }

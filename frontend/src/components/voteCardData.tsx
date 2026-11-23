@@ -1,5 +1,6 @@
 import { capitalized, inHemicycleOrder, typographic } from '../lib/entryFlow'
 import type { FinalVoteDto, GroupDto, StanceDto } from '../types/finalVotes'
+import { REATTACHED_LABEL, reattachedNote } from '../lib/sourceDossier'
 import type { ScrutinDetailDto, ScrutinSummaryDto } from '../types/scrutins'
 import type { TextScrutinDto } from '../types/themes'
 import CitedAuthor from './CitedAuthor'
@@ -68,7 +69,7 @@ export function scrutinCard(scrutin: ScrutinSummaryDto): CardData {
     title: capitalized(typographic(scrutin.subject.trim())),
     author: cited && <CitedAuthor cited={cited} />,
     excerpt: cited?.summary_preview,
-    notes: (kind !== 'ordinaire' || others > 0 || scrutin.has_reconstructed_tallies) && (
+    notes: (kind !== 'ordinaire' || others > 0 || scrutin.has_reconstructed_tallies || scrutin.source_dossier_label) && (
       <p className="flex flex-wrap gap-x-2 text-xs text-ink-faint">
         {kind !== 'ordinaire' && <span>Scrutin {kind}</span>}
         {others > 0 && (
@@ -83,6 +84,11 @@ export function scrutinCard(scrutin: ScrutinSummaryDto): CardData {
             title="La source ne publie pas les groupes sur ce vote : la répartition est reconstituée."
           >
             Répartition reconstituée
+          </span>
+        )}
+        {scrutin.source_dossier_label && (
+          <span className="text-info" title={reattachedNote(scrutin.source_dossier_label)}>
+            {REATTACHED_LABEL}
           </span>
         )}
       </p>

@@ -95,7 +95,7 @@ impl ScrutinRepository for PgScrutinRepository {
                     outcome_code, outcome_label, requester, subject,
                     voters, expressed, required, announcement,
                     votes_for, votes_against, abstentions, not_voting, voluntary_not_voting,
-                    dossier_uid, dossier_label
+                    dossier_uid, dossier_label, source_dossier_uid, source_dossier_label
                  )
                  SELECT * FROM UNNEST(
                     $1::text[], $2::text[], $3::smallint[], $4::date[], $5::text[], $6::text[], $7::text[],
@@ -103,7 +103,7 @@ impl ScrutinRepository for PgScrutinRepository {
                     $11::text[], $12::text[], $13::text[], $14::text[],
                     $15::smallint[], $16::smallint[], $17::smallint[], $18::text[],
                     $19::smallint[], $20::smallint[], $21::smallint[], $22::smallint[], $23::smallint[],
-                    $24::text[], $25::text[]
+                    $24::text[], $25::text[], $26::text[], $27::text[]
                  )
                  ON CONFLICT (uid) DO UPDATE SET
                     number = EXCLUDED.number,
@@ -130,6 +130,8 @@ impl ScrutinRepository for PgScrutinRepository {
                     voluntary_not_voting = EXCLUDED.voluntary_not_voting,
                     dossier_uid = EXCLUDED.dossier_uid,
                     dossier_label = EXCLUDED.dossier_label,
+                    source_dossier_uid = EXCLUDED.source_dossier_uid,
+                    source_dossier_label = EXCLUDED.source_dossier_label,
                     updated_at = NOW()",
             )
             .bind(&uids)
@@ -162,6 +164,18 @@ impl ScrutinRepository for PgScrutinRepository {
             )
             .bind(batch.iter().map(|s| s.dossier().map(|d| d.uid.as_str())).collect::<Vec<_>>())
             .bind(batch.iter().map(|s| s.dossier().map(|d| d.label.as_str())).collect::<Vec<_>>())
+            .bind(
+                batch
+                    .iter()
+                    .map(|s| s.source_dossier().map(|d| d.uid.as_str()))
+                    .collect::<Vec<_>>(),
+            )
+            .bind(
+                batch
+                    .iter()
+                    .map(|s| s.source_dossier().map(|d| d.label.as_str()))
+                    .collect::<Vec<_>>(),
+            )
             .execute(&mut *tx)
             .await
             .map_err(db)?;
@@ -316,7 +330,7 @@ impl ScrutinRepository for PgScrutinRepository {
                     outcome_code, outcome_label, requester, subject,
                     voters, expressed, required, announcement,
                     votes_for, votes_against, abstentions, not_voting, voluntary_not_voting,
-                    dossier_uid, dossier_label
+                    dossier_uid, dossier_label, source_dossier_uid, source_dossier_label
              FROM scrutins WHERE uid = $1",
         )
         .persistent(false)
@@ -435,22 +449,14 @@ impl ScrutinRepository for PgScrutinRepository {
             group_tallies,
             nominal_votes,
             corrections,
-            dossier: match (
-                row.get::<Option<String>, _>("dossier_uid"),
-                row.get::<Option<String>, _>("dossier_label"),
-            ) {
-                (Some(uid), label) => Some(DossierReference {
-                    uid: DossierUid::new(uid).map_err(|e| {
-                        RepositoryError::Database(format!(
-                            "stored scrutin has an unusable dossier uid: {e}"
-                        ))
-                    })?,
-                    label: label.unwrap_or_default(),
-                }),
-                (None, _) => None,
-            },
+            dossier: dossier_reference(&row, "dossier_uid", "dossier_label")?,
         })
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e.to_string()))?
+        .with_source_dossier(dossier_reference(
+            &row,
+            "source_dossier_uid",
+            "source_dossier_label",
+        )?);
 
         Ok(Some(scrutin))
     }
@@ -621,10 +627,28 @@ impl ScrutinRepository for PgScrutinRepository {
     }
 }
 
+fn dossier_reference(
+    row: &sqlx::postgres::PgRow,
+    uid_column: &str,
+    label_column: &str,
+) -> Result<Option<DossierReference>, RepositoryError> {
+    let Some(uid) = row.get::<Option<String>, _>(uid_column) else {
+        return Ok(None);
+    };
+    Ok(Some(DossierReference {
+        uid: DossierUid::new(uid).map_err(|e| {
+            RepositoryError::Database(format!("stored scrutin has an unusable dossier uid: {e}"))
+        })?,
+        label: row
+            .get::<Option<String>, _>(label_column)
+            .unwrap_or_default(),
+    }))
+}
+
 const SUMMARY_SELECT: &str = "SELECT s.uid, s.number, s.legislature, s.scrutin_date, s.subject,
         s.ballot_type_label, s.outcome_code, s.outcome_label,
         s.votes_for, s.votes_against, s.abstentions, s.not_voting, s.voluntary_not_voting,
-        s.dossier_uid, s.dossier_label,
+        s.dossier_uid, s.dossier_label, s.source_dossier_uid, s.source_dossier_label,
         EXISTS (
             SELECT 1 FROM scrutin_group_tallies t
             WHERE t.scrutin_uid = s.uid AND t.origin = 'reconstructed'
@@ -701,6 +725,8 @@ fn summary_from_row(row: &sqlx::postgres::PgRow) -> ScrutinSummary {
         tally: tally_from_row(row),
         dossier_uid: row.get("dossier_uid"),
         dossier_label: row.get("dossier_label"),
+        source_dossier_uid: row.get("source_dossier_uid"),
+        source_dossier_label: row.get("source_dossier_label"),
         has_reconstructed_tallies: row.get("has_reconstructed"),
     }
 }

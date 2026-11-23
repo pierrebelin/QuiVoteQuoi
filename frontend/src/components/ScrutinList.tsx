@@ -1,4 +1,5 @@
 import { Link } from 'react-router'
+import { REATTACHED_LABEL, reattachedNote } from '../lib/sourceDossier'
 import type { CitedAmendmentDto, ScrutinSummaryDto } from '../types/scrutins'
 import { formatDateShort } from '../types/scrutins'
 import { ListCard, Meta, Note, Pill, TallyLine, VoteBar } from './ui'
@@ -138,6 +139,11 @@ export function ScrutinRow({
               title="La source ne publie pas les groupes sur ce vote : la répartition est reconstituée."
             >
               répartition reconstituée
+            </Pill>
+          )}
+          {scrutin.source_dossier_label && (
+            <Pill tone="info" title={reattachedNote(scrutin.source_dossier_label)}>
+              {REATTACHED_LABEL.toLowerCase()}
             </Pill>
           )}
         </div>
