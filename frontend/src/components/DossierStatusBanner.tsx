@@ -1,4 +1,5 @@
 import LawStateBadge from './LawStateBadge'
+import { StateDot } from './entry/PositionGlyph'
 import { dossierBanner, formatShortDate } from '../lib/dossierStatus'
 import { lawStateDetail } from '../lib/lawState'
 import type { DossierStatusDto } from '../types/dossiers'
@@ -46,8 +47,8 @@ export default function DossierStatusBanner({
     return (
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-[18px] pt-3.5">
         <LawStateBadge kind={lawState.kind} detail={detail} className="max-md:hidden" />
-        <p className="text-[13px] leading-[24px] font-medium text-ink md:hidden">
-          <LawStateBadge kind={lawState.kind} className="mr-2 align-top" />
+        <p className="flex flex-wrap items-center gap-x-2 text-[13px] leading-[24px] font-medium text-ink md:hidden">
+          <LawStateBadge kind={lawState.kind} />
           {detail}
         </p>
         {lawState.kind !== 'became_law' && lastStep}
@@ -55,20 +56,15 @@ export default function DossierStatusBanner({
     )
   }
 
+  // Refonte A : plus de bandeau teinté, une ligne en tête de carte. Le vert
+  // reste à la promulgation, la pastille ronde avec lui.
   return (
-    <div
-      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 px-[18px] py-1.5 text-[13px] font-semibold ${state.tone}`}
-    >
-      <span>{state.text}</span>
-      <span className="text-[12.5px] font-medium text-ink-soft">
-        {upcoming ? 'Prochaine étape' : 'Dernière étape'} : {step} ·{' '}
-        {formatShortDate(dossier.last_activity_date, today)}
-        {upcoming && (
-          <span className="ml-1.5 rounded bg-surface px-1.5 text-[11px] font-semibold text-info">
-            à venir
-          </span>
-        )}
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-[18px] pt-3.5">
+      <span className={`inline-flex items-center gap-1.5 text-[13px] leading-[18px] font-semibold ${state.tone}`}>
+        {dossier.outcome.kind === 'promulgated' && <StateDot position="for" />}
+        {state.text}
       </span>
+      {lastStep}
     </div>
   )
 }

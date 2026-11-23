@@ -1,4 +1,4 @@
-import { LAW_STATE_LABELS, LAW_STATE_TONES } from '../lib/lawState'
+import { LAW_STATE_DOTS, LAW_STATE_LABELS, LAW_STATE_WORDS } from '../lib/lawState'
 import type { LawStateKind } from '../types/dossiers'
 
 /**
@@ -44,12 +44,24 @@ export function LawStateIcon({
   )
 }
 
+/** Pastille ronde d'un état (refonte A) : 18 px, l'icône de l'état dedans. */
+function LawStateDot({ kind }: { kind: LawStateKind }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-flex size-[18px] shrink-0 items-center justify-center rounded-full ${LAW_STATE_DOTS[kind]}`}
+    >
+      <LawStateIcon kind={kind} className="size-3" />
+    </span>
+  )
+}
+
 /**
- * Étiquette d'état d'un dossier (En navette, Adopté définitivement, Devenu
- * loi). `pill` pour les cartes, suivie du complément quand il y en a un
- * (`lawStateDetail`) ; `line` pour la ligne d'état au-dessus de la fiche
- * dossier, suivie de l'identifiant du dossier. Un dossier sans état
- * (RM-04) n'en reçoit aucune : l'appelant n'appelle pas ce composant.
+ * État d'un dossier (En navette, Adopté définitivement, Devenu loi), en
+ * pastille ronde et mot (refonte A). `pill` pour les cartes, suivie du
+ * complément quand il y en a un (`lawStateDetail`) ; `line` pour la ligne d'état
+ * au-dessus de la fiche dossier, suivie de l'identifiant du dossier. Un dossier
+ * sans état (RM-04) n'en reçoit aucune : l'appelant n'appelle pas ce composant.
  */
 export default function LawStateBadge({
   kind,
@@ -68,21 +80,23 @@ export default function LawStateBadge({
   if (variant === 'line') {
     return (
       <p
-        className={`flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.065em] text-ink-faint uppercase ${className}`}
+        className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] leading-[18px] font-semibold ${LAW_STATE_WORDS[kind]} ${className}`}
       >
-        <LawStateIcon kind={kind} />
-        {LAW_STATE_LABELS[kind]}
-        {uid && ` · ${uid}`}
+        <LawStateDot kind={kind} />
+        <span>{LAW_STATE_LABELS[kind]}</span>
+        {uid && <span className="font-medium text-ink-faint tabular-nums">· {uid}</span>}
       </p>
     )
   }
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-[3px] text-[12.5px] leading-[18px] font-semibold ${LAW_STATE_TONES[kind]} ${className}`}
+      className={`inline-flex items-center gap-1.5 text-[13px] leading-[18px] font-semibold ${LAW_STATE_WORDS[kind]} ${className}`}
     >
-      <LawStateIcon kind={kind} />
-      {LAW_STATE_LABELS[kind]}
-      {detail && ` · ${detail}`}
+      <LawStateDot kind={kind} />
+      <span>
+        {LAW_STATE_LABELS[kind]}
+        {detail && <span className="font-medium text-ink">{` · ${detail}`}</span>}
+      </span>
     </span>
   )
 }

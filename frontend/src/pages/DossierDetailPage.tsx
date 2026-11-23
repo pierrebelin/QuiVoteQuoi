@@ -17,9 +17,10 @@ import DossierParcours, {
 } from '../components/DossierParcours'
 import { FamilyIllustration } from '../components/FamilyIllustration'
 import { InfoBox, InitiatorBox, InitiatorsBox } from '../components/InitiatorBox'
-import PositionGlyph from '../components/entry/PositionGlyph'
+import { StateDot } from '../components/entry/PositionGlyph'
 import { FOCUS_RING } from '../components/entry/styles'
-import { BackLink, Card, ErrorPanel, Loading, Pill } from '../components/ui'
+import { FOCUS } from '../components/SheetControls'
+import { BackLink, ErrorPanel, Loading } from '../components/ui'
 import { fetchJson } from '../lib/fetchJson'
 import { REJECTION_NOT_FINAL, readingKey, readingLabel } from '../lib/dossierStatus'
 import { themeLink, typographic } from '../lib/entryFlow'
@@ -91,8 +92,10 @@ function tabFrom(params: URLSearchParams): Tab {
 }
 
 /**
- * Bandeau d'issue, comme sur les cartes de la liste : le sort quand la source
- * l'atteste, l'étape publiée sinon. Rien n'est conclu à la place de la source.
+ * Issue d'un dossier sans état « où en est la loi », comme sur les cartes de la
+ * liste : le sort quand la source l'atteste, l'étape publiée sinon. Rien n'est
+ * conclu à la place de la source. Refonte A : une ligne à plat en tête de la
+ * fiche, plus de bandeau teinté ; le vert reste à la promulgation.
  */
 function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
   const { outcome, current_stage: stage } = dossier
@@ -100,7 +103,7 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
   // Une étape datée après aujourd'hui n'a pas encore eu lieu : comme sur la carte.
   const upcoming = dossier.last_activity_date > new Date().toISOString().slice(0, 10)
   const lastStep = (
-    <span className="text-[12.5px] font-medium text-ink-soft">
+    <span className="text-[13px] font-medium text-ink-soft">
       {upcoming ? 'Prochaine étape' : 'Dernière étape'} : {step} ·{' '}
       {formatDate(dossier.last_activity_date)}
       {upcoming && (
@@ -110,6 +113,7 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
       )}
     </span>
   )
+  const line = 'mb-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-[13px] leading-[18px]'
 
   if (outcome.kind === 'rejected') {
     // La lecture vient de l'acte de décision du jour du rejet : « Assemblée ·
@@ -119,8 +123,8 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
       .find((act) => act.date === outcome.date && act.code?.endsWith('-DEC'))
     const reading = decision ? readingLabel(readingKey(decision.code)) : undefined
     return (
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-info-soft px-4 py-2 text-sm font-semibold text-info sm:px-6">
-        <span>
+      <div className={line}>
+        <span className="font-semibold text-ink">
           {capitalize(outcome.label)}
           {reading && ` · ${reading}`}
           {outcome.date && ` · ${formatDate(outcome.date)}`}
@@ -133,15 +137,15 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
 
   if (outcome.kind === 'promulgated') {
     return (
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 bg-yes-soft px-4 py-2 text-sm font-semibold text-yes sm:px-6">
-        <span className="inline-flex items-center gap-1.5">
-          <PositionGlyph position="for" className="size-3.5" strokeWidth={3.2} />
+      <div className={line}>
+        <span className="inline-flex items-center gap-1.5 font-semibold text-yes">
+          <StateDot position="for" />
           {outcome.label}
           {outcome.date && ` le ${formatDate(outcome.date)}`}
           {outcome.law_code && ` · loi n° ${outcome.law_code}`}
         </span>
         {outcome.law_jo_date || outcome.legifrance_url ? (
-          <span className="text-[12.5px] font-medium text-ink-soft">
+          <span className="text-[13px] font-medium text-ink-soft">
             {outcome.law_jo_date && `JO du ${formatDate(outcome.law_jo_date)}`}
             {outcome.law_jo_date && outcome.legifrance_url && ' · '}
             {outcome.legifrance_url && (
@@ -169,14 +173,10 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
         ? `Étape : ${stage.label}${stage.chamber ? ` — ${stage.chamber}` : ''}`
         : 'Sans conclusion à ce jour'
   const tone =
-    outcome.kind === 'no_recorded_conclusion' && stage
-      ? 'bg-info-soft text-info'
-      : 'bg-surface-soft text-ink-soft'
+    outcome.kind === 'no_recorded_conclusion' && stage ? 'text-ink' : 'text-ink-soft'
   return (
-    <div
-      className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-2 text-sm font-semibold sm:px-6 ${tone}`}
-    >
-      <span>
+    <div className={line}>
+      <span className={`font-semibold ${tone}`}>
         {text}
         {outcome.kind === 'merged_into' && outcome.merged_into_uid && (
           <Link
@@ -194,30 +194,18 @@ function OutcomeBand({ dossier }: { dossier: DossierDetailDto }) {
 
 function CommitteeBox({ committee }: { committee: string }) {
   return (
-    <InfoBox
-      visual={
-        <span className="flex size-11 shrink-0 items-center justify-center rounded bg-surface text-ink-soft ring-1 ring-inset ring-line">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.8}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-            className="size-6"
-          >
-            <path d="M3 21h18M4 10h16M12 3l8 5H4zM6 10v8M10 10v8M14 10v8M18 10v8" />
-          </svg>
-        </span>
-      }
-    >
+    <InfoBox flat visual={null}>
       <p className="text-xs text-ink-faint">Commission saisie au fond</p>
       <p className="font-semibold">{committee}</p>
     </InfoBox>
   )
 }
 
+/**
+ * Onglet souligné (refonte A) : 2 px d'accent sous l'onglet actif, texte d'encre ;
+ * les autres en gris. Sur téléphone, les trois onglets se partagent la largeur et
+ * le compteur passe sous le mot ; au-delà, il le suit.
+ */
 function TabButton({
   value,
   active,
@@ -232,15 +220,13 @@ function TabButton({
   return (
     <Tabs.Tab
       value={value}
-      className={`inline-flex items-center gap-2 rounded px-3.5 py-1.5 text-sm font-medium transition-colors ${FOCUS_RING} ${
-        active ? 'bg-canvas text-ink shadow-seg' : 'text-ink-soft hover:text-ink'
+      className={`-mb-px flex min-h-14 min-w-0 flex-col items-start justify-start gap-px border-b-2 pt-3 pb-1.5 text-left text-sm font-semibold whitespace-nowrap transition-colors sm:min-h-12 sm:flex-row sm:items-center sm:gap-2 sm:pt-0 sm:pb-0 ${FOCUS} ${
+        active ? 'border-accent text-ink' : 'border-transparent text-ink-faint hover:text-ink'
       }`}
     >
       {children}
       {count !== undefined && (
-        <span
-          className={`rounded-full px-1.5 text-xs font-semibold tabular-nums ${active ? 'bg-ink text-canvas' : 'bg-line text-ink-soft'}`}
-        >
+        <span className="text-[12.5px] font-medium text-ink-faint tabular-nums">
           {count.toLocaleString('fr-FR')}
         </span>
       )}
@@ -300,63 +286,65 @@ export default function DossierDetailPage() {
   const kind = textKind(data.procedure)
   const lawState = data.law_state
 
+  const dossierLink = (
+    <a
+      href={data.url ?? `https://www.assemblee-nationale.fr/dyn/17/dossiers/${data.uid}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-block text-sm font-semibold link"
+    >
+      Dossier législatif sur assemblee-nationale.fr ↗
+    </a>
+  )
+
   return (
     <div>
       <BackLink to="/scrutins?vue=texte" className="mb-4">Retour aux textes</BackLink>
 
       {/* Les trois états (SPEC-navette) remplacent le bandeau d'issue ; un
-          dossier sans état garde le bandeau (RM-04). */}
+          dossier sans état garde la ligne d'issue (RM-04). */}
       {lawState && (
-        <LawStateBadge kind={lawState.kind} variant="line" uid={data.uid} className="mt-2 mb-2" />
+        <LawStateBadge kind={lawState.kind} variant="line" uid={data.uid} className="mt-2 mb-3" />
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-x-10 lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0">
-          <Card className="mb-4 overflow-hidden">
+          <header>
             {!lawState && <OutcomeBand dossier={data} />}
-            <div className="px-4 py-4 sm:px-6 sm:py-5">
-              <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
-                <Pill tone="info">{data.procedure.replace(/ ordinaire$/, '')}</Pill>
-                {families.length > 0 ? (
-                  families.map((family) => (
-                    <Link
-                      key={family.code}
-                      to={themeLink(family.code)}
-                      className={`inline-flex h-[26px] items-center gap-1.5 rounded-full bg-surface pr-2.5 pl-2 text-[13px] font-medium text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink ${FOCUS_RING}`}
-                    >
-                      <FamilyIllustration code={family.code} bare className="shrink-0" glyphClassName="size-[15px]" />
-                      {typographic(family.label)}
-                    </Link>
-                  ))
-                ) : (
-                  <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
-                )}
-              </div>
-              <h2 className="mt-3 max-w-4xl heading-2">
-                {data.title}
-              </h2>
-              {lawState && (
-                <>
-                  <LawMilestones
-                    milestones={data.milestones}
-                    stateKind={lawState.kind}
-                    className="mt-[18px]"
-                  />
-                  {data.answer && (
-                    <LawAnswer answer={data.answer} lawState={lawState} className="mt-4 sm:mt-[18px]" />
-                  )}
-                </>
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-ink-soft">
+              <span className="inline-flex h-[26px] items-center rounded-full bg-canvas px-2.5 text-[13px] font-medium text-ink-soft ring-1 ring-line ring-inset">
+                {data.procedure.replace(/ ordinaire$/, '')}
+              </span>
+              {families.length > 0 ? (
+                families.map((family) => (
+                  <Link
+                    key={family.code}
+                    to={themeLink(family.code)}
+                    className={`inline-flex h-[26px] items-center gap-1.5 rounded-full bg-surface pr-2.5 pl-2 text-[13px] font-medium text-ink-soft transition-colors hover:bg-surface-soft hover:text-ink ${FOCUS_RING}`}
+                  >
+                    <FamilyIllustration code={family.code} bare className="shrink-0" glyphClassName="size-[15px]" />
+                    {typographic(family.label)}
+                  </Link>
+                ))
+              ) : (
+                <span className="text-xs text-ink-faint italic">Aucun sujet attribué pour l'instant.</span>
               )}
-              <a
-                href={data.url ?? `https://www.assemblee-nationale.fr/dyn/17/dossiers/${data.uid}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-3 inline-block text-sm font-medium link"
-              >
-                Dossier législatif sur assemblee-nationale.fr ↗
-              </a>
             </div>
-          </Card>
+            <h2 className="mt-3.5 max-w-4xl heading-2 text-balance max-md:text-[30px] max-md:leading-[33px] md:heading-1">
+              {data.title}
+            </h2>
+            {!lawState && <p className="mt-3.5">{dossierLink}</p>}
+          </header>
+
+          {lawState && (
+            <section className="mt-8 py-7 max-lg:band lg:rounded lg:bg-surface lg:p-7">
+              <LawMilestones milestones={data.milestones} stateKind={lawState.kind} />
+              {data.answer && (
+                <LawAnswer answer={data.answer} lawState={lawState} compact className="mt-5" />
+              )}
+              <p className="mt-4">{dossierLink}</p>
+            </section>
+          )}
 
           <DossierBrief uid={data.uid} />
 
@@ -364,10 +352,10 @@ export default function DossierDetailPage() {
 
           {/* Chaque onglet charge sa liste : les flèches déplacent le focus,
               Entrée ou Espace l'activent. */}
-          <Tabs.Root value={activeTab} onValueChange={(tab: Tab) => selectTab(tab)}>
+          <Tabs.Root value={activeTab} onValueChange={(tab: Tab) => selectTab(tab)} className="mt-9 md:mt-12">
             <Tabs.List
               aria-label="Contenu du texte"
-              className="mb-4 inline-flex flex-wrap gap-1 rounded bg-surface-soft p-1 ring-1 ring-inset ring-line"
+              className="mb-6 grid grid-cols-3 gap-x-4 border-b border-line sm:flex sm:gap-x-7"
             >
               <TabButton value="groupes" active={activeTab === 'groupes'} count={undefined}>
                 Groupes
@@ -392,20 +380,20 @@ export default function DossierDetailPage() {
           </Tabs.Root>
         </div>
 
-        <aside className="space-y-4">
+        <aside className="mt-12 lg:mt-0 lg:rounded lg:bg-surface lg:p-6">
           {(data.initiators.length > 0 || data.committee) && (
-            <Card className="space-y-1 p-2">
+            <div className="space-y-4 lg:border-b lg:border-line lg:pb-6">
               {data.initiators.length === 1 ? (
-                <InitiatorBox initiator={data.initiators[0]} kind={kind} />
+                <InitiatorBox initiator={data.initiators[0]} kind={kind} flat />
               ) : data.initiators.length > 1 ? (
-                <InitiatorsBox initiators={data.initiators} kind={kind} />
+                <InitiatorsBox initiators={data.initiators} kind={kind} flat />
               ) : null}
               {data.committee && <CommitteeBox committee={data.committee} />}
-            </Card>
+            </div>
           )}
 
-          <Card className="px-5 py-4">
-            <h3 className="mb-3 text-xs font-semibold tracking-[0.06em] text-ink-faint uppercase">
+          <section className="mt-9 py-8 max-lg:band lg:mt-0 lg:pt-6 lg:pb-0">
+            <h3 className="mb-4 heading-4">
               Parcours du texte
               {data.documents.length > 0 && (
                 <InfoTip label="Source des documents" className="md:hidden">
@@ -414,7 +402,7 @@ export default function DossierDetailPage() {
               )}
             </h3>
             <DossierParcours acts={data.acts} documents={data.documents} />
-          </Card>
+          </section>
         </aside>
       </div>
     </div>

@@ -19,6 +19,24 @@ export const LAW_STATE_TONES: Record<LawStateKind, string> = {
   became_law: 'bg-yes text-surface',
 }
 
+/**
+ * Pastille de chaque état (refonte A) : un disque plein, le mot qui la suit
+ * porte la couleur. Le vert reste aux textes qui vont s'appliquer (RM-07) ;
+ * « En navette » est neutre.
+ */
+export const LAW_STATE_DOTS: Record<LawStateKind, string> = {
+  in_shuttle: 'bg-ink text-canvas',
+  definitively_adopted: 'bg-yes-bar text-white',
+  became_law: 'bg-yes-bar text-white',
+}
+
+/** Couleur du mot qui suit la pastille. */
+export const LAW_STATE_WORDS: Record<LawStateKind, string> = {
+  in_shuttle: 'text-ink',
+  definitively_adopted: 'text-yes',
+  became_law: 'text-yes',
+}
+
 /** Libellés des filtres de la liste par texte, au pluriel. */
 export const LAW_STATE_FILTER_LABELS: Record<LawStateKind, string> = {
   in_shuttle: 'En navette',

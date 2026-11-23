@@ -17,8 +17,31 @@ function shortDate(iso: string) {
   })
 }
 
-/** Vignette d'information de l'en-tête : un visuel à gauche, trois lignes à droite. */
-export function InfoBox({ visual, children }: { visual: ReactNode; children: ReactNode }) {
+/**
+ * Vignette d'information de l'en-tête : un visuel à gauche, trois lignes à droite.
+ * `flat` (fiche dossier, refonte A) : sans fond, les lignes se lisent à plat dans la
+ * colonne ; le visuel décoratif disparaît, sauf `keepVisual` (logo ou qualité de
+ * l'auteur, qui disent quelque chose).
+ */
+export function InfoBox({
+  visual,
+  flat = false,
+  keepVisual = false,
+  children,
+}: {
+  visual: ReactNode
+  flat?: boolean
+  keepVisual?: boolean
+  children: ReactNode
+}) {
+  if (flat) {
+    return (
+      <div className="flex items-start gap-3 text-sm leading-snug">
+        {keepVisual && visual}
+        <div className="min-w-0">{children}</div>
+      </div>
+    )
+  }
   return (
     <div className="flex items-center gap-3 rounded bg-surface-soft px-3 py-2.5 text-sm leading-snug">
       {visual}
@@ -32,10 +55,20 @@ export function InfoBox({ visual, children }: { visual: ReactNode; children: Rea
  * date du dépôt, et cette date l'accompagne toujours : l'appartenance est
  * datée, et un groupe n'est pas un parti (README.md §3).
  */
-export function InitiatorBox({ initiator, kind }: { initiator: InitiatorDto; kind: string }) {
+export function InitiatorBox({
+  initiator,
+  kind,
+  flat = false,
+}: {
+  initiator: InitiatorDto
+  kind: string
+  flat?: boolean
+}) {
   const group = initiator.reference_date ? initiator.group : null
   return (
     <InfoBox
+      flat={flat}
+      keepVisual
       visual={
         group ? (
           <PoliticalLogo
@@ -82,12 +115,21 @@ export function InitiatorBox({ initiator, kind }: { initiator: InitiatorDto; kin
  * date de lecture des groupes reste affichée, une fois par date distincte
  * (README.md §3).
  */
-export function InitiatorsBox({ initiators, kind }: { initiators: InitiatorDto[]; kind: string }) {
+export function InitiatorsBox({
+  initiators,
+  kind,
+  flat = false,
+}: {
+  initiators: InitiatorDto[]
+  kind: string
+  flat?: boolean
+}) {
   const dates = [
     ...new Set(initiators.flatMap((i) => (i.group && i.reference_date ? [i.reference_date] : []))),
   ]
   return (
     <InfoBox
+      flat={flat}
       visual={
         <span className="flex size-11 shrink-0 items-center justify-center rounded bg-surface text-ink-soft ring-1 ring-inset ring-line">
           <svg
