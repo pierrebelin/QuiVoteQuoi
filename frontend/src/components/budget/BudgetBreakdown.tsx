@@ -10,6 +10,7 @@ import {
   formatProgrammeShare,
 } from '../../lib/budgetFormat'
 import { Icon } from '../icons'
+import { useMediaQuery } from '../../lib/useMediaQuery'
 import { sliceColor, toSlices, type Slice } from '../../lib/budgetSlices'
 import { NATURES, natureParts, natureSlices, type NaturePart } from '../../lib/budgetNature'
 import { Donut, Swatch } from './BudgetDonut'
@@ -88,6 +89,8 @@ export function BudgetBreakdown({
   onSelectMission: (mission: BudgetMissionDto) => void
 }) {
   const [grouping, setGrouping] = useState<Grouping>('sujet')
+  // À 1280 px la colonne de gauche (360 px) laisse la place d'un anneau plus grand.
+  const wide = useMediaQuery('(min-width: 1280px)')
   const { general_budget: general, year, law } = exercise
   const total = general.cp_euros
   const missions = general.missions
@@ -125,15 +128,15 @@ export function BudgetBreakdown({
   return (
     <section
       aria-labelledby="budget-repartition"
-      className="flex flex-col gap-3.5 rounded border border-line bg-surface p-[18px] xl:grid xl:grid-cols-[360px_minmax(0,1fr)] xl:gap-x-10 xl:p-6"
+      className="flex flex-col gap-5 xl:grid xl:grid-cols-[360px_minmax(0,1fr)] xl:gap-x-10 xl:border-t xl:border-line xl:pt-10"
     >
       {/* À 1280 px : titre, bascule et anneau à gauche, légende à droite. */}
-      <div className="flex flex-col gap-3.5">
-        <div className="flex flex-col gap-0.5">
-          <h2 id="budget-repartition" className="heading-4 text-ink">
+      <div className="flex flex-col gap-4 xl:gap-[18px]">
+        <div className="flex flex-col gap-1">
+          <h2 id="budget-repartition" className="heading-4 text-ink md:heading-3">
             Répartition
           </h2>
-          <p className="text-[13px] leading-[18px] text-ink-soft">
+          <p className="text-[13px] leading-[18px] text-ink-faint md:text-sm md:leading-5">
             {grouping === 'nature'
               ? 'Crédits de paiement du budget général, selon ce qu’ils paient.'
               : 'Crédits de paiement du budget général.'}
@@ -144,7 +147,7 @@ export function BudgetBreakdown({
         <div
           role="group"
           aria-label="Regrouper par"
-          className="flex gap-1 rounded-full bg-surface-soft p-1"
+          className="grid grid-flow-col auto-cols-fr gap-1 rounded-xl bg-surface p-[3px]"
         >
           {(
             [
@@ -160,8 +163,8 @@ export function BudgetBreakdown({
               type="button"
               aria-pressed={grouping === value}
               onClick={() => setGrouping(value)}
-              className={`min-h-10 flex-1 rounded-full text-sm font-medium transition-colors ${
-                grouping === value ? 'bg-ink text-canvas' : 'text-ink-soft hover:text-ink'
+              className={`min-h-11 rounded-[10px] px-1 text-sm font-semibold whitespace-nowrap transition-colors ${
+                grouping === value ? 'bg-canvas text-ink shadow-seg' : 'text-ink-soft hover:text-ink'
               }`}
             >
               {label}
@@ -171,7 +174,7 @@ export function BudgetBreakdown({
 
         <Donut
           slices={slices}
-          size={208}
+          size={wide ? 240 : 208}
           label={`Répartition du budget général ${GROUPING_NAMES[grouping]} : ${sliceLabel(slices, total)}`}
         >
           <p className="figure text-[30px] leading-[34px] text-ink">
@@ -203,18 +206,18 @@ export function BudgetBreakdown({
         </ul>
 
         {grouping === 'nature' && (
-          <p className="text-[12.5px] leading-[18px] text-ink-faint">
+          <p className="text-[13px] leading-[18px] text-ink-faint md:text-sm md:leading-5">
             Nature = « titre » de la nomenclature budgétaire (LOLF, art. 5).
             {refundsMission && ` ${refundsNote(refundsMission)}`}
           </p>
         )}
         {grouping !== 'nature' && refunds !== null && (
-          <p className="text-[12.5px] leading-[18px] text-ink-faint">
+          <p className="text-[13px] leading-[18px] text-ink-soft md:text-sm md:leading-5">
             Dont {formatAmount(refunds)} de remboursements et dégrèvements d’impôts ;{' '}
             {formatAmount(total - refunds)} hors ceux-ci.
           </p>
         )}
-        <p className="border-t border-line pt-2.5 text-[12.5px] leading-[18px] text-ink-soft">
+        <p className="border-t border-line pt-3 text-[13px] leading-[18px] text-ink-faint">
           {missions.length} missions · {programmeCount} programmes · article {law.credits_article}{' '}
           de la loi n° {law.number} du {formatLawDate(law.date)}
         </p>
@@ -258,24 +261,24 @@ function LegendRow({
     <>
       <Swatch colorIndex={slice.colorIndex} />
       <span className="min-w-0 flex-1">
-        <span className="block text-sm leading-[19px] text-ink">{slice.label}</span>
-        {subtitle && <span className="block text-xs leading-4 text-ink-faint">{subtitle}</span>}
+        <span className="block text-[15px] leading-5 font-semibold text-ink">{slice.label}</span>
+        {subtitle && <span className="block text-[13px] leading-4 text-ink-faint">{subtitle}</span>}
       </span>
       <span className="flex shrink-0 flex-col items-end">
-        <span className="text-sm leading-[19px] font-semibold whitespace-nowrap text-ink">
+        <span className="text-[15px] leading-5 font-semibold whitespace-nowrap text-ink">
           {formatAmount(slice.euros)}
         </span>
-        <span className="text-xs leading-4 whitespace-nowrap text-ink-faint">
+        <span className="text-[13px] leading-4 whitespace-nowrap text-ink-faint">
           {formatMissionShare(slice.euros, total)}
         </span>
       </span>
     </>
   )
-  const rowClass = 'flex min-h-11 w-full items-center gap-2.5 py-2 text-left'
+  const rowClass = 'flex min-h-14 w-full items-center gap-3 py-2 text-left xl:min-h-[60px] xl:gap-3.5'
 
   if (subject?.code) {
     return (
-      <Link to={`/themes/${subject.code}`} className={`${rowClass} hover:bg-surface-soft`}>
+      <Link to={`/themes/${subject.code}`} className={`${rowClass} hover:bg-surface`}>
         {body}
         <Icon name="chevron" className="size-4 shrink-0 text-ink-faint" />
       </Link>
@@ -286,14 +289,19 @@ function LegendRow({
       <button
         type="button"
         onClick={() => onSelectMission(mission)}
-        className={`${rowClass} hover:bg-surface-soft`}
+        className={`${rowClass} hover:bg-surface`}
       >
         {body}
         <Icon name="chevron" className="size-4 shrink-0 text-ink-faint" />
       </button>
     )
   }
-  return <div className={rowClass}>{body}</div>
+  return (
+    <div className={rowClass}>
+      {body}
+      <span aria-hidden="true" className="size-4 shrink-0" />
+    </div>
+  )
 }
 
 /** Catégories détaillées : celles qui disent à qui va l'argent, ou de quoi il se compose. */
@@ -321,20 +329,20 @@ function NatureRow({ part, total }: { part: NaturePart; total: number }) {
     <>
       <Swatch colorIndex={nature.colorIndex} />
       <span className="min-w-0 flex-1">
-        <span className="block text-sm leading-[19px] font-semibold text-ink">{nature.label}</span>
-        <span className="block text-xs leading-4 text-ink-faint">{nature.hint}</span>
+        <span className="block text-[15px] leading-5 font-semibold text-ink">{nature.label}</span>
+        <span className="block text-[13px] leading-4 text-ink-faint">{nature.hint}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end">
-        <span className="text-sm leading-[19px] font-semibold whitespace-nowrap text-ink">
+        <span className="text-[15px] leading-5 font-semibold whitespace-nowrap text-ink">
           {formatAmount(part.euros)}
         </span>
-        <span className="text-xs leading-4 whitespace-nowrap text-ink-faint">
+        <span className="text-[13px] leading-4 whitespace-nowrap text-ink-faint">
           {formatMissionShare(part.euros, total)}
         </span>
       </span>
     </>
   )
-  const rowClass = 'flex min-h-11 w-full items-center gap-2.5 py-2 text-left'
+  const rowClass = 'flex min-h-14 w-full items-center gap-3 py-2 text-left xl:min-h-[60px] xl:gap-3.5'
 
   if (!expandable) {
     return (
@@ -350,7 +358,7 @@ function NatureRow({ part, total }: { part: NaturePart; total: number }) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`${rowClass} hover:bg-surface-soft`}
+        className={`${rowClass} hover:bg-surface`}
       >
         {body}
         <Icon
@@ -360,7 +368,7 @@ function NatureRow({ part, total }: { part: NaturePart; total: number }) {
       </button>
       {open && (
         <div className="mb-2 ml-5 border-l-2 border-line py-1 pl-3">
-          <p className="pt-0.5 text-xs leading-4 text-ink-faint">{heading}</p>
+          <p className="pt-0.5 text-[13px] leading-4 text-ink-faint">{heading}</p>
           <ul>
             {categories.map((category) => (
               <li key={category.code} className="flex flex-col gap-1.5 py-[7px]">
