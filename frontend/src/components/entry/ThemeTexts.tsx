@@ -4,7 +4,8 @@ import { Link } from 'react-router'
 import { fetchJson } from '../../lib/fetchJson'
 import type { FamilyDto, TextListResponse } from '../../types/themes'
 import TextList from '../TextList'
-import { MethodNote } from '../ThemeBadges'
+import { InfoTip } from '../InfoTip'
+import { MethodNote, MethodText } from '../ThemeBadges'
 import { ErrorPanel, Loading } from '../ui'
 import { FOCUS_RING } from './styles'
 
@@ -70,9 +71,15 @@ export default function ThemeTexts({ family }: { family: FamilyDto }) {
           {!data && texts.isLoading && <Loading>Chargement des textes…</Loading>}
           {data && (
             <>
-              <p className="text-xs text-ink-faint">
-                {data.total} texte{data.total > 1 ? 's' : ''} rattaché{data.total > 1 ? 's' : ''}
-              </p>
+              {/* Le titre de la liste : sur téléphone, la note de méthode est derrière son icône. */}
+              <div className="flex items-center gap-1.5">
+                <p className="text-xs text-ink-faint">
+                  {data.total} texte{data.total > 1 ? 's' : ''} rattaché{data.total > 1 ? 's' : ''}
+                </p>
+                <InfoTip label="À propos : textes rattachés au sujet" className="md:hidden">
+                  <MethodText note={data.method_note} />
+                </InfoTip>
+              </div>
               <MethodNote note={data.method_note} />
               <TextList texts={data.items} />
               {data.total > PAGE_SIZE && (

@@ -510,6 +510,22 @@ body {
 }
 
 /*
+ * Bande qui termine la page (`data-page-end`, dernier élément du contenu) : elle
+ * descend jusqu'au pied de page. La marge basse de <main> et la marge haute du
+ * pied tombent, quelles que soient leurs valeurs, au lieu d'être compensées par
+ * une marge négative recopiée à la main. À partir de 768 px seulement : seule
+ * largeur où une telle bande est affichée aujourd'hui (VotesStep).
+ */
+@media (width >= 48rem) {
+  main:has([data-page-end]) {
+    padding-bottom: 0;
+  }
+  main:has([data-page-end]) + footer {
+    margin-top: 0;
+  }
+}
+
+/*
  * Vignette d'une famille de thèmes (FamilyIllustration). La teinte propre à la
  * famille est mêlée à la surface plutôt que posée telle quelle : le fond reste
  * pâle en clair, sombre en sombre, sans second jeu de couleurs. Le trait

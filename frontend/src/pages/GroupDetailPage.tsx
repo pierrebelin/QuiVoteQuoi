@@ -26,7 +26,12 @@ const RATE_BARS = {
   absence: 'bg-line-strong',
 } as const
 
-/** Les mises en garde dues (README.md §6), lues au même endroit quel que soit l'écran. */
+/**
+ * Les mises en garde dues (README.md §6), toutes écrites à partir de 768 px. Sur
+ * téléphone, la page les répartit en infobulles : `party_note` au nom du groupe,
+ * `rate_note`, `comparison_note` et `hand_vote_note` à Participation,
+ * `reconstructed_note` et `silent_line_note` à leur chiffre.
+ */
 function GroupNotes({
   group,
   className = 'space-y-1',
@@ -105,12 +110,15 @@ function Fact({
   label,
   variant = 'row',
   size,
+  info,
   className = '',
   children,
 }: {
   label: string
   variant?: 'row' | 'figure' | 'text'
   size?: keyof typeof FIGURE_SIZE
+  /** Mention du chiffre, en infobulle sur téléphone (`figure` seulement). */
+  info?: React.ReactNode
   className?: string
   children: React.ReactNode
 }) {
@@ -118,7 +126,18 @@ function Fact({
   if (variant === 'figure') {
     return (
       <div className={`flex min-w-0 flex-col-reverse justify-end gap-1.5 ${className}`}>
-        <span className="text-[13.5px] leading-snug text-ink-soft">{label}</span>
+        <span
+          className={`text-[13.5px] leading-snug text-ink-soft ${
+            info ? 'flex items-start justify-between gap-1.5' : ''
+          }`}
+        >
+          {label}
+          {info && (
+            <InfoTip label={`Comment lire : ${label}`} className="-mr-3 md:hidden">
+              {info}
+            </InfoTip>
+          )}
+        </span>
         <span className={big || `figure ${FIGURE_SIZE[34]} text-ink`}>{children}</span>
       </div>
     )
@@ -240,6 +259,9 @@ export default function GroupDetailPage() {
           <h2 className="heading-2 md:heading-1">
             {group.abbrev}
           </h2>
+          <InfoTip label={`À propos de cette page : ${group.abbrev}`} className="ml-auto -mr-3 md:hidden">
+            <p>{group.party_note}</p>
+          </InfoTip>
           <span className="flex basis-full items-center gap-2 text-[19px] leading-6 font-semibold tracking-[-0.01em] text-ink md:basis-auto md:text-2xl">
             {group.label}
             {group.dissolved && <Pill>dissous</Pill>}
@@ -321,12 +343,22 @@ export default function GroupDetailPage() {
           {(group.reconstructed_count > 0 || group.silent_line_count > 0) && (
             <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-line pt-4 md:grid-cols-1">
               {group.reconstructed_count > 0 && (
-                <Fact label="Répartitions reconstituées" variant="figure" size={28}>
+                <Fact
+                  label="Répartitions reconstituées"
+                  variant="figure"
+                  size={28}
+                  info={<p>{group.reconstructed_note}</p>}
+                >
                   {formatCount(group.reconstructed_count)}
                 </Fact>
               )}
               {group.silent_line_count > 0 && (
-                <Fact label="Votes sans aucun membre du groupe" variant="figure" size={28}>
+                <Fact
+                  label="Votes sans aucun membre du groupe"
+                  variant="figure"
+                  size={28}
+                  info={<p>{group.silent_line_note}</p>}
+                >
                   {formatCount(group.silent_line_count)}
                 </Fact>
               )}
@@ -337,7 +369,13 @@ export default function GroupDetailPage() {
 
       <Section
         title="Participation"
-        info={<GroupNotes group={group} />}
+        info={
+          <div className="space-y-1">
+            <p>{group.rate_note}</p>
+            <p>{group.comparison_note}</p>
+            <p>{group.hand_vote_note}</p>
+          </div>
+        }
         className="mt-9 md:band md:mt-12 md:py-10"
       >
         {rates === null ? (

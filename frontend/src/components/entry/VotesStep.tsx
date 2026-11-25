@@ -68,29 +68,27 @@ function ThemeSection({
     <section aria-labelledby={`theme-${family.code}`} className="space-y-3 md:space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         {/* L'icône de famille en couleur, sur une pastille grise, devant le titre. */}
-        <div className="flex min-w-0 items-center gap-3 md:gap-4">
+        <div className="flex min-w-0 items-center gap-3 max-md:w-full md:gap-4">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-surface md:size-14 md:rounded-2xl">
             <FamilyIllustration bare code={family.code} glyphClassName="size-[22px] md:size-7" />
           </span>
           <h2
             id={first ? 'entry-heading' : `theme-${family.code}`}
             tabIndex={first ? -1 : undefined}
-            className="min-w-0 heading-3 text-balance outline-none md:heading-2"
+            className="min-w-0 heading-3 text-balance outline-none max-md:flex-1 md:heading-2"
           >
             {typographic(family.label)}{' '}
-            <span className="text-[15px] font-normal text-ink-soft">· dernières lois{' '}
-              {/* Insécable : l'icône ne doit pas partir seule à la ligne. */}
-              <span className="whitespace-nowrap">
-                votées
-                {info && (
-                  <InfoTip label="Comment lire ces votes" className="md:hidden">
-                    {info}
-                  </InfoTip>
-                )}
-              </span>
-            </span>
+            <span className="hidden text-[15px] font-normal text-ink-soft md:inline">· dernières lois votées</span>
           </h2>
+          {/* Sous 768 px, l'icône est calée à droite de la rangée du titre. */}
+          {info && (
+            <InfoTip label="Comment lire ces votes" className="-mr-3 md:hidden">
+              {info}
+            </InfoTip>
+          )}
         </div>
+        {/* Sous 768 px, « dernières lois votées » passe sur sa propre ligne, avec le lien. */}
+        <p className="text-[15px] text-ink-soft md:hidden">Dernières lois votées</p>
         {total > 0 && (
           <Link
             to={allVotesLink(family.code, followed)}
@@ -211,8 +209,9 @@ export default function VotesStep({
       </div>
 
       {/* À partir de 768 px, les mentions sont écrites en trois colonnes, dans une bande grise
-          qui descend jusqu'au pied de page (marge basse de la page, 2 rem, et marge haute du pied, 3 rem). */}
-      <div className="band mt-6 -mb-20 hidden py-10 md:block">
+          qui descend jusqu'au pied de page : `data-page-end` retire la marge basse de la page et la
+          marge haute du pied (index.css). */}
+      <div data-page-end className="band mt-6 hidden py-10 md:block">
         <ul className="grid grid-cols-3 gap-6 text-[15px] leading-[1.55] text-ink-soft [&_li]:text-pretty">
           <li>{OUTCOME_NOTE}</li>
           {scopeNote && <li>{scopeNote}</li>}

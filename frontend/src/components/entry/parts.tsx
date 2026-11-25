@@ -63,18 +63,17 @@ export function StepIntro({
         </span>
         Étape {step} sur 2
       </p>
-      <h2
-        id="entry-heading"
-        tabIndex={-1}
-        className="mt-3 heading-2 text-balance outline-none md:heading-1"
-      >
-        {title}
+      {/* Sous 768 px, l'icône est calée à droite de la rangée du titre. */}
+      <div className="mt-3 flex items-start justify-between gap-1 md:block">
+        <h2 id="entry-heading" tabIndex={-1} className="heading-2 text-balance outline-none md:heading-1">
+          {title}
+        </h2>
         {hint && (
-          <InfoTip label="En savoir plus" className="md:hidden">
+          <InfoTip label="En savoir plus" className="-mr-3 md:hidden">
             {hint}
           </InfoTip>
         )}
-      </h2>
+      </div>
       {lead && <p className="mt-3 text-base leading-normal text-ink-soft md:text-lg md:leading-relaxed">{lead}</p>}
       {hint && (
         <p className="mt-3 hidden text-lg leading-relaxed text-ink-soft md:block">{hint}</p>
