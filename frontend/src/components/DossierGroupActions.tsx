@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 import { GroupDot } from '../pages/GroupListPage'
@@ -15,6 +16,8 @@ import type {
 } from '../types/dossierGroupActions'
 
 const MAX_COMPARED_GROUPS = 4
+const COMPARE_HINT =
+  'Touchez un groupe pour le sort de ses amendements et ses votes de chaque lecture ; cochez « Comparer » pour mettre jusqu\'à quatre groupes côte à côte.'
 
 function formatDate(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('fr-FR', {
@@ -64,12 +67,25 @@ function SourceLinks({ sources }: { sources: SummarySourceDto[] }) {
  * dessous ; ni vert ni rouge, et jamais la couleur du groupe. Dans le balisage
  * le libellé précède le nombre, comme avant ; l'affichage les range à l'envers.
  */
+/** Ordre fixe des sorts, le même pour chaque groupe ; un sort hors liste suit, par nombre décroissant. */
+const FATE_ORDER = ['Adopté', 'Rejeté', 'Tombé', 'Retiré', 'Non soutenu', 'Sort non publié']
+
+function fateLabel(fate: FateCountDto) {
+  return fate.label || 'Sort non publié'
+}
+
+function fateRank(fate: FateCountDto) {
+  const rank = FATE_ORDER.indexOf(fateLabel(fate))
+  return rank === -1 ? FATE_ORDER.length : rank
+}
+
 function FateStats({ fates }: { fates: FateCountDto[] }) {
+  const ordered = [...fates].sort((a, b) => fateRank(a) - fateRank(b) || b.count - a.count)
   return (
     <ul className="grid grid-cols-3 gap-x-2.5 gap-y-3 lg:grid-cols-3">
-      {fates.map((fate) => (
+      {ordered.map((fate) => (
         <li key={fate.label} className="flex min-w-0 flex-col-reverse border-l-2 border-line pl-2.5">
-          <span className="text-[13px] leading-tight text-ink-soft">{fate.label || 'Sort non publié'}</span>
+          <span className="text-[13px] leading-tight text-ink-soft">{fateLabel(fate)}</span>
           <span className="figure text-xl tabular-nums text-ink">{fate.count.toLocaleString('fr-FR')}</span>
         </li>
       ))}
@@ -87,31 +103,87 @@ function positionLabel(value: string) {
   return isPosition(value) ? positionLabels[value] : value
 }
 
+type FinalVoteDto = GroupActionsDto['final_votes'][number]
+
+/** Votes finaux du texte, une entrée par scrutin, du plus ancien au plus récent. */
+function distinctFinalVotes(groups: GroupActionsDto[]) {
+  const byUid = new Map<string, FinalVoteDto>()
+  for (const group of groups) {
+    for (const vote of group.final_votes) {
+      if (!byUid.has(vote.scrutin_uid)) byUid.set(vote.scrutin_uid, vote)
+    }
+  }
+  return [...byUid.values()].sort((a, b) => a.date.localeCompare(b.date) || Number(a.number) - Number(b.number))
+}
+
+function finalVoteLabel(vote: FinalVoteDto) {
+  if (vote.reading) return vote.reading.charAt(0).toUpperCase() + vote.reading.slice(1)
+  const day = new Date(vote.date + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+  return `Vote du ${day}`
+}
+
 /**
- * Vote final du groupe, en ligne : lecture, décompte et barre (refonte A). La
- * barre se normalise sur son propre scrutin : aucune échelle commune entre
- * groupes (README.md §6). La position majoritaire publiée peut contredire ce
- * décompte : elle ne sert pas de résumé, le détail du groupe l'affiche à part
- * quand elle en diffère.
+ * Décompte court d'un groupe : les seules positions exprimées, sans adverbe
+ * (README.md §6). Les non-votants restent dans le détail du groupe.
  */
-function FinalVoteLine({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
-  const { votes_for, votes_against, abstentions, not_voting } = vote.tally
+function ShortTally({ tally }: { tally: FinalVoteDto['tally'] }) {
+  const parts = [
+    { key: 'for', value: tally.votes_for, label: 'pour', className: 'text-yes' },
+    { key: 'against', value: tally.votes_against, label: 'contre', className: 'text-no' },
+    { key: 'abstention', value: tally.abstentions, label: 'abst.', className: 'text-abstain' },
+  ].filter((part) => part.value > 0)
+  if (parts.length === 0) return <span className="text-[13px] text-ink-faint">aucun votant</span>
   return (
-    <li title={`Scrutin n° ${vote.number} du ${formatDate(vote.date)}`} className="flex flex-col gap-1.5">
-      <span className="text-[13px] text-ink-soft">Vote final, {vote.reading ?? formatDate(vote.date)} :</span>
-      {/* En bloc : sur téléphone, le décompte passe à la ligne d'un seul tenant. */}
-      <span className="inline-block text-[13px] leading-snug text-ink-soft tabular-nums">
-        <b className="font-semibold text-yes">{votes_for}</b> pour ·{' '}
-        <b className="font-semibold text-no">{votes_against}</b> contre ·{' '}
-        <b className="font-semibold text-abstain">{abstentions}</b> abst.
-        {not_voting > 0 && ` · ${not_voting} non-votant${not_voting > 1 ? 's' : ''}`}
-      </span>
-      <span aria-hidden="true" className="block">
-        <VoteBar tally={vote.tally} />
-      </span>
-    </li>
+    <span className="text-[13px] leading-snug text-ink-soft tabular-nums">
+      {parts.map((part, index) => (
+        <span key={part.key}>
+          {index > 0 && ' · '}
+          {/* Un segment ne se coupe jamais : la ligne passe à la ligne entre deux positions. */}
+          <span className="whitespace-nowrap">
+            <b className={`font-semibold ${part.className}`}>{part.value}</b> {part.label}
+          </span>
+        </span>
+      ))}
+    </span>
   )
 }
+
+/** Choix du vote final montré dans la colonne du tableau, quand le texte en a plusieurs. */
+function FinalVoteSwitch({
+  votes,
+  selected,
+  onSelect,
+}: {
+  votes: FinalVoteDto[]
+  selected: string
+  onSelect: (scrutinUid: string) => void
+}) {
+  return (
+    <div role="group" aria-label="Vote final affiché" className="flex flex-wrap gap-1 rounded-[14px] bg-surface p-1 md:inline-flex">
+      {votes.map((vote) => {
+        const active = vote.scrutin_uid === selected
+        return (
+          <button
+            key={vote.scrutin_uid}
+            type="button"
+            aria-pressed={active}
+            onClick={() => onSelect(vote.scrutin_uid)}
+            title={`Scrutin n° ${vote.number} du ${formatDate(vote.date)}`}
+            className={`min-h-10 flex-1 rounded-[10px] px-3 text-[13px] font-semibold transition-colors md:flex-none ${
+              active ? 'bg-canvas text-ink shadow-[0_0_0_1px_var(--color-line)]' : 'text-ink-soft hover:text-ink'
+            }`}
+          >
+            {finalVoteLabel(vote)}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+/** Colonnes du tableau des groupes : logo, groupe, amendements, vote final, chevron. */
+const GROUP_TABLE_COLS =
+  'grid-cols-[40px_64px_40px_minmax(0,1fr)_18px] gap-x-2.5 md:grid-cols-[56px_minmax(0,1fr)_96px_240px_76px] md:gap-x-5'
 
 function FinalVote({ vote }: { vote: GroupActionsDto['final_votes'][number] }) {
   return (
@@ -226,77 +298,94 @@ function CompareToggle({
 }
 
 /**
- * Ligne d'un groupe qui a agi sur le texte : son logo, ses amendements par sort,
- * ses votes finaux. Les groupes restent dans l'ordre de la source : aucun
- * classement, aucune échelle commune entre groupes (README.md §6).
+ * Ligne d'un groupe qui a agi sur le texte (refonte compacte, variante A) :
+ * logo, groupe, nombre d'amendements, décompte du vote final choisi. Le sort
+ * des amendements, les votes de chaque lecture et la comparaison sont dans le
+ * dépliant. Les groupes restent dans l'ordre de la source, et chaque barre se
+ * normalise sur son propre scrutin : aucun classement, aucune échelle commune
+ * entre groupes (README.md §6).
  */
 function GroupRow({
   group,
+  shownVote,
   compared,
   compareDisabled,
   onCompare,
 }: {
   group: GroupActionsDto
+  shownVote: string | null
   compared: boolean
   compareDisabled: boolean
   onCompare: () => void
 }) {
   const fates = group.amendment_fates ?? []
+  const vote = group.final_votes.find((candidate) => candidate.scrutin_uid === shownVote)
+  const amendments = group.amendment_count
   return (
     <details className="group/row border-b border-line">
-      <summary className="grid cursor-pointer list-none gap-x-10 gap-y-4 py-5 lg:grid-cols-2 [&::-webkit-details-marker]:hidden">
-        <span className="flex min-w-0 items-center gap-3 lg:col-start-1 lg:row-start-1">
-          <PoliticalLogo
-            logo={GROUP_LOGOS[group.abbrev]}
-            fallback={group.abbrev}
-            color={group.color}
-            className="h-9 w-14"
-          />
-          <span className="min-w-0">
-            <span className="block text-base leading-tight font-semibold text-ink" title={group.label}>
-              {group.label}
-            </span>
-            <span className="block text-[13px] text-ink-faint">{group.abbrev}</span>
-          </span>
+      <summary
+        title={group.label}
+        className={`grid min-h-14 cursor-pointer list-none items-center py-2 ${GROUP_TABLE_COLS} [&::-webkit-details-marker]:hidden`}
+      >
+        <PoliticalLogo
+          logo={GROUP_LOGOS[group.abbrev]}
+          fallback={group.abbrev}
+          color={group.color}
+          className="h-[26px] w-10 md:h-9 md:w-14"
+        />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-ink md:hidden">{group.abbrev}</span>
+          <span className="hidden truncate text-base leading-tight font-semibold text-ink md:block">{group.label}</span>
+          <span className="hidden text-[13px] text-ink-faint md:block">{group.abbrev}</span>
         </span>
-
-        {(group.amendment_count > 0 || fates.length > 0) && (
-          <span className="flex min-w-0 flex-col gap-3 lg:col-start-1 lg:row-start-2">
-            {group.amendment_count > 0 && (
-              <span className="text-[15px] text-ink">
-                <span className="figure text-xl tabular-nums">{group.amendment_count.toLocaleString('fr-FR')}</span>{' '}
-                <span className="text-ink-soft">amendement{group.amendment_count > 1 ? 's' : ''}</span>
+        <span className="text-right">
+          {amendments > 0 ? (
+            <span className="figure text-[17px] text-ink tabular-nums md:text-xl">
+              {amendments.toLocaleString('fr-FR')}
+              <span className="sr-only"> amendement{amendments > 1 ? 's' : ''}</span>
+            </span>
+          ) : (
+            <span className="text-[13px] text-ink-faint" aria-label="aucun amendement">
+              —
+            </span>
+          )}
+        </span>
+        <span className="flex min-w-0 flex-col gap-1">
+          {vote ? (
+            <>
+              <ShortTally tally={vote.tally} />
+              <span aria-hidden="true" className="block">
+                <VoteBar tally={vote.tally} />
               </span>
-            )}
-            {fates.length > 0 && <FateStats fates={fates} />}
-          </span>
-        )}
-
-        {group.final_votes.length > 0 && (
-          <ul className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-2">
-            {group.final_votes.map((vote) => (
-              <FinalVoteLine key={vote.scrutin_uid} vote={vote} />
-            ))}
-          </ul>
-        )}
-
-        <span className="flex items-center justify-between gap-4 lg:col-start-2 lg:row-start-1 lg:justify-end lg:gap-6">
-          <CompareToggle checked={compared} disabled={compareDisabled} onChange={onCompare} />
-          <span className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-ink">
-            <span className="group-open/row:hidden">Détails</span>
-            <span className="hidden group-open/row:inline">Replier</span>
-            <Icon name="down" className="size-[18px] text-ink-faint transition-transform group-open/row:rotate-180" strokeWidth={2} />
-          </span>
+            </>
+          ) : (
+            <span className="text-[13px] text-ink-faint">pas de vote publié</span>
+          )}
+        </span>
+        <span className="inline-flex items-center justify-end gap-1.5 text-sm font-semibold text-ink">
+          <span className="hidden md:inline md:group-open/row:hidden">Détails</span>
+          <span className="hidden md:group-open/row:inline">Replier</span>
+          <Icon name="down" className="size-[18px] text-ink-faint transition-transform group-open/row:rotate-180" strokeWidth={2} />
         </span>
       </summary>
-      <div className="mb-5 rounded bg-surface p-4 md:p-5">
-        <GroupDetails group={group} />
-        {group.amendment_count > 0 && (
-          <Link to={amendmentsHref(group)} className="mt-3 inline-block text-sm font-semibold link">
-            Voir ses {group.amendment_count.toLocaleString('fr-FR')} amendement
-            {group.amendment_count > 1 ? 's' : ''} →
-          </Link>
+      <div className="mb-4 space-y-4 rounded-[14px] bg-surface p-3.5 md:mb-5 md:p-5">
+        {fates.length > 0 && (
+          <div>
+            <p className="mb-2 text-[13px] font-semibold text-ink-faint">
+              Sort de ses {amendments.toLocaleString('fr-FR')} amendement{amendments > 1 ? 's' : ''}
+            </p>
+            <FateStats fates={fates} />
+          </div>
         )}
+        <GroupDetails group={group} />
+        <div className="flex flex-wrap items-center justify-between gap-x-4">
+          <CompareToggle checked={compared} disabled={compareDisabled} onChange={onCompare} />
+          {amendments > 0 && (
+            <Link to={amendmentsHref(group)} className="inline-flex min-h-11 items-center text-sm font-semibold link">
+              Voir ses {amendments.toLocaleString('fr-FR')} amendement{amendments > 1 ? 's' : ''} →
+            </Link>
+          )}
+        </div>
       </div>
     </details>
   )
@@ -372,6 +461,7 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
     .slice(0, MAX_COMPARED_GROUPS)
   const selected = data?.groups.filter((group) => selectedUids.includes(group.uid)) ?? []
   const full = selectedUids.length >= MAX_COMPARED_GROUPS
+  const [chosenVote, setChosenVote] = useState<string | null>(null)
 
   function toggleGroup(groupUid: string) {
     const next = selectedUids.includes(groupUid)
@@ -389,6 +479,9 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
 
   const active = data.groups.filter(hasActions)
   const quiet = data.groups.filter((group) => !hasActions(group))
+  const finalVotes = distinctFinalVotes(active)
+  // Par défaut, le vote final le plus récent.
+  const shownVote = finalVotes.find((vote) => vote.scrutin_uid === chosenVote) ?? finalVotes.at(-1) ?? null
 
   return (
     <div className="space-y-8">
@@ -422,26 +515,42 @@ export default function DossierGroupActions({ uid }: { uid: string }) {
         <h3 className="heading-4 md:heading-3">
           Ce que chaque groupe a fait sur ce texte
           <InfoTip label="Comment lire cette section" className="md:hidden">
-            <p>Cochez jusqu'à quatre groupes pour mettre côte à côte leurs synthèses et leurs votes finaux.</p>
+            <p>{COMPARE_HINT}</p>
             <p>{data.notes.join(' ')}</p>
           </InfoTip>
         </h3>
-        <p className="mt-2 hidden max-w-[640px] text-sm leading-relaxed text-ink-soft md:block">
-          Cochez jusqu'à quatre groupes pour mettre côte à côte leurs synthèses et leurs votes finaux.
-        </p>
+        <p className="mt-2 hidden max-w-[640px] text-sm leading-relaxed text-ink-soft md:block">{COMPARE_HINT}</p>
 
         {active.length > 0 ? (
-          <div className="mt-5 border-t border-line">
-            {active.map((group) => (
-              <GroupRow
-                key={group.uid}
-                group={group}
-                compared={selectedUids.includes(group.uid)}
-                compareDisabled={full && !selectedUids.includes(group.uid)}
-                onCompare={() => toggleGroup(group.uid)}
-              />
-            ))}
-          </div>
+          <>
+            {finalVotes.length > 1 && shownVote && (
+              <div className="mt-4">
+                <FinalVoteSwitch votes={finalVotes} selected={shownVote.scrutin_uid} onSelect={setChosenVote} />
+              </div>
+            )}
+            <div
+              aria-hidden="true"
+              className={`mt-4 grid border-b border-line pb-1.5 text-xs font-semibold text-ink-faint ${GROUP_TABLE_COLS}`}
+            >
+              <span />
+              <span>Groupe</span>
+              <span className="text-right">Amend.</span>
+              <span className="truncate">{shownVote ? finalVoteLabel(shownVote) : 'Vote final'}</span>
+              <span />
+            </div>
+            <div>
+              {active.map((group) => (
+                <GroupRow
+                  key={group.uid}
+                  group={group}
+                  shownVote={shownVote?.scrutin_uid ?? null}
+                  compared={selectedUids.includes(group.uid)}
+                  compareDisabled={full && !selectedUids.includes(group.uid)}
+                  onCompare={() => toggleGroup(group.uid)}
+                />
+              ))}
+            </div>
+          </>
         ) : (
           <p className="mt-4 text-sm text-ink-soft">
             Aucun groupe ne porte de vote final ni d'amendement publié sur ce texte.
