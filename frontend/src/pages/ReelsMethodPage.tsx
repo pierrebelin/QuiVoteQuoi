@@ -51,8 +51,8 @@ export default function ReelsMethodPage() {
         <section className="border-t border-line pt-5">
           <h3 className="heading-5 text-ink">La rotation des thèmes</h3>
           <ol className="mt-2 list-decimal space-y-0.5 pl-5 text-[15px] text-ink-soft">
-            {data.theme_rotation.map((code) => (
-              <li key={code}>{code.replaceAll('-', ' ')}</li>
+            {data.theme_rotation.map((family) => (
+              <li key={family.code}>{family.label}</li>
             ))}
           </ol>
         </section>
