@@ -8,6 +8,7 @@ import type { BudgetExerciseDto, BudgetMissionDto } from '../types/budget'
 import { BottomSheet } from '../components/BottomSheet'
 import { ErrorPanel, Loading } from '../components/ui'
 import { Icon } from '../components/icons'
+import { InfoTip } from '../components/InfoTip'
 import { MissionDetail, MissionRow, OffBudgetRow } from '../components/budget/BudgetMission'
 import { BudgetBreakdown } from '../components/budget/BudgetBreakdown'
 
@@ -69,21 +70,25 @@ function BudgetView({ exercise }: { exercise: BudgetExerciseDto }) {
     <div className="flex flex-col gap-10 xl:gap-12">
       <header className="flex max-w-[760px] flex-col gap-2.5">
         <p className="text-[13px] leading-[18px] text-ink-faint md:text-sm">Finances publiques</p>
-        <h1 className="heading-3 text-ink md:heading-1">Budget de l’État {year}</h1>
+        <h1 className="heading-3 text-ink md:heading-1">
+          Budget de l’État {year}
+          <InfoTip label={`À propos de cette page : Budget de l’État ${year}`} className="md:hidden">
+            {spendingNote(year, new Date().getFullYear())}
+          </InfoTip>
+        </h1>
         <p className="text-base leading-normal text-ink-soft md:max-w-2xl md:text-lg md:leading-relaxed">
           Crédits votés en loi de finances initiale {year}
           {exercise.law.adoption_procedure === 'article_49_3'
             ? ', adoptée après recours au 49.3.'
             : '.'}
         </p>
+        {/* Sous 768 px, la note est derrière l'infobulle du titre. */}
         <div
           role="note"
-          className="mt-1 flex items-start gap-2.5 rounded-[14px] bg-surface px-3.5 py-3 text-ink-soft md:max-w-2xl md:items-center md:px-4"
+          className="mt-1 hidden items-center gap-2.5 rounded-[14px] bg-surface px-4 py-3 text-ink-soft md:flex md:max-w-2xl"
         >
-          <Icon name="info" className="mt-px size-[18px] shrink-0 text-ink-faint md:mt-0" />
-          <p className="text-[13.5px] leading-5 md:text-sm md:leading-[1.45]">
-            {spendingNote(year, new Date().getFullYear())}
-          </p>
+          <Icon name="info" className="size-[18px] shrink-0 text-ink-faint" />
+          <p className="text-sm leading-[1.45]">{spendingNote(year, new Date().getFullYear())}</p>
         </div>
         {exercise.available_years.length > 1 && (
           <nav

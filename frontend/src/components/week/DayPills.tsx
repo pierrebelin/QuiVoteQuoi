@@ -9,9 +9,10 @@ import { EMPTY, weekday } from './dayLabels'
  *
  * Sous 768 px, une colonne par jour : le nombre, une barre à hauteur du nombre
  * (la plus haute de la semaine pleine, aucune autre échelle) et le jour. À
- * partir de 768 px, une pastille par jour, le jour en toutes lettres. Le jour est
- * écrit avant le nombre dans le texte ; `flex-col-reverse` remet le nombre au-dessus
- * de la barre.
+ * partir de 768 px, une colonne sans fond par jour : le jour en toutes lettres, le
+ * nombre, puis une piste horizontale à la même échelle. Le jour est écrit avant le
+ * nombre dans le texte ; `flex-col-reverse` remet le nombre au-dessus de la barre
+ * sur téléphone, `order-last` met la piste en bas sur ordinateur.
  */
 export default function DayPills({
   days,
@@ -30,7 +31,7 @@ export default function DayPills({
         <span className="hidden md:inline">Cliquer sur</span> un jour pour n’en voir que les votes.
       </p>
       <ul
-        className="grid items-end gap-2.5 md:gap-3"
+        className="grid items-end gap-2.5 md:items-start md:gap-6"
         aria-label="Filtrer par jour"
         // Une colonne par jour, week-end compris quand il a eu des votes.
         style={{ gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))` }}
@@ -49,15 +50,9 @@ export default function DayPills({
                 aria-pressed={active}
                 aria-label={label}
                 onClick={() => onSelect(active ? null : day.date)}
-                className={`group flex min-h-11 w-full flex-col-reverse items-center gap-1.5 whitespace-nowrap transition-colors disabled:cursor-default md:min-h-14 md:flex-col md:items-start md:justify-center md:gap-0.5 md:rounded-[14px] md:px-4 md:py-2.5 ${
-                  active ? 'text-ink md:bg-ink md:text-surface' : 'text-ink md:bg-surface md:enabled:hover:bg-surface-soft'
-                }`}
+                className="group flex min-h-11 w-full flex-col-reverse items-center gap-1.5 whitespace-nowrap text-ink transition-colors disabled:cursor-default md:flex-col md:items-stretch md:gap-2 md:text-left"
               >
-                <span
-                  className={`text-xs md:text-sm md:opacity-100 ${active ? 'font-semibold' : 'text-ink-soft'} ${
-                    active ? 'md:text-surface' : ''
-                  }`}
-                >
+                <span className={`text-xs md:text-sm md:font-semibold ${active ? 'font-semibold md:text-ink' : 'text-ink-soft'}`}>
                   <span className="md:hidden">{weekday(day.date, 'short')}</span>
                   <span className="hidden md:inline">{weekday(day.date, 'long')}</span>
                 </span>
@@ -68,8 +63,19 @@ export default function DayPills({
                     active ? 'bg-ink' : 'bg-ink-faint/40 group-enabled:group-hover:bg-ink-faint/60'
                   }`}
                 />
-                <span className="flex items-baseline gap-[5px]">
-                  <span className="figure text-[15px] leading-5 md:text-xl">{empty ? empty.mark : day.votes}</span>
+                <span
+                  aria-hidden
+                  className="order-last hidden h-2 w-full overflow-hidden rounded-full bg-surface md:block"
+                >
+                  <i
+                    style={{ width: `${share * 100}%` }}
+                    className={`block h-full rounded-full transition-colors ${
+                      active ? 'bg-ink' : 'bg-ink-faint/70 group-enabled:group-hover:bg-ink-faint'
+                    }`}
+                  />
+                </span>
+                <span className="flex items-baseline gap-[5px] md:gap-1.5">
+                  <span className="figure text-[15px] leading-5 md:text-[28px] md:leading-none">{empty ? empty.mark : day.votes}</span>
                   <span className={`hidden text-[12.5px] md:inline ${active ? '' : 'text-ink-soft'}`}>
                     {empty ? empty.caption : `vote${day.votes > 1 ? 's' : ''}`}
                   </span>

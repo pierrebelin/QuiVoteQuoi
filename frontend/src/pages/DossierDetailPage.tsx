@@ -282,7 +282,11 @@ export default function DossierDetailPage() {
     if (tab !== 'amendements') next.delete('amendements_group')
     setSearchParams(next, { preventScrollReset: true })
   }
-  const families = data.families ?? []
+  // Un sujet rattaché à deux dates (rattachement rouvert) revient deux fois dans la réponse :
+  // une seule étiquette par sujet.
+  const families = (data.families ?? []).filter(
+    (family, index, all) => all.findIndex((other) => other.code === family.code) === index,
+  )
   const kind = textKind(data.procedure)
   const lawState = data.law_state
 

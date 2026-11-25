@@ -132,10 +132,26 @@ impl From<ReelSlot> for ReelMethodDayDto {
     }
 }
 
+/// Une famille de la rotation des thèmes : code et libellé public (RM-16).
+#[derive(Debug, Serialize)]
+pub struct ThemeRotationEntryDto {
+    pub code: FamilyCode,
+    pub label: &'static str,
+}
+
+impl From<FamilyCode> for ThemeRotationEntryDto {
+    fn from(code: FamilyCode) -> Self {
+        Self {
+            code,
+            label: code.label(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct ReelsMethodResponse {
     pub days: Vec<ReelMethodDayDto>,
-    pub theme_rotation: Vec<FamilyCode>,
+    pub theme_rotation: Vec<ThemeRotationEntryDto>,
     pub due_time: String,
     pub most_followed_rule: &'static str,
     pub completeness_rule: &'static str,
@@ -146,7 +162,10 @@ impl From<[ReelSlot; 7]> for ReelsMethodResponse {
     fn from(slots: [ReelSlot; 7]) -> Self {
         Self {
             days: slots.into_iter().map(ReelMethodDayDto::from).collect(),
-            theme_rotation: FamilyCode::ALL.to_vec(),
+            theme_rotation: FamilyCode::ALL
+                .into_iter()
+                .map(ThemeRotationEntryDto::from)
+                .collect(),
             due_time: DUE_TIME.to_owned(),
             most_followed_rule: CRITERION_NOTE,
             completeness_rule: COMPLETENESS_RULE,
@@ -813,9 +832,26 @@ mod tests {
     fn lists_the_theme_rotation_in_referential_order() {
         let json = method_json();
 
+        let codes: Vec<_> = json["theme_rotation"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|entry| entry["code"].clone())
+            .collect();
         assert_eq!(
-            json["theme_rotation"],
+            serde_json::Value::from(codes),
             serde_json::to_value(FamilyCode::ALL).unwrap()
+        );
+    }
+
+    #[test]
+    fn names_each_family_of_the_rotation_by_its_public_label() {
+        let json = method_json();
+
+        assert_eq!(json["theme_rotation"][0]["label"], "Pouvoir d'achat");
+        assert_eq!(
+            json["theme_rotation"][1]["label"],
+            "Économie / finances publiques"
         );
     }
 

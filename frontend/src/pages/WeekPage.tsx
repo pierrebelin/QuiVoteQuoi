@@ -108,7 +108,9 @@ export default function WeekPage() {
     <div className="flex flex-col gap-7 md:gap-9">
       <VotesTabs current="semaine" />
 
-      {data.current_week_empty && (
+      {/* Seulement quand la page, ouverte sans semaine, se rabat sur la dernière semaine publiée :
+          sur une semaine passée choisie, la semaine en cours n'est pas celle affichée. */}
+      {!date && data.current_week_empty && (
         <p className="-mb-2 text-[13.5px] text-ink-soft">Aucun vote publié cette semaine pour l’instant.</p>
       )}
 
@@ -118,11 +120,16 @@ export default function WeekPage() {
             <p className="mb-0.5 text-[13px] text-ink-faint md:text-sm">Assemblée nationale</p>
             <h1 className="flex items-center gap-1 heading-2 md:gap-1.5 md:heading-1">
               La semaine
-              <InfoTip label="À propos de cette page">
+              <InfoTip label="À propos de cette page" className="md:hidden">
                 <p>Tous les votes publics de la semaine, sans sélection.</p>
                 <p>{data.coverage_note}</p>
               </InfoTip>
             </h1>
+            {/* À partir de 768 px, le texte de l'infobulle est écrit sous le titre ; la mention de
+                couverture reste en bas de page. */}
+            <p className="mt-3 hidden max-w-2xl text-lg leading-relaxed text-ink-soft md:block">
+              Tous les votes publics de la semaine, sans sélection.
+            </p>
           </div>
           <div className="flex items-center gap-2.5 md:gap-3.5">
             <WeekArrow
@@ -187,7 +194,7 @@ export default function WeekPage() {
           <section className="flex flex-col gap-4">
             <h2 className="flex items-center gap-1 heading-4 md:heading-3">
               <span className="text-balance">Votes sur l’ensemble d’un texte</span>
-              <InfoTip label="Critère des votes sur l’ensemble">
+              <InfoTip label="Critère des votes sur l’ensemble" className="md:hidden">
                 <p>
                   Critère : un vote dont l’objet officiel porte sur l’ensemble d’un texte. Tous les autres votes de
                   la semaine sont listés plus bas.
@@ -199,6 +206,17 @@ export default function WeekPage() {
                 </p>
               </InfoTip>
             </h2>
+            <div className="-mt-2 hidden max-w-2xl flex-col gap-1.5 text-[15px] leading-normal text-ink-soft md:flex">
+              <p>
+                Critère : un vote dont l’objet officiel porte sur l’ensemble d’un texte. Tous les autres votes de la
+                semaine sont listés plus bas.
+              </p>
+              <p>
+                <Link to={METHOD_PATH} className="link">
+                  Méthode des votes sur l’ensemble
+                </Link>
+              </p>
+            </div>
             {finalVotes.length > 0 ? (
               <div className="grid items-start gap-4 lg:grid-cols-2">
                 {finalVotes.map((vote) => (
