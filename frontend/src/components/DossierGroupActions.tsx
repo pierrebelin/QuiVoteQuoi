@@ -64,12 +64,25 @@ function SourceLinks({ sources }: { sources: SummarySourceDto[] }) {
  * dessous ; ni vert ni rouge, et jamais la couleur du groupe. Dans le balisage
  * le libellé précède le nombre, comme avant ; l'affichage les range à l'envers.
  */
+/** Ordre fixe des sorts, le même pour chaque groupe ; un sort hors liste suit, par nombre décroissant. */
+const FATE_ORDER = ['Adopté', 'Rejeté', 'Tombé', 'Retiré', 'Non soutenu', 'Sort non publié']
+
+function fateLabel(fate: FateCountDto) {
+  return fate.label || 'Sort non publié'
+}
+
+function fateRank(fate: FateCountDto) {
+  const rank = FATE_ORDER.indexOf(fateLabel(fate))
+  return rank === -1 ? FATE_ORDER.length : rank
+}
+
 function FateStats({ fates }: { fates: FateCountDto[] }) {
+  const ordered = [...fates].sort((a, b) => fateRank(a) - fateRank(b) || b.count - a.count)
   return (
     <ul className="grid grid-cols-3 gap-x-2.5 gap-y-3 lg:grid-cols-3">
-      {fates.map((fate) => (
+      {ordered.map((fate) => (
         <li key={fate.label} className="flex min-w-0 flex-col-reverse border-l-2 border-line pl-2.5">
-          <span className="text-[13px] leading-tight text-ink-soft">{fate.label || 'Sort non publié'}</span>
+          <span className="text-[13px] leading-tight text-ink-soft">{fateLabel(fate)}</span>
           <span className="figure text-xl tabular-nums text-ink">{fate.count.toLocaleString('fr-FR')}</span>
         </li>
       ))}
