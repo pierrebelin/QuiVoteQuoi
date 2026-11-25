@@ -61,7 +61,8 @@ export default function TextDetailPage() {
             </summary>
             <ul className="space-y-1.5 pb-3">
               {motives.map((family) => (
-                <li key={family.code}>
+                // Un même sujet peut porter deux motifs, à deux dates de rattachement.
+                <li key={`${family.code}-${family.opened_on}`}>
                   <span className="font-medium text-ink">{family.label}</span> — {family.motive}
                 </li>
               ))}
