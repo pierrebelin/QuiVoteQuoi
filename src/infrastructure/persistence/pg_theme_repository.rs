@@ -637,16 +637,25 @@ impl ThemeRepository for PgThemeRepository {
         &self,
         dossier_uid: &str,
     ) -> Result<Vec<AssignedFamily>, RepositoryError> {
+        // Une famille portée par plusieurs textes du dossier (dépôt, navette,
+        // CMP), classés à des dates différentes, ne sort qu'une fois : son
+        // rattachement le plus ancien, dans l'ordre du référentiel.
         let rows = sqlx::query(
-            "SELECT a.family_code, a.opened_on, a.motive
-             FROM dossier_debated_texts dt
-             JOIN theme_assignments a
-               ON a.subject_kind = 'text' AND a.subject_id = dt.text_key AND a.closed_on IS NULL
-             WHERE dt.dossier_uid = $1
-             UNION
-             SELECT a.family_code, a.opened_on, a.motive
-             FROM theme_assignments a
-             WHERE a.subject_kind = 'dossier' AND a.subject_id = $1 AND a.closed_on IS NULL",
+            "SELECT DISTINCT ON (f.display_order, s.family_code)
+                    s.family_code, s.opened_on, s.motive
+             FROM (
+                 SELECT a.family_code, a.opened_on, a.motive, a.id
+                 FROM dossier_debated_texts dt
+                 JOIN theme_assignments a
+                   ON a.subject_kind = 'text' AND a.subject_id = dt.text_key AND a.closed_on IS NULL
+                 WHERE dt.dossier_uid = $1
+                 UNION ALL
+                 SELECT a.family_code, a.opened_on, a.motive, a.id
+                 FROM theme_assignments a
+                 WHERE a.subject_kind = 'dossier' AND a.subject_id = $1 AND a.closed_on IS NULL
+             ) s
+             JOIN theme_families f ON f.code = s.family_code
+             ORDER BY f.display_order, s.family_code, s.opened_on, s.id",
         )
         .bind(dossier_uid)
         .persistent(false)
