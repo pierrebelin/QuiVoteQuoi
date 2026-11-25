@@ -362,8 +362,9 @@ function VoteRow({ vote, selected }: { vote: FinalVoteDto; selected: GroupDto[] 
       )}
 
       <p className="mt-4 border-t border-line pt-3.5 text-[13px] text-ink-faint">
-        Assemblée entière : {vote.synthesis.votes_for} pour ·{' '}
-        {vote.synthesis.votes_against} contre · {vote.synthesis.abstentions} abst.
+        Assemblée entière : <b className="font-semibold text-yes">{vote.synthesis.votes_for}</b> pour ·{' '}
+        <b className="font-semibold text-no">{vote.synthesis.votes_against}</b> contre ·{' '}
+        <b className="font-semibold text-abstain">{vote.synthesis.abstentions}</b> abst.
       </p>
     </Card>
   )
