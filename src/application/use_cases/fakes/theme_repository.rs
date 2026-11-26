@@ -27,6 +27,14 @@ pub struct InMemoryThemeRepository {
     pub method_report: Mutex<Option<MethodReport>>,
     /// Familles courantes semees par uid de scrutin, servies par `families_of_scrutins`.
     pub scrutin_families: Mutex<HashMap<String, Vec<AssignedFamily>>>,
+    /// Familles courantes semees par uid de dossier, servies par `families_of_dossier`.
+    pub dossier_families: Mutex<HashMap<String, Vec<AssignedFamily>>>,
+    /// Page servie par famille; une famille absente rend une page vide.
+    pub family_pages: Mutex<HashMap<FamilyCode, TextPage>>,
+    /// Page des non rattaches; `None` rend une page vide.
+    pub unassigned_page: Mutex<Option<TextPage>>,
+    /// `(limit, offset)` de chaque lecture paginee, dans l'ordre.
+    pub page_requests: Mutex<Vec<(i64, i64)>>,
 }
 
 impl InMemoryThemeRepository {
@@ -185,25 +193,38 @@ impl ThemeRepository for InMemoryThemeRepository {
 
     async fn texts_by_family(
         &self,
-        _family: FamilyCode,
-        _limit: i64,
-        _offset: i64,
+        family: FamilyCode,
+        limit: i64,
+        offset: i64,
     ) -> Result<TextPage, RepositoryError> {
-        Ok(TextPage {
-            items: vec![],
-            total: 0,
-        })
+        self.page_requests.lock().unwrap().push((limit, offset));
+        Ok(self
+            .family_pages
+            .lock()
+            .unwrap()
+            .get(&family)
+            .cloned()
+            .unwrap_or(TextPage {
+                items: vec![],
+                total: 0,
+            }))
     }
 
     async fn unassigned_texts(
         &self,
-        _limit: i64,
-        _offset: i64,
+        limit: i64,
+        offset: i64,
     ) -> Result<TextPage, RepositoryError> {
-        Ok(TextPage {
-            items: vec![],
-            total: 0,
-        })
+        self.page_requests.lock().unwrap().push((limit, offset));
+        Ok(self
+            .unassigned_page
+            .lock()
+            .unwrap()
+            .clone()
+            .unwrap_or(TextPage {
+                items: vec![],
+                total: 0,
+            }))
     }
 
     async fn families_of_scrutins(
@@ -222,9 +243,15 @@ impl ThemeRepository for InMemoryThemeRepository {
 
     async fn families_of_dossier(
         &self,
-        _dossier_uid: &str,
+        dossier_uid: &str,
     ) -> Result<Vec<AssignedFamily>, RepositoryError> {
-        Ok(vec![])
+        Ok(self
+            .dossier_families
+            .lock()
+            .unwrap()
+            .get(dossier_uid)
+            .cloned()
+            .unwrap_or_default())
     }
 
     async fn method_report(&self) -> Result<MethodReport, RepositoryError> {
@@ -238,5 +265,29 @@ impl ThemeRepository for InMemoryThemeRepository {
 
     async fn text_count(&self) -> Result<i64, RepositoryError> {
         Ok(self.texts.lock().unwrap().len() as i64)
+    }
+}
+
+/// Ligne de liste d'un texte, sans scrutin ni famille.
+pub fn text_summary(key: &str, label: &str) -> TextSummary {
+    TextSummary {
+        key: key.to_string(),
+        label: label.to_string(),
+        scrutin_count: 0,
+        first_vote: None,
+        last_vote: None,
+        dossier_uid: None,
+        dossier_label: None,
+        families: vec![],
+        last_attempt_outcome: None,
+    }
+}
+
+/// Famille courante ouverte le `opened_on`, sans motif.
+pub fn assigned(family: FamilyCode, opened_on: NaiveDate) -> AssignedFamily {
+    AssignedFamily {
+        family,
+        opened_on,
+        motive: None,
     }
 }

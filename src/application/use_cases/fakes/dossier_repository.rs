@@ -124,7 +124,7 @@ impl DossierRepository for InMemoryDossierRepository {
             .filter(|d| d.last_activity_date() >= since)
             .cloned()
             .collect();
-        result.sort_by(|a, b| b.last_activity_date().cmp(&a.last_activity_date()));
+        result.sort_by_key(|d| std::cmp::Reverse(d.last_activity_date()));
         Ok(result)
     }
 
