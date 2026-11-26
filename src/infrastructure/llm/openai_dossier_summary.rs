@@ -12,16 +12,15 @@ use crate::application::ports::dossier_summary_generator::{
 };
 use crate::domain::dossier_group_facts::DossierGroupFacts;
 
-use super::anthropic_dossier_summary::{
-    facts_input, parse_text, response_schema, system_prompt, SUMMARY_MAX_OUTPUT_TOKENS,
+use super::dossier_summary_prompt::{
+    facts_input, parse_text, response_schema, system_prompt, PROMPT_VERSION,
+    SUMMARY_MAX_OUTPUT_TOKENS,
 };
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 use super::openai_support::output_text;
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL: &str = "gpt-5.6-luna";
-const PROMPT_VERSION: &str = "dossier-group-summary-v1";
-const MAX_ATTEMPTS: u32 = 3;
 
 pub struct OpenAiDossierSummaryGenerator {
     http: reqwest::Client,

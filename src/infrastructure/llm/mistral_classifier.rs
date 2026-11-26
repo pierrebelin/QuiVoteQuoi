@@ -10,17 +10,15 @@ use serde_json::{json, Value};
 use crate::application::ports::theme_classifier::{ClassifierError, ThemeClassifier};
 use crate::domain::theme::ProposedFamily;
 
-use super::anthropic_classifier::{numbered_labels, parse_text, response_schema, system_prompt};
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 use super::mistral_support::message_content;
+use super::theme_prompt::{
+    max_output_tokens, numbered_labels, parse_text, response_schema, system_prompt, BATCH_SIZE,
+    PROMPT_VERSION,
+};
 
 const API_URL: &str = "https://api.mistral.ai/v1/chat/completions";
 const DEFAULT_MODEL: &str = "mistral-small-latest";
-const PROMPT_VERSION: &str = "thematisation-v3";
-const BATCH_SIZE: usize = 20;
-const MAX_ATTEMPTS: u32 = 3;
-const TOKENS_PER_LABEL: usize = 400;
-const TOKENS_FLOOR: usize = 2_000;
 
 pub struct MistralThemeClassifier {
     http: reqwest::Client,
@@ -57,7 +55,7 @@ impl MistralThemeClassifier {
         json!({
             "model": self.model,
             "temperature": 0,
-            "max_tokens": TOKENS_FLOOR + TOKENS_PER_LABEL * labels.len(),
+            "max_tokens": max_output_tokens(labels.len()),
             "messages": [
                 { "role": "system", "content": system_prompt() },
                 { "role": "user", "content": numbered_labels(labels) }

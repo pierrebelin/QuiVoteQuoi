@@ -6,17 +6,15 @@ use serde_json::{json, Value};
 use crate::application::ports::theme_classifier::{ClassifierError, ThemeClassifier};
 use crate::domain::theme::ProposedFamily;
 
-use super::anthropic_classifier::{numbered_labels, parse_text, response_schema, system_prompt};
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 use super::openai_support::output_text;
+use super::theme_prompt::{
+    max_output_tokens, numbered_labels, parse_text, response_schema, system_prompt, BATCH_SIZE,
+    PROMPT_VERSION,
+};
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL: &str = "gpt-5.6-luna";
-const PROMPT_VERSION: &str = "thematisation-v3";
-const BATCH_SIZE: usize = 20;
-const MAX_ATTEMPTS: u32 = 3;
-const TOKENS_PER_LABEL: usize = 400;
-const TOKENS_FLOOR: usize = 2_000;
 
 pub struct OpenAiThemeClassifier {
     http: reqwest::Client,
@@ -53,7 +51,7 @@ impl OpenAiThemeClassifier {
         json!({
             "model": self.model,
             "store": false,
-            "max_output_tokens": TOKENS_FLOOR + TOKENS_PER_LABEL * labels.len(),
+            "max_output_tokens": max_output_tokens(labels.len()),
             "input": [
                 {
                     "role": "developer",

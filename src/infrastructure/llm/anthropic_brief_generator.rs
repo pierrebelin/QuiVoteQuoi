@@ -14,12 +14,11 @@ use super::brief_prompt::{
     parse_lines, request_input, response_schema, system_prompt, BRIEF_MAX_OUTPUT_TOKENS,
     PROMPT_VERSION,
 };
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 
 const API_URL: &str = "https://api.anthropic.com/v1/messages";
 const API_VERSION: &str = "2023-06-01";
 const DEFAULT_MODEL: &str = "claude-opus-5";
-const MAX_ATTEMPTS: u32 = 3;
 
 pub struct AnthropicBriefGenerator {
     http: reqwest::Client,
