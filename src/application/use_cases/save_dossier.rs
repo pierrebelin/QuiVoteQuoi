@@ -59,9 +59,9 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
 
+    use crate::application::use_cases::fakes::actor_repository::InMemoryActorRepository;
     use crate::application::use_cases::fakes::assembly_source::FakeAssemblySource;
     use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
-    use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
     use crate::domain::dossier::{
         DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
     };

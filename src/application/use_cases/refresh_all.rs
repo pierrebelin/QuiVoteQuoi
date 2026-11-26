@@ -363,7 +363,8 @@ mod tests {
 
     use super::super::fakes::assembly_source::FakeAssemblySource;
     use super::super::fakes::dossier_repository::InMemoryDossierRepository;
-    use super::super::refresh_dossiers::tests::{dossier, InMemoryActorRepository};
+    use super::super::fakes::actor_repository::InMemoryActorRepository;
+    use super::super::fakes::fixtures::dossier;
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()

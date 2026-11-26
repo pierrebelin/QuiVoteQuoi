@@ -190,175 +190,19 @@ impl<'a> RefreshDossiers<'a> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
-    use async_trait::async_trait;
     use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-    use std::sync::Mutex;
 
+    use crate::application::use_cases::fakes::actor_repository::InMemoryActorRepository;
     use crate::application::use_cases::fakes::assembly_source::FakeAssemblySource;
     use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
+    use crate::application::use_cases::fakes::fixtures::dossier;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::domain::ingestion::{CheckOutcome, IngestionSource};
 
-    use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
-    use crate::domain::actor::{
-        Actor, ActorDirectory, ActorRegistry, ActorRole, GroupMembership, GroupUid,
-        MembershipPeriod, MembershipQuality, ParliamentaryGroup,
-    };
-    use crate::domain::dossier::{
-        DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
-        Score,
-    };
-
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
-    }
-
-    /// Referentiel in-memory: un depute passe du groupe A au groupe B le 1er juillet 2025.
-    pub(crate) struct InMemoryActorRepository {
-        registry: Mutex<ActorRegistry>,
-        pub(crate) requested_uids: Mutex<Vec<ActorUid>>,
-    }
-
-    impl InMemoryActorRepository {
-        pub(crate) fn with_deputy_changing_group() -> Self {
-            let actor = Actor::new(
-                ActorUid::new("PA111111".into()).unwrap(),
-                Some("M.".into()),
-                "Jean".into(),
-                "Dupont".into(),
-                ActorRole::Deputy,
-            )
-            .unwrap();
-
-            let group = |uid: &str, abbrev: &str, label: &str| {
-                ParliamentaryGroup::new(
-                    GroupUid::new(uid.into()).unwrap(),
-                    17,
-                    label.into(),
-                    abbrev.into(),
-                    None,
-                    None,
-                    None,
-                )
-                .unwrap()
-            };
-
-            let membership = |source: &str, group: &str, start, end| {
-                GroupMembership::new(
-                    source.into(),
-                    ActorUid::new("PA111111".into()).unwrap(),
-                    GroupUid::new(group.into()).unwrap(),
-                    17,
-                    MembershipPeriod::new(start, end).unwrap(),
-                    MembershipQuality::new("Membre".into()).unwrap(),
-                )
-            };
-
-            Self {
-                registry: Mutex::new(ActorRegistry {
-                    actors: vec![actor],
-                    groups: vec![
-                        group("PO_A", "A", "Groupe A"),
-                        group("PO_B", "B", "Groupe B"),
-                    ],
-                    memberships: vec![
-                        membership("PM1", "PO_A", date(2024, 7, 19), Some(date(2025, 6, 30))),
-                        membership("PM2", "PO_B", date(2025, 7, 1), None),
-                    ],
-                }),
-                requested_uids: Mutex::new(vec![]),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl ActorRepository for InMemoryActorRepository {
-        async fn save_registry(
-            &self,
-            registry: &ActorRegistry,
-        ) -> Result<RegistrySummary, RepositoryError> {
-            let summary = RegistrySummary {
-                actors: registry.actors.len(),
-                groups: registry.groups.len(),
-                memberships: registry.memberships.len(),
-            };
-            *self.registry.lock().unwrap() = registry.clone();
-            Ok(summary)
-        }
-
-        async fn load_directory_for(
-            &self,
-            actor_uids: &[ActorUid],
-        ) -> Result<ActorDirectory, RepositoryError> {
-            self.requested_uids
-                .lock()
-                .unwrap()
-                .extend_from_slice(actor_uids);
-
-            let registry = self.registry.lock().unwrap();
-            let actors: Vec<Actor> = registry
-                .actors
-                .iter()
-                .filter(|a| actor_uids.contains(a.uid()))
-                .cloned()
-                .collect();
-            let memberships: Vec<GroupMembership> = registry
-                .memberships
-                .iter()
-                .filter(|m| actor_uids.contains(m.actor_uid()))
-                .cloned()
-                .collect();
-
-            Ok(ActorDirectory::new(
-                actors,
-                registry.groups.clone(),
-                memberships,
-            ))
-        }
-    }
-
-    /// Elements d'un dossier de la source, avant construction: un test qui veut
-    /// une variante (sort, acte supplementaire) les ajuste ici.
-    pub(crate) fn dossier_parts(
-        uid: &str,
-        deposit_date: Option<NaiveDate>,
-        last_activity: NaiveDate,
-    ) -> NewLegislativeDossier {
-        NewLegislativeDossier {
-            uid: DossierUid::new(uid.into()).unwrap(),
-            title: format!("Loi {uid}"),
-            procedure: "Proposition de loi".into(),
-            legislature: 17,
-            url: None,
-            summary: None,
-            deposit_date,
-            last_activity_date: last_activity,
-            last_activity_label: "D\u{00e9}p\u{00f4}t".into(),
-            acts: vec![LegislativeAct {
-                date: last_activity,
-                label: "D\u{00e9}p\u{00f4}t".into(),
-                code: Some("AN1-DEPOT".into()),
-                decision_vote: None,
-                conclusion_label: None,
-                conclusion_code: None,
-            }],
-            documents: vec![],
-            score: Score::new(2, 4, 2, 23).unwrap(),
-            current_stage: None,
-            initiators: vec![],
-            committee: None,
-            outcome: DossierOutcome::NoRecordedConclusion,
-        }
-    }
-
-    pub(crate) fn dossier(
-        uid: &str,
-        deposit_date: Option<NaiveDate>,
-        last_activity: NaiveDate,
-    ) -> LegislativeDossier {
-        LegislativeDossier::new(dossier_parts(uid, deposit_date, last_activity))
     }
 
     #[tokio::test]
@@ -553,10 +397,11 @@ pub(crate) mod tests {
 
 #[cfg(test)]
 mod incremental_tests {
-    use super::tests::{dossier, dossier_parts, InMemoryActorRepository};
     use super::*;
+    use crate::application::use_cases::fakes::actor_repository::InMemoryActorRepository;
     use crate::application::use_cases::fakes::assembly_source::FakeAssemblySource;
     use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
+    use crate::application::use_cases::fakes::fixtures::{dossier, dossier_parts};
     use crate::domain::dossier::{
         DossierOutcome, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
     };

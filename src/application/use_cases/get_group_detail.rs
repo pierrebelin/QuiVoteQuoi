@@ -102,9 +102,8 @@ impl<'a> GetGroupDetail<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::use_cases::browse_groups::tests::{
-        date, record, renamed_repository, today, InMemoryGroupRepository,
-    };
+    use crate::application::use_cases::fakes::fixtures::{date, record, renamed_repository, today};
+    use crate::application::use_cases::fakes::group_repository::InMemoryGroupRepository;
 
     async fn profile(
         repository: &InMemoryGroupRepository,
