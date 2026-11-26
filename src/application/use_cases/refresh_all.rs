@@ -336,7 +336,6 @@ mod tests {
     use crate::application::ports::amendment_source::{
         AmendmentBatch, AmendmentBatches, AmendmentFeed, ArchiveScan,
     };
-    use crate::application::ports::assembly_source::SourceError;
     use crate::application::ports::scrutin_repository::{
         RepositoryError as ScrutinRepositoryError, ScrutinFilter, ScrutinPage, ScrutinSummary,
     };
@@ -358,10 +357,11 @@ mod tests {
     use crate::domain::dataset::DatasetShape;
     use crate::domain::ingestion::{CheckOutcome, IngestionSource};
     use chrono::{TimeZone, Utc};
-    use crate::domain::dossier::{DossierUid, LegislativeDossier};
+    use crate::domain::dossier::DossierUid;
     use crate::domain::scrutin::{Scrutin, ScrutinUid};
     use crate::domain::theme::{DebatedText, FamilyCode, SubjectRef};
 
+    use super::super::fakes::assembly_source::FakeAssemblySource;
     use super::super::fakes::dossier_repository::InMemoryDossierRepository;
     use super::super::refresh_dossiers::tests::{dossier, InMemoryActorRepository};
 
@@ -369,40 +369,12 @@ mod tests {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
     }
 
-    struct FakeAssemblySource;
-
-    #[async_trait]
-    impl AssemblySource for FakeAssemblySource {
-        async fn fetch_dossiers_since(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossiers_since_with_refs(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
-            Ok(vec![(
-                dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
-                vec!["PA111111".into()],
-            )])
-        }
-
-        async fn fetch_dossier_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid_with_refs(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
-            unreachable!()
-        }
+    /// Source des dossiers: D1, dont l'initiateur est PA111111.
+    fn one_dossier_source() -> FakeAssemblySource {
+        FakeAssemblySource::with_refs(vec![(
+            dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+            vec!["PA111111".into()],
+        )])
     }
 
     struct FakeScrutinSource {
@@ -495,6 +467,8 @@ mod tests {
 
     /// Source d'amendements muette: le rafraichissement des amendements n'est pas
     /// l'objet de ces tests, seule son innocuite sur le reste l'est.
+    // Local: sans etat, que `refresh!` emprunte tel quel (promotion en `'static`)
+    // et que plusieurs rafraichissements peuvent interroger.
     struct EmptyAmendmentSource;
 
     #[async_trait]
@@ -513,6 +487,7 @@ mod tests {
         }
     }
 
+    // Local: meme raison que `EmptyAmendmentSource`, en panne a chaque appel.
     struct FailingAmendmentSource;
 
     #[async_trait]
@@ -664,7 +639,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -703,7 +678,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: false };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -743,7 +718,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -794,7 +769,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -834,7 +809,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -871,7 +846,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -925,7 +900,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -972,7 +947,7 @@ mod tests {
             order: Mutex::new(vec![]),
         };
         let actor_repository = InMemoryActorRepository::with_deputy_changing_group();
-        let assembly_source = FakeAssemblySource;
+        let assembly_source = one_dossier_source();
         let dossier_repository = InMemoryDossierRepository::new();
         let scrutin_source = FakeScrutinSource { available: true };
         let scrutin_repository = InMemoryScrutinRepository {
@@ -1001,39 +976,6 @@ mod tests {
         assert_eq!(outcome.dossiers.written, 1);
         assert!(outcome.citations.is_none());
         assert!(outcome.citations_anomaly.is_some());
-    }
-
-    struct FailingAssemblySource;
-
-    #[async_trait]
-    impl AssemblySource for FailingAssemblySource {
-        async fn fetch_dossiers_since(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossiers_since_with_refs(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
-            Err(SourceError::Download("assembly unavailable".into()))
-        }
-
-        async fn fetch_dossier_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid_with_refs(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
-            unreachable!()
-        }
     }
 
     /// Rafraichissement complet journalise; rend le resultat brut, l'abandon
@@ -1095,9 +1037,10 @@ mod tests {
     async fn should_record_one_check_per_source_in_refresh_order_when_full_refresh_succeeds() {
         let journal = InMemoryIngestionJournal::default();
 
-        let outcome = journaled_refresh(&FakeAssemblySource, true, &EmptyAmendmentSource, &journal)
-            .await
-            .unwrap();
+        let outcome =
+            journaled_refresh(&one_dossier_source(), true, &EmptyAmendmentSource, &journal)
+                .await
+                .unwrap();
 
         let checks = journal.recorded();
         assert_eq!(sources_of(&journal), IngestionSource::ALL.to_vec());
@@ -1113,9 +1056,10 @@ mod tests {
     async fn should_record_failed_scrutins_check_and_keep_refreshing_when_scrutin_source_fails() {
         let journal = InMemoryIngestionJournal::default();
 
-        let outcome = journaled_refresh(&FakeAssemblySource, false, &EmptyAmendmentSource, &journal)
-            .await
-            .unwrap();
+        let outcome =
+            journaled_refresh(&one_dossier_source(), false, &EmptyAmendmentSource, &journal)
+                .await
+                .unwrap();
 
         assert_eq!(sources_of(&journal), IngestionSource::ALL.to_vec());
         let scrutins = &journal.recorded()[2];
@@ -1132,8 +1076,13 @@ mod tests {
     async fn should_record_no_scrutins_nor_amendments_check_when_dossier_refresh_aborts() {
         let journal = InMemoryIngestionJournal::default();
 
-        let result =
-            journaled_refresh(&FailingAssemblySource, true, &EmptyAmendmentSource, &journal).await;
+        let result = journaled_refresh(
+            &FakeAssemblySource::down("assembly unavailable"),
+            true,
+            &EmptyAmendmentSource,
+            &journal,
+        )
+        .await;
 
         assert!(result.is_err());
         assert_eq!(
@@ -1151,7 +1100,7 @@ mod tests {
         let journal = InMemoryIngestionJournal::default();
 
         let outcome =
-            journaled_refresh(&FakeAssemblySource, true, &FailingAmendmentSource, &journal)
+            journaled_refresh(&one_dossier_source(), true, &FailingAmendmentSource, &journal)
                 .await
                 .unwrap();
 

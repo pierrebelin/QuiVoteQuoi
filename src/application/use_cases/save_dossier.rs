@@ -57,85 +57,39 @@ impl<'a> SaveDossier<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
     use chrono::NaiveDate;
-    use std::collections::HashMap;
-    use std::sync::Mutex;
 
-    use crate::application::ports::assembly_source::SourceError;
+    use crate::application::use_cases::fakes::assembly_source::FakeAssemblySource;
     use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
     use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
     use crate::domain::dossier::{
         DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
     };
 
-    struct FakeSource {
-        dossiers: Mutex<HashMap<String, (LegislativeDossier, Vec<String>)>>,
-    }
-
-    #[async_trait]
-    impl AssemblySource for FakeSource {
-        async fn fetch_dossiers_since(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossiers_since_with_refs(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid_with_refs(
-            &self,
-            uid: &DossierUid,
-        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
-            let store = self.dossiers.lock().unwrap();
-            Ok(store.get(uid.as_str()).cloned())
-        }
-    }
-
     #[tokio::test]
     async fn saves_dossier_with_initiators_dated_on_the_deposit_date() {
-        let mut source_map = HashMap::new();
-        source_map.insert(
-            "D1".into(),
-            (
-                LegislativeDossier::new(NewLegislativeDossier {
-                    uid: DossierUid::new("D1".into()).unwrap(),
-                    title: "Loi test".into(),
-                    procedure: "PL".into(),
-                    legislature: 17,
-                    url: None,
-                    summary: None,
-                    deposit_date: NaiveDate::from_ymd_opt(2025, 5, 13),
-                    last_activity_date: NaiveDate::from_ymd_opt(2026, 6, 25).unwrap(),
-                    last_activity_label: "Dépôt".into(),
-                    acts: vec![],
-                    documents: vec![],
-                    score: Score::new(2, 4, 2, 23).unwrap(),
-                    current_stage: None,
-                    initiators: vec![],
-                    committee: None,
-                    outcome: DossierOutcome::NoRecordedConclusion,
-                }),
-                vec!["PA111111".into()],
-            ),
-        );
+        let source = FakeAssemblySource::with_refs(vec![(
+            LegislativeDossier::new(NewLegislativeDossier {
+                uid: DossierUid::new("D1".into()).unwrap(),
+                title: "Loi test".into(),
+                procedure: "PL".into(),
+                legislature: 17,
+                url: None,
+                summary: None,
+                deposit_date: NaiveDate::from_ymd_opt(2025, 5, 13),
+                last_activity_date: NaiveDate::from_ymd_opt(2026, 6, 25).unwrap(),
+                last_activity_label: "Dépôt".into(),
+                acts: vec![],
+                documents: vec![],
+                score: Score::new(2, 4, 2, 23).unwrap(),
+                current_stage: None,
+                initiators: vec![],
+                committee: None,
+                outcome: DossierOutcome::NoRecordedConclusion,
+            }),
+            vec!["PA111111".into()],
+        )]);
 
-        let source = FakeSource {
-            dossiers: Mutex::new(source_map),
-        };
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
@@ -157,9 +111,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_not_found_when_missing_from_source() {
-        let source = FakeSource {
-            dossiers: Mutex::new(HashMap::new()),
-        };
+        let source = FakeAssemblySource::default();
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
