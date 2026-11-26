@@ -6,6 +6,11 @@ export const WIDTH = 1080
 export const HEIGHT = 1920
 export const FPS = 30
 
+/** Post du jour : carrousel Instagram en 4:5, une image par scène du Reel. */
+export const POST_HEIGHT = 1350
+/** Images d'un carrousel Instagram, au plus. */
+export const POST_MAX_IMAGES = 20
+
 /**
  * Zones couvertes par l'interface d'Instagram et de TikTok (nom du compte en
  * haut, légende et boutons en bas, icônes à droite) : celles du gabarit

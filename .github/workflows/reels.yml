@@ -2,7 +2,8 @@ name: Reels
 
 # Reel du jour (todo/reels/REELS-PLAN-F4.md) : lit le Reel sur l'API du site,
 # rend la vidéo, l'héberge dans une Release `reel-<date>` et dépose deux
-# brouillons Buffer (Instagram, TikTok) pour 18 h ; une alerte `reels` sinon.
+# brouillons Buffer (Instagram, TikTok) pour 18 h, plus le post Instagram en
+# carrousel (mêmes scènes en images fixes 4:5) à la même heure ; une alerte `reels` sinon.
 # Deux passages programmés (16 h 30 ou 17 h 30 à Paris selon l'heure d'été) ;
 # le script ne continue qu'après 16 h à Paris et si les brouillons du jour
 # manquent. Les passages programmés ne tournent que si la variable de dépôt
@@ -19,7 +20,7 @@ on:
         required: false
         type: string
       dry_run:
-        description: 'Exécution à blanc : vidéo en artefact, ni Release, ni retrait, ni brouillon'
+        description: 'Exécution à blanc : vidéo et images en artefact, ni Release, ni retrait, ni brouillon'
         required: false
         type: boolean
         default: true
@@ -89,5 +90,6 @@ jobs:
           path: |
             reels/out/*.mp4
             reels/out/caption-*.txt
+            reels/out/post-*/post-*.png
           if-no-files-found: ignore
           retention-days: 14

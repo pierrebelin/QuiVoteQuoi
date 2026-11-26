@@ -113,6 +113,10 @@ export type ReelProps = {
   capture: string | null
   /** Piste `public/piste.mp3` présente. */
   audio: boolean
+  /** Carrousel du post (images fixes en 4:5) plutôt que vidéo du Reel. */
+  post?: boolean
+  /** Images du carrousel, posées par `calculateMetadata` des compositions `…Post`. */
+  stillFrames?: number[]
 }
 
 export type { ScrutinDetailDto }

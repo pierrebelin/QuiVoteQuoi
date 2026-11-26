@@ -19,7 +19,7 @@ import {
   useEnter,
   useFonts,
 } from '../motion'
-import { COLORS } from '../theme'
+import { COLORS, HEIGHT } from '../theme'
 import { HOOK, PERIOD, PUSH, scenesOf, VOTES_OUTRO, WHO_VOTED } from '../timeline'
 import type { ReelFinalVoteDto, ReelProps, ReelResponse, ScrutinDetailDto } from '../types'
 
@@ -135,7 +135,10 @@ const CENTRE_SHIFT = 210
 
 function WhoVotedScene({ detail, tally }: { detail: ScrutinDetailDto; tally: NonNullable<ReelResponse['most_followed']>['tally'] }) {
   const frame = useCurrentFrame()
-  const { fps } = useVideoConfig()
+  const { fps, height } = useVideoConfig()
+  // Post en 4:5 : moins de hauteur, l'hémicycle et les lignes des groupes rétrécissent pour que tous tiennent.
+  const post = height < HEIGHT
+  const rowSize = post ? 30 : 38
   const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
   const kicker = useEnter(0, 24)
   const labelsOut = interpolate(frame, [FLIP - 6, FLIP + 4], [1, 0], clamp)
@@ -162,7 +165,7 @@ function WhoVotedScene({ detail, tally }: { detail: ScrutinDetailDto; tally: Non
           position: 'relative',
           alignSelf: 'center',
           marginTop: 44,
-          width: `${interpolate(fold, [0, 1], [70, 52])}%`,
+          width: `${interpolate(fold, [0, 1], [70, post ? 42 : 52])}%`,
           transform: `translateY(${(1 - fold) * CENTRE_SHIFT + (1 - flip) * 130}px)`,
         }}
       >
@@ -209,7 +212,7 @@ function WhoVotedScene({ detail, tally }: { detail: ScrutinDetailDto; tally: Non
           ))}
         </div>
       </div>
-      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', marginTop: 60, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: fold }}>
+      <div style={{ flex: 1, minHeight: 0, overflow: 'hidden', marginTop: post ? 36 : 60, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', opacity: fold }}>
         {groups.map(({ group: g, position }, index) => {
           const start = FOLD + 10 + index * 4
           const enter = interpolate(frame, [start, start + 12], [0, 1], clamp)
@@ -224,20 +227,20 @@ function WhoVotedScene({ detail, tally }: { detail: ScrutinDetailDto; tally: Non
           return (
             <div key={g.group_uid} style={{ display: 'flex', alignItems: 'center', gap: 16, opacity: enter, transform: `translateX(${(1 - enter) * -60}px)` }}>
               <span style={{ width: 26, height: 26, borderRadius: 13, background: g.color ?? NOT_VOTING, flexShrink: 0 }} />
-              <span style={{ width: 180, fontSize: 38, fontWeight: 800, flexShrink: 0 }}>{g.abbrev}</span>
+              <span style={{ width: 180, fontSize: rowSize, fontWeight: 800, flexShrink: 0 }}>{g.abbrev}</span>
               <div style={{ flex: 1, height: 18, display: 'flex', borderRadius: 9, overflow: 'hidden', background: SEAT_EMPTY }}>
                 {parts.map((p) => (
                   <div key={p.color} style={{ width: `${((p.value / largest) * 100 * grow).toFixed(2)}%`, background: p.color }} />
                 ))}
               </div>
-              <span style={{ minWidth: 200, textAlign: 'right', fontSize: 38, fontWeight: 800, color: position ? POSITION_COLORS[position] : COLORS.inkSoft, flexShrink: 0 }}>
-                {position ? `${count} ${POSITION_LABELS[position]}` : 'sans majorité'}
+              <span style={{ minWidth: 200, textAlign: 'right', fontSize: rowSize, fontWeight: 800, color: position ? POSITION_COLORS[position] : COLORS.inkSoft, flexShrink: 0 }}>
+                {position ? `${count} ${position === 'abstention' ? plural(count ?? 0, 'abstention', 'abstentions') : POSITION_LABELS[position]}` : 'sans majorité'}
               </span>
             </div>
           )
         })}
       </div>
-      <div style={{ ...kicker, flexShrink: 0, marginTop: 40, fontSize: 26, lineHeight: 1.35, color: COLORS.inkFaint }}>{MOST_FOLLOWED_CRITERION}</div>
+      <div style={{ ...kicker, flexShrink: 0, marginTop: post ? 24 : 40, fontSize: 26, lineHeight: 1.35, color: COLORS.inkFaint }}>{MOST_FOLLOWED_CRITERION}</div>
     </Safe>
   )
 }
