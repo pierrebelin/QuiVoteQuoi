@@ -103,9 +103,17 @@ function closeAlert(date) {
 }
 
 const releaseTag = (date) => `reel-${date}`
-const videoName = (date) => `reel-${date}.mp4`
-const videoUrl = (date) =>
-  `https://github.com/${env.GITHUB_REPOSITORY}/releases/download/${releaseTag(date)}/${videoName(date)}`
+
+/**
+ * Marque de rendu, heure UTC `HHMMSS` du passage, dans le nom de chaque fichier
+ * rendu : un nouveau rendu du même jour obtient une adresse neuve. Buffer met en
+ * cache vignettes et médias par adresse : un fichier remplacé sous le même nom
+ * resterait affiché, voire publié, dans sa version précédente.
+ */
+const renderStamp = new Date().toISOString().slice(11, 19).replaceAll(':', '')
+const videoName = (date) => `reel-${date}-${renderStamp}.mp4`
+const VIDEO_NAME = /^reel-(\d{4}-\d{2}-\d{2})(?:-(\d{6}))?\.mp4$/
+const POST_IMAGE_NAME = /^post-(\d{4}-\d{2}-\d{2})(?:-(\d{6}))?-(\d{2})\.png$/
 
 /** Fichiers de la Release du jour ; `null` si elle n'existe pas. */
 function releaseAssets(date) {
@@ -116,9 +124,20 @@ function releaseAssets(date) {
   }
 }
 
-const releaseHasVideo = (date) => (releaseAssets(date) ?? []).includes(videoName(date))
+/**
+ * Fichiers du jour d'un rendu complet, le plus récent : `[{ name, stamp, index }]`.
+ * Un nom sans marque (Releases antérieures) compte comme le rendu le plus ancien.
+ */
+function latestRender(date, pattern) {
+  const matches = (releaseAssets(date) ?? [])
+    .map((name) => ({ name, match: pattern.exec(name) }))
+    .filter(({ match }) => match?.[1] === date)
+    .map(({ name, match }) => ({ name, stamp: match[2] ?? '', index: match[3] ?? '' }))
+  const stamp = matches.map((file) => file.stamp).sort().at(-1)
+  return matches.filter((file) => file.stamp === stamp).sort((a, b) => a.index.localeCompare(b.index))
+}
 
-const postImageName = (date, index) => `post-${date}-${String(index + 1).padStart(2, '0')}.png`
+const postImageName = (date, index) => `post-${date}-${renderStamp}-${String(index + 1).padStart(2, '0')}.png`
 const assetUrl = (date, name) => `https://github.com/${env.GITHUB_REPOSITORY}/releases/download/${releaseTag(date)}/${name}`
 
 /** Ajoute des fichiers à la Release du jour, créée au besoin. */
@@ -255,10 +274,10 @@ const postTagsOf = (reel) => [POST_TAG, `${POST_TAG}-${reel.kind}`]
 
 /** Carrousel du post : images déjà dans la Release, sinon rendues puis ajoutées. */
 async function postImages(date, reel, props) {
-  const existing = (releaseAssets(date) ?? []).filter((name) => name.startsWith(`post-${date}-`)).sort()
+  const existing = latestRender(date, POST_IMAGE_NAME)
   if (!dryRun && existing.length > 0) {
     log(`Images du post déjà dans la Release ${releaseTag(date)} : réutilisées.`)
-    return existing.map((name) => assetUrl(date, name))
+    return existing.map((file) => assetUrl(date, file.name))
   }
   const dir = join(OUT, `post-${date}`)
   const rendered = await renderPostImages(compositionOf(reel), props, dir)
@@ -387,17 +406,21 @@ async function run() {
   const props = await propsOf(reel)
 
   step = 'vidéo'
+  const existingVideo = latestRender(date, VIDEO_NAME)[0]
+  let videoUrl = null
   if (missing.length === 0) {
     log('Reel du jour déjà déposé : vidéo non rendue.')
-  } else if (!dryRun && releaseHasVideo(date)) {
-    log(`Release ${releaseTag(date)} existante : réutilisée sans nouveau rendu.`)
+  } else if (!dryRun && existingVideo) {
+    log(`Release ${releaseTag(date)} existante : ${existingVideo.name} réutilisée sans nouveau rendu.`)
+    videoUrl = assetUrl(date, existingVideo.name)
   } else {
     const output = await render(date, reel, props)
     if (dryRun) log(`Release ${releaseTag(date)} : sautée (exécution à blanc), vidéo en artefact du run.`)
     else {
       step = 'Release'
       uploadToRelease(date, [output], reel.period.label)
-      log(`Vidéo ajoutée à la Release ${releaseTag(date)}.`)
+      log(`Vidéo ${videoName(date)} ajoutée à la Release ${releaseTag(date)}.`)
+      videoUrl = assetUrl(date, videoName(date))
     }
   }
 
@@ -430,7 +453,7 @@ async function run() {
       channelId: channel.id,
       service: channel.service,
       text: caption,
-      videoUrl: videoUrl(date),
+      videoUrl,
       dueAt,
       tagIds,
       draft,
