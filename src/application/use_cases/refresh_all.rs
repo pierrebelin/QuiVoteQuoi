@@ -348,7 +348,8 @@ mod tests {
     use crate::application::use_cases::explanation_fakes::InMemoryVoteExplanations;
     use crate::application::use_cases::sitting_record_fakes::FakeSittingRecords;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
-    use crate::application::use_cases::theme_fakes::{InMemoryThemeRepository, StubClassifier};
+    use crate::application::use_cases::fakes::theme_classifier::StubClassifier;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::domain::actor::{ActorRegistry, ActorUid};
     use crate::domain::amendment::{
         Amendment, AmendmentNumber, AmendmentTarget, AmendmentUid,

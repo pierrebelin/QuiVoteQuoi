@@ -65,7 +65,7 @@ impl<'a> ExtractDebatedTexts<'a> {
 mod tests {
     use super::*;
     use crate::application::ports::theme_repository::ScrutinSubject;
-    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
 
     fn subject(uid: &str, subject: &str) -> ScrutinSubject {
         ScrutinSubject {
