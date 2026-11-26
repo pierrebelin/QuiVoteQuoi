@@ -12,16 +12,15 @@ use crate::application::ports::dossier_summary_generator::{
 };
 use crate::domain::dossier_group_facts::DossierGroupFacts;
 
-use super::anthropic_dossier_summary::{
-    facts_input, parse_text, response_schema, system_prompt, SUMMARY_MAX_OUTPUT_TOKENS,
+use super::dossier_summary_prompt::{
+    facts_input, parse_text, response_schema, system_prompt, PROMPT_VERSION,
+    SUMMARY_MAX_OUTPUT_TOKENS,
 };
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 use super::mistral_support::message_content;
 
 const API_URL: &str = "https://api.mistral.ai/v1/chat/completions";
 const DEFAULT_MODEL: &str = "mistral-small-latest";
-const PROMPT_VERSION: &str = "dossier-group-summary-v1";
-const MAX_ATTEMPTS: u32 = 3;
 
 pub struct MistralDossierSummaryGenerator {
     http: reqwest::Client,

@@ -15,12 +15,11 @@ use super::brief_prompt::{
     parse_lines, request_input, response_schema, system_prompt, BRIEF_MAX_OUTPUT_TOKENS,
     PROMPT_VERSION,
 };
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 use super::mistral_support::message_content;
 
 const API_URL: &str = "https://api.mistral.ai/v1/chat/completions";
 const DEFAULT_MODEL: &str = "mistral-small-latest";
-const MAX_ATTEMPTS: u32 = 3;
 
 pub struct MistralBriefGenerator {
     http: reqwest::Client,

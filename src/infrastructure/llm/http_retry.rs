@@ -7,6 +7,11 @@ use reqwest::StatusCode;
 /// Borne de temps d'un appel complet à un fournisseur LLM.
 pub(crate) const HTTP_TIMEOUT: Duration = Duration::from_secs(180);
 
+/// Tentatives d'un appel à un fournisseur LLM, la première comprise. Au-delà,
+/// l'erreur est rendue à l'appelant: les textes du lot ou de la synthèse restent
+/// à reprendre à la passe suivante.
+pub(crate) const MAX_ATTEMPTS: u32 = 3;
+
 /// Délai avant la première nouvelle tentative; il double à chaque échec.
 const BACKOFF_BASE_MS: u64 = 500;
 

@@ -14,12 +14,11 @@ use super::brief_prompt::{
     parse_lines, request_input, response_schema, system_prompt, BRIEF_MAX_OUTPUT_TOKENS,
     PROMPT_VERSION,
 };
-use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT};
+use super::http_retry::{backoff, is_retryable, truncate_detail, HTTP_TIMEOUT, MAX_ATTEMPTS};
 use super::openai_support::output_text;
 
 const API_URL: &str = "https://api.openai.com/v1/responses";
 const DEFAULT_MODEL: &str = "gpt-5.6-luna";
-const MAX_ATTEMPTS: u32 = 3;
 
 pub struct OpenAiBriefGenerator {
     http: reqwest::Client,
