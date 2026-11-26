@@ -8,6 +8,10 @@
 # Strategie : ecrasement en place. Pas de dossier de release, pas de rollback
 # automatique. Retour arriere = relancer ce script avec le SHA precedent.
 #
+# Apres le redemarrage, le seed des candidatures 2027 est relance si
+# scripts/candidates-2027-proposals.json ou son seed ont change (voir
+# seed_candidates).
+#
 # Options :
 #   --skip-restart   compile et publie sans redemarrer le service (premier
 #                    deploiement, avant que l'unite systemd n'existe)
@@ -31,6 +35,38 @@ for arg in "$@"; do
 done
 
 log() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+
+# Registre des candidatures 2027 : seed relance apres un deploiement reussi, des que
+# le registre ou son script ont change depuis le dernier seed reussi. Comparer
+# au dernier seed, et non au deploiement precedent, rattrape un seed rate. Sans
+# fichier d'etat (premier passage, etat perdu), le seed tourne : il est
+# transactionnel et rejouable. Un echec fait echouer le deploiement, le service
+# restant en ligne ; le deploiement suivant retente.
+SHARED_DIR="${HOME}/shared"
+SEED_STATE_FILE="${SHARED_DIR}/.seed-candidates-sha"
+SEED_INPUTS=(scripts/candidates-2027-proposals.json scripts/seed-candidates-2027.mjs)
+
+seed_candidates() {
+    local last_seeded=""
+    [ -f "$SEED_STATE_FILE" ] && last_seeded="$(cat "$SEED_STATE_FILE")"
+
+    if [ -n "$last_seeded" ] \
+        && git cat-file -e "${last_seeded}^{commit}" 2>/dev/null \
+        && git diff --quiet "$last_seeded" HEAD -- "${SEED_INPUTS[@]}"; then
+        log "Registre des candidatures inchange depuis ${last_seeded:0:7}, seed ignore"
+        return 0
+    fi
+
+    log "Seed du registre des candidatures"
+    (
+        set -a
+        # shellcheck source=/dev/null
+        source "${SHARED_DIR}/.env"
+        set +a
+        node scripts/seed-candidates-2027.mjs
+    )
+    git rev-parse HEAD > "$SEED_STATE_FILE"
+}
 
 # rustup et nvm ne sont pas charges dans un shell SSH non interactif.
 # shellcheck source=/dev/null
@@ -87,6 +123,7 @@ log "Verification de sante"
 for i in $(seq 1 "$HEALTH_RETRIES"); do
     if curl -fsS --max-time 5 "$HEALTH_URL" >/dev/null 2>&1; then
         echo "OK apres ${i}s"
+        seed_candidates
         log "Deploiement termine — $(git rev-parse --short HEAD)"
         exit 0
     fi
