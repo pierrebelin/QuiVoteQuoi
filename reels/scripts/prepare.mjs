@@ -1,8 +1,9 @@
-// Chaîne du Reel du jour (REELS-PLAN-F4, CU-01 → CU-04) : porte horaire → brouillons
+// Chaîne du Reel du jour (REELS-PLAN-F4, CU-01 → CU-04) : porte horaire → posts
 // Buffer du jour → historique publié → retrait des brouillons périmés → API du site →
-// Release `reel-<date>` réutilisée, ou rendu puis Release → brouillons manquants.
+// Release `reel-<date>` réutilisée, ou rendu puis Release → posts manquants, programmés
+// pour 18 h : Buffer les publie seul, l'éditeur peut les corriger ou les retenir d'ici là.
 // Dans le même passage, le post Instagram du jour : carrousel des mêmes scènes en
-// 4:5 (`scripts/stills.mjs`), images dans la même Release, brouillon à la même heure.
+// 4:5 (`scripts/stills.mjs`), images dans la même Release, programmé à la même heure.
 // Toute erreur, comme une période incomplète, ouvre ou commente l'issue `reels`.
 //
 // Environnement : PUBLIC_BASE_URL, BUFFER_API_KEY, BUFFER_INSTAGRAM_CHANNEL_ID,
@@ -20,8 +21,14 @@ const REELS = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = join(REELS, 'out')
 const CATALOG = join(REELS, '..', 'content', 'nouveautes.json')
 
-/** Premier passage à 16 h 30, heure de Paris (Exécution programmée). */
-const GATE_HOUR = 16
+/**
+ * Premier passage utile à 12 h 17, heure de Paris (Exécution programmée) : la passe
+ * d'ingestion de minuit couvre déjà la veille, et les passages suivants, jusqu'à 16 h 17
+ * l'hiver, rattrapent un cron que GitHub retarde ou saute avant 18 h.
+ */
+const GATE_HOUR = 12
+/** Statuts Buffer d'un post du jour déjà pris en charge : rien à redéposer. */
+const HANDLED_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'error']
 /** Plafond de posts programmés par canal (Plafond de Buffer). */
 const SCHEDULED_CAP = 10
 const HISTORY_SIZE = 200
@@ -295,7 +302,7 @@ async function run() {
     return
   }
 
-  step = 'lecture des brouillons Buffer'
+  step = 'lecture des posts Buffer du jour'
   const buffer = bufferClient(env.BUFFER_API_KEY)
   const organizationId = await buffer.organizationId()
   const knownTags = await buffer.tags(organizationId)
@@ -303,28 +310,28 @@ async function run() {
   const channelIds = channels.map((channel) => channel.id)
   const dayStart = parisMidnight(date)
   const dayEnd = new Date(parisMidnight(nextDay(date)).getTime() - 1)
-  const todayDrafts = reelTag
+  const todayReels = reelTag
     ? await buffer.posts(organizationId, {
         channelIds,
-        status: ['draft'],
+        status: HANDLED_STATUSES,
         tagIds: [reelTag],
         dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
       })
     : []
-  const missing = channels.filter((channel) => !todayDrafts.some((post) => post.channelId === channel.id))
+  const missing = channels.filter((channel) => !todayReels.some((post) => post.channelId === channel.id))
   const instagram = channels.find((channel) => channel.service === 'instagram')
   const postTag = knownTags.get(POST_TAG)
   const todayPosts = postTag
     ? await buffer.posts(organizationId, {
         channelIds: [instagram.id],
-        status: ['draft'],
+        status: HANDLED_STATUSES,
         tagIds: [postTag],
         dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
       })
     : []
   const postMissing = todayPosts.length === 0
   if (missing.length === 0 && !postMissing) {
-    log('Les brouillons du jour sont déjà déposés.')
+    log('Les posts du jour sont déjà déposés.')
     closeAlert(date)
     return
   }
@@ -381,7 +388,7 @@ async function run() {
 
   step = 'vidéo'
   if (missing.length === 0) {
-    log('Brouillons du Reel déjà déposés : vidéo non rendue.')
+    log('Reel du jour déjà déposé : vidéo non rendue.')
   } else if (!dryRun && releaseHasVideo(date)) {
     log(`Release ${releaseTag(date)} existante : réutilisée sans nouveau rendu.`)
   } else {
@@ -403,26 +410,32 @@ async function run() {
     if (needed === 0) continue
     const scheduled = await buffer.posts(organizationId, { channelIds: [channel.id], status: ['scheduled'] }, SCHEDULED_CAP)
     if (scheduled.length + needed > SCHEDULED_CAP) {
-      throw new Error(`plafond de ${SCHEDULED_CAP} posts programmés atteint sur ${channel.label}, aucun brouillon déposé`)
+      throw new Error(`plafond de ${SCHEDULED_CAP} posts programmés atteint sur ${channel.label}, aucun post déposé`)
     }
   }
 
-  step = 'dépôt des brouillons'
+  step = 'dépôt des posts'
+  // Heure de 18 h déjà passée (lancement à la main en soirée) : un post programmé
+  // partirait aussitôt sans relecture ; il reste un brouillon que l'éditeur publie.
+  const dueAt = new Date(reel.due_at).toISOString()
+  const draft = new Date(reel.due_at).getTime() <= Date.now()
+  const deposited = draft ? 'Brouillon' : 'Programmé'
   const tagIds = dryRun ? [] : await buffer.ensureTags(organizationId, bufferTagsOf(reel), knownTags)
   for (const channel of missing) {
     if (dryRun) {
-      log(`Brouillon ${channel.label} pour ${reel.due_at} : sauté (exécution à blanc), étiquettes ${bufferTagsOf(reel).join(', ')}`)
+      log(`Reel ${channel.label} pour ${reel.due_at} : sauté (exécution à blanc), étiquettes ${bufferTagsOf(reel).join(', ')}`)
       continue
     }
-    const id = await buffer.createDraft({
+    const id = await buffer.schedulePost({
       channelId: channel.id,
       service: channel.service,
       text: caption,
       videoUrl: videoUrl(date),
-      dueAt: new Date(reel.due_at).toISOString(),
+      dueAt,
       tagIds,
+      draft,
     })
-    log(`Brouillon ${channel.label} déposé : ${id}`)
+    log(`${deposited} : Reel ${channel.label} pour ${reel.due_at}, ${id}`)
   }
 
   step = 'dépôt du post'
@@ -430,15 +443,16 @@ async function run() {
     if (dryRun) log(`Post Instagram pour ${reel.due_at} : sauté (exécution à blanc), étiquettes ${postTagsOf(reel).join(', ')}`)
     else {
       const postTagIds = await buffer.ensureTags(organizationId, postTagsOf(reel), knownTags)
-      const id = await buffer.createDraft({
+      const id = await buffer.schedulePost({
         channelId: instagram.id,
         service: 'instagram',
         text: caption,
         imageUrls,
-        dueAt: new Date(reel.due_at).toISOString(),
+        dueAt,
         tagIds: postTagIds,
+        draft,
       })
-      log(`Post Instagram déposé : ${id} (${imageUrls.length} images)`)
+      log(`${deposited} : post Instagram pour ${reel.due_at}, ${id} (${imageUrls.length} images)`)
     }
   }
   closeAlert(date)

@@ -52,7 +52,7 @@ Conséquences directes :
   - **le dimanche**, le Reel de la semaine reprend les nombres du lundi au samedi, les votes de chaque jour et **tous** les votes sur l'ensemble, avec un lien vers la page Semaine qui porte la liste exhaustive ;
   - **le lundi**, un seul sujet, dans cet ordre : les changements de programme publiés la semaine passée, sinon une nouveauté du site, sinon le thème suivant d'une rotation fixe.
 
-  Un Reel de votes n'est préparé que sur des votes complets ; sinon, aucun Reel et une alerte. Chaque chiffre vient de l'API du site, aucun n'est produit par un modèle de langage (§8), et les règles de forme du §6 s'y appliquent. La chaîne ne dépose que des **brouillons** : chacun est relu à la main avant publication, et aucune publication n'est automatique. Le planning, les critères et la rotation sont publiés sur le site, page `/reels/methode`.
+  Un Reel de votes n'est préparé que sur des votes complets ; sinon, aucun Reel et une alerte. Chaque chiffre vient de l'API du site, aucun n'est produit par un modèle de langage (§8), et les règles de forme du §6 s'y appliquent. La chaîne prépare le Reel en début d'après-midi et le **programme** pour 18 h : il paraît seul à l'heure, et l'éditeur garde jusque-là la main pour le relire, le corriger ou le retenir. Le planning, les critères et la rotation sont publiés sur le site, page `/reels/methode`.
 
 ## 3. Modèle politique — les trois pièges
 

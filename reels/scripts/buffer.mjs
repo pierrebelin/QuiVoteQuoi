@@ -1,5 +1,5 @@
 // Client de l'API GraphQL de Buffer (https://developers.buffer.com/reference) :
-// lecture des posts étiquetés, dépôt de brouillons, retrait, étiquettes (REELS-PLAN-F4).
+// lecture des posts étiquetés, dépôt des posts programmés, retrait des brouillons, étiquettes (REELS-PLAN-F4).
 
 const ENDPOINT = 'https://api.buffer.com'
 const PAGE_SIZE = 50
@@ -119,10 +119,12 @@ export function bufferClient(apiKey) {
     },
 
     /**
-     * Brouillon d'une vidéo (Reel) ou, avec `imageUrls`, d'un carrousel d'images
-     * (post Instagram), jamais publié sans l'éditeur (RM-13).
+     * Post d'une vidéo (Reel) ou, avec `imageUrls`, d'un carrousel d'images
+     * (post Instagram), programmé à `dueAt` : Buffer le publie seul à l'heure,
+     * l'éditeur peut le relire, le corriger ou le repasser en brouillon d'ici là
+     * (RM-13). Avec `draft`, il reste un brouillon que seul l'éditeur publie.
      */
-    async createDraft({ channelId, service, text, videoUrl, imageUrls, dueAt, tagIds }) {
+    async schedulePost({ channelId, service, text, videoUrl, imageUrls, dueAt, tagIds, draft = false }) {
       const assets = imageUrls ? imageUrls.map((url) => ({ image: { url } })) : [{ video: { url: videoUrl } }]
       const metadata =
         service === 'instagram'
@@ -142,14 +144,14 @@ export function bufferClient(apiKey) {
             schedulingType: 'automatic',
             mode: 'customScheduled',
             dueAt,
-            saveToDraft: true,
+            saveToDraft: draft,
             tagIds,
             assets,
             ...(metadata ? { metadata } : {}),
           },
         },
       )
-      return expect(data.createPost, 'post', `brouillon ${service}`).id
+      return expect(data.createPost, 'post', `post ${service}`).id
     },
 
     async deletePost(id) {
