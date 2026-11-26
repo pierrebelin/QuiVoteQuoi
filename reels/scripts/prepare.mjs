@@ -1,6 +1,8 @@
 // Chaîne du Reel du jour (REELS-PLAN-F4, CU-01 → CU-04) : porte horaire → brouillons
 // Buffer du jour → historique publié → retrait des brouillons périmés → API du site →
 // Release `reel-<date>` réutilisée, ou rendu puis Release → brouillons manquants.
+// Dans le même passage, le post Instagram du jour : carrousel des mêmes scènes en
+// 4:5 (`scripts/stills.mjs`), images dans la même Release, brouillon à la même heure.
 // Toute erreur, comme une période incomplète, ouvre ou commente l'issue `reels`.
 //
 // Environnement : PUBLIC_BASE_URL, BUFFER_API_KEY, BUFFER_INSTAGRAM_CHANNEL_ID,
@@ -8,10 +10,11 @@
 // aujourd'hui à Paris par défaut), DRY_RUN=true, MANUAL=true (workflow_dispatch).
 
 import { execFileSync } from 'node:child_process'
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { bufferClient } from './buffer.mjs'
+import { renderPostImages } from './stills.mjs'
 
 const REELS = join(dirname(fileURLToPath(import.meta.url)), '..')
 const OUT = join(REELS, 'out')
@@ -24,6 +27,8 @@ const SCHEDULED_CAP = 10
 const HISTORY_SIZE = 200
 const LINK_TOKEN = '[lien]'
 const ALERT_LABEL = 'reels'
+/** Étiquette Buffer des posts en carrousel, distincte de `reel` : l'historique des sujets ne lit que les Reels. */
+const POST_TAG = 'post'
 const CAPTURE_FILE = 'capture.png'
 const CAPTURE_WIDTH = 390
 const CAPTURE_HEIGHT = 2400
@@ -95,12 +100,26 @@ const videoName = (date) => `reel-${date}.mp4`
 const videoUrl = (date) =>
   `https://github.com/${env.GITHUB_REPOSITORY}/releases/download/${releaseTag(date)}/${videoName(date)}`
 
-function releaseHasVideo(date) {
+/** Fichiers de la Release du jour ; `null` si elle n'existe pas. */
+function releaseAssets(date) {
   try {
-    const names = gh(['release', 'view', releaseTag(date), '--json', 'assets', '--jq', '.assets[].name'])
-    return names.split('\n').includes(videoName(date))
+    return gh(['release', 'view', releaseTag(date), '--json', 'assets', '--jq', '.assets[].name']).split('\n').filter(Boolean)
   } catch {
-    return false
+    return null
+  }
+}
+
+const releaseHasVideo = (date) => (releaseAssets(date) ?? []).includes(videoName(date))
+
+const postImageName = (date, index) => `post-${date}-${String(index + 1).padStart(2, '0')}.png`
+const assetUrl = (date, name) => `https://github.com/${env.GITHUB_REPOSITORY}/releases/download/${releaseTag(date)}/${name}`
+
+/** Ajoute des fichiers à la Release du jour, créée au besoin. */
+function uploadToRelease(date, files, notes) {
+  if (releaseAssets(date) === null) {
+    gh(['release', 'create', releaseTag(date), ...files, '--title', `Reel du ${date}`, '--notes', notes, '--latest=false'])
+  } else {
+    gh(['release', 'upload', releaseTag(date), ...files, '--clobber'])
   }
 }
 
@@ -183,7 +202,8 @@ async function captureNews(path) {
   return CAPTURE_FILE
 }
 
-async function render(date, reel) {
+/** Propriétés communes au Reel et au carrousel, lues une fois sur l'API. */
+async function propsOf(reel) {
   const composition = compositionOf(reel)
   const themeLabels =
     reel.programmes.length > 0
@@ -197,6 +217,11 @@ async function render(date, reel) {
     capture: reel.site_news ? await captureNews(reel.site_news.path) : null,
     audio: existsSync(join(REELS, 'public', 'piste.mp3')),
   }
+  return props
+}
+
+async function render(date, reel, props) {
+  const composition = compositionOf(reel)
   const propsFile = join(OUT, `props-${date}.json`)
   writeFileSync(propsFile, JSON.stringify(props))
   const output = join(OUT, videoName(date))
@@ -217,6 +242,32 @@ function captionOf(reel) {
 
 /** Étiquettes Buffer : `reel`, `reel-<kind>` et les étiquettes de sujet de l'API. */
 const bufferTagsOf = (reel) => ['reel', `reel-${reel.kind}`, ...reel.tags.filter((tag) => !tag.startsWith('#'))]
+
+/** Étiquettes du post : `post` et `post-<kind>` seulement, pour ne pas compter le sujet deux fois. */
+const postTagsOf = (reel) => [POST_TAG, `${POST_TAG}-${reel.kind}`]
+
+/** Carrousel du post : images déjà dans la Release, sinon rendues puis ajoutées. */
+async function postImages(date, reel, props) {
+  const existing = (releaseAssets(date) ?? []).filter((name) => name.startsWith(`post-${date}-`)).sort()
+  if (!dryRun && existing.length > 0) {
+    log(`Images du post déjà dans la Release ${releaseTag(date)} : réutilisées.`)
+    return existing.map((name) => assetUrl(date, name))
+  }
+  const dir = join(OUT, `post-${date}`)
+  const rendered = await renderPostImages(compositionOf(reel), props, dir)
+  const files = rendered.map((file, index) => {
+    const named = join(dir, postImageName(date, index))
+    renameSync(file, named)
+    return named
+  })
+  log(`Post : ${files.length} images rendues.`)
+  if (dryRun) {
+    log(`Images du post : Release sautée (exécution à blanc), images en artefact du run.`)
+    return []
+  }
+  uploadToRelease(date, files, reel.period.label)
+  return files.map((_, index) => assetUrl(date, postImageName(date, index)))
+}
 
 function journal(date, reel) {
   const line = `Reel du ${date} : statut ${reel.status}${reel.reason ? ` (${reel.reason})` : ''}, période ${reel.period.label}, dernière synchronisation des scrutins ${reel.last_success_at ?? 'aucune'}`
@@ -261,7 +312,18 @@ async function run() {
       })
     : []
   const missing = channels.filter((channel) => !todayDrafts.some((post) => post.channelId === channel.id))
-  if (missing.length === 0) {
+  const instagram = channels.find((channel) => channel.service === 'instagram')
+  const postTag = knownTags.get(POST_TAG)
+  const todayPosts = postTag
+    ? await buffer.posts(organizationId, {
+        channelIds: [instagram.id],
+        status: ['draft'],
+        tagIds: [postTag],
+        dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
+      })
+    : []
+  const postMissing = todayPosts.length === 0
+  if (missing.length === 0 && !postMissing) {
     log('Les brouillons du jour sont déjà déposés.')
     closeAlert(date)
     return
@@ -275,14 +337,16 @@ async function run() {
   log(`Dernier thème présenté : ${presented.lastTheme ?? 'aucun'} ; nouveautés présentées : ${presented.news.join(', ') || 'aucune'}`)
 
   step = 'retrait des brouillons périmés'
-  const stale = reelTag
-    ? await buffer.posts(organizationId, {
-        channelIds,
-        status: ['draft'],
-        tagIds: [reelTag],
-        dueAt: { end: new Date(dayStart.getTime() - 1).toISOString() },
-      })
-    : []
+  const staleTags = [reelTag, postTag].filter(Boolean)
+  const stale =
+    staleTags.length > 0
+      ? await buffer.posts(organizationId, {
+          channelIds,
+          status: ['draft'],
+          tagIds: staleTags,
+          dueAt: { end: new Date(dayStart.getTime() - 1).toISOString() },
+        })
+      : []
   for (const post of stale) {
     if (dryRun) log(`Brouillon périmé ${post.id} (${post.dueAt}) : retrait sauté (exécution à blanc)`)
     else {
@@ -312,23 +376,33 @@ async function run() {
   const caption = captionOf(reel)
   writeFileSync(join(OUT, `caption-${date}.txt`), caption)
 
+  step = 'propriétés du rendu'
+  const props = await propsOf(reel)
+
   step = 'vidéo'
-  if (!dryRun && releaseHasVideo(date)) {
+  if (missing.length === 0) {
+    log('Brouillons du Reel déjà déposés : vidéo non rendue.')
+  } else if (!dryRun && releaseHasVideo(date)) {
     log(`Release ${releaseTag(date)} existante : réutilisée sans nouveau rendu.`)
   } else {
-    const output = await render(date, reel)
+    const output = await render(date, reel, props)
     if (dryRun) log(`Release ${releaseTag(date)} : sautée (exécution à blanc), vidéo en artefact du run.`)
     else {
       step = 'Release'
-      gh(['release', 'create', releaseTag(date), output, '--title', `Reel du ${date}`, '--notes', reel.period.label, '--latest=false'])
-      log(`Release ${releaseTag(date)} créée.`)
+      uploadToRelease(date, [output], reel.period.label)
+      log(`Vidéo ajoutée à la Release ${releaseTag(date)}.`)
     }
   }
 
+  step = 'images du post'
+  const imageUrls = postMissing ? await postImages(date, reel, props) : []
+
   step = 'plafond de Buffer'
-  for (const channel of missing) {
+  for (const channel of channels) {
+    const needed = (missing.includes(channel) ? 1 : 0) + (channel === instagram && postMissing ? 1 : 0)
+    if (needed === 0) continue
     const scheduled = await buffer.posts(organizationId, { channelIds: [channel.id], status: ['scheduled'] }, SCHEDULED_CAP)
-    if (scheduled.length >= SCHEDULED_CAP) {
+    if (scheduled.length + needed > SCHEDULED_CAP) {
       throw new Error(`plafond de ${SCHEDULED_CAP} posts programmés atteint sur ${channel.label}, aucun brouillon déposé`)
     }
   }
@@ -349,6 +423,23 @@ async function run() {
       tagIds,
     })
     log(`Brouillon ${channel.label} déposé : ${id}`)
+  }
+
+  step = 'dépôt du post'
+  if (postMissing) {
+    if (dryRun) log(`Post Instagram pour ${reel.due_at} : sauté (exécution à blanc), étiquettes ${postTagsOf(reel).join(', ')}`)
+    else {
+      const postTagIds = await buffer.ensureTags(organizationId, postTagsOf(reel), knownTags)
+      const id = await buffer.createDraft({
+        channelId: instagram.id,
+        service: 'instagram',
+        text: caption,
+        imageUrls,
+        dueAt: new Date(reel.due_at).toISOString(),
+        tagIds: postTagIds,
+      })
+      log(`Post Instagram déposé : ${id} (${imageUrls.length} images)`)
+    }
   }
   closeAlert(date)
 }

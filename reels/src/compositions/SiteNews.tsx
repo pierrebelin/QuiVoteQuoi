@@ -1,19 +1,24 @@
 import { Img, Sequence, spring, staticFile, useCurrentFrame, useVideoConfig, interpolate, Easing } from 'remotion'
 import { Soundtrack } from '../components'
 import { BrandOutro, CREAM, NAVY, PAPER, Push, Safe, TitleHook, useEnter, useFonts } from '../motion'
-import { COLORS } from '../theme'
+import { COLORS, HEIGHT } from '../theme'
 import { TITLE_HOOK, NEWS_PHONE, PUSH, VOTES_OUTRO } from '../timeline'
 import type { ReelProps } from '../types'
 
 /** Largeur et hauteur de l'écran du téléphone, en pixels de la vidéo. */
 const SCREEN = { width: 640, height: 1180 }
+/** Hauteur de l'écran dans le post en 4:5. */
+const POST_SCREEN_HEIGHT = 940
 
 /** La page de la nouveauté, capturée en production, défile dans un téléphone (RM-08). */
 function Phone({ file, site, path }: { file: string; site: string; path: string }) {
   const frame = useCurrentFrame()
-  const { fps } = useVideoConfig()
+  const { fps, height } = useVideoConfig()
+  // Post en 4:5 : écran moins haut, et le haut de la page, image fixe sans défilement.
+  const post = height < HEIGHT
+  const screenHeight = post ? POST_SCREEN_HEIGHT : SCREEN.height
   const rise = spring({ frame, fps, config: { damping: 18, stiffness: 90 } })
-  const scroll = interpolate(frame, [30, NEWS_PHONE - 20], [0, 1], {
+  const scroll = post ? 0 : interpolate(frame, [30, NEWS_PHONE - 20], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.inOut(Easing.cubic),
@@ -31,10 +36,10 @@ function Phone({ file, site, path }: { file: string; site: string; path: string 
             boxShadow: '0 40px 90px rgba(22, 35, 63, 0.35)',
           }}
         >
-          <div style={{ width: SCREEN.width, height: SCREEN.height, borderRadius: 68, overflow: 'hidden', background: '#ffffff' }}>
+          <div style={{ width: SCREEN.width, height: screenHeight, borderRadius: 68, overflow: 'hidden', background: '#ffffff' }}>
             <Img
               src={staticFile(file)}
-              style={{ width: '100%', display: 'block', transform: `translateY(calc(${-scroll} * (100% - ${SCREEN.height}px)))` }}
+              style={{ width: '100%', display: 'block', transform: `translateY(calc(${-scroll} * (100% - ${screenHeight}px)))` }}
             />
           </div>
         </div>

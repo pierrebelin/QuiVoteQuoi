@@ -1,4 +1,4 @@
-import { FPS } from './theme'
+import { FPS, POST_MAX_IMAGES } from './theme'
 import type { ReelProps } from './types'
 
 /**
@@ -35,9 +35,9 @@ export type CardPlan = {
   each: number
 }
 
-export function planCards(count: number): CardPlan {
+export function planCards(count: number, maxCards = Math.floor(CARDS_BUDGET_SECONDS / CARD_MIN_SECONDS)): CardPlan {
   if (count === 0) return { groups: [], each: 0 }
-  const perCard = Math.ceil(count / Math.floor(CARDS_BUDGET_SECONDS / CARD_MIN_SECONDS))
+  const perCard = Math.ceil(count / maxCards)
   const cards = Math.ceil(count / perCard)
   const seconds = Math.min(CARD_MAX_SECONDS, Math.max(CARD_MIN_SECONDS, CARDS_BUDGET_SECONDS / cards))
   const groups = Array.from({ length: cards }, (_, card) =>
@@ -47,6 +47,8 @@ export function planCards(count: number): CardPlan {
 }
 
 export type Scenes = {
+  /** Durée de chaque scène, dans l'ordre : une image du carrousel par scène. */
+  lengths: number[]
   numbers: number
   cards: CardPlan
   mostFollowed: number
@@ -55,19 +57,34 @@ export type Scenes = {
 }
 
 /** Scènes d'un Reel selon son sujet : votes, programmes, nouveauté ou thème. */
-export function scenesOf({ reel }: ReelProps): Scenes {
-  if (isVotesReel(reel)) return votesScenesOf(reel)
+export function scenesOf({ reel, post }: ReelProps): Scenes {
+  if (isVotesReel(reel)) return votesScenesOf(reel, post === true)
   // Même priorité que `compositionOf` : thème, puis nouveauté, puis programmes.
-  const cards = planCards(reel.theme || reel.site_news ? 0 : reel.programmes.length)
   const numbers = reel.theme ? NUMBERS : 0
   const siteNews = !reel.theme && reel.site_news ? NEWS_PHONE : 0
-  return {
-    numbers,
-    cards,
-    mostFollowed: 0,
-    siteNews,
-    total: TITLE_HOOK + numbers + cards.groups.length * cards.each + siteNews + VOTES_OUTRO,
-  }
+  const fixed = [TITLE_HOOK, numbers, siteNews, VOTES_OUTRO].filter((length) => length > 0)
+  const cards = planCards(reel.theme || reel.site_news ? 0 : reel.programmes.length, maxCardsOf(post === true, fixed.length))
+  const lengths = [TITLE_HOOK, numbers, ...cards.groups.map(() => cards.each), siteNews, VOTES_OUTRO].filter((length) => length > 0)
+  return { lengths, numbers, cards, mostFollowed: 0, siteNews, total: sum(lengths) }
+}
+
+/**
+ * Images du carrousel : la dernière image de chaque scène, juste avant que la
+ * suivante ne la pousse, quand ses animations sont terminées.
+ */
+export function stillFrames(props: ReelProps): number[] {
+  let end = 0
+  return scenesOf(props).lengths.map((length) => {
+    end += length
+    return end - 1
+  })
+}
+
+const sum = (values: number[]) => values.reduce((total, value) => total + value, 0)
+
+/** Carrousel : les cartes regroupent les éléments pour tenir en `POST_MAX_IMAGES` images, sans en retirer (README §2). */
+function maxCardsOf(post: boolean, fixed: number) {
+  return post ? POST_MAX_IMAGES - fixed : undefined
 }
 
 /** Même choix que `compositionOf` de `scripts/prepare.mjs` : ni thème, ni nouveauté, ni programmes. */
@@ -79,14 +96,9 @@ export function isVotesReel(reel: ReelProps['reel']) {
  * Reel de votes : le scrutin le plus suivi ouvre (accroche, hémicycle, groupes),
  * puis les nombres de la période, chaque vote sur l'ensemble, la fin (RM-03).
  */
-function votesScenesOf(reel: ReelProps['reel']): Scenes {
-  const cards = planCards(reel.final_votes.length)
-  const mostFollowed = reel.most_followed ? HOOK + WHO_VOTED : 0
-  return {
-    numbers: PERIOD,
-    cards,
-    mostFollowed,
-    siteNews: 0,
-    total: mostFollowed + PERIOD + cards.groups.length * cards.each + VOTES_OUTRO,
-  }
+function votesScenesOf(reel: ReelProps['reel'], post: boolean): Scenes {
+  const opening = reel.most_followed ? [HOOK, WHO_VOTED] : []
+  const cards = planCards(reel.final_votes.length, maxCardsOf(post, opening.length + 2))
+  const lengths = [...opening, PERIOD, ...cards.groups.map(() => cards.each), VOTES_OUTRO]
+  return { lengths, numbers: PERIOD, cards, mostFollowed: sum(opening), siteNews: 0, total: sum(lengths) }
 }

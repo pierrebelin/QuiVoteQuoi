@@ -118,10 +118,16 @@ export function bufferClient(apiKey) {
       return posts.slice(0, max)
     },
 
-    /** Brouillon d'une vidéo, jamais publié sans l'éditeur (RM-13). */
-    async createDraft({ channelId, service, text, videoUrl, dueAt, tagIds }) {
+    /**
+     * Brouillon d'une vidéo (Reel) ou, avec `imageUrls`, d'un carrousel d'images
+     * (post Instagram), jamais publié sans l'éditeur (RM-13).
+     */
+    async createDraft({ channelId, service, text, videoUrl, imageUrls, dueAt, tagIds }) {
+      const assets = imageUrls ? imageUrls.map((url) => ({ image: { url } })) : [{ video: { url: videoUrl } }]
       const metadata =
-        service === 'instagram' ? { instagram: { type: 'reel', shouldShareToFeed: true } } : undefined
+        service === 'instagram'
+          ? { instagram: { type: imageUrls ? 'post' : 'reel', shouldShareToFeed: true } }
+          : undefined
       const data = await graphql(
         `mutation CreatePost($input: CreatePostInput!) {
           createPost(input: $input) {
@@ -138,7 +144,7 @@ export function bufferClient(apiKey) {
             dueAt,
             saveToDraft: true,
             tagIds,
-            assets: [{ video: { url: videoUrl } }],
+            assets,
             ...(metadata ? { metadata } : {}),
           },
         },

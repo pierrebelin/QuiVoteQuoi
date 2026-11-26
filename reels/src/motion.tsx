@@ -13,7 +13,7 @@ import {
 import '@fontsource-variable/inter'
 import { LOGO_TRACES, LOGO_VUE } from '../../frontend/src/components/logoTraces'
 import { PLAN_SIEGES, PLAN_VUE, RAYON_SIEGE } from '../../frontend/src/components/planHemicycle'
-import { COLORS, FONT, SAFE } from './theme'
+import { COLORS, FONT, HEIGHT, SAFE } from './theme'
 import type { ScrutinDetailDto } from './types'
 
 /**
@@ -78,17 +78,21 @@ export function BigCount({ value, start, duration = 30 }: { value: number; start
  */
 export const REEL_SAFE = { top: 200, bottom: 380, left: SAFE.left, right: SAFE.right }
 
+/** Post en 4:5 : aucune interface ne recouvre l'image, marges égales. */
+export const POST_SAFE = { top: 64, bottom: 64, left: SAFE.left, right: SAFE.left }
+
 /** Fond plein et zone de contenu hors des zones couvertes par les réseaux. */
 export function Safe({ children, background, color }: { children: ReactNode; background: string; color: string }) {
+  const zone = useVideoConfig().height < HEIGHT ? POST_SAFE : REEL_SAFE
   return (
     <AbsoluteFill style={{ backgroundColor: background, color, fontFamily: FONT }}>
       <div
         style={{
           position: 'absolute',
-          top: REEL_SAFE.top,
-          bottom: REEL_SAFE.bottom,
-          left: REEL_SAFE.left,
-          right: REEL_SAFE.right,
+          top: zone.top,
+          bottom: zone.bottom,
+          left: zone.left,
+          right: zone.right,
           display: 'flex',
           flexDirection: 'column',
         }}
