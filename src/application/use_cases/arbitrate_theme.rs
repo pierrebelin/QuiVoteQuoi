@@ -90,7 +90,7 @@ impl<'a> ArbitrateTheme<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::domain::theme::TextKey;
 
     fn today() -> NaiveDate {

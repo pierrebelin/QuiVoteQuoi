@@ -164,14 +164,13 @@ fn initiator_view(initiator: &Initiator, directory: &ActorDirectory) -> Initiato
 #[cfg(test)]
 mod tests {
     use super::*;
-    use async_trait::async_trait;
     use chrono::NaiveDate;
-    use std::sync::Mutex;
 
     use std::collections::HashMap;
 
+    use crate::application::ports::dossier_repository::DossierScrutinTally;
     use crate::application::ports::dossier_repository::LawStateCounts;
-    use crate::application::ports::dossier_repository::{DossierPage, DossierScrutinTally};
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
     use crate::application::use_cases::read_fakes::FakeActors;
     use crate::domain::actor::{ActorUid, GroupUid};
     use crate::domain::dossier::{
@@ -181,155 +180,6 @@ mod tests {
     use crate::domain::dossier::{Initiator, InitiatorGroup};
     use crate::domain::law_progress::LawStateKind;
     use crate::domain::scoring::compute_score;
-
-    struct InMemoryDossierRepository {
-        dossiers: Mutex<Vec<LegislativeDossier>>,
-        /// Scrutins de chaque dossier, par uid ; absent : aucun scrutin.
-        tallies: HashMap<String, DossierScrutinTally>,
-    }
-
-    impl InMemoryDossierRepository {
-        fn tally_of(&self, dossier: &LegislativeDossier) -> DossierScrutinTally {
-            self.tallies
-                .get(dossier.uid().as_str())
-                .copied()
-                .unwrap_or_default()
-        }
-    }
-
-    #[async_trait]
-    impl DossierRepository for InMemoryDossierRepository {
-        async fn load_states(
-            &self,
-        ) -> Result<
-            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
-            RepositoryError,
-        > {
-            unreachable!()
-        }
-        async fn save_all(
-            &self,
-            _dossiers: &[LegislativeDossier],
-        ) -> Result<usize, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_recent(
-            &self,
-            _since: NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_page(
-            &self,
-            criteria: &DossierCriteria,
-            order: DossierOrder,
-            limit: i64,
-            offset: i64,
-        ) -> Result<DossierPage, RepositoryError> {
-            let store = self.dossiers.lock().unwrap();
-            let perimeter = criteria.without_law_states();
-            let mut state_counts = LawStateCounts::default();
-            for dossier in store
-                .iter()
-                .filter(|d| matches(d, &perimeter))
-                .filter(|d| !criteria.with_scrutins || self.tally_of(d).count > 0)
-            {
-                if let Some(state) = dossier.law_state() {
-                    state_counts.add(state.kind(), 1);
-                }
-            }
-            let mut kept: Vec<_> = store
-                .iter()
-                .filter(|d| matches(d, criteria))
-                .filter(|d| !criteria.with_scrutins || self.tally_of(d).count > 0)
-                .cloned()
-                .collect();
-            match order {
-                DossierOrder::LastActivity => {
-                    kept.sort_by_key(|d| std::cmp::Reverse(d.last_activity_date()))
-                }
-                // `None` passe après toute date : `Option` range `None` en
-                // premier, l'ordre décroissant le renvoie en fin de liste.
-                DossierOrder::LastScrutin => kept.sort_by(|a, b| {
-                    self.tally_of(b)
-                        .last_date
-                        .cmp(&self.tally_of(a).last_date)
-                        .then_with(|| b.uid().as_str().cmp(a.uid().as_str()))
-                }),
-                DossierOrder::StateDate => kept.sort_by(|a, b| {
-                    let date = |d: &LegislativeDossier| d.law_state().map(|s| s.date());
-                    date(b)
-                        .cmp(&date(a))
-                        .then_with(|| b.uid().as_str().cmp(a.uid().as_str()))
-                }),
-            }
-            Ok(DossierPage {
-                state_counts,
-                total: kept.len() as i64,
-                items: kept
-                    .into_iter()
-                    .skip(offset as usize)
-                    .take(limit as usize)
-                    .map(|dossier| DossierListing {
-                        scrutins: self.tally_of(&dossier),
-                        dossier,
-                        families: vec![],
-                    })
-                    .collect(),
-            })
-        }
-
-        async fn find_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_by_uids(
-            &self,
-            _uids: &[crate::domain::dossier::DossierUid],
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-        async fn find_with_decisions_between(
-            &self,
-            _from: chrono::NaiveDate,
-            _to: chrono::NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-    }
-
-    /// Le fake reproduit les critères que le dépôt applique en SQL : sans cela
-    /// les tests de filtre ne vérifieraient que l'appel, pas son effet.
-    fn matches(dossier: &LegislativeDossier, criteria: &DossierCriteria) -> bool {
-        let title_matches = criteria.search.as_ref().is_none_or(|needle| {
-            dossier
-                .title()
-                .to_lowercase()
-                .contains(&needle.to_lowercase())
-        });
-        let outcome_matches = criteria.outcome_kinds.is_empty()
-            || criteria
-                .outcome_kinds
-                .iter()
-                .any(|kind| dossier.outcome().kind() == kind);
-        let initiative_matches = criteria.initiative.is_none_or(|initiative| {
-            dossier
-                .procedure()
-                .starts_with(initiative.procedure_prefix())
-        });
-
-        let state_matches = criteria.law_states.is_empty()
-            || dossier
-                .law_state()
-                .is_some_and(|state| criteria.law_states.contains(&state.kind()));
-
-        title_matches && outcome_matches && initiative_matches && state_matches
-    }
 
     fn dossier_parts(uid: &str, day: u32) -> NewLegislativeDossier {
         NewLegislativeDossier {
@@ -359,10 +209,9 @@ mod tests {
     const NO_COLOR: FakeActors = FakeActors { group_color: None };
 
     fn repo(count: u32) -> InMemoryDossierRepository {
-        InMemoryDossierRepository {
-            dossiers: Mutex::new((1..=count).map(|d| dossier(&format!("D{d}"), d)).collect()),
-            tallies: HashMap::new(),
-        }
+        InMemoryDossierRepository::with_dossiers(
+            (1..=count).map(|d| dossier(&format!("D{d}"), d)).collect(),
+        )
     }
 
     fn query(page: i64, per_page: i64) -> DossierQuery {
@@ -437,14 +286,11 @@ mod tests {
         let mut proposition = dossier_parts("R\u{00e9}forme du logement", 2);
         proposition.procedure = "Proposition de loi ordinaire".into();
 
-        InMemoryDossierRepository {
-            dossiers: Mutex::new(vec![
-                LegislativeDossier::new(promulgated),
-                LegislativeDossier::new(proposition),
-                dossier("Loi agricole", 3),
-            ]),
-            tallies: HashMap::new(),
-        }
+        InMemoryDossierRepository::with_dossiers(vec![
+            LegislativeDossier::new(promulgated),
+            LegislativeDossier::new(proposition),
+            dossier("Loi agricole", 3),
+        ])
     }
 
     #[tokio::test]
@@ -558,10 +404,7 @@ mod tests {
     fn repo_with_initiators(initiators: Vec<Initiator>) -> InMemoryDossierRepository {
         let mut parts = dossier_parts("D1", 1);
         parts.initiators = initiators;
-        InMemoryDossierRepository {
-            dossiers: Mutex::new(vec![LegislativeDossier::new(parts)]),
-            tallies: HashMap::new(),
-        }
+        InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(parts)])
     }
 
     fn deputy_of_group_a() -> Initiator {
@@ -642,13 +485,15 @@ mod tests {
     /// A : activité récente, vote ancien. B : activité ancienne, vote récent.
     /// C : activité la plus récente, aucun scrutin.
     fn voted_repo() -> InMemoryDossierRepository {
-        InMemoryDossierRepository {
-            dossiers: Mutex::new(vec![dossier("A", 5), dossier("B", 1), dossier("C", 9)]),
-            tallies: HashMap::from([
-                ("A".to_string(), tally(3, 1, 5, 2)),
-                ("B".to_string(), tally(2, 2, 6, 10)),
-            ]),
-        }
+        InMemoryDossierRepository::with_dossiers(vec![
+            dossier("A", 5),
+            dossier("B", 1),
+            dossier("C", 9),
+        ])
+        .with_tallies(HashMap::from([
+            ("A".to_string(), tally(3, 1, 5, 2)),
+            ("B".to_string(), tally(2, 2, 6, 10)),
+        ]))
     }
 
     fn uids(cards: &DossierCards) -> Vec<&str> {
@@ -767,38 +612,36 @@ mod tests {
             })
         };
         let adopted = || decision("SN1-DEBATS-DEC", 6, 15, "adoptée");
-        InMemoryDossierRepository {
-            dossiers: Mutex::new(vec![
-                with(
-                    "S",
-                    vec![
-                        decision("AN1-DEBATS-DEC", 7, 7, "adoptée"),
-                        decision("SN1-DEBATS-DEC", 11, 20, "modifiée"),
-                    ],
-                    DossierOutcome::NoRecordedConclusion,
-                ),
-                with(
-                    "D",
-                    vec![
-                        adopted(),
-                        decision("AN1-DEBATS-DEC", 11, 19, "adoptée sans modification"),
-                    ],
-                    DossierOutcome::NoRecordedConclusion,
-                ),
-                with("L1", vec![adopted()], promulgated(10, 26)),
-                with("L2", vec![adopted()], promulgated(10, 21)),
-                with(
-                    "N",
-                    vec![decision("AN1-DEBATS-DEC", 3, 1, "rejetée")],
-                    DossierOutcome::NoRecordedConclusion,
-                ),
-            ]),
-            tallies: HashMap::from([
-                ("S".to_string(), tally(1, 1, 7, 7)),
-                ("L1".to_string(), tally(1, 1, 6, 15)),
-                ("N".to_string(), tally(1, 0, 3, 1)),
-            ]),
-        }
+        InMemoryDossierRepository::with_dossiers(vec![
+            with(
+                "S",
+                vec![
+                    decision("AN1-DEBATS-DEC", 7, 7, "adoptée"),
+                    decision("SN1-DEBATS-DEC", 11, 20, "modifiée"),
+                ],
+                DossierOutcome::NoRecordedConclusion,
+            ),
+            with(
+                "D",
+                vec![
+                    adopted(),
+                    decision("AN1-DEBATS-DEC", 11, 19, "adoptée sans modification"),
+                ],
+                DossierOutcome::NoRecordedConclusion,
+            ),
+            with("L1", vec![adopted()], promulgated(10, 26)),
+            with("L2", vec![adopted()], promulgated(10, 21)),
+            with(
+                "N",
+                vec![decision("AN1-DEBATS-DEC", 3, 1, "rejetée")],
+                DossierOutcome::NoRecordedConclusion,
+            ),
+        ])
+        .with_tallies(HashMap::from([
+            ("S".to_string(), tally(1, 1, 7, 7)),
+            ("L1".to_string(), tally(1, 1, 6, 15)),
+            ("N".to_string(), tally(1, 0, 3, 1)),
+        ]))
     }
 
     fn criteria(states: Vec<LawStateKind>, with_scrutins: bool) -> DossierCriteria {

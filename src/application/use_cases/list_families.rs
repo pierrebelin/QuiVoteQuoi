@@ -34,3 +34,20 @@ impl Default for ListFamilies {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lists_every_family_of_the_closed_referential_with_its_published_scope() {
+        let families = ListFamilies::new().execute();
+
+        let codes: Vec<FamilyCode> = families.iter().map(|f| f.code).collect();
+        assert_eq!(codes, FamilyCode::ALL.to_vec());
+        for family in &families {
+            assert_eq!(family.label, family.code.label());
+            assert_eq!(family.scope, family.code.scope());
+        }
+    }
+}

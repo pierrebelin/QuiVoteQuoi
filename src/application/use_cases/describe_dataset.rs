@@ -61,7 +61,7 @@ mod tests {
     use crate::application::ports::scrutin_repository::{
         ScrutinFilter, ScrutinPage, ScrutinSummary,
     };
-    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::domain::scrutin::{Scrutin, ScrutinUid};
     use crate::domain::theme::DebatedText;
 

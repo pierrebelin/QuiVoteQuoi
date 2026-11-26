@@ -156,85 +156,11 @@ fn summarize(group: &LineageGroup<GroupRecord>) -> GroupSummary {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
-    use std::sync::Mutex;
-
-    use async_trait::async_trait;
-
+mod tests {
     use super::*;
-    use crate::application::ports::group_repository::GroupStatisticsRecord;
+    use crate::application::use_cases::fakes::fixtures::{date, record, renamed_repository, today};
+    use crate::application::use_cases::fakes::group_repository::InMemoryGroupRepository;
 
-    pub(crate) fn date(y: i32, m: u32, d: u32) -> NaiveDate {
-        NaiveDate::from_ymd_opt(y, m, d).unwrap()
-    }
-
-    pub(crate) fn today() -> NaiveDate {
-        date(2026, 8, 7)
-    }
-
-    #[derive(Default)]
-    pub(crate) struct InMemoryGroupRepository {
-        pub(crate) records: Mutex<Vec<GroupRecord>>,
-        pub(crate) statistics: Mutex<GroupStatisticsRecord>,
-        pub(crate) last_uids: Mutex<Option<Vec<String>>>,
-        pub(crate) last_reference_date: Mutex<Option<NaiveDate>>,
-    }
-
-    #[async_trait]
-    impl GroupRepository for InMemoryGroupRepository {
-        async fn list_groups(
-            &self,
-            _today: NaiveDate,
-        ) -> Result<Vec<GroupRecord>, RepositoryError> {
-            Ok(self.records.lock().unwrap().clone())
-        }
-
-        async fn statistics(
-            &self,
-            group_uids: &[String],
-            reference_date: NaiveDate,
-        ) -> Result<GroupStatisticsRecord, RepositoryError> {
-            *self.last_uids.lock().unwrap() = Some(group_uids.to_vec());
-            *self.last_reference_date.lock().unwrap() = Some(reference_date);
-            Ok(self.statistics.lock().unwrap().clone())
-        }
-    }
-
-    pub(crate) fn record(uid: &str, abbrev: &str, members: i64, scrutins: i64) -> GroupRecord {
-        GroupRecord {
-            uid: uid.to_string(),
-            legislature: 17,
-            label: format!("Groupe {abbrev}"),
-            abbrev: abbrev.to_string(),
-            color: Some("#3367A7".to_string()),
-            start_date: Some(date(2024, 7, 18)),
-            end_date: None,
-            reference_date: today(),
-            member_count: members,
-            scrutin_count: scrutins,
-            first_scrutin_date: Some(date(2024, 10, 8)),
-            last_scrutin_date: Some(date(2026, 7, 21)),
-        }
-    }
-
-    /// Le cas UDR devenu UDDPLR: deux identifiants, deux periodes disjointes
-    /// qui partitionnent exactement la legislature (H3).
-    pub(crate) fn renamed_repository() -> InMemoryGroupRepository {
-        let mut former = record("PO847173", "UDR", 16, 3_053);
-        former.end_date = Some(date(2025, 7, 10));
-        former.reference_date = date(2025, 7, 10);
-        former.first_scrutin_date = Some(date(2024, 10, 8));
-        former.last_scrutin_date = Some(date(2025, 7, 10));
-
-        let mut current = record("PO872880", "UDDPLR", 16, 5_381);
-        current.start_date = Some(date(2025, 9, 8));
-        current.first_scrutin_date = Some(date(2025, 9, 8));
-
-        let repository = InMemoryGroupRepository::default();
-        *repository.records.lock().unwrap() =
-            vec![record("PO845401", "RN", 123, 8_434), former, current];
-        repository
-    }
 
     async fn view(repository: &InMemoryGroupRepository) -> GroupListView {
         BrowseGroups::new(repository)

@@ -12,6 +12,8 @@ pub mod describe_explanation_coverage;
 pub mod describe_freshness;
 pub mod describe_method;
 pub mod extract_debated_texts;
+#[cfg(test)]
+pub(crate) mod fakes;
 pub mod fetch_recent_dossiers;
 pub mod get_budget_exercise;
 pub mod get_dossier_brief;
@@ -42,8 +44,6 @@ pub mod refresh_dossiers;
 pub mod refresh_scrutins;
 pub mod refresh_text_briefs;
 pub mod save_dossier;
-#[cfg(test)]
-pub mod theme_fakes;
 #[cfg(test)]
 pub mod read_fakes;
 #[cfg(test)]

@@ -190,341 +190,33 @@ impl<'a> RefreshDossiers<'a> {
 }
 
 #[cfg(test)]
-pub(crate) mod tests {
+mod tests {
     use super::*;
-    use async_trait::async_trait;
     use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-    use std::collections::HashMap;
-    use std::sync::Mutex;
 
+    use crate::application::use_cases::fakes::actor_repository::InMemoryActorRepository;
+    use crate::application::use_cases::fakes::assembly_source::FakeAssemblySource;
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
+    use crate::application::use_cases::fakes::fixtures::dossier;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::domain::ingestion::{CheckOutcome, IngestionSource};
-
-    use crate::application::ports::actor_repository::{RegistrySummary, RepositoryError};
-    use crate::application::ports::assembly_source::SourceError;
-    use crate::domain::actor::{
-        Actor, ActorDirectory, ActorRegistry, ActorRole, GroupMembership, GroupUid,
-        MembershipPeriod, MembershipQuality, ParliamentaryGroup,
-    };
-    use crate::domain::dossier::{
-        DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
-        Score, StoredDossierState,
-    };
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
     }
 
-    struct FakeSource {
-        dossiers_with_refs: Vec<(LegislativeDossier, Vec<String>)>,
-    }
-
-    #[async_trait]
-    impl AssemblySource for FakeSource {
-        async fn fetch_dossiers_since(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossiers_since_with_refs(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
-            Ok(self.dossiers_with_refs.clone())
-        }
-
-        async fn fetch_dossier_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid_with_refs(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
-            unreachable!()
-        }
-    }
-
-    /// Referentiel in-memory: un depute passe du groupe A au groupe B le 1er juillet 2025.
-    pub(crate) struct InMemoryActorRepository {
-        registry: Mutex<ActorRegistry>,
-        pub(crate) requested_uids: Mutex<Vec<ActorUid>>,
-    }
-
-    impl InMemoryActorRepository {
-        pub(crate) fn with_deputy_changing_group() -> Self {
-            let actor = Actor::new(
-                ActorUid::new("PA111111".into()).unwrap(),
-                Some("M.".into()),
-                "Jean".into(),
-                "Dupont".into(),
-                ActorRole::Deputy,
-            )
-            .unwrap();
-
-            let group = |uid: &str, abbrev: &str, label: &str| {
-                ParliamentaryGroup::new(
-                    GroupUid::new(uid.into()).unwrap(),
-                    17,
-                    label.into(),
-                    abbrev.into(),
-                    None,
-                    None,
-                    None,
-                )
-                .unwrap()
-            };
-
-            let membership = |source: &str, group: &str, start, end| {
-                GroupMembership::new(
-                    source.into(),
-                    ActorUid::new("PA111111".into()).unwrap(),
-                    GroupUid::new(group.into()).unwrap(),
-                    17,
-                    MembershipPeriod::new(start, end).unwrap(),
-                    MembershipQuality::new("Membre".into()).unwrap(),
-                )
-            };
-
-            Self {
-                registry: Mutex::new(ActorRegistry {
-                    actors: vec![actor],
-                    groups: vec![
-                        group("PO_A", "A", "Groupe A"),
-                        group("PO_B", "B", "Groupe B"),
-                    ],
-                    memberships: vec![
-                        membership("PM1", "PO_A", date(2024, 7, 19), Some(date(2025, 6, 30))),
-                        membership("PM2", "PO_B", date(2025, 7, 1), None),
-                    ],
-                }),
-                requested_uids: Mutex::new(vec![]),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl ActorRepository for InMemoryActorRepository {
-        async fn save_registry(
-            &self,
-            registry: &ActorRegistry,
-        ) -> Result<RegistrySummary, RepositoryError> {
-            let summary = RegistrySummary {
-                actors: registry.actors.len(),
-                groups: registry.groups.len(),
-                memberships: registry.memberships.len(),
-            };
-            *self.registry.lock().unwrap() = registry.clone();
-            Ok(summary)
-        }
-
-        async fn load_directory_for(
-            &self,
-            actor_uids: &[ActorUid],
-        ) -> Result<ActorDirectory, RepositoryError> {
-            self.requested_uids
-                .lock()
-                .unwrap()
-                .extend_from_slice(actor_uids);
-
-            let registry = self.registry.lock().unwrap();
-            let actors: Vec<Actor> = registry
-                .actors
-                .iter()
-                .filter(|a| actor_uids.contains(a.uid()))
-                .cloned()
-                .collect();
-            let memberships: Vec<GroupMembership> = registry
-                .memberships
-                .iter()
-                .filter(|m| actor_uids.contains(m.actor_uid()))
-                .cloned()
-                .collect();
-
-            Ok(ActorDirectory::new(
-                actors,
-                registry.groups.clone(),
-                memberships,
-            ))
-        }
-    }
-
-    pub(crate) struct InMemoryDossierRepository {
-        pub(crate) dossiers: Mutex<HashMap<String, LegislativeDossier>>,
-        /// Uid de chaque dossier reellement passe a `save_all`, dans l'ordre.
-        /// C'est ce que le rafraichissement incremental doit reduire.
-        pub(crate) written: Mutex<Vec<String>>,
-        /// Uid des dossiers stockes avant le calcul de l'etat « ou en est la
-        /// loi » : leur etat n'a jamais ete ecrit. Une ecriture les en retire.
-        pub(crate) without_law_progress: Mutex<std::collections::HashSet<String>>,
-    }
-
-    impl InMemoryDossierRepository {
-        pub(crate) fn new() -> Self {
-            Self {
-                dossiers: Mutex::new(HashMap::new()),
-                written: Mutex::new(vec![]),
-                without_law_progress: Mutex::new(Default::default()),
-            }
-        }
-
-        fn count(&self) -> usize {
-            self.dossiers.lock().unwrap().len()
-        }
-    }
-
-    #[async_trait]
-    impl DossierRepository for InMemoryDossierRepository {
-        async fn save_all(
-            &self,
-            dossiers: &[LegislativeDossier],
-        ) -> Result<usize, crate::application::ports::dossier_repository::RepositoryError> {
-            let mut store = self.dossiers.lock().unwrap();
-            for d in dossiers {
-                self.written
-                    .lock()
-                    .unwrap()
-                    .push(d.uid().as_str().to_string());
-                self.without_law_progress
-                    .lock()
-                    .unwrap()
-                    .remove(d.uid().as_str());
-                store.insert(d.uid().as_str().to_string(), d.clone());
-            }
-            Ok(dossiers.len())
-        }
-
-        async fn load_states(
-            &self,
-        ) -> Result<HashMap<String, StoredDossierState>, RepositoryError> {
-            let without_law_progress = self.without_law_progress.lock().unwrap();
-            Ok(self
-                .dossiers
-                .lock()
-                .unwrap()
-                .iter()
-                .map(|(uid, d)| {
-                    (
-                        uid.clone(),
-                        StoredDossierState {
-                            last_activity_date: d.last_activity_date(),
-                            act_count: d.acts().len(),
-                            outcome_is_final: d.outcome().is_final(),
-                            law_progress_computed: !without_law_progress.contains(uid),
-                            decision_fingerprint: d.decision_fingerprint(),
-                        },
-                    )
-                })
-                .collect())
-        }
-
-        async fn find_recent(
-            &self,
-            _since: NaiveDate,
-        ) -> Result<
-            Vec<LegislativeDossier>,
-            crate::application::ports::dossier_repository::RepositoryError,
-        > {
-            unreachable!()
-        }
-
-        async fn find_page(
-            &self,
-            _criteria: &crate::application::ports::dossier_repository::DossierCriteria,
-            _order: crate::application::ports::dossier_repository::DossierOrder,
-            _limit: i64,
-            _offset: i64,
-        ) -> Result<crate::application::ports::dossier_repository::DossierPage, RepositoryError>
-        {
-            unreachable!()
-        }
-
-        async fn find_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<
-            Option<LegislativeDossier>,
-            crate::application::ports::dossier_repository::RepositoryError,
-        > {
-            unreachable!()
-        }
-
-        async fn find_by_uids(
-            &self,
-            _uids: &[crate::domain::dossier::DossierUid],
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-        async fn find_with_decisions_between(
-            &self,
-            _from: chrono::NaiveDate,
-            _to: chrono::NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-    }
-
-    /// Elements d'un dossier de la source, avant construction: un test qui veut
-    /// une variante (sort, acte supplementaire) les ajuste ici.
-    pub(crate) fn dossier_parts(
-        uid: &str,
-        deposit_date: Option<NaiveDate>,
-        last_activity: NaiveDate,
-    ) -> NewLegislativeDossier {
-        NewLegislativeDossier {
-            uid: DossierUid::new(uid.into()).unwrap(),
-            title: format!("Loi {uid}"),
-            procedure: "Proposition de loi".into(),
-            legislature: 17,
-            url: None,
-            summary: None,
-            deposit_date,
-            last_activity_date: last_activity,
-            last_activity_label: "D\u{00e9}p\u{00f4}t".into(),
-            acts: vec![LegislativeAct {
-                date: last_activity,
-                label: "D\u{00e9}p\u{00f4}t".into(),
-                code: Some("AN1-DEPOT".into()),
-                decision_vote: None,
-                conclusion_label: None,
-                conclusion_code: None,
-            }],
-            documents: vec![],
-            score: Score::new(2, 4, 2, 23).unwrap(),
-            current_stage: None,
-            initiators: vec![],
-            committee: None,
-            outcome: DossierOutcome::NoRecordedConclusion,
-        }
-    }
-
-    pub(crate) fn dossier(
-        uid: &str,
-        deposit_date: Option<NaiveDate>,
-        last_activity: NaiveDate,
-    ) -> LegislativeDossier {
-        LegislativeDossier::new(dossier_parts(uid, deposit_date, last_activity))
-    }
-
     #[tokio::test]
     async fn attaches_each_initiator_to_the_group_held_on_its_own_deposit_date() {
-        let source = FakeSource {
-            dossiers_with_refs: vec![
-                (
-                    dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
-                    vec!["PA111111".into()],
-                ),
-                (
-                    dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
-                    vec!["PA111111".into()],
-                ),
-            ],
-        };
+        let source = FakeAssemblySource::with_refs(vec![
+            (
+                dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+                vec!["PA111111".into()],
+            ),
+            (
+                dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
+                vec!["PA111111".into()],
+            ),
+        ]);
 
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
@@ -537,31 +229,30 @@ pub(crate) mod tests {
         assert_eq!(count.written, 2);
         assert_eq!(repo.count(), 2);
 
-        let store = repo.dossiers.lock().unwrap();
-        let d1 = &store["D1"].initiators()[0];
+        let d1 = repo.get("D1").unwrap();
+        let d1 = &d1.initiators()[0];
         assert_eq!(d1.full_name(), "Jean Dupont");
         assert_eq!(d1.group().unwrap().abbrev, "A");
         assert_eq!(d1.reference_date(), Some(date(2025, 5, 13)));
 
-        let d2 = &store["D2"].initiators()[0];
+        let d2 = repo.get("D2").unwrap();
+        let d2 = &d2.initiators()[0];
         assert_eq!(d2.group().unwrap().abbrev, "B");
         assert_eq!(d2.reference_date(), Some(date(2025, 9, 1)));
     }
 
     #[tokio::test]
     async fn asks_the_registry_for_each_referenced_actor_only_once() {
-        let source = FakeSource {
-            dossiers_with_refs: vec![
-                (
-                    dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
-                    vec!["PA111111".into()],
-                ),
-                (
-                    dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
-                    vec!["PA111111".into()],
-                ),
-            ],
-        };
+        let source = FakeAssemblySource::with_refs(vec![
+            (
+                dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+                vec!["PA111111".into()],
+            ),
+            (
+                dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
+                vec!["PA111111".into()],
+            ),
+        ]);
 
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
@@ -576,12 +267,10 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn dossier_without_initiator_reference_keeps_an_empty_list() {
-        let source = FakeSource {
-            dossiers_with_refs: vec![(
-                dossier("D3", Some(date(2025, 5, 13)), date(2025, 5, 13)),
-                vec![],
-            )],
-        };
+        let source = FakeAssemblySource::with_refs(vec![(
+            dossier("D3", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+            vec![],
+        )]);
 
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
@@ -591,18 +280,15 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        assert!(store["D3"].initiators().is_empty());
+        assert!(repo.get("D3").unwrap().initiators().is_empty());
     }
 
     #[tokio::test]
     async fn unknown_actor_is_kept_without_a_group() {
-        let source = FakeSource {
-            dossiers_with_refs: vec![(
-                dossier("D4", Some(date(2025, 5, 13)), date(2025, 5, 13)),
-                vec!["PA_UNKNOWN".into()],
-            )],
-        };
+        let source = FakeAssemblySource::with_refs(vec![(
+            dossier("D4", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+            vec!["PA_UNKNOWN".into()],
+        )]);
 
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
@@ -612,20 +298,18 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        let initiator = &store["D4"].initiators()[0];
+        let dossier = repo.get("D4").unwrap();
+        let initiator = &dossier.initiators()[0];
         assert_eq!(initiator.full_name(), "PA_UNKNOWN");
         assert!(initiator.group().is_none());
     }
 
     #[tokio::test]
     async fn dossier_without_deposit_date_gets_a_name_but_no_group() {
-        let source = FakeSource {
-            dossiers_with_refs: vec![(
-                dossier("D5", None, date(2025, 5, 13)),
-                vec!["PA111111".into()],
-            )],
-        };
+        let source = FakeAssemblySource::with_refs(vec![(
+            dossier("D5", None, date(2025, 5, 13)),
+            vec!["PA111111".into()],
+        )]);
 
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
@@ -635,45 +319,11 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        let initiator = &store["D5"].initiators()[0];
+        let dossier = repo.get("D5").unwrap();
+        let initiator = &dossier.initiators()[0];
         assert_eq!(initiator.full_name(), "Jean Dupont");
         assert!(initiator.group().is_none());
         assert!(initiator.reference_date().is_none());
-    }
-
-    // Local: seul ce test a besoin d'une source de dossiers indisponible.
-    struct DownSource;
-
-    #[async_trait]
-    impl AssemblySource for DownSource {
-        async fn fetch_dossiers_since(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossiers_since_with_refs(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
-            Err(SourceError::Download("source unavailable".into()))
-        }
-
-        async fn fetch_dossier_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid_with_refs(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
-            unreachable!()
-        }
     }
 
     fn attempted_at() -> DateTime<Utc> {
@@ -682,18 +332,16 @@ pub(crate) mod tests {
 
     #[tokio::test]
     async fn should_record_succeeded_check_with_dossiers_seen_when_dossier_refresh_succeeds() {
-        let source = FakeSource {
-            dossiers_with_refs: vec![
-                (
-                    dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
-                    vec![],
-                ),
-                (
-                    dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
-                    vec![],
-                ),
-            ],
-        };
+        let source = FakeAssemblySource::with_refs(vec![
+            (
+                dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13)),
+                vec![],
+            ),
+            (
+                dossier("D2", Some(date(2025, 9, 1)), date(2025, 9, 1)),
+                vec![],
+            ),
+        ]);
         let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
         let journal = InMemoryIngestionJournal::default();
@@ -725,7 +373,7 @@ pub(crate) mod tests {
         let journal = InMemoryIngestionJournal::default();
 
         let result = RefreshDossiers::new(
-            &DownSource,
+            &FakeAssemblySource::down("source unavailable"),
             &repo,
             &actors,
             Journaling::to(&journal, attempted_at()),
@@ -749,69 +397,18 @@ pub(crate) mod tests {
 
 #[cfg(test)]
 mod incremental_tests {
-    use super::tests::{
-        dossier, dossier_parts, InMemoryActorRepository, InMemoryDossierRepository,
-    };
     use super::*;
-    use crate::application::ports::assembly_source::SourceError;
+    use crate::application::use_cases::fakes::actor_repository::InMemoryActorRepository;
+    use crate::application::use_cases::fakes::assembly_source::FakeAssemblySource;
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
+    use crate::application::use_cases::fakes::fixtures::{dossier, dossier_parts};
     use crate::domain::dossier::{
-        DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
+        DossierOutcome, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
     };
-    use async_trait::async_trait;
     use chrono::NaiveDate;
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
-    }
-
-    struct FakeSource {
-        dossiers: Vec<LegislativeDossier>,
-    }
-
-    #[async_trait]
-    impl AssemblySource for FakeSource {
-        async fn fetch_dossiers_since(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossiers_since_with_refs(
-            &self,
-            _since: Option<NaiveDate>,
-        ) -> Result<Vec<(LegislativeDossier, Vec<String>)>, SourceError> {
-            Ok(self.dossiers.iter().cloned().map(|d| (d, vec![])).collect())
-        }
-
-        async fn fetch_dossier_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, SourceError> {
-            unreachable!()
-        }
-
-        async fn fetch_dossier_by_uid_with_refs(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<(LegislativeDossier, Vec<String>)>, SourceError> {
-            unreachable!()
-        }
-    }
-
-    /// Pose l'etat initial de la base sans passer par le use case, puis remet
-    /// le journal des ecritures a zero: seul ce que fera le rafraichissement
-    /// suivant nous interesse.
-    fn seeded_repository(stored: Vec<LegislativeDossier>) -> InMemoryDossierRepository {
-        let repo = InMemoryDossierRepository::new();
-        {
-            let mut store = repo.dossiers.lock().unwrap();
-            for d in stored {
-                store.insert(d.uid().as_str().to_string(), d);
-            }
-        }
-        repo.written.lock().unwrap().clear();
-        repo
     }
 
     fn with_extra_act(
@@ -835,18 +432,16 @@ mod incremental_tests {
     async fn rewrites_only_the_dossiers_whose_source_moved() {
         let unchanged = dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13));
         let moved = dossier_parts("D2", Some(date(2025, 5, 13)), date(2025, 5, 13));
-        let repo = seeded_repository(vec![
+        let repo = InMemoryDossierRepository::with_dossiers(vec![
             unchanged.clone(),
             LegislativeDossier::new(moved.clone()),
         ]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let source = FakeSource {
-            dossiers: vec![
-                unchanged,
-                LegislativeDossier::new(with_extra_act(moved, date(2026, 1, 20))),
-            ],
-        };
+        let source = FakeAssemblySource::without_refs(vec![
+            unchanged,
+            LegislativeDossier::new(with_extra_act(moved, date(2026, 1, 20))),
+        ]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -864,7 +459,9 @@ mod incremental_tests {
     #[tokio::test]
     async fn an_act_inserted_before_the_last_one_still_triggers_a_write() {
         let stored = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 1, 20));
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            stored.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let mut backdated = stored;
@@ -877,9 +474,7 @@ mod incremental_tests {
             conclusion_code: None,
         });
 
-        let source = FakeSource {
-            dossiers: vec![LegislativeDossier::new(backdated)],
-        };
+        let source = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(backdated)]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -903,15 +498,15 @@ mod incremental_tests {
                 legifrance_url: None,
             },
         };
-        let repo = seeded_repository(vec![LegislativeDossier::new(promulgated.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            promulgated.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let source = FakeSource {
-            dossiers: vec![LegislativeDossier::new(with_extra_act(
-                promulgated,
-                date(2026, 6, 1),
-            ))],
-        };
+        let source = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(with_extra_act(
+            promulgated,
+            date(2026, 6, 1),
+        ))]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -937,15 +532,13 @@ mod incremental_tests {
             },
         };
         let promulgated = LegislativeDossier::new(promulgated);
-        let repo = seeded_repository(vec![promulgated.clone()]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![promulgated.clone()]);
         repo.without_law_progress
             .lock()
             .unwrap()
             .insert("D1".to_string());
         let actors = InMemoryActorRepository::with_deputy_changing_group();
-        let source = FakeSource {
-            dossiers: vec![promulgated],
-        };
+        let source = FakeAssemblySource::without_refs(vec![promulgated]);
         let refresh = RefreshDossiers::new(&source, &repo, &actors, Journaling::off());
 
         let first = refresh.execute().await.unwrap();
@@ -966,15 +559,15 @@ mod incremental_tests {
             date: date(2025, 11, 4),
             label: "rejet\u{00e9}e".into(),
         };
-        let repo = seeded_repository(vec![LegislativeDossier::new(rejected.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            rejected.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let source = FakeSource {
-            dossiers: vec![LegislativeDossier::new(with_extra_act(
-                rejected,
-                date(2026, 3, 17),
-            ))],
-        };
+        let source = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(with_extra_act(
+            rejected,
+            date(2026, 3, 17),
+        ))]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -990,12 +583,13 @@ mod incremental_tests {
     #[tokio::test]
     async fn a_long_dormant_dossier_is_written_again_as_soon_as_it_moves() {
         let dormant = dossier_parts("D1", Some(date(2024, 7, 20)), date(2024, 7, 20));
-        let repo = seeded_repository(vec![LegislativeDossier::new(dormant.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            dormant.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let still_asleep = FakeSource {
-            dossiers: vec![LegislativeDossier::new(dormant.clone())],
-        };
+        let still_asleep =
+            FakeAssemblySource::without_refs(vec![LegislativeDossier::new(dormant.clone())]);
         let summary = RefreshDossiers::new(&still_asleep, &repo, &actors, Journaling::off())
             .execute()
             .await
@@ -1003,12 +597,9 @@ mod incremental_tests {
         assert_eq!(summary.written, 0);
         assert_eq!(summary.skipped_unchanged, 1);
 
-        let scheduled = FakeSource {
-            dossiers: vec![LegislativeDossier::new(with_extra_act(
-                dormant,
-                date(2026, 8, 5),
-            ))],
-        };
+        let scheduled = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(
+            with_extra_act(dormant, date(2026, 8, 5)),
+        )]);
         let summary = RefreshDossiers::new(&scheduled, &repo, &actors, Journaling::off())
             .execute()
             .await
@@ -1018,12 +609,14 @@ mod incremental_tests {
 
     #[tokio::test]
     async fn a_dossier_absent_from_the_database_is_always_written() {
-        let repo = seeded_repository(vec![]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let source = FakeSource {
-            dossiers: vec![dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13))],
-        };
+        let source = FakeAssemblySource::without_refs(vec![dossier(
+            "D1",
+            Some(date(2025, 5, 13)),
+            date(2025, 5, 13),
+        )]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -1050,12 +643,11 @@ mod incremental_tests {
         };
         let promulgated = LegislativeDossier::new(promulgated);
         let unchanged = dossier("D2", Some(date(2025, 5, 13)), date(2025, 5, 13));
-        let repo = seeded_repository(vec![promulgated.clone(), unchanged.clone()]);
+        let repo =
+            InMemoryDossierRepository::with_dossiers(vec![promulgated.clone(), unchanged.clone()]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
-        let source = FakeSource {
-            dossiers: vec![promulgated, unchanged],
-        };
+        let source = FakeAssemblySource::without_refs(vec![promulgated, unchanged]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute_with(RefreshScope::Full)
@@ -1106,15 +698,11 @@ mod incremental_tests {
     async fn a_decision_vote_added_to_an_existing_act_triggers_a_write() {
         let base = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19));
         let stored = with_decision_act(base.clone(), None, Some("adopt\u{00e9}e"));
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(stored)]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
-        let source = FakeSource {
-            dossiers: vec![LegislativeDossier::new(with_decision_act(
-                base,
-                Some("VTANR5L17V10080"),
-                Some("adopt\u{00e9}e"),
-            ))],
-        };
+        let source = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(
+            with_decision_act(base, Some("VTANR5L17V10080"), Some("adopt\u{00e9}e")),
+        )]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -1131,15 +719,11 @@ mod incremental_tests {
     async fn a_conclusion_added_to_an_existing_act_triggers_a_write() {
         let base = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19));
         let stored = with_decision_act(base.clone(), None, None);
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(stored)]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
-        let source = FakeSource {
-            dossiers: vec![LegislativeDossier::new(with_decision_act(
-                base,
-                None,
-                Some("modifi\u{00e9}e"),
-            ))],
-        };
+        let source = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(
+            with_decision_act(base, None, Some("modifi\u{00e9}e")),
+        )]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -1156,15 +740,11 @@ mod incremental_tests {
     async fn a_decision_vote_added_after_promulgation_is_still_written() {
         let base = promulgated_parts("D1");
         let stored = with_decision_act(base.clone(), None, Some("adopt\u{00e9}e"));
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(stored)]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
-        let source = FakeSource {
-            dossiers: vec![LegislativeDossier::new(with_decision_act(
-                base,
-                Some("VTANR5L17V9097"),
-                Some("adopt\u{00e9}e"),
-            ))],
-        };
+        let source = FakeAssemblySource::without_refs(vec![LegislativeDossier::new(
+            with_decision_act(base, Some("VTANR5L17V9097"), Some("adopt\u{00e9}e")),
+        )]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()
@@ -1183,11 +763,9 @@ mod incremental_tests {
             Some("VTANR5L17V10080"),
             Some("adopt\u{00e9}e"),
         ));
-        let repo = seeded_repository(vec![decided.clone()]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![decided.clone()]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
-        let source = FakeSource {
-            dossiers: vec![decided],
-        };
+        let source = FakeAssemblySource::without_refs(vec![decided]);
 
         let summary = RefreshDossiers::new(&source, &repo, &actors, Journaling::off())
             .execute()

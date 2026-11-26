@@ -282,11 +282,13 @@ mod tests {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
     }
 
-    struct FakeSource {
+    // Local: l'archive n'est rendue qu'une fois, puis la source se declare
+    // indisponible; refresh_all.rs lui prefere des sources sans etat.
+    struct FakeAmendmentSource {
         feed: Mutex<Option<AmendmentFeed>>,
     }
 
-    impl FakeSource {
+    impl FakeAmendmentSource {
         fn with(
             archive_id: Option<&str>,
             batches: Vec<Result<AmendmentBatch, SourceError>>,
@@ -301,7 +303,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl AmendmentSource for FakeSource {
+    impl AmendmentSource for FakeAmendmentSource {
         async fn fetch_amendments(
             &self,
             _legislature: u16,
@@ -435,7 +437,7 @@ mod tests {
 
     #[tokio::test]
     async fn every_amendment_is_written_and_the_scan_is_reported() {
-        let source = FakeSource::with(
+        let source = FakeAmendmentSource::with(
             Some("etag-1"),
             vec![
                 Ok(AmendmentBatch::Items(vec![
@@ -477,7 +479,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_dated_group_is_posted_on_the_signatories() {
-        let source = FakeSource::with(
+        let source = FakeAmendmentSource::with(
             None,
             vec![
                 Ok(AmendmentBatch::Items(vec![amendment(
@@ -514,7 +516,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_empty_registry_does_not_cost_the_amendments() {
-        let source = FakeSource::with(
+        let source = FakeAmendmentSource::with(
             None,
             vec![
                 Ok(AmendmentBatch::Items(vec![amendment(
@@ -547,7 +549,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_unchanged_archive_is_not_walked_again() {
-        let source = FakeSource::with(
+        let source = FakeAmendmentSource::with(
             Some("etag-1"),
             vec![Ok(AmendmentBatch::Items(vec![amendment(
                 "AM1",
@@ -594,7 +596,7 @@ mod tests {
 
         let complete = FakeRepository::default();
         let summary = RefreshAmendments::new(
-            &FakeSource::with(Some("etag-1"), batches()),
+            &FakeAmendmentSource::with(Some("etag-1"), batches()),
             &complete,
             &FakeActorRepository::default(),
             0,
@@ -611,7 +613,7 @@ mod tests {
 
         let truncated = FakeRepository::default();
         let summary = RefreshAmendments::new(
-            &FakeSource::with(Some("etag-1"), batches()),
+            &FakeAmendmentSource::with(Some("etag-1"), batches()),
             &truncated,
             &FakeActorRepository::default(),
             1,
@@ -627,7 +629,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_archive_that_parses_nothing_is_not_remembered() {
-        let source = FakeSource::with(
+        let source = FakeAmendmentSource::with(
             Some("etag-1"),
             vec![Ok(AmendmentBatch::Done(ArchiveScan {
                 json_entries: 2,
@@ -654,7 +656,7 @@ mod tests {
 
     #[tokio::test]
     async fn an_unavailable_source_leaves_the_stored_amendments_alone() {
-        let source = FakeSource::with(None, Vec::new());
+        let source = FakeAmendmentSource::with(None, Vec::new());
         // Le flux est consomme une premiere fois, la seconde echoue.
         let repository = FakeRepository::default();
         let actors = FakeActorRepository::default();
@@ -675,7 +677,7 @@ mod tests {
     #[tokio::test]
     async fn should_record_succeeded_check_with_amendments_parsed_when_amendment_refresh_succeeds()
     {
-        let source = FakeSource::with(
+        let source = FakeAmendmentSource::with(
             Some("etag-1"),
             vec![
                 Ok(AmendmentBatch::Items(vec![
@@ -715,7 +717,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_record_succeeded_check_with_nothing_read_when_archive_is_unchanged() {
-        let source = FakeSource::with(Some("etag-1"), Vec::new());
+        let source = FakeAmendmentSource::with(Some("etag-1"), Vec::new());
         let repository = FakeRepository {
             known_archive: Mutex::new(Some("etag-1".to_string())),
             ..Default::default()
@@ -746,7 +748,7 @@ mod tests {
 
     #[tokio::test]
     async fn should_record_failed_check_when_amendment_source_fails() {
-        let source = FakeSource {
+        let source = FakeAmendmentSource {
             feed: Mutex::new(None),
         };
         let repository = FakeRepository::default();

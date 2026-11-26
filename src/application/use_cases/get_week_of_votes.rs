@@ -430,7 +430,7 @@ mod tests {
     use crate::application::use_cases::read_fakes::{
         listed_dossier, scrutin_row, FakeActors, FakeDossiers, FakeScrutins,
     };
-    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::domain::dataset::DatasetShape;
     use crate::domain::dossier::{
         DossierOutcome, LawPublication, LegislativeAct, NewLegislativeDossier,

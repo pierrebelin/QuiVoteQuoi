@@ -38,7 +38,7 @@ mod tests {
     use super::*;
     use crate::application::ports::amendment_citation_repository::StoredCitation;
     use crate::application::use_cases::citation_fakes::InMemoryCitationRepository;
-    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::domain::amendment::AmendmentUid;
     use crate::domain::amendment_citation::{
         CitationOutcome, CitationResult, LinkMethod, UnlinkedCause,

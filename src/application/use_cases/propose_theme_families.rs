@@ -248,7 +248,8 @@ impl<'a> ProposeThemeFamilies<'a> {
 mod tests {
     use super::*;
     use crate::application::ports::theme_repository::PendingDossier;
-    use crate::application::use_cases::theme_fakes::{InMemoryThemeRepository, StubClassifier};
+    use crate::application::use_cases::fakes::theme_classifier::StubClassifier;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::domain::dossier::DossierUid;
     use crate::domain::theme::{DebatedText, FamilyCode};
 

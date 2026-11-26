@@ -302,7 +302,7 @@ mod tests {
     use crate::application::ports::theme_repository::{FamilyCoverage, MethodReport};
     use crate::application::use_cases::candidate_fakes::{proposal_change, InMemoryCandidates};
     use crate::application::use_cases::final_vote_fakes::{final_vote_record, FakeFinalVotes};
-    use crate::application::use_cases::theme_fakes::InMemoryThemeRepository;
+    use crate::application::use_cases::fakes::theme_repository::InMemoryThemeRepository;
     use crate::application::use_cases::get_week_of_votes::OtherOutcome;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::application::use_cases::read_fakes::{scrutin_row, FakeScrutins};

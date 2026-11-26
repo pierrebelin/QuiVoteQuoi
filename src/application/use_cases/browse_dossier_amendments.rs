@@ -344,4 +344,43 @@ mod tests {
             "Sort non publi\u{00e9} (\u{00e9}tat : En traitement)"
         );
     }
+
+    #[tokio::test]
+    async fn should_name_author_from_directory_when_actor_is_known() {
+        let view = view_of_row(amendment_row(), None).await;
+        assert_eq!(view.author.name.as_deref(), Some("Jean Dupont"));
+    }
+
+    #[tokio::test]
+    async fn should_leave_author_unnamed_and_ungrouped_when_source_gives_neither() {
+        let mut row = amendment_row();
+        row.author_actor_uid = None;
+        row.author_group_uid = None;
+        let view = view_of_row(row, Some("#1A237E")).await;
+        assert_eq!(view.author.name, None);
+        assert_eq!(view.author.group_label, None);
+        assert_eq!(view.author.group_color, None);
+    }
+
+    #[tokio::test]
+    async fn should_not_relabel_stored_group_from_current_membership_when_directory_lacks_it() {
+        // RM-02: le groupe affiche est celui stocke a la date de depot. Absent
+        // du referentiel, il reste sans libelle plutot que d'etre recalcule.
+        let mut row = amendment_row();
+        row.author_group_uid = Some("PO_DISSOUS".into());
+        let view = view_of_row(row, Some("#1A237E")).await;
+        assert_eq!(view.author.name.as_deref(), Some("Jean Dupont"));
+        assert_eq!(view.author.group_label, None);
+        assert_eq!(view.author.group_abbrev, None);
+    }
+
+    #[test]
+    fn author_uids_skips_amendments_without_author_actor() {
+        let named = amendment_row();
+        let mut anonymous = amendment_row();
+        anonymous.author_actor_uid = None;
+        let uids = author_uids([named, anonymous].iter());
+        let uids: Vec<&str> = uids.iter().map(|uid| uid.as_str()).collect();
+        assert_eq!(uids, vec!["PA1"]);
+    }
 }
