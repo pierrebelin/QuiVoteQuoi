@@ -234,7 +234,7 @@ function WhoVotedScene({ detail, tally }: { detail: ScrutinDetailDto; tally: Non
                 ))}
               </div>
               <span style={{ minWidth: 200, textAlign: 'right', fontSize: rowSize, fontWeight: 800, color: position ? POSITION_COLORS[position] : COLORS.inkSoft, flexShrink: 0 }}>
-                {position ? `${count} ${POSITION_LABELS[position]}` : 'sans majorité'}
+                {position ? `${count} ${position === 'abstention' ? plural(count ?? 0, 'abstention', 'abstentions') : POSITION_LABELS[position]}` : 'sans majorité'}
               </span>
             </div>
           )
