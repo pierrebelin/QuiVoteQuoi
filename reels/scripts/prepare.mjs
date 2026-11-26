@@ -4,6 +4,8 @@
 // pour 18 h : Buffer les publie seul, l'éditeur peut les corriger ou les retenir d'ici là.
 // Dans le même passage, le post Instagram du jour : carrousel des mêmes scènes en
 // 4:5 (`scripts/stills.mjs`), images dans la même Release, programmé à la même heure.
+// Puis la story d'annonce du post : titre du sujet en 9:16 (compositions `…Story`),
+// programmée quelques minutes après, elle renvoie les abonnés au carrousel du profil.
 // Toute erreur, comme une période incomplète, ouvre ou commente l'issue `reels`.
 //
 // Environnement : PUBLIC_BASE_URL, BUFFER_API_KEY, BUFFER_INSTAGRAM_CHANNEL_ID,
@@ -36,6 +38,10 @@ const LINK_TOKEN = '[lien]'
 const ALERT_LABEL = 'reels'
 /** Étiquette Buffer des posts en carrousel, distincte de `reel` : l'historique des sujets ne lit que les Reels. */
 const POST_TAG = 'post'
+/** Étiquette Buffer de la story d'annonce du post. */
+const STORY_TAG = 'story'
+/** La story part après le post : il est déjà sur le profil quand elle y renvoie. */
+const STORY_DELAY_MINUTES = 5
 const CAPTURE_FILE = 'capture.png'
 const CAPTURE_WIDTH = 390
 const CAPTURE_HEIGHT = 2400
@@ -137,6 +143,8 @@ function latestRender(date, pattern) {
   return matches.filter((file) => file.stamp === stamp).sort((a, b) => a.index.localeCompare(b.index))
 }
 
+const STORY_IMAGE_NAME = /^story-(\d{4}-\d{2}-\d{2})(?:-(\d{6}))?\.png$/
+const storyImageName = (date) => `story-${date}-${renderStamp}.png`
 const postImageName = (date, index) => `post-${date}-${renderStamp}-${String(index + 1).padStart(2, '0')}.png`
 const assetUrl = (date, name) => `https://github.com/${env.GITHUB_REPOSITORY}/releases/download/${releaseTag(date)}/${name}`
 
@@ -295,6 +303,29 @@ async function postImages(date, reel, props) {
   return files.map((_, index) => assetUrl(date, postImageName(date, index)))
 }
 
+/** Étiquettes de la story : `story` et `story-<kind>`. */
+const storyTagsOf = (reel) => [STORY_TAG, `${STORY_TAG}-${reel.kind}`]
+
+/** Image de la story : déjà dans la Release, sinon rendue (composition `<Sujet>Story`) puis ajoutée. */
+function storyImage(date, reel, props) {
+  const existing = latestRender(date, STORY_IMAGE_NAME)[0]
+  if (!dryRun && existing) {
+    log(`Image de la story déjà dans la Release ${releaseTag(date)} : réutilisée.`)
+    return assetUrl(date, existing.name)
+  }
+  const propsFile = join(OUT, `props-${date}.json`)
+  writeFileSync(propsFile, JSON.stringify(props))
+  const output = join(OUT, storyImageName(date))
+  execFileSync('npx', ['remotion', 'still', 'src/index.ts', `${compositionOf(reel)}Story`, output, `--props=${propsFile}`], { cwd: REELS, stdio: 'inherit' })
+  log(`Story : image rendue → ${output}`)
+  if (dryRun) {
+    log(`Image de la story : Release sautée (exécution à blanc), image en artefact du run.`)
+    return null
+  }
+  uploadToRelease(date, [output], reel.period.label)
+  return assetUrl(date, storyImageName(date))
+}
+
 function journal(date, reel) {
   const line = `Reel du ${date} : statut ${reel.status}${reel.reason ? ` (${reel.reason})` : ''}, période ${reel.period.label}, dernière synchronisation des scrutins ${reel.last_success_at ?? 'aucune'}`
   log(line)
@@ -349,7 +380,17 @@ async function run() {
       })
     : []
   const postMissing = todayPosts.length === 0
-  if (missing.length === 0 && !postMissing) {
+  const storyTag = knownTags.get(STORY_TAG)
+  const todayStories = storyTag
+    ? await buffer.posts(organizationId, {
+        channelIds: [instagram.id],
+        status: HANDLED_STATUSES,
+        tagIds: [storyTag],
+        dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
+      })
+    : []
+  const storyMissing = todayStories.length === 0
+  if (missing.length === 0 && !postMissing && !storyMissing) {
     log('Les posts du jour sont déjà déposés.')
     closeAlert(date)
     return
@@ -427,9 +468,13 @@ async function run() {
   step = 'images du post'
   const imageUrls = postMissing ? await postImages(date, reel, props) : []
 
+  step = 'image de la story'
+  const storyUrl = storyMissing ? storyImage(date, reel, props) : null
+
   step = 'plafond de Buffer'
   for (const channel of channels) {
-    const needed = (missing.includes(channel) ? 1 : 0) + (channel === instagram && postMissing ? 1 : 0)
+    const needed =
+      (missing.includes(channel) ? 1 : 0) + (channel === instagram ? (postMissing ? 1 : 0) + (storyMissing ? 1 : 0) : 0)
     if (needed === 0) continue
     const scheduled = await buffer.posts(organizationId, { channelIds: [channel.id], status: ['scheduled'] }, SCHEDULED_CAP)
     if (scheduled.length + needed > SCHEDULED_CAP) {
@@ -476,6 +521,26 @@ async function run() {
         draft,
       })
       log(`${deposited} : post Instagram pour ${reel.due_at}, ${id} (${imageUrls.length} images)`)
+    }
+  }
+
+  step = 'dépôt de la story'
+  if (storyMissing) {
+    const storyDueAt = new Date(new Date(reel.due_at).getTime() + STORY_DELAY_MINUTES * 60_000).toISOString()
+    if (dryRun) log(`Story Instagram pour ${storyDueAt} : sautée (exécution à blanc), étiquettes ${storyTagsOf(reel).join(', ')}`)
+    else {
+      const storyTagIds = await buffer.ensureTags(organizationId, storyTagsOf(reel), knownTags)
+      const id = await buffer.schedulePost({
+        channelId: instagram.id,
+        service: 'instagram',
+        text: 'Nouveau post',
+        imageUrls: [storyUrl],
+        dueAt: storyDueAt,
+        tagIds: storyTagIds,
+        draft,
+        story: true,
+      })
+      log(`${deposited} : story Instagram pour ${storyDueAt}, ${id}`)
     }
   }
   closeAlert(date)

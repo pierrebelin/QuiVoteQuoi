@@ -6,6 +6,7 @@ import theme from '../samples/theme.json'
 import votes from '../samples/votes.json'
 import { Programmes } from './compositions/Programmes'
 import { SiteNews } from './compositions/SiteNews'
+import { Story } from './compositions/Story'
 import { Theme } from './compositions/Theme'
 import { Votes } from './compositions/Votes'
 import { FPS, HEIGHT, POST_HEIGHT, WIDTH } from './theme'
@@ -64,6 +65,19 @@ export function Root() {
           durationInFrames={1}
           defaultProps={{ ...(sample as ReelProps), post: true }}
           calculateMetadata={calculatePostMetadata}
+        />
+      ))}
+      {/* Story d'annonce du post du jour : image fixe, titre du sujet (`scripts/prepare.mjs`). */}
+      {COMPOSITIONS.map(({ id, sample }) => (
+        <Composition
+          key={`${id}Story`}
+          id={`${id}Story`}
+          component={Story}
+          width={WIDTH}
+          height={HEIGHT}
+          fps={FPS}
+          durationInFrames={1}
+          defaultProps={sample as ReelProps}
         />
       ))}
     </>
