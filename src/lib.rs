@@ -16,9 +16,8 @@ use application::ports::brief_generator::BriefGenerator;
 use application::ports::brief_line_repository::BriefLineRepository;
 use application::ports::budget_repository::BudgetRepository;
 use application::ports::candidate_repository::CandidateRepository;
-use application::ports::dossier_group_actions_repository::{
-    DossierGroupActionsRepository, DossierSummaryRepository,
-};
+use application::ports::dossier_group_actions_repository::DossierGroupActionsRepository;
+use application::ports::dossier_summary_repository::DossierSummaryRepository;
 use application::ports::dossier_repository::DossierRepository;
 use application::ports::dossier_summary_generator::DossierSummaryGenerator;
 use application::ports::final_vote_repository::FinalVoteRepository;

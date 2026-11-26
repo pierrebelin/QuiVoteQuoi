@@ -16,8 +16,9 @@
 //! ```
 
 use quivotequoi::api::dossier_group_actions_dto::DossierGroupActionsResponse;
-use quivotequoi::application::ports::dossier_group_actions_repository::{
-    DossierGroupActionsRepository, DossierSummaryRepository, GeneratedGroupSummary,
+use quivotequoi::application::ports::dossier_group_actions_repository::DossierGroupActionsRepository;
+use quivotequoi::application::ports::dossier_summary_repository::{
+    DossierSummaryRepository, GeneratedGroupSummary,
 };
 use quivotequoi::application::use_cases::get_dossier_group_actions::{
     fingerprint, GetDossierGroupActions,

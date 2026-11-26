@@ -12,6 +12,7 @@ pub mod decision_vote_repository;
 pub mod dossier_group_actions_repository;
 pub mod dossier_repository;
 pub mod dossier_summary_generator;
+pub mod dossier_summary_repository;
 pub mod final_vote_repository;
 pub mod group_repository;
 pub mod health_probe;

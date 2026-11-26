@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{PgPool, Row};
 
 use super::db;
-use crate::application::ports::dossier_group_actions_repository::{
+use crate::application::ports::dossier_summary_repository::{
     DossierSummaryRepository, GeneratedGroupSummary, RepositoryError,
 };
 use crate::domain::actor::GroupUid;

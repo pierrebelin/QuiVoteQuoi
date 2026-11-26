@@ -1,8 +1,9 @@
 use sha2::{Digest, Sha256};
 
 use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupActionsRepository, DossierSummaryRepository, RepositoryError,
+    DossierGroupActionsRepository, RepositoryError,
 };
+use crate::application::ports::dossier_summary_repository::DossierSummaryRepository;
 use crate::application::ports::vote_explanation_repository::{
     ExplanationMention, VoteExplanationRepository,
 };
@@ -111,7 +112,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::Mutex;
 
-    use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
+    use crate::application::ports::dossier_summary_repository::GeneratedGroupSummary;
     use crate::application::ports::vote_explanation_repository::{
         ScrutinExplanationsRead, StoredSitting, StoredVersion,
     };

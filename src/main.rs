@@ -11,9 +11,8 @@ use quivotequoi::application::ports::brief_generator::BriefGenerator;
 use quivotequoi::application::ports::brief_line_repository::BriefLineRepository;
 use quivotequoi::application::ports::budget_repository::BudgetRepository;
 use quivotequoi::application::ports::candidate_repository::CandidateRepository;
-use quivotequoi::application::ports::dossier_group_actions_repository::{
-    DossierGroupActionsRepository, DossierSummaryRepository,
-};
+use quivotequoi::application::ports::dossier_group_actions_repository::DossierGroupActionsRepository;
+use quivotequoi::application::ports::dossier_summary_repository::DossierSummaryRepository;
 use quivotequoi::application::ports::decision_vote_repository::DecisionVoteRepository;
 use quivotequoi::application::ports::dossier_repository::DossierRepository;
 use quivotequoi::application::ports::dossier_summary_generator::DossierSummaryGenerator;
