@@ -154,14 +154,6 @@ impl<'a> ListScrutins<'a> {
             .map(|dossier| (dossier.uid().as_str().to_string(), dossier))
             .collect())
     }
-
-    /// CU-04 — Scrutins d'un dossier.
-    pub async fn for_dossier(
-        &self,
-        dossier_uid: &str,
-    ) -> Result<Vec<ScrutinSummary>, RepositoryError> {
-        self.repository.by_dossier(dossier_uid).await
-    }
 }
 
 #[cfg(test)]

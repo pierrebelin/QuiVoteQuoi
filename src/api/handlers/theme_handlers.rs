@@ -12,16 +12,19 @@ use crate::application::ports::theme_repository::AssignedFamily;
 use crate::application::use_cases::arbitrate_theme::{
     ArbitrateTheme, ArbitrationCommand, ArbitrationError,
 };
-use crate::application::use_cases::browse_themes::BrowseThemes;
+use crate::application::use_cases::browse_family_texts::BrowseFamilyTexts;
+use crate::application::use_cases::browse_unassigned_texts::BrowseUnassignedTexts;
 use crate::application::use_cases::describe_method::DescribeMethod;
 use crate::application::use_cases::extract_debated_texts::ExtractDebatedTexts;
+use crate::application::use_cases::get_text_detail::GetTextDetail;
+use crate::application::use_cases::list_families::ListFamilies;
 use crate::application::use_cases::propose_theme_families::ProposeThemeFamilies;
 use crate::domain::theme::{FamilyCode, TextKey};
 use crate::AppState;
 
 /// CU-06 — Referentiel des familles, servi tel quel.
-pub async fn list_families(State(state): State<AppState>) -> Json<FamiliesResponse> {
-    let families = BrowseThemes::new(state.theme_repository.as_ref()).families();
+pub async fn list_families() -> Json<FamiliesResponse> {
+    let families = ListFamilies::new().execute();
     Json(FamiliesResponse::new(families))
 }
 
@@ -44,8 +47,8 @@ pub async fn list_unassigned_texts(
     Query(query): Query<TextListQuery>,
 ) -> Result<Json<TextListResponse>, ApiError> {
     let (limit, offset) = query.bounds();
-    let page = BrowseThemes::new(state.theme_repository.as_ref())
-        .unassigned_texts(limit, offset)
+    let page = BrowseUnassignedTexts::new(state.theme_repository.as_ref())
+        .execute(limit, offset)
         .await
         .map_err(ApiError::internal)?;
     Ok(Json(TextListResponse::new(page, offset)))
@@ -59,8 +62,8 @@ pub async fn list_family_texts(
 ) -> Result<Json<TextListResponse>, ApiError> {
     let family = FamilyCode::parse(&code).map_err(ApiError::not_found)?;
     let (limit, offset) = query.bounds();
-    let page = BrowseThemes::new(state.theme_repository.as_ref())
-        .texts_of_family(family, limit, offset)
+    let page = BrowseFamilyTexts::new(state.theme_repository.as_ref())
+        .execute(family, limit, offset)
         .await
         .map_err(ApiError::internal)?;
     Ok(Json(TextListResponse::new(page, offset)))
@@ -74,9 +77,8 @@ pub async fn get_text_detail(
     Query(query): Query<TextListQuery>,
 ) -> Result<Json<TextDetailResponse>, ApiError> {
     let key = TextKey::from_raw(&key);
-    let browse = BrowseThemes::new(state.theme_repository.as_ref());
-    let detail = browse
-        .text_detail(&key)
+    let detail = GetTextDetail::new(state.theme_repository.as_ref())
+        .execute(&key)
         .await
         .map_err(ApiError::internal)?
         .ok_or_else(|| ApiError::not_found("texte inconnu"))?;

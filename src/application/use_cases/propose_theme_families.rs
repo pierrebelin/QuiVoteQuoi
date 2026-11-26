@@ -4,8 +4,18 @@ use crate::application::ports::theme_classifier::ThemeClassifier;
 use crate::application::ports::theme_repository::{
     AttemptOutcome, RepositoryError, ThemeRepository,
 };
-use crate::domain::theme::{ProposedFamily, SubjectRef, ThemeProposal};
+use crate::domain::theme::{ProposedFamily, SubjectRef, ThemeError, ThemeProposal};
 use crate::domain::theme_rules::rule_for_label;
+
+/// Une regle ou une proposition refusee par le domaine n'est pas une panne de
+/// base: elle garde sa nature au lieu d'etre ecrasee en `RepositoryError`.
+#[derive(Debug, thiserror::Error)]
+pub enum ProposalError {
+    #[error(transparent)]
+    Domain(#[from] ThemeError),
+    #[error(transparent)]
+    Repository(#[from] RepositoryError),
+}
 
 /// Resultat d'une passe de rattachement. Chiffres comptes ici, pas rendus par
 /// le modele (RM-10).
@@ -60,7 +70,7 @@ impl<'a> ProposeThemeFamilies<'a> {
         &self,
         batch: i64,
         today: NaiveDate,
-    ) -> Result<ProposalRun, RepositoryError> {
+    ) -> Result<ProposalRun, ProposalError> {
         let mut run = ProposalRun::default();
         let pending = self.pending(batch).await?;
 
@@ -70,9 +80,7 @@ impl<'a> ProposeThemeFamilies<'a> {
             run.attempted += 1;
             match rule_for_label(&item.label) {
                 Some(rule) => {
-                    let assignments = rule
-                        .assignments(&item.subject, today)
-                        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+                    let assignments = rule.assignments(&item.subject, today)?;
                     self.repository
                         .replace_assignments(&item.subject, today, &assignments)
                         .await?;
@@ -126,7 +134,7 @@ impl<'a> ProposeThemeFamilies<'a> {
         chunk: &[Pending],
         today: NaiveDate,
         run: &mut ProposalRun,
-    ) -> Result<(), RepositoryError> {
+    ) -> Result<(), ProposalError> {
         let mut batches: Vec<Vec<&Pending>> = vec![chunk.iter().collect()];
 
         while let Some(items) = batches.pop() {
@@ -199,7 +207,7 @@ impl<'a> ProposeThemeFamilies<'a> {
         families: &[ProposedFamily],
         today: NaiveDate,
         run: &mut ProposalRun,
-    ) -> Result<(), RepositoryError> {
+    ) -> Result<(), ProposalError> {
         let proposal = match ThemeProposal::new(
             item.subject.clone(),
             families.to_vec(),
@@ -222,9 +230,7 @@ impl<'a> ProposeThemeFamilies<'a> {
             }
         };
 
-        let assignments = proposal
-            .into_assignments()
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        let assignments = proposal.into_assignments()?;
 
         self.repository.save_proposal(&proposal).await?;
         self.repository
