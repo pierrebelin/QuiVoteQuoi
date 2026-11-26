@@ -63,7 +63,7 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::application::ports::assembly_source::SourceError;
-    use crate::application::ports::dossier_repository::RepositoryError;
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
     use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
     use crate::domain::dossier::{
         DossierOutcome, LegislativeDossier, NewLegislativeDossier, Score,
@@ -105,71 +105,6 @@ mod tests {
         }
     }
 
-    struct InMemoryDossierRepository {
-        dossiers: Mutex<HashMap<String, LegislativeDossier>>,
-    }
-
-    #[async_trait]
-    impl DossierRepository for InMemoryDossierRepository {
-        async fn load_states(
-            &self,
-        ) -> Result<
-            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
-            RepositoryError,
-        > {
-            unreachable!()
-        }
-        async fn save_all(
-            &self,
-            dossiers: &[LegislativeDossier],
-        ) -> Result<usize, RepositoryError> {
-            let mut store = self.dossiers.lock().unwrap();
-            for d in dossiers {
-                store.insert(d.uid().as_str().to_string(), d.clone());
-            }
-            Ok(dossiers.len())
-        }
-
-        async fn find_recent(
-            &self,
-            _since: NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_page(
-            &self,
-            _criteria: &crate::application::ports::dossier_repository::DossierCriteria,
-            _order: crate::application::ports::dossier_repository::DossierOrder,
-            _limit: i64,
-            _offset: i64,
-        ) -> Result<crate::application::ports::dossier_repository::DossierPage, RepositoryError>
-        {
-            unreachable!()
-        }
-
-        async fn find_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_by_uids(
-            &self,
-            _uids: &[crate::domain::dossier::DossierUid],
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-        async fn find_with_decisions_between(
-            &self,
-            _from: chrono::NaiveDate,
-            _to: chrono::NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-    }
-
     #[tokio::test]
     async fn saves_dossier_with_initiators_dated_on_the_deposit_date() {
         let mut source_map = HashMap::new();
@@ -201,19 +136,17 @@ mod tests {
         let source = FakeSource {
             dossiers: Mutex::new(source_map),
         };
-        let repo = InMemoryDossierRepository {
-            dossiers: Mutex::new(HashMap::new()),
-        };
+        let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let uc = SaveDossier::new(&source, &repo, &actors);
         let uid = DossierUid::new("D1".into()).unwrap();
         uc.execute(&uid).await.unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        assert_eq!(store.len(), 1);
-        assert_eq!(store["D1"].initiators().len(), 1);
-        let initiator = &store["D1"].initiators()[0];
+        assert_eq!(repo.count(), 1);
+        let dossier = repo.get("D1").unwrap();
+        assert_eq!(dossier.initiators().len(), 1);
+        let initiator = &dossier.initiators()[0];
         assert_eq!(initiator.full_name(), "Jean Dupont");
         assert_eq!(initiator.group().unwrap().abbrev, "A");
         assert_eq!(
@@ -227,9 +160,7 @@ mod tests {
         let source = FakeSource {
             dossiers: Mutex::new(HashMap::new()),
         };
-        let repo = InMemoryDossierRepository {
-            dossiers: Mutex::new(HashMap::new()),
-        };
+        let repo = InMemoryDossierRepository::new();
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let uc = SaveDossier::new(&source, &repo, &actors);

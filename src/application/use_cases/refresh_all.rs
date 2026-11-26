@@ -362,9 +362,8 @@ mod tests {
     use crate::domain::scrutin::{Scrutin, ScrutinUid};
     use crate::domain::theme::{DebatedText, FamilyCode, SubjectRef};
 
-    use super::super::refresh_dossiers::tests::{
-        dossier, InMemoryActorRepository, InMemoryDossierRepository,
-    };
+    use super::super::fakes::dossier_repository::InMemoryDossierRepository;
+    use super::super::refresh_dossiers::tests::{dossier, InMemoryActorRepository};
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
         NaiveDate::from_ymd_opt(y, m, d).unwrap()
@@ -733,8 +732,8 @@ mod tests {
         assert_eq!(outcome.dossiers.written, 1);
 
         // Le referentiel precedent a bien servi au rattachement.
-        let store = dossier_repository.dossiers.lock().unwrap();
-        assert_eq!(store["D1"].initiators()[0].group().unwrap().abbrev, "A");
+        let stored = dossier_repository.get("D1").unwrap();
+        assert_eq!(stored.initiators()[0].group().unwrap().abbrev, "A");
     }
 
     #[tokio::test]

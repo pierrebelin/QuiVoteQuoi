@@ -194,9 +194,9 @@ pub(crate) mod tests {
     use super::*;
     use async_trait::async_trait;
     use chrono::{DateTime, NaiveDate, TimeZone, Utc};
-    use std::collections::HashMap;
     use std::sync::Mutex;
 
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
     use crate::application::use_cases::journal_fakes::InMemoryIngestionJournal;
     use crate::domain::ingestion::{CheckOutcome, IngestionSource};
 
@@ -208,7 +208,7 @@ pub(crate) mod tests {
     };
     use crate::domain::dossier::{
         DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
-        Score, StoredDossierState,
+        Score,
     };
 
     fn date(y: i32, m: u32, d: u32) -> NaiveDate {
@@ -354,121 +354,6 @@ pub(crate) mod tests {
         }
     }
 
-    pub(crate) struct InMemoryDossierRepository {
-        pub(crate) dossiers: Mutex<HashMap<String, LegislativeDossier>>,
-        /// Uid de chaque dossier reellement passe a `save_all`, dans l'ordre.
-        /// C'est ce que le rafraichissement incremental doit reduire.
-        pub(crate) written: Mutex<Vec<String>>,
-        /// Uid des dossiers stockes avant le calcul de l'etat « ou en est la
-        /// loi » : leur etat n'a jamais ete ecrit. Une ecriture les en retire.
-        pub(crate) without_law_progress: Mutex<std::collections::HashSet<String>>,
-    }
-
-    impl InMemoryDossierRepository {
-        pub(crate) fn new() -> Self {
-            Self {
-                dossiers: Mutex::new(HashMap::new()),
-                written: Mutex::new(vec![]),
-                without_law_progress: Mutex::new(Default::default()),
-            }
-        }
-
-        fn count(&self) -> usize {
-            self.dossiers.lock().unwrap().len()
-        }
-    }
-
-    #[async_trait]
-    impl DossierRepository for InMemoryDossierRepository {
-        async fn save_all(
-            &self,
-            dossiers: &[LegislativeDossier],
-        ) -> Result<usize, crate::application::ports::dossier_repository::RepositoryError> {
-            let mut store = self.dossiers.lock().unwrap();
-            for d in dossiers {
-                self.written
-                    .lock()
-                    .unwrap()
-                    .push(d.uid().as_str().to_string());
-                self.without_law_progress
-                    .lock()
-                    .unwrap()
-                    .remove(d.uid().as_str());
-                store.insert(d.uid().as_str().to_string(), d.clone());
-            }
-            Ok(dossiers.len())
-        }
-
-        async fn load_states(
-            &self,
-        ) -> Result<HashMap<String, StoredDossierState>, RepositoryError> {
-            let without_law_progress = self.without_law_progress.lock().unwrap();
-            Ok(self
-                .dossiers
-                .lock()
-                .unwrap()
-                .iter()
-                .map(|(uid, d)| {
-                    (
-                        uid.clone(),
-                        StoredDossierState {
-                            last_activity_date: d.last_activity_date(),
-                            act_count: d.acts().len(),
-                            outcome_is_final: d.outcome().is_final(),
-                            law_progress_computed: !without_law_progress.contains(uid),
-                            decision_fingerprint: d.decision_fingerprint(),
-                        },
-                    )
-                })
-                .collect())
-        }
-
-        async fn find_recent(
-            &self,
-            _since: NaiveDate,
-        ) -> Result<
-            Vec<LegislativeDossier>,
-            crate::application::ports::dossier_repository::RepositoryError,
-        > {
-            unreachable!()
-        }
-
-        async fn find_page(
-            &self,
-            _criteria: &crate::application::ports::dossier_repository::DossierCriteria,
-            _order: crate::application::ports::dossier_repository::DossierOrder,
-            _limit: i64,
-            _offset: i64,
-        ) -> Result<crate::application::ports::dossier_repository::DossierPage, RepositoryError>
-        {
-            unreachable!()
-        }
-
-        async fn find_by_uid(
-            &self,
-            _uid: &DossierUid,
-        ) -> Result<
-            Option<LegislativeDossier>,
-            crate::application::ports::dossier_repository::RepositoryError,
-        > {
-            unreachable!()
-        }
-
-        async fn find_by_uids(
-            &self,
-            _uids: &[crate::domain::dossier::DossierUid],
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-        async fn find_with_decisions_between(
-            &self,
-            _from: chrono::NaiveDate,
-            _to: chrono::NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-    }
-
     /// Elements d'un dossier de la source, avant construction: un test qui veut
     /// une variante (sort, acte supplementaire) les ajuste ici.
     pub(crate) fn dossier_parts(
@@ -537,13 +422,14 @@ pub(crate) mod tests {
         assert_eq!(count.written, 2);
         assert_eq!(repo.count(), 2);
 
-        let store = repo.dossiers.lock().unwrap();
-        let d1 = &store["D1"].initiators()[0];
+        let d1 = repo.get("D1").unwrap();
+        let d1 = &d1.initiators()[0];
         assert_eq!(d1.full_name(), "Jean Dupont");
         assert_eq!(d1.group().unwrap().abbrev, "A");
         assert_eq!(d1.reference_date(), Some(date(2025, 5, 13)));
 
-        let d2 = &store["D2"].initiators()[0];
+        let d2 = repo.get("D2").unwrap();
+        let d2 = &d2.initiators()[0];
         assert_eq!(d2.group().unwrap().abbrev, "B");
         assert_eq!(d2.reference_date(), Some(date(2025, 9, 1)));
     }
@@ -591,8 +477,7 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        assert!(store["D3"].initiators().is_empty());
+        assert!(repo.get("D3").unwrap().initiators().is_empty());
     }
 
     #[tokio::test]
@@ -612,8 +497,8 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        let initiator = &store["D4"].initiators()[0];
+        let dossier = repo.get("D4").unwrap();
+        let initiator = &dossier.initiators()[0];
         assert_eq!(initiator.full_name(), "PA_UNKNOWN");
         assert!(initiator.group().is_none());
     }
@@ -635,8 +520,8 @@ pub(crate) mod tests {
             .await
             .unwrap();
 
-        let store = repo.dossiers.lock().unwrap();
-        let initiator = &store["D5"].initiators()[0];
+        let dossier = repo.get("D5").unwrap();
+        let initiator = &dossier.initiators()[0];
         assert_eq!(initiator.full_name(), "Jean Dupont");
         assert!(initiator.group().is_none());
         assert!(initiator.reference_date().is_none());
@@ -749,10 +634,9 @@ pub(crate) mod tests {
 
 #[cfg(test)]
 mod incremental_tests {
-    use super::tests::{
-        dossier, dossier_parts, InMemoryActorRepository, InMemoryDossierRepository,
-    };
+    use super::tests::{dossier, dossier_parts, InMemoryActorRepository};
     use super::*;
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
     use crate::application::ports::assembly_source::SourceError;
     use crate::domain::dossier::{
         DossierOutcome, DossierUid, LegislativeAct, LegislativeDossier, NewLegislativeDossier,
@@ -799,21 +683,6 @@ mod incremental_tests {
         }
     }
 
-    /// Pose l'etat initial de la base sans passer par le use case, puis remet
-    /// le journal des ecritures a zero: seul ce que fera le rafraichissement
-    /// suivant nous interesse.
-    fn seeded_repository(stored: Vec<LegislativeDossier>) -> InMemoryDossierRepository {
-        let repo = InMemoryDossierRepository::new();
-        {
-            let mut store = repo.dossiers.lock().unwrap();
-            for d in stored {
-                store.insert(d.uid().as_str().to_string(), d);
-            }
-        }
-        repo.written.lock().unwrap().clear();
-        repo
-    }
-
     fn with_extra_act(
         mut dossier: NewLegislativeDossier,
         act_date: NaiveDate,
@@ -835,7 +704,7 @@ mod incremental_tests {
     async fn rewrites_only_the_dossiers_whose_source_moved() {
         let unchanged = dossier("D1", Some(date(2025, 5, 13)), date(2025, 5, 13));
         let moved = dossier_parts("D2", Some(date(2025, 5, 13)), date(2025, 5, 13));
-        let repo = seeded_repository(vec![
+        let repo = InMemoryDossierRepository::with_dossiers(vec![
             unchanged.clone(),
             LegislativeDossier::new(moved.clone()),
         ]);
@@ -864,7 +733,9 @@ mod incremental_tests {
     #[tokio::test]
     async fn an_act_inserted_before_the_last_one_still_triggers_a_write() {
         let stored = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 1, 20));
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            stored.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let mut backdated = stored;
@@ -903,7 +774,9 @@ mod incremental_tests {
                 legifrance_url: None,
             },
         };
-        let repo = seeded_repository(vec![LegislativeDossier::new(promulgated.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            promulgated.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let source = FakeSource {
@@ -937,7 +810,7 @@ mod incremental_tests {
             },
         };
         let promulgated = LegislativeDossier::new(promulgated);
-        let repo = seeded_repository(vec![promulgated.clone()]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![promulgated.clone()]);
         repo.without_law_progress
             .lock()
             .unwrap()
@@ -966,7 +839,9 @@ mod incremental_tests {
             date: date(2025, 11, 4),
             label: "rejet\u{00e9}e".into(),
         };
-        let repo = seeded_repository(vec![LegislativeDossier::new(rejected.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            rejected.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let source = FakeSource {
@@ -990,7 +865,9 @@ mod incremental_tests {
     #[tokio::test]
     async fn a_long_dormant_dossier_is_written_again_as_soon_as_it_moves() {
         let dormant = dossier_parts("D1", Some(date(2024, 7, 20)), date(2024, 7, 20));
-        let repo = seeded_repository(vec![LegislativeDossier::new(dormant.clone())]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(
+            dormant.clone(),
+        )]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let still_asleep = FakeSource {
@@ -1018,7 +895,7 @@ mod incremental_tests {
 
     #[tokio::test]
     async fn a_dossier_absent_from_the_database_is_always_written() {
-        let repo = seeded_repository(vec![]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let source = FakeSource {
@@ -1050,7 +927,8 @@ mod incremental_tests {
         };
         let promulgated = LegislativeDossier::new(promulgated);
         let unchanged = dossier("D2", Some(date(2025, 5, 13)), date(2025, 5, 13));
-        let repo = seeded_repository(vec![promulgated.clone(), unchanged.clone()]);
+        let repo =
+            InMemoryDossierRepository::with_dossiers(vec![promulgated.clone(), unchanged.clone()]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
 
         let source = FakeSource {
@@ -1106,7 +984,7 @@ mod incremental_tests {
     async fn a_decision_vote_added_to_an_existing_act_triggers_a_write() {
         let base = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19));
         let stored = with_decision_act(base.clone(), None, Some("adopt\u{00e9}e"));
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(stored)]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
         let source = FakeSource {
             dossiers: vec![LegislativeDossier::new(with_decision_act(
@@ -1131,7 +1009,7 @@ mod incremental_tests {
     async fn a_conclusion_added_to_an_existing_act_triggers_a_write() {
         let base = dossier_parts("D1", Some(date(2025, 5, 13)), date(2026, 11, 19));
         let stored = with_decision_act(base.clone(), None, None);
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(stored)]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
         let source = FakeSource {
             dossiers: vec![LegislativeDossier::new(with_decision_act(
@@ -1156,7 +1034,7 @@ mod incremental_tests {
     async fn a_decision_vote_added_after_promulgation_is_still_written() {
         let base = promulgated_parts("D1");
         let stored = with_decision_act(base.clone(), None, Some("adopt\u{00e9}e"));
-        let repo = seeded_repository(vec![LegislativeDossier::new(stored)]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![LegislativeDossier::new(stored)]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
         let source = FakeSource {
             dossiers: vec![LegislativeDossier::new(with_decision_act(
@@ -1183,7 +1061,7 @@ mod incremental_tests {
             Some("VTANR5L17V10080"),
             Some("adopt\u{00e9}e"),
         ));
-        let repo = seeded_repository(vec![decided.clone()]);
+        let repo = InMemoryDossierRepository::with_dossiers(vec![decided.clone()]);
         let actors = InMemoryActorRepository::with_deputy_changing_group();
         let source = FakeSource {
             dossiers: vec![decided],

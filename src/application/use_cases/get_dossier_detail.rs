@@ -75,71 +75,9 @@ mod tests {
     use std::sync::Mutex;
 
     use crate::application::ports::assembly_source::SourceError;
-    use crate::application::ports::dossier_repository::RepositoryError;
+    use crate::application::use_cases::fakes::dossier_repository::InMemoryDossierRepository;
     use crate::application::use_cases::refresh_dossiers::tests::InMemoryActorRepository;
     use crate::domain::dossier::{DossierOutcome, LegislativeAct, NewLegislativeDossier, Score};
-
-    struct InMemoryDossierRepository {
-        dossiers: Mutex<HashMap<String, LegislativeDossier>>,
-    }
-
-    #[async_trait]
-    impl DossierRepository for InMemoryDossierRepository {
-        async fn load_states(
-            &self,
-        ) -> Result<
-            std::collections::HashMap<String, crate::domain::dossier::StoredDossierState>,
-            RepositoryError,
-        > {
-            unreachable!()
-        }
-        async fn save_all(
-            &self,
-            _dossiers: &[LegislativeDossier],
-        ) -> Result<usize, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_recent(
-            &self,
-            _since: NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-
-        async fn find_page(
-            &self,
-            _criteria: &crate::application::ports::dossier_repository::DossierCriteria,
-            _order: crate::application::ports::dossier_repository::DossierOrder,
-            _limit: i64,
-            _offset: i64,
-        ) -> Result<crate::application::ports::dossier_repository::DossierPage, RepositoryError>
-        {
-            unreachable!()
-        }
-
-        async fn find_by_uid(
-            &self,
-            uid: &DossierUid,
-        ) -> Result<Option<LegislativeDossier>, RepositoryError> {
-            let store = self.dossiers.lock().unwrap();
-            Ok(store.get(uid.as_str()).cloned())
-        }
-
-        async fn find_by_uids(
-            &self,
-            _uids: &[crate::domain::dossier::DossierUid],
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-        async fn find_with_decisions_between(
-            &self,
-            _from: chrono::NaiveDate,
-            _to: chrono::NaiveDate,
-        ) -> Result<Vec<LegislativeDossier>, RepositoryError> {
-            unreachable!()
-        }
-    }
 
     struct FakeSource {
         dossiers: Mutex<HashMap<String, (LegislativeDossier, Vec<String>)>>,
@@ -218,12 +156,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_persisted_dossier_from_repository() {
-        let mut map = HashMap::new();
-        map.insert("DLR5L17N12345".into(), sample_dossier());
-
-        let repo = InMemoryDossierRepository {
-            dossiers: Mutex::new(map),
-        };
+        let repo = InMemoryDossierRepository::with_dossiers(vec![sample_dossier()]);
         let source = FakeSource {
             dossiers: Mutex::new(HashMap::new()),
         };
@@ -239,9 +172,7 @@ mod tests {
 
     #[tokio::test]
     async fn falls_back_to_source_and_dates_initiators_on_the_deposit_date() {
-        let repo = InMemoryDossierRepository {
-            dossiers: Mutex::new(HashMap::new()),
-        };
+        let repo = InMemoryDossierRepository::new();
         let mut source_map = HashMap::new();
         source_map.insert(
             "DLR5L17N12345".into(),
@@ -268,9 +199,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_none_when_not_found_anywhere() {
-        let repo = InMemoryDossierRepository {
-            dossiers: Mutex::new(HashMap::new()),
-        };
+        let repo = InMemoryDossierRepository::new();
         let source = FakeSource {
             dossiers: Mutex::new(HashMap::new()),
         };
