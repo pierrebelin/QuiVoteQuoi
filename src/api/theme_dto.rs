@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use crate::application::ports::theme_repository::{
     AssignedFamily, FamilyCoverage, TextPage, TextScrutin, TextSummary,
 };
-use crate::application::use_cases::browse_themes::{FamilyDescription, TextDetail};
+use crate::application::use_cases::get_text_detail::TextDetail;
+use crate::application::use_cases::list_families::FamilyDescription;
 use crate::application::use_cases::describe_method::MethodOverview;
 use crate::application::use_cases::extract_debated_texts::ExtractionReport;
 use crate::application::use_cases::propose_theme_families::ProposalRun;

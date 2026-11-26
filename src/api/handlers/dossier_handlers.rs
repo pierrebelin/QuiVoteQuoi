@@ -12,10 +12,10 @@ use crate::api::error::ApiError;
 use crate::api::text_brief_dto::{DossierBriefQuery, DossierBriefResponse};
 use crate::application::ports::dossier_repository::{DossierCriteria, DossierOrder};
 use crate::application::use_cases::browse_dossiers::{BrowseDossiers, DossierQuery};
-use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::fetch_recent_dossiers::FetchRecentDossiers;
 use crate::application::use_cases::get_dossier_brief::{GetDossierBrief, GetDossierBriefError};
 use crate::application::use_cases::get_dossier_detail::GetDossierDetail;
+use crate::application::use_cases::get_dossier_families::GetDossierFamilies;
 use crate::application::use_cases::get_dossier_group_actions::GetDossierGroupActions;
 use crate::application::use_cases::journaling::Journaling;
 use crate::application::use_cases::refresh_actor_registry::RefreshActorRegistry;
@@ -98,8 +98,8 @@ pub async fn get_dossier_detail(
         .map_err(ApiError::internal)?
         .ok_or_else(|| ApiError::not_found("Dossier not found"))?;
 
-    let families = BrowseThemes::new(state.theme_repository.as_ref())
-        .families_of_dossier(uid.as_str())
+    let families = GetDossierFamilies::new(state.theme_repository.as_ref())
+        .execute(uid.as_str())
         .await
         .map_err(ApiError::internal)?;
 

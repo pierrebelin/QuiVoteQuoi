@@ -7,8 +7,8 @@ use crate::api::scrutin_dto::{
     ScrutinSummaryDto, ScrutinsRefreshResponse, SHOW_OF_HANDS_NOTE,
 };
 use crate::application::ports::scrutin_repository::ScrutinFilter;
-use crate::application::use_cases::browse_themes::BrowseThemes;
 use crate::application::use_cases::get_scrutin_detail::GetScrutinDetail;
+use crate::application::use_cases::get_scrutin_families::GetScrutinFamilies;
 use crate::application::use_cases::journaling::Journaling;
 use crate::application::use_cases::list_scrutins::ListScrutins;
 use crate::application::use_cases::refresh_scrutins::RefreshScrutins;
@@ -44,8 +44,8 @@ async fn attach_families(
     scrutins: &mut [ScrutinSummaryDto],
 ) -> Result<(), ApiError> {
     let uids: Vec<String> = scrutins.iter().map(|s| s.uid.clone()).collect();
-    let mut families = BrowseThemes::new(state.theme_repository.as_ref())
-        .families_of_scrutins(&uids)
+    let mut families = GetScrutinFamilies::new(state.theme_repository.as_ref())
+        .execute(&uids)
         .await
         .map_err(ApiError::internal)?;
     for scrutin in scrutins.iter_mut() {
@@ -78,8 +78,8 @@ pub async fn get_scrutin_detail(
     .map_err(ApiError::internal)?
     .ok_or_else(|| ApiError::not_found("Scrutin not found"))?;
 
-    let families = BrowseThemes::new(state.theme_repository.as_ref())
-        .families_of_scrutins(&[uid.as_str().to_string()])
+    let families = GetScrutinFamilies::new(state.theme_repository.as_ref())
+        .execute(&[uid.as_str().to_string()])
         .await
         .map_err(ApiError::internal)?
         .remove(uid.as_str())
