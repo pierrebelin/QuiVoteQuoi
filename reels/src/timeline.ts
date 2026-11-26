@@ -8,14 +8,18 @@ import type { ReelProps } from './types'
 export const NUMBERS = 3 * FPS
 
 /**
- * Reel de votes : accroche, puis une seule scène pour l'hémicycle et les groupes
- * du scrutin le plus suivi, période, fin. Chaque scène déborde de `PUSH` images
- * sur la suivante, qui la pousse hors de l'écran.
+ * Reel de votes : le scrutin le plus suivi en trois scènes (accroche, hémicycle
+ * et décompte, groupes par position), puis la période, les votes sur l'ensemble
+ * et la fin. Les scènes se succèdent sur un décor qui ne bouge pas.
  */
-export const HOOK = 3 * FPS
-export const WHO_VOTED = 11 * FPS
-export const PERIOD = Math.round(3.5 * FPS)
+export const HOOK = Math.round(2.5 * FPS)
+export const COUNT = 4 * FPS
+export const GROUPS = 5 * FPS
+export const PERIOD = Math.round(2.5 * FPS)
+/** Votes sur l'ensemble montrés ensemble sur une carte du Reel de votes. */
+export const VOTES_PER_CARD = 2
 export const VOTES_OUTRO = Math.round(3.5 * FPS)
+/** Reels hors votes : chaque scène déborde de `PUSH` images sur la suivante, qui la pousse hors de l'écran. */
 export const PUSH = 14
 
 /** Reels hors votes : accroche, puis nombres du thème, cartes des programmes ou page de la nouveauté, fin commune. */
@@ -35,9 +39,9 @@ export type CardPlan = {
   each: number
 }
 
-export function planCards(count: number, maxCards = Math.floor(CARDS_BUDGET_SECONDS / CARD_MIN_SECONDS)): CardPlan {
+export function planCards(count: number, maxCards = Math.floor(CARDS_BUDGET_SECONDS / CARD_MIN_SECONDS), perCardAtLeast = 1): CardPlan {
   if (count === 0) return { groups: [], each: 0 }
-  const perCard = Math.ceil(count / maxCards)
+  const perCard = Math.max(perCardAtLeast, Math.ceil(count / maxCards))
   const cards = Math.ceil(count / perCard)
   const seconds = Math.min(CARD_MAX_SECONDS, Math.max(CARD_MIN_SECONDS, CARDS_BUDGET_SECONDS / cards))
   const groups = Array.from({ length: cards }, (_, card) =>
@@ -93,12 +97,13 @@ export function isVotesReel(reel: ReelProps['reel']) {
 }
 
 /**
- * Reel de votes : le scrutin le plus suivi ouvre (accroche, hémicycle, groupes),
- * puis les nombres de la période, chaque vote sur l'ensemble, la fin (RM-03).
+ * Reel de votes : le scrutin le plus suivi ouvre (accroche, hémicycle et
+ * décompte, groupes), puis les nombres de la période, chaque vote sur
+ * l'ensemble, la fin (RM-03).
  */
 function votesScenesOf(reel: ReelProps['reel'], post: boolean): Scenes {
-  const opening = reel.most_followed ? [HOOK, WHO_VOTED] : []
-  const cards = planCards(reel.final_votes.length, maxCardsOf(post, opening.length + 2))
+  const opening = reel.most_followed ? [HOOK, COUNT, GROUPS] : []
+  const cards = planCards(reel.final_votes.length, maxCardsOf(post, opening.length + 2), VOTES_PER_CARD)
   const lengths = [...opening, PERIOD, ...cards.groups.map(() => cards.each), VOTES_OUTRO]
   return { lengths, numbers: PERIOD, cards, mostFollowed: sum(opening), siteNews: 0, total: sum(lengths) }
 }

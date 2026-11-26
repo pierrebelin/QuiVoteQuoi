@@ -33,3 +33,30 @@ export const COLORS = {
 }
 
 export const FONT = '"Inter Variable", ui-sans-serif, system-ui, sans-serif'
+/** Titres et nombres : la police de titre du site (`--font-heading` de `index.css`). */
+export const FONT_DISPLAY = `"Bricolage Grotesque Variable", ${FONT}`
+
+/**
+ * Palette du Reel de votes et de la carte finale : le bleu du logo en fond,
+ * les tokens du thème sombre de `index.css` pour le reste.
+ */
+export const NIGHT = {
+  background: '#16233f',
+  backgroundDeep: '#0e1216',
+  ink: '#eef1f4',
+  inkSoft: '#b4bec8',
+  accent: '#3fb6d0',
+  glow: 'rgba(14, 116, 144, 0.42)',
+  panel: '#29354e',
+  chip: 'rgba(255, 255, 255, 0.1)',
+  line: 'rgba(255, 255, 255, 0.16)',
+  seatEmpty: 'rgba(255, 255, 255, 0.16)',
+  notVoting: '#a1a1aa',
+  for: '#34d399',
+  against: '#fca5a5',
+  abstention: '#fbbf24',
+  /** Fonds doux `--color-yes-soft`, `--color-no-soft`, `--color-abstain-soft`, aplatis sur le fond. */
+  forSoft: '#104047',
+  againstSoft: '#432033',
+  abstentionSoft: '#46372a',
+}

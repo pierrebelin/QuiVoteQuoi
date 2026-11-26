@@ -50,7 +50,7 @@ export function Theme(props: ReelProps) {
       </Sequence>
       <Sequence from={TITLE_HOOK + NUMBERS} durationInFrames={VOTES_OUTRO}>
         <Push length={VOTES_OUTRO} overlap={PUSH} last>
-          <BrandOutro site={site} linkPath={reel.link_path} note={null} />
+          <BrandOutro site={site} note={null} />
         </Push>
       </Sequence>
     </>

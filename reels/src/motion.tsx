@@ -11,46 +11,50 @@ import {
   useVideoConfig,
 } from 'remotion'
 import '@fontsource-variable/inter'
+import '@fontsource-variable/bricolage-grotesque/opsz.css'
 import { LOGO_TRACES, LOGO_VUE } from '../../frontend/src/components/logoTraces'
 import { PLAN_SIEGES, PLAN_VUE, RAYON_SIEGE } from '../../frontend/src/components/planHemicycle'
-import { COLORS, FONT, HEIGHT, SAFE } from './theme'
+import { FONT, FONT_DISPLAY, HEIGHT, NIGHT, SAFE, WIDTH } from './theme'
 import type { ScrutinDetailDto } from './types'
 
 /**
- * Briques animées du Reel de votes : fond plein, entrées à ressort, nombres qui
- * défilent, hémicycle au plan réel de l'Assemblée et logo sur fond sombre.
+ * Briques animées des Reels : fond plein, entrées à ressort, nombres qui
+ * défilent, puis le décor bleu nuit du Reel de votes et de la carte finale
+ * (fond, en-tête, hémicycle au plan réel de l'Assemblée).
  */
 
 export const NAVY = '#16233f'
 export const CREAM = '#ded3bd'
 export const PAPER = '#faf9f6'
 export const SEAT_EMPTY = '#e7e5e0'
-export const NOT_VOTING = '#a1a1aa'
-/** Sort et décompte sur fond bleu nuit : teintes éclaircies, même sens que `COLORS`. */
-export const ON_NAVY = { adopted: '#34d399', rejected: '#f87171' }
 
+/** Couleur d'une position sur le fond bleu nuit, et son fond doux. */
 export const POSITION_COLORS: Record<string, string> = {
-  for: COLORS.adopted,
-  against: COLORS.rejected,
-  abstention: COLORS.other,
-  not_voting: NOT_VOTING,
+  for: NIGHT.for,
+  against: NIGHT.against,
+  abstention: NIGHT.abstention,
+  not_voting: NIGHT.notVoting,
+}
+export const POSITION_SOFT: Record<string, string> = {
+  for: NIGHT.forSoft,
+  against: NIGHT.againstSoft,
+  abstention: NIGHT.abstentionSoft,
 }
 
 export const capitalize = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
 
-/** Couleur d'un sort publié (`adopté`, `rejeté`, autre). */
-export function outcomeColor(code: string) {
-  if (code.startsWith('adopt')) return COLORS.adopted
-  if (code.startsWith('rejet')) return COLORS.rejected
-  return COLORS.other
+/** Sort publié ramené à sa couleur : `adopté` comme un pour, `rejeté` comme un contre, autre sort à part. */
+export function outcomeTone(code: string): 'for' | 'against' | 'abstention' {
+  if (code.startsWith('adopt')) return 'for'
+  if (code.startsWith('rejet')) return 'against'
+  return 'abstention'
 }
 
-/** Attend la police Inter avant la première image. */
+/** Attend les polices Inter et Bricolage Grotesque avant la première image. */
 export function useFonts() {
-  const [handle] = useState(() => delayRender('Police Inter'))
+  const [handle] = useState(() => delayRender('Polices'))
   useEffect(() => {
-    document.fonts
-      .load('900 100px "Inter Variable"')
+    Promise.all([document.fonts.load('900 100px "Inter Variable"'), document.fonts.load('800 100px "Bricolage Grotesque Variable"')])
       .then(() => document.fonts.ready)
       .then(() => continueRender(handle))
   }, [handle])
@@ -144,14 +148,185 @@ export function Push({
   )
 }
 
+/* ------------------------------------------------------------- décor bleu nuit */
+
+/** Hauteur de l'hémicycle rapportée à sa largeur. */
+export const PLAN_RATIO = PLAN_VUE.hauteur / PLAN_VUE.largeur
+
+/** Hauteur de l'en-tête (barre de progression, logo et nom), réservée en haut de la scène. */
+export const TOP_BAR = 86
+/** Durée du fondu de sortie d'une scène. */
+export const FADE = 8
+
+/**
+ * Géométrie du décor bleu nuit, pour le Reel comme pour le post en 4:5 : zone
+ * de contenu sous l'en-tête, et hémicycle « héros » posé au pied de cette zone,
+ * à la même place à l'accroche et sur la carte finale pour que la boucle ne se
+ * voie pas.
+ */
+export function useLayout() {
+  const { height } = useVideoConfig()
+  const post = height < HEIGHT
+  const zone = post ? POST_SAFE : REEL_SAFE
+  const width = WIDTH - zone.left - zone.right
+  const heroWidth = post ? 820 : width + 92
+  const heroHeight = (heroWidth * PLAN_VUE.hauteur) / PLAN_VUE.largeur
+  return {
+    post,
+    zone,
+    width,
+    stage: { top: zone.top + TOP_BAR, height: height - zone.top - zone.bottom - TOP_BAR },
+    hero: { left: zone.left + (width - heroWidth) / 2, top: height - zone.bottom - heroHeight + (post ? 38 : 33), width: heroWidth, height: heroHeight },
+  }
+}
+
+/** Fond commun : bleu du logo, halo cyan derrière le contenu, arcs concentriques au pied de l'hémicycle. */
+export function Night({ children }: { children: ReactNode }) {
+  const { hero } = useLayout()
+  const foot = { x: hero.left + hero.width / 2, y: hero.top + hero.height - 30 }
+  return (
+    <AbsoluteFill
+      style={{
+        backgroundColor: NIGHT.background,
+        backgroundImage: `radial-gradient(ellipse 900px 760px at 50% 62%, ${NIGHT.glow}, rgba(22, 35, 63, 0) 70%), linear-gradient(180deg, ${NIGHT.backgroundDeep} 0%, ${NIGHT.background} 26%, ${NIGHT.background} 70%, ${NIGHT.backgroundDeep} 100%)`,
+        color: NIGHT.ink,
+        fontFamily: FONT,
+        overflow: 'hidden',
+      }}
+    >
+      {[620, 760, 900, 1040].map((radius) => (
+        <div
+          key={radius}
+          style={{
+            position: 'absolute',
+            left: foot.x - radius,
+            top: foot.y - radius,
+            width: radius * 2,
+            height: radius * 2,
+            borderRadius: '50%',
+            border: '2px solid rgba(255, 255, 255, 0.06)',
+          }}
+        />
+      ))}
+      {children}
+    </AbsoluteFill>
+  )
+}
+
+/** Zone de contenu d'une scène, sous l'en-tête et hors des zones couvertes par les réseaux. */
+export function Stage({ children }: { children: ReactNode }) {
+  const { zone, width, stage } = useLayout()
+  return <div style={{ position: 'absolute', top: stage.top, height: stage.height, left: zone.left, width, display: 'flex', flexDirection: 'column' }}>{children}</div>
+}
+
+/**
+ * Scène posée sur le décor commun : elle monte en apparaissant, puis s'efface
+ * pendant ses `FADE` dernières images. Le fond, lui, ne bouge pas. Sur le post,
+ * pas de sortie : l'image du carrousel est la dernière de la scène.
+ */
+export function Fade({ length, first = false, last = false, children }: { length: number; first?: boolean; last?: boolean; children: ReactNode }) {
+  const frame = useCurrentFrame()
+  const { post } = useLayout()
+  const clamp = { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' } as const
+  const enter = first ? 1 : interpolate(frame, [0, FADE + 2], [0, 1], { ...clamp, easing: Easing.out(Easing.cubic) })
+  const exit = last || post ? 0 : interpolate(frame, [length - FADE, length], [0, 1], { ...clamp, easing: Easing.in(Easing.cubic) })
+  return <AbsoluteFill style={{ opacity: enter * (1 - exit), transform: `translateY(${(1 - enter) * 44 - exit * 44}px)` }}>{children}</AbsoluteFill>
+}
+
+/** Logo du site sur son carré crème, comme sur les images de partage. */
+function LogoTile({ size }: { size: number }) {
+  const width = size * 0.82
+  return (
+    <div style={{ position: 'relative', width: size, height: size, borderRadius: size * 0.19, background: CREAM, flexShrink: 0 }}>
+      <svg
+        width={width}
+        height={(width * LOGO_VUE.hauteur) / LOGO_VUE.largeur}
+        viewBox={`0 0 ${LOGO_VUE.largeur} ${LOGO_VUE.hauteur}`}
+        style={{ position: 'absolute', left: size * 0.09, top: size * 0.262 }}
+      >
+        {LOGO_TRACES.map(([d, color], i) => (
+          <path key={i} d={d} fill={color} />
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+/**
+ * En-tête commun : une barre par scène, celle de la scène en cours se remplit
+ * au fil de ses images ; dessous, le logo, le nom du site et un repère à droite.
+ * `marks` porte la première image de chaque scène, `total` la durée du Reel.
+ */
+export function TopBar({ marks, total, labels }: { marks: number[]; total: number; labels: string[] }) {
+  const frame = useCurrentFrame()
+  const { zone, width } = useLayout()
+  const current = Math.max(0, marks.findLastIndex((mark) => frame >= mark))
+  return (
+    <div style={{ position: 'absolute', top: zone.top, left: zone.left, width, display: 'flex', flexDirection: 'column', gap: 22 }}>
+      <div style={{ display: 'flex', gap: 10 }}>
+        {marks.map((mark, index) => {
+          const end = marks[index + 1] ?? total
+          const fill = interpolate(frame, [mark, end - 1], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+          return (
+            <div key={mark} style={{ flex: 1, height: 8, borderRadius: 4, background: 'rgba(255, 255, 255, 0.2)', overflow: 'hidden' }}>
+              <div style={{ width: `${fill * 100}%`, height: '100%', borderRadius: 4, background: index === current ? NIGHT.accent : 'rgba(255, 255, 255, 0.62)' }} />
+            </div>
+          )
+        })}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <LogoTile size={56} />
+          <span style={{ fontFamily: FONT_DISPLAY, fontSize: 38, fontWeight: 700, whiteSpace: 'nowrap' }}>QuiVoteQuoi</span>
+        </div>
+        <span style={{ fontSize: 32, fontWeight: 600, color: NIGHT.inkSoft, whiteSpace: 'nowrap' }}>{labels[current] ?? ''}</span>
+      </div>
+    </div>
+  )
+}
+
+/** Pastille d'intertitre, à la couleur d'accent du site. */
+export function Kicker({ children }: { children: ReactNode }) {
+  return (
+    <span
+      style={{
+        alignSelf: 'flex-start',
+        borderRadius: 999,
+        background: NIGHT.accent,
+        color: NIGHT.backgroundDeep,
+        padding: '10px 28px 12px',
+        fontSize: 32,
+        fontWeight: 800,
+        lineHeight: 1.2,
+        letterSpacing: 2.5,
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </span>
+  )
+}
+
+/** Coche d'un sort adopté, croix d'un sort rejeté ; rien pour un autre sort. */
+export function OutcomeIcon({ code, size, color }: { code: string; size: number; color: string }) {
+  const tone = outcomeTone(code)
+  if (tone === 'abstention') return null
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={3.2} strokeLinecap="round" strokeLinejoin="round" style={{ display: 'block', flexShrink: 0 }}>
+      <path d={tone === 'for' ? 'M5 12.5 L10 17.5 L19 7' : 'M6.5 6.5 L17.5 17.5 M17.5 6.5 L6.5 17.5'} />
+    </svg>
+  )
+}
+
 type Seat = { n: number; x: number; y: number; delay: number; vote?: { group: string; position: string } }
 
 /** Sièges du plan, chacun avec le vote publié de son occupant ; délai d'allumage de gauche à droite. */
-function seatsOf(detail: ScrutinDetailDto): Seat[] {
+function seatsOf(detail: ScrutinDetailDto | null): Seat[] {
   const votes = new Map<number, { group: string; position: string }>()
-  for (const group of detail.groups) {
+  for (const group of detail?.groups ?? []) {
     for (const vote of group.votes) {
-      if (vote.seat != null) votes.set(vote.seat, { group: group.color ?? NOT_VOTING, position: vote.position })
+      if (vote.seat != null) votes.set(vote.seat, { group: group.color ?? NIGHT.notVoting, position: vote.position })
     }
   }
   const cx = PLAN_VUE.largeur / 2
@@ -162,62 +337,30 @@ function seatsOf(detail: ScrutinDetailDto): Seat[] {
   })
 }
 
-/** Centre et rayon extérieur du plan, en unités de `PLAN_VUE`. */
-const PLAN_CENTRE = { x: PLAN_VUE.largeur / 2, y: PLAN_VUE.hauteur }
-const PLAN_RAYON = Math.max(...Object.values(PLAN_SIEGES).map(([x, y]) => Math.hypot(x - PLAN_CENTRE.x, PLAN_CENTRE.y - y)))
-
-export type ArcLabel = { uid: string; abbrev: string; color: string; left: number; top: number; angle: number }
-
 /**
- * Étiquette de chaque groupe votant, posée hors de l'arc au droit de ses sièges
- * (angle moyen des sièges de ses votants), écartée de ses voisines si besoin.
- * `left` et `top` en pourcentage de la boîte de l'hémicycle.
+ * Hémicycle au plan réel, sur fond bleu nuit : chaque député qui a pris part au
+ * vote s'allume à son siège, à la couleur de son groupe à partir de `light`
+ * (négatif : déjà allumé), puis prend la couleur de sa position à partir de
+ * `flip` (`null` : jamais ; 0 : d'emblée). Sans `detail`, le plan seul, pâle.
  */
-export function arcLabels(detail: ScrutinDetailDto, gap = 0.2): ArcLabel[] {
-  const labels = detail.groups.flatMap((group) => {
-    const angles = group.votes
-      .map((vote) => (vote.seat != null ? PLAN_SIEGES[vote.seat] : undefined))
-      .filter((xy): xy is readonly [number, number] => xy !== undefined)
-      .map(([x, y]) => Math.atan2(PLAN_CENTRE.y - y, x - PLAN_CENTRE.x))
-    if (angles.length === 0 || !group.abbrev) return []
-    const angle = angles.reduce((sum, a) => sum + a, 0) / angles.length
-    return [{ uid: group.group_uid ?? group.abbrev, abbrev: group.abbrev, color: group.color ?? NOT_VOTING, angle }]
-  })
-  labels.sort((a, b) => a.angle - b.angle)
-  const min = 0.4
-  const max = Math.PI - 0.4
-  for (let i = 0; i < labels.length; i++) labels[i].angle = Math.max(labels[i].angle, i === 0 ? min : labels[i - 1].angle + gap)
-  for (let i = labels.length - 1; i >= 0; i--) labels[i].angle = Math.min(labels[i].angle, i === labels.length - 1 ? max : labels[i + 1].angle - gap)
-  const radius = PLAN_RAYON + 13
-  return labels.map((label) => ({
-    ...label,
-    left: ((PLAN_CENTRE.x + radius * Math.cos(label.angle)) / PLAN_VUE.largeur) * 100,
-    top: ((PLAN_CENTRE.y - radius * Math.sin(label.angle)) / PLAN_VUE.hauteur) * 100,
-  }))
-}
-
-/**
- * Hémicycle au plan réel : chaque député qui a pris part au vote s'allume à son
- * siège, à la couleur de son groupe à partir de `light`, puis prend la couleur
- * de sa position à partir de `flip` (`flip` à 0 : couleur de position d'emblée).
- */
-export function Hemicycle({ detail, light, flip, stagger = 1 }: { detail: ScrutinDetailDto; light: number; flip: number; stagger?: number }) {
+export function Hemicycle({ detail, light, flip, stagger = 1 }: { detail: ScrutinDetailDto | null; light: number; flip: number | null; stagger?: number }) {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const base = interpolate(frame, [0, 12], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   return (
     <svg viewBox={`0 0 ${PLAN_VUE.largeur} ${PLAN_VUE.hauteur}`} style={{ width: '100%', display: 'block', overflow: 'visible' }}>
       {seatsOf(detail).map((seat) => {
-        const empty = <circle cx={seat.x} cy={seat.y} r={RAYON_SIEGE * 0.7} fill={SEAT_EMPTY} opacity={base} />
+        if (!detail) return <circle key={seat.n} cx={seat.x} cy={seat.y} r={RAYON_SIEGE * 0.95} fill={NIGHT.ink} />
+        const empty = <circle cx={seat.x} cy={seat.y} r={RAYON_SIEGE * 0.7} fill={NIGHT.seatEmpty} />
         if (!seat.vote) return <g key={seat.n}>{empty}</g>
         const pop = spring({ frame: frame - light - seat.delay * stagger, fps, config: { damping: 10, stiffness: 180 } })
-        const at = flip + seat.delay * 0.5 * stagger
-        const turn = interpolate(frame, [at, at + 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
-        const fill = interpolateColors(turn, [0, 1], [seat.vote.group, POSITION_COLORS[seat.vote.position] ?? NOT_VOTING])
+        const at = (flip ?? 0) + seat.delay * 0.5 * stagger
+        const turn = flip === null ? 0 : interpolate(frame, [at, at + 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+        const fill = interpolateColors(turn, [0, 1], [seat.vote.group, POSITION_COLORS[seat.vote.position] ?? NIGHT.notVoting])
         return (
           <g key={seat.n}>
             {empty}
-            <circle cx={seat.x} cy={seat.y} r={RAYON_SIEGE * 1.25 * pop} fill={fill} />
+            {/* Liseré clair tant que le siège porte la couleur de son groupe : les teintes sombres restent lisibles sur le fond. */}
+            <circle cx={seat.x} cy={seat.y} r={RAYON_SIEGE * 1.22 * pop} fill={fill} stroke="#ffffff" strokeOpacity={0.5 * (1 - turn)} strokeWidth={0.28} />
           </g>
         )
       })}
@@ -225,49 +368,62 @@ export function Hemicycle({ detail, light, flip, stagger = 1 }: { detail: Scruti
   )
 }
 
-/** Logo sur fond sombre : les rayons bleu nuit passent en blanc, les autres gardent leur teinte. */
-export function Logo({ height }: { height: number }) {
-  const width = (height * LOGO_VUE.largeur) / LOGO_VUE.hauteur
-  return (
-    <svg width={width} height={height} style={{ marginLeft: -width * 0.18, display: 'block' }} viewBox={`0 0 ${LOGO_VUE.largeur} ${LOGO_VUE.hauteur}`}>
-      {LOGO_TRACES.map(([d, color], i) => (
-        <path key={i} d={d} fill={color === NAVY ? '#ffffff' : color} />
-      ))}
-    </svg>
-  )
+/** Taille de l'adresse du site pour qu'elle tienne sur une ligne (Bricolage 800 : environ 0,56 em par caractère). */
+function siteSize(site: string, width: number) {
+  return Math.min(64, Math.floor(width / (site.length * 0.56)))
 }
 
-/** Taille de l'adresse du site pour qu'elle tienne sur une ligne (Inter 900 : environ 0,6 em par caractère). */
-function siteSize(site: string) {
-  return Math.min(112, Math.floor((1080 - REEL_SAFE.left - REEL_SAFE.right) / (site.length * 0.6)))
-}
-
-/** Carte finale commune aux Reels : logo, nom, adresse du site et chemin de la page. */
-export function BrandOutro({ site, linkPath, note }: { site: string; linkPath: string | null; note: string | null }) {
+/**
+ * Carte finale commune aux Reels : ce que le compte publie, l'invitation à
+ * s'abonner, l'adresse du site, sur le décor bleu nuit. `detail` allume
+ * l'hémicycle aux couleurs des groupes du scrutin montré en ouverture ;
+ * `bar` dessine l'en-tête quand le Reel n'en porte pas déjà un.
+ */
+export function BrandOutro({ site, note, detail = null, bar = true }: { site: string; note: string | null; detail?: ScrutinDetailDto | null; bar?: boolean }) {
   const frame = useCurrentFrame()
   const { fps } = useVideoConfig()
-  const logo = spring({ frame, fps, config: { damping: 14 } })
-  const name = useEnter(6, 40)
+  const { hero, width } = useLayout()
+  const promise = useEnter(0, 50)
+  const button = spring({ frame: frame - 10, fps, config: { damping: 13, stiffness: 170 } })
   const url = useEnter(16, 40)
+  const seats = interpolate(frame, [0, 10], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
   return (
-    <Safe background={NAVY} color="#ffffff">
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 90 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 30 }}>
-          <div style={{ transform: `scale(${logo})`, transformOrigin: 'left bottom' }}>
-            <Logo height={270} />
-          </div>
-          <div style={{ ...name, fontSize: 140, fontWeight: 900, letterSpacing: -4, lineHeight: 1 }}>
-            QuiVote<span style={{ color: '#60a5fa' }}>Quoi</span>
-          </div>
-        </div>
-        <div style={{ ...url, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <span style={{ fontSize: 46, fontWeight: 700, color: 'rgba(255,255,255,0.7)' }}>Tous les chiffres, avec leurs sources</span>
-          <span style={{ fontSize: siteSize(site), fontWeight: 900, letterSpacing: -2, color: CREAM, lineHeight: 1, whiteSpace: 'nowrap' }}>{site}</span>
-          {linkPath && <span style={{ fontSize: 36, color: 'rgba(255,255,255,0.6)', wordBreak: 'break-all' }}>{linkPath}</span>}
-          {note && <span style={{ fontSize: 28, lineHeight: 1.3, color: 'rgba(255,255,255,0.7)' }}>{note}</span>}
-        </div>
+    <Night>
+      <div style={{ position: 'absolute', left: hero.left, top: hero.top, width: hero.width, opacity: detail ? seats : seats * 0.5 }}>
+        <Hemicycle detail={detail} light={-200} flip={null} />
       </div>
-    </Safe>
+      {bar && <TopBar marks={[0]} total={2} labels={[site]} />}
+      <Stage>
+        <div style={{ ...promise, marginTop: 64, fontFamily: FONT_DISPLAY, fontSize: 96, fontWeight: 800, lineHeight: 0.98, letterSpacing: -2.5 }}>
+          Chaque jour de séance, <span style={{ color: NIGHT.accent }}>tous les votes</span> de l’Assemblée.
+        </div>
+        <div
+          style={{
+            alignSelf: 'flex-start',
+            marginTop: 44,
+            transform: `scale(${button})`,
+            transformOrigin: 'left center',
+            borderRadius: 999,
+            background: NIGHT.accent,
+            color: NIGHT.backgroundDeep,
+            padding: '16px 44px 20px',
+            fontFamily: FONT_DISPLAY,
+            fontSize: 56,
+            fontWeight: 800,
+            lineHeight: 1.15,
+            letterSpacing: -0.5,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          Abonnez-vous
+        </div>
+        <div style={{ ...url, marginTop: 34, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontFamily: FONT_DISPLAY, fontSize: siteSize(site, width), fontWeight: 800, lineHeight: 1.1, letterSpacing: -1, whiteSpace: 'nowrap' }}>{site}</span>
+          <span style={{ fontSize: 34, fontWeight: 600, lineHeight: 1.3, color: NIGHT.inkSoft }}>Les chiffres et leurs sources · lien dans la bio</span>
+          {note && <span style={{ marginTop: 10, fontSize: 28, lineHeight: 1.3, color: NIGHT.inkSoft }}>{note}</span>}
+        </div>
+      </Stage>
+    </Night>
   )
 }
 

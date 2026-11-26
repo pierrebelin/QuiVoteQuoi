@@ -101,7 +101,7 @@ export function Programmes(props: ReelProps) {
       ))}
       <Sequence from={outroFrom} durationInFrames={VOTES_OUTRO}>
         <Push length={VOTES_OUTRO} overlap={PUSH} last>
-          <BrandOutro site={site} linkPath={reel.link_path} note={null} />
+          <BrandOutro site={site} note={null} />
         </Push>
       </Sequence>
     </>
