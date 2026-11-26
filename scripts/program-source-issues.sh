@@ -129,7 +129,7 @@ publish() {
         echo "À faire :"
         echo "- [ ] Relire chaque source et comparer avec les extraits publiés"
         echo "- [ ] Mettre à jour \`scripts/candidates-2027-proposals.json\` si un extrait a changé"
-        echo "- [ ] Relancer \`node scripts/seed-candidates-2027.mjs\`"
+        echo "- [ ] Merger sur \`main\` : le déploiement relance \`scripts/seed-candidates-2027.mjs\` de lui-même"
         echo "- [ ] Fermer l'issue"
         echo
         cat "$post"
