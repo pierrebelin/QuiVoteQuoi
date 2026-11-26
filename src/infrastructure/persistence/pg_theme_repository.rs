@@ -285,7 +285,7 @@ impl ThemeRepository for PgThemeRepository {
                 )
                 .bind(key.as_str())
                 .bind(on)
-                .bind(outcome.as_str())
+                .bind(attempt_code(outcome))
                 .execute(&self.pool)
                 .await
                 .map_err(db)?;
@@ -301,7 +301,7 @@ impl ThemeRepository for PgThemeRepository {
                 )
                 .bind(uid.as_str())
                 .bind(on)
-                .bind(outcome.as_str())
+                .bind(attempt_code(outcome))
                 .execute(&self.pool)
                 .await
                 .map_err(db)?;
@@ -775,5 +775,28 @@ impl ThemeRepository for PgThemeRepository {
                 )
                 .await?,
         })
+    }
+}
+
+/// Code stocke dans `last_attempt_outcome`. Le port ne connait pas la colonne.
+fn attempt_code(outcome: AttemptOutcome) -> &'static str {
+    match outcome {
+        AttemptOutcome::Ruled => "ruled",
+        AttemptOutcome::Proposed => "proposed",
+        AttemptOutcome::NoFamily => "no_family",
+        AttemptOutcome::Failed => "failed",
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn attempt_codes_match_the_stored_values() {
+        assert_eq!(attempt_code(AttemptOutcome::Ruled), "ruled");
+        assert_eq!(attempt_code(AttemptOutcome::Proposed), "proposed");
+        assert_eq!(attempt_code(AttemptOutcome::NoFamily), "no_family");
+        assert_eq!(attempt_code(AttemptOutcome::Failed), "failed");
     }
 }
