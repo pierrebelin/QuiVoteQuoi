@@ -4,7 +4,8 @@ use async_trait::async_trait;
 use chrono::NaiveDate;
 
 use crate::application::ports::amendment_source::{
-    AmendmentBatch, AmendmentBatches, AmendmentFeed, AmendmentSource, ArchiveScan, SourceError,
+    AmendmentBatch, AmendmentBatches, AmendmentFeed, AmendmentSource, ArchiveScan, BatchStream,
+    SourceError,
 };
 use crate::domain::actor::{ActorUid, GroupUid};
 use crate::domain::amendment::{
@@ -70,12 +71,12 @@ impl AmendmentClient {
                 continue;
             }
             scan.json_entries += 1;
-            scan.count_top_level(file.name());
+            count_top_level(&mut scan, file.name());
 
             buffer.clear();
             if let Err(error) = file.read_to_string(&mut buffer) {
                 scan.undecodable += 1;
-                scan.count_failure(&format!("undecodable: {error}"));
+                count_failure(&mut scan, &format!("undecodable: {error}"));
                 tracing::warn!("Skipping undecodable amendment file {}: {error}", file.name());
                 continue;
             }
@@ -84,7 +85,7 @@ impl AmendmentClient {
                 Ok(w) => w,
                 Err(e) => {
                     scan.malformed += 1;
-                    scan.count_failure(&format!("malformed: {e}"));
+                    count_failure(&mut scan, &format!("malformed: {e}"));
                     tracing::warn!("Skipping malformed amendment file {}: {e}", file.name());
                     continue;
                 }
@@ -96,7 +97,7 @@ impl AmendmentClient {
                         scan.without_text_ref += 1;
                     }
                     if amendment.fate().is_unknown() {
-                        scan.count_unknown_fate(amendment.fate().label());
+                        count_unknown_fate(&mut scan, amendment.fate().label());
                     }
                     scan.parsed += 1;
                     batch.push(amendment);
@@ -107,7 +108,7 @@ impl AmendmentClient {
                 Ok(None) => scan.other_legislature += 1,
                 Err(e) => {
                     scan.refused += 1;
-                    scan.count_failure(&format!("refused: {e}"));
+                    count_failure(&mut scan, &format!("refused: {e}"));
                     tracing::warn!("Skipping refused amendment: {e}");
                 }
             }
@@ -354,9 +355,43 @@ impl AmendmentSource for AmendmentClient {
 
         Ok(AmendmentFeed {
             archive_id,
-            batches: AmendmentBatches::from_channel(receiver),
+            batches: AmendmentBatches::new(Box::new(ChannelBatches(receiver))),
         })
     }
+}
+
+/// Couture entre le parcours synchrone du ZIP et l'ecriture asynchrone.
+struct ChannelBatches(tokio::sync::mpsc::Receiver<Result<AmendmentBatch, SourceError>>);
+
+#[async_trait]
+impl BatchStream for ChannelBatches {
+    async fn next(&mut self) -> Option<Result<AmendmentBatch, SourceError>> {
+        self.0.recv().await
+    }
+}
+
+const MAX_FAILURE_SAMPLES: usize = 12;
+const MAX_FAILURE_LENGTH: usize = 200;
+
+/// Echantillon borne des causes: au plus `MAX_FAILURE_SAMPLES` causes
+/// distinctes, chacune tronquee a `MAX_FAILURE_LENGTH` caracteres.
+fn count_failure(scan: &mut ArchiveScan, failure: &str) {
+    let failure: String = failure.chars().take(MAX_FAILURE_LENGTH).collect();
+    if scan.failures.contains_key(&failure) || scan.failures.len() < MAX_FAILURE_SAMPLES {
+        *scan.failures.entry(failure).or_insert(0) += 1;
+    }
+}
+
+fn count_unknown_fate(scan: &mut ArchiveScan, label: &str) {
+    *scan.unknown_fates.entry(label.to_string()).or_insert(0) += 1;
+}
+
+fn count_top_level(scan: &mut ArchiveScan, path: &str) {
+    let segment = path.split('/').next().unwrap_or_default();
+    if segment.is_empty() || segment == path {
+        return;
+    }
+    *scan.top_level.entry(segment.to_string()).or_insert(0) += 1;
 }
 
 #[cfg(test)]

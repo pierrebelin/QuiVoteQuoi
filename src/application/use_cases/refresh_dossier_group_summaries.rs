@@ -1,7 +1,8 @@
 use super::get_dossier_group_actions::fingerprint;
 use crate::application::ports::dossier_group_actions_repository::{
-    DossierGroupActionsRepository, DossierSummaryRepository, RepositoryError,
+    DossierGroupActionsRepository, RepositoryError,
 };
+use crate::application::ports::dossier_summary_repository::DossierSummaryRepository;
 use crate::application::ports::dossier_summary_generator::DossierSummaryGenerator;
 
 #[derive(Debug, Clone, Default)]
@@ -109,7 +110,7 @@ mod tests {
     use chrono::NaiveDate;
     use std::sync::Mutex;
 
-    use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
+    use crate::application::ports::dossier_summary_repository::GeneratedGroupSummary;
     use crate::application::ports::dossier_summary_generator::SummaryGeneratorError;
     use crate::domain::actor::GroupUid;
     use crate::domain::dossier::DossierUid;

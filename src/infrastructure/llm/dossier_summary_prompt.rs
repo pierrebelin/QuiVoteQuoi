@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use serde::Deserialize;
 use serde_json::{json, Value};
 
-use crate::application::ports::dossier_group_actions_repository::GeneratedGroupSummary;
+use crate::application::ports::dossier_summary_repository::GeneratedGroupSummary;
 use crate::application::ports::dossier_summary_generator::SummaryGeneratorError;
 use crate::domain::dossier_group_facts::DossierGroupFacts;
 use crate::domain::dossier_summary::{SummaryParagraph, SummarySource};

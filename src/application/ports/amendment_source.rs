@@ -8,8 +8,8 @@
 //! non par l'archive.
 //!
 //! Le decoupage a une deuxieme raison, structurelle: le parcours d'un ZIP est
-//! synchrone et l'ecriture en base est asynchrone. Le canal est la couture entre
-//! les deux.
+//! synchrone et l'ecriture en base est asynchrone. L'adapter choisit la couture
+//! entre les deux (`BatchStream`).
 
 use std::collections::BTreeMap;
 
@@ -50,37 +50,8 @@ pub struct ArchiveScan {
 }
 
 impl ArchiveScan {
-    pub const MAX_FAILURE_SAMPLES: usize = 12;
-    pub const MAX_FAILURE_LENGTH: usize = 200;
-
     pub fn unreadable(&self) -> usize {
         self.undecodable + self.malformed + self.refused
-    }
-
-    pub fn count_failure(&mut self, failure: &str) {
-        let failure = Self::truncate(failure, Self::MAX_FAILURE_LENGTH);
-        if self.failures.contains_key(&failure) || self.failures.len() < Self::MAX_FAILURE_SAMPLES {
-            *self.failures.entry(failure).or_insert(0) += 1;
-        }
-    }
-
-    fn truncate(value: &str, max_length: usize) -> String {
-        if value.chars().count() <= max_length {
-            return value.to_string();
-        }
-        value.chars().take(max_length).collect()
-    }
-
-    pub fn count_unknown_fate(&mut self, label: &str) {
-        *self.unknown_fates.entry(label.to_string()).or_insert(0) += 1;
-    }
-
-    pub fn count_top_level(&mut self, path: &str) {
-        let segment = path.split('/').next().unwrap_or_default();
-        if segment.is_empty() || segment == path {
-            return;
-        }
-        *self.top_level.entry(segment.to_string()).or_insert(0) += 1;
     }
 }
 
@@ -91,31 +62,42 @@ pub enum AmendmentBatch {
     Done(ArchiveScan),
 }
 
+/// Lecture d'un flux de lots. L'adapter choisit la couture (canal, fichier,
+/// file en memoire) ; le port n'en connait que le prochain message.
+#[async_trait]
+pub trait BatchStream: Send {
+    async fn next(&mut self) -> Option<Result<AmendmentBatch, SourceError>>;
+}
+
 /// Flux de lots. Se consomme jusqu'a `None`; le dernier message porte le bilan.
 pub struct AmendmentBatches {
-    receiver: tokio::sync::mpsc::Receiver<Result<AmendmentBatch, SourceError>>,
+    stream: Box<dyn BatchStream>,
 }
 
 impl AmendmentBatches {
-    pub fn from_channel(
-        receiver: tokio::sync::mpsc::Receiver<Result<AmendmentBatch, SourceError>>,
-    ) -> Self {
-        Self { receiver }
+    pub fn new(stream: Box<dyn BatchStream>) -> Self {
+        Self { stream }
     }
 
     /// Flux pret a consommer, sans tache ni reseau. Pour les tests de use case.
+    #[cfg(test)]
     pub fn from_batches(batches: Vec<Result<AmendmentBatch, SourceError>>) -> Self {
-        let (sender, receiver) = tokio::sync::mpsc::channel(batches.len().max(1));
-        for batch in batches {
-            // La capacite couvre exactement le nombre de messages: l'envoi ne
-            // peut pas echouer.
-            let _ = sender.try_send(batch);
-        }
-        Self { receiver }
+        Self::new(Box::new(QueuedBatches(batches.into())))
     }
 
     pub async fn next(&mut self) -> Option<Result<AmendmentBatch, SourceError>> {
-        self.receiver.recv().await
+        self.stream.next().await
+    }
+}
+
+#[cfg(test)]
+struct QueuedBatches(std::collections::VecDeque<Result<AmendmentBatch, SourceError>>);
+
+#[cfg(test)]
+#[async_trait]
+impl BatchStream for QueuedBatches {
+    async fn next(&mut self) -> Option<Result<AmendmentBatch, SourceError>> {
+        self.0.pop_front()
     }
 }
 

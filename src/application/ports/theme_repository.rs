@@ -37,17 +37,6 @@ pub enum AttemptOutcome {
     Failed,
 }
 
-impl AttemptOutcome {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            Self::Ruled => "ruled",
-            Self::Proposed => "proposed",
-            Self::NoFamily => "no_family",
-            Self::Failed => "failed",
-        }
-    }
-}
-
 /// Dossier qu'aucun scrutin ne relie a un texte. Faute de texte porteur, il est
 /// classe sur son propre titre (RM-06).
 #[derive(Debug, Clone)]
