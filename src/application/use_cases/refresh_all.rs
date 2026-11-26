@@ -56,6 +56,30 @@ pub struct RefreshOutcome {
     pub vote_explanations_anomaly: Option<String>,
 }
 
+/// Sources, depots et plafonds d'une passe de rafraichissement.
+pub struct RefreshAllConfig<'a> {
+    pub actor_source: &'a dyn ActorSource,
+    pub actor_repository: &'a dyn ActorRepository,
+    pub assembly_source: &'a dyn AssemblySource,
+    pub dossier_repository: &'a dyn DossierRepository,
+    pub decision_votes: &'a dyn DecisionVoteRepository,
+    pub scrutin_source: &'a dyn ScrutinSource,
+    pub scrutin_repository: &'a dyn ScrutinRepository,
+    pub amendment_source: &'a dyn AmendmentSource,
+    pub amendment_repository: &'a dyn AmendmentRepository,
+    pub citation_repository: &'a dyn AmendmentCitationRepository,
+    pub sitting_record_source: &'a dyn SittingRecordSource,
+    pub vote_explanation_repository: &'a dyn VoteExplanationRepository,
+    pub theme_repository: &'a dyn ThemeRepository,
+    pub theme_classifier: &'a dyn ThemeClassifier,
+    /// Objets soumis au rattachement par passe. Plafond, pas objectif: le
+    /// reliquat est repris au rafraichissement suivant.
+    pub theme_batch: i64,
+    /// Amendements ecrits par passe. Meme regle: un plafond, pas un objectif.
+    pub amendment_batch: usize,
+    pub journaling: Journaling<'a>,
+}
+
 /// Rafraichissement complet, dans l'ordre impose: referentiel d'abord, dossiers
 /// et scrutins ensuite. L'inverse calculerait les rattachements et les
 /// repartitions reconstruites sur des appartenances perimees (RM-11).
@@ -93,26 +117,26 @@ pub struct RefreshAll<'a> {
 }
 
 impl<'a> RefreshAll<'a> {
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        actor_source: &'a dyn ActorSource,
-        actor_repository: &'a dyn ActorRepository,
-        assembly_source: &'a dyn AssemblySource,
-        dossier_repository: &'a dyn DossierRepository,
-        decision_votes: &'a dyn DecisionVoteRepository,
-        scrutin_source: &'a dyn ScrutinSource,
-        scrutin_repository: &'a dyn ScrutinRepository,
-        amendment_source: &'a dyn AmendmentSource,
-        amendment_repository: &'a dyn AmendmentRepository,
-        citation_repository: &'a dyn AmendmentCitationRepository,
-        sitting_record_source: &'a dyn SittingRecordSource,
-        vote_explanation_repository: &'a dyn VoteExplanationRepository,
-        theme_repository: &'a dyn ThemeRepository,
-        theme_classifier: &'a dyn ThemeClassifier,
-        theme_batch: i64,
-        amendment_batch: usize,
-        journaling: Journaling<'a>,
-    ) -> Self {
+    pub fn new(config: RefreshAllConfig<'a>) -> Self {
+        let RefreshAllConfig {
+            actor_source,
+            actor_repository,
+            assembly_source,
+            dossier_repository,
+            decision_votes,
+            scrutin_source,
+            scrutin_repository,
+            amendment_source,
+            amendment_repository,
+            citation_repository,
+            sitting_record_source,
+            vote_explanation_repository,
+            theme_repository,
+            theme_classifier,
+            theme_batch,
+            amendment_batch,
+            journaling,
+        } = config;
         Self {
             actor_source,
             actor_repository,
@@ -608,25 +632,25 @@ mod tests {
          $theme_repository:expr, $theme_classifier:expr,
          $amendment_source:expr, $citation_repository:expr,
          $sitting_records:expr) => {
-            RefreshAll::new(
-                $actor_source,
-                $actor_repository,
-                $assembly_source,
-                $dossier_repository,
-                &InMemoryDecisionVotes::none(),
-                $scrutin_source,
-                $scrutin_repository,
-                $amendment_source,
-                &NoopAmendmentRepository,
-                $citation_repository,
-                $sitting_records,
-                &InMemoryVoteExplanations::default(),
-                $theme_repository,
-                $theme_classifier,
-                50,
-                0,
-                Journaling::off(),
-            )
+            RefreshAll::new(RefreshAllConfig {
+                actor_source: $actor_source,
+                actor_repository: $actor_repository,
+                assembly_source: $assembly_source,
+                dossier_repository: $dossier_repository,
+                decision_votes: &InMemoryDecisionVotes::none(),
+                scrutin_source: $scrutin_source,
+                scrutin_repository: $scrutin_repository,
+                amendment_source: $amendment_source,
+                amendment_repository: &NoopAmendmentRepository,
+                citation_repository: $citation_repository,
+                sitting_record_source: $sitting_records,
+                vote_explanation_repository: &InMemoryVoteExplanations::default(),
+                theme_repository: $theme_repository,
+                theme_classifier: $theme_classifier,
+                theme_batch: 50,
+                amendment_batch: 0,
+                journaling: Journaling::off(),
+            })
             .execute(date(2026, 8, 9))
             .await
             .unwrap()
@@ -1040,25 +1064,25 @@ mod tests {
         *citation_repository.scrutins.lock().unwrap() = vec![citing_scrutin()];
         let attempted_at = Utc.with_ymd_and_hms(2026, 8, 9, 6, 0, 0).unwrap();
 
-        RefreshAll::new(
-            &actor_source,
-            &actor_repository,
+        RefreshAll::new(RefreshAllConfig {
+            actor_source: &actor_source,
+            actor_repository: &actor_repository,
             assembly_source,
-            &dossier_repository,
-            &InMemoryDecisionVotes::none(),
-            &scrutin_source,
-            &scrutin_repository,
+            dossier_repository: &dossier_repository,
+            decision_votes: &InMemoryDecisionVotes::none(),
+            scrutin_source: &scrutin_source,
+            scrutin_repository: &scrutin_repository,
             amendment_source,
-            &NoopAmendmentRepository,
-            &citation_repository,
-            &FakeSittingRecords::default(),
-            &InMemoryVoteExplanations::default(),
-            &theme_repository,
-            &theme_classifier,
-            50,
-            0,
-            Journaling::to(journal, attempted_at),
-        )
+            amendment_repository: &NoopAmendmentRepository,
+            citation_repository: &citation_repository,
+            sitting_record_source: &FakeSittingRecords::default(),
+            vote_explanation_repository: &InMemoryVoteExplanations::default(),
+            theme_repository: &theme_repository,
+            theme_classifier: &theme_classifier,
+            theme_batch: 50,
+            amendment_batch: 0,
+            journaling: Journaling::to(journal, attempted_at),
+        })
         .execute(date(2026, 8, 9))
         .await
     }

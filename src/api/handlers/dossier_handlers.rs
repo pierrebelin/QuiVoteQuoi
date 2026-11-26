@@ -19,7 +19,7 @@ use crate::application::use_cases::get_dossier_families::GetDossierFamilies;
 use crate::application::use_cases::get_dossier_group_actions::GetDossierGroupActions;
 use crate::application::use_cases::journaling::Journaling;
 use crate::application::use_cases::refresh_actor_registry::RefreshActorRegistry;
-use crate::application::use_cases::refresh_all::RefreshAll;
+use crate::application::use_cases::refresh_all::{RefreshAll, RefreshAllConfig};
 use crate::application::use_cases::refresh_dossier_group_summaries::RefreshDossierGroupSummaries;
 use crate::application::use_cases::refresh_dossiers::RefreshScope;
 use crate::application::use_cases::refresh_text_briefs::RefreshTextBriefs;
@@ -189,25 +189,25 @@ pub async fn refresh_dossiers(
         RefreshScope::Incremental
     };
 
-    let uc = RefreshAll::new(
-        state.actor_source.as_ref(),
-        state.actor_repository.as_ref(),
-        state.assembly_source.as_ref(),
-        state.dossier_repository.as_ref(),
-        state.decision_vote_repository.as_ref(),
-        state.scrutin_source.as_ref(),
-        state.scrutin_repository.as_ref(),
-        state.amendment_source.as_ref(),
-        state.amendment_repository.as_ref(),
-        state.amendment_citation_repository.as_ref(),
-        state.sitting_record_source.as_ref(),
-        state.vote_explanation_repository.as_ref(),
-        state.theme_repository.as_ref(),
-        state.theme_classifier.as_ref(),
-        config::theme_batch_per_refresh(),
-        config::amendment_batch_per_refresh(),
-        Journaling::to(state.ingestion_journal.as_ref(), Utc::now()),
-    );
+    let uc = RefreshAll::new(RefreshAllConfig {
+        actor_source: state.actor_source.as_ref(),
+        actor_repository: state.actor_repository.as_ref(),
+        assembly_source: state.assembly_source.as_ref(),
+        dossier_repository: state.dossier_repository.as_ref(),
+        decision_votes: state.decision_vote_repository.as_ref(),
+        scrutin_source: state.scrutin_source.as_ref(),
+        scrutin_repository: state.scrutin_repository.as_ref(),
+        amendment_source: state.amendment_source.as_ref(),
+        amendment_repository: state.amendment_repository.as_ref(),
+        citation_repository: state.amendment_citation_repository.as_ref(),
+        sitting_record_source: state.sitting_record_source.as_ref(),
+        vote_explanation_repository: state.vote_explanation_repository.as_ref(),
+        theme_repository: state.theme_repository.as_ref(),
+        theme_classifier: state.theme_classifier.as_ref(),
+        theme_batch: config::theme_batch_per_refresh(),
+        amendment_batch: config::amendment_batch_per_refresh(),
+        journaling: Journaling::to(state.ingestion_journal.as_ref(), Utc::now()),
+    });
 
     let outcome = uc
         .execute_with(scope, Utc::now().date_naive())
