@@ -1,0 +1,17 @@
+[Unit]
+Description=QuiVoteQuoi — Reel du jour, deux declenchements avant 18 h
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
+
+[Timer]
+Unit=hemicycle-reels-dispatch.service
+
+# Heure de Paris quel que soit le fuseau du VPS. 12 h 30 : la synchronisation
+# des scrutins de la veille est faite. 14 h 30 : filet si le premier passage
+# a echoue ; il ne redepose rien de deja programme.
+OnCalendar=*-*-* 12:30:00 Europe/Paris
+OnCalendar=*-*-* 14:30:00 Europe/Paris
+AccuracySec=1min
+# Pas de Persistent : apres une panne, le rattrapage se fait a la main.
+
+[Install]
+WantedBy=timers.target
