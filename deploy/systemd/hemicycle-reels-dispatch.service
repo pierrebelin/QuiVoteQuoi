@@ -1,0 +1,33 @@
+[Unit]
+Description=QuiVoteQuoi — declenchement du workflow GitHub du Reel du jour
+Documentation=https://github.com/pierrebelin/QuiVoteQuoi
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=hemicycle
+Group=hemicycle
+WorkingDirectory=/home/hemicycle/app
+EnvironmentFile=-/home/hemicycle/shared/.env
+ExecStart=/home/hemicycle/app/deploy/cron/hemicycle-reels-dispatch.sh
+
+TimeoutStartSec=120
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=hemicycle-reels-dispatch

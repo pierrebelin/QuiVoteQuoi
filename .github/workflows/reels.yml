@@ -4,8 +4,10 @@ name: Reels
 # rend la vidéo, l'héberge dans une Release `reel-<date>` et dépose dans Buffer
 # les posts du jour (Reel Instagram et TikTok, carrousel Instagram), programmés
 # pour 18 h : Buffer les publie seul ; une alerte `reels` sinon.
-# Six passages programmés, de 11 h 17 à 16 h 17 à Paris l'hiver (une heure de
-# plus l'été) : GitHub retarde ou saute des crons, les suivants rattrapent.
+# Déclencheur principal : le VPS, à 12 h 30 et 14 h 30 heure de Paris
+# (deploy/systemd/hemicycle-reels-dispatch.timer), car GitHub retarde de
+# plusieurs heures ou saute ses crons. Les six passages programmés ci-dessous,
+# de 11 h 17 à 16 h 17 à Paris l'hiver, ne restent qu'en secours.
 # Le script ne continue qu'après 12 h à Paris et si les posts du jour manquent.
 # Les passages programmés ne tournent que si la variable de dépôt REELS_ACTIF
 # vaut `true`.
