@@ -111,6 +111,23 @@ function closeAlert(date) {
 const releaseTag = (date) => `reel-${date}`
 
 /**
+ * Post préparé pour `date` : un de ses médias vient de la Release du jour. La date de
+ * publication ne suffit pas : un post de la veille reporté au jour (26/11/2026) passait
+ * pour celui du jour et le Reel n'était pas rendu.
+ */
+const preparedFor = (date) => (post) =>
+  (post.assets ?? []).some((asset) => asset.source?.includes(`/releases/download/${releaseTag(date)}/`))
+
+/** Posts du jour réellement préparés pour `date` ; les autres sont signalés et ignorés. */
+function keepPreparedFor(date, posts, kind) {
+  const kept = posts.filter(preparedFor(date))
+  for (const post of posts.filter((post) => !kept.includes(post))) {
+    log(`${kind} ${post.id} programmé ce jour mais hors de la Release ${releaseTag(date)} : ignoré.`)
+  }
+  return kept
+}
+
+/**
  * Marque de rendu, heure UTC `HHMMSS` du passage, dans le nom de chaque fichier
  * rendu : un nouveau rendu du même jour obtient une adresse neuve. Buffer met en
  * cache vignettes et médias par adresse : un fichier remplacé sous le même nom
@@ -361,33 +378,45 @@ async function run() {
   const dayStart = parisMidnight(date)
   const dayEnd = new Date(parisMidnight(nextDay(date)).getTime() - 1)
   const todayReels = reelTag
-    ? await buffer.posts(organizationId, {
-        channelIds,
-        status: HANDLED_STATUSES,
-        tagIds: [reelTag],
-        dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
-      })
+    ? keepPreparedFor(
+        date,
+        await buffer.posts(organizationId, {
+          channelIds,
+          status: HANDLED_STATUSES,
+          tagIds: [reelTag],
+          dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
+        }),
+        'Reel',
+      )
     : []
   const missing = channels.filter((channel) => !todayReels.some((post) => post.channelId === channel.id))
   const instagram = channels.find((channel) => channel.service === 'instagram')
   const postTag = knownTags.get(POST_TAG)
   const todayPosts = postTag
-    ? await buffer.posts(organizationId, {
-        channelIds: [instagram.id],
-        status: HANDLED_STATUSES,
-        tagIds: [postTag],
-        dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
-      })
+    ? keepPreparedFor(
+        date,
+        await buffer.posts(organizationId, {
+          channelIds: [instagram.id],
+          status: HANDLED_STATUSES,
+          tagIds: [postTag],
+          dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
+        }),
+        'Post',
+      )
     : []
   const postMissing = todayPosts.length === 0
   const storyTag = knownTags.get(STORY_TAG)
   const todayStories = storyTag
-    ? await buffer.posts(organizationId, {
-        channelIds: [instagram.id],
-        status: HANDLED_STATUSES,
-        tagIds: [storyTag],
-        dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
-      })
+    ? keepPreparedFor(
+        date,
+        await buffer.posts(organizationId, {
+          channelIds: [instagram.id],
+          status: HANDLED_STATUSES,
+          tagIds: [storyTag],
+          dueAt: { start: dayStart.toISOString(), end: dayEnd.toISOString() },
+        }),
+        'Story',
+      )
     : []
   const storyMissing = todayStories.length === 0
   if (missing.length === 0 && !postMissing && !storyMissing) {

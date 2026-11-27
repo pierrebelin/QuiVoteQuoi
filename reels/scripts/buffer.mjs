@@ -7,7 +7,9 @@ const MAX_ATTEMPTS = 3
 /** Couleur des étiquettes créées par la chaîne (Buffer l'exige). */
 const TAG_COLOR = '#0E7490'
 
-const POST_FIELDS = 'id status dueAt channelId tags { id name }'
+/** `assets` : l'adresse du média dit de quelle Release, donc de quel jour, vient le post. */
+const POST_FIELDS =
+  'id status dueAt channelId tags { id name } assets { __typename ... on ImageAsset { source } ... on VideoAsset { source } }'
 
 export class BufferError extends Error {}
 
